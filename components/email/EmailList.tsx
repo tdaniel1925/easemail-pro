@@ -13,6 +13,8 @@ interface Email {
   subject: string;
   snippet: string;
   body?: string;
+  bodyText?: string;
+  bodyHtml?: string;
   receivedAt: Date;
   isRead: boolean;
   isStarred: boolean;
