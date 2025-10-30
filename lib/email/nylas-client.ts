@@ -1,4 +1,4 @@
-import Nylas from 'nylas';
+import Nylas, { WebhookTriggers } from 'nylas';
 
 const nylasConfig = {
   apiKey: process.env.NYLAS_API_KEY!,
@@ -91,11 +91,11 @@ export async function createNylasWebhook(accountId: string) {
   const webhook = await nylas.webhooks.create({
     requestBody: {
       triggerTypes: [
-        'message.created',
-        'message.updated',
-        'message.deleted',
-        'thread.created',
-        'thread.updated',
+        WebhookTriggers.MessageCreated,
+        WebhookTriggers.MessageUpdated,
+        WebhookTriggers.MessageDeleted,
+        WebhookTriggers.ThreadCreated,
+        WebhookTriggers.ThreadUpdated,
       ],
       webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/nylas`,
       description: `Webhook for account ${accountId}`,
