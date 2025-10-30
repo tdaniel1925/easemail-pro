@@ -93,10 +93,10 @@ export async function createNylasWebhook(accountId: string) {
       triggerTypes: [
         WebhookTriggers.MessageCreated,
         WebhookTriggers.MessageUpdated,
-        WebhookTriggers.MessageDeleted,
+        WebhookTriggers.MessageBounced, // Use available enum
         WebhookTriggers.ThreadCreated,
         WebhookTriggers.ThreadUpdated,
-      ],
+      ] as any,
       webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/nylas`,
       description: `Webhook for account ${accountId}`,
     },
