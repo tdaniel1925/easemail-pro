@@ -52,7 +52,7 @@ export async function getNylasMessages(grantId: string, params?: {
     queryParams: {
       limit: params?.limit || 50,
       pageToken: params?.pageToken,
-      in: params?.folder,
+      in: params?.folder ? [params.folder] : undefined,
       unread: params?.unread,
     },
   });
