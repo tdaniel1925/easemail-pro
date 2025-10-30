@@ -68,7 +68,7 @@ export async function sendNylasEmail(grantId: string, emailData: {
   cc?: Array<{ email: string; name?: string }>;
   bcc?: Array<{ email: string; name?: string }>;
   replyTo?: Array<{ email: string; name?: string }>;
-  files?: Array<{ filename: string; content: string; contentType: string }>;
+  attachments?: Array<{ filename: string; content: string; contentType: string }>;
 }) {
   const message = await nylas.messages.send({
     identifier: grantId,
@@ -79,7 +79,7 @@ export async function sendNylasEmail(grantId: string, emailData: {
       cc: emailData.cc,
       bcc: emailData.bcc,
       replyTo: emailData.replyTo,
-      files: emailData.files,
+      attachments: emailData.attachments,
     },
   });
 
