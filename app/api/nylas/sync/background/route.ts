@@ -154,6 +154,19 @@ async function performBackgroundSync(
               providerFileId: att.id,
             })) || [];
 
+            // Log date for debugging
+            const receivedDate = message.date ? new Date(message.date * 1000) : new Date();
+            const sentDate = message.date ? new Date(message.date * 1000) : new Date();
+            
+            if (currentPage === 1 && messages.indexOf(message) === 0) {
+              console.log('📅 Sample email date conversion:', {
+                nylasDate: message.date,
+                receivedAt: receivedDate.toISOString(),
+                sentAt: sentDate.toISOString(),
+                subject: message.subject?.substring(0, 50)
+              });
+            }
+
             // Use INSERT ... ON CONFLICT DO NOTHING to handle duplicates gracefully
             await db.insert(emails).values({
               accountId: accountId,
@@ -173,8 +186,8 @@ async function performBackgroundSync(
               snippet: message.snippet,
               bodyText: message.body || '',
               bodyHtml: message.body || '',
-              receivedAt: message.date ? new Date(message.date * 1000) : new Date(),
-              sentAt: message.date ? new Date(message.date * 1000) : new Date(),
+              receivedAt: receivedDate,
+              sentAt: sentDate,
               isRead: !message.unread,
               isStarred: message.starred || false,
               hasAttachments: (message.attachments?.length || 0) > 0,
