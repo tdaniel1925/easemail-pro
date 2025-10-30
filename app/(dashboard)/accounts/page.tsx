@@ -35,10 +35,10 @@ export default function AccountsPage() {
   useEffect(() => {
     fetchAccounts();
     
-    // Poll for sync status every 5 seconds
+    // Start with faster polling
     const interval = setInterval(() => {
       checkSyncStatus();
-    }, 5000);
+    }, 2000); // Poll every 2 seconds for real-time updates
     
     return () => clearInterval(interval);
   }, []);
@@ -176,21 +176,53 @@ export default function AccountsPage() {
     switch (status) {
       case 'active':
       case 'completed':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return (
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse" />
+              <div className="absolute inset-0 h-3 w-3 rounded-full bg-green-500 animate-ping opacity-75" />
+            </div>
+            <span className="text-xs font-medium text-green-600 dark:text-green-400">Active</span>
+          </div>
+        );
       case 'syncing':
       case 'background_syncing':
         return (
           <div className="flex items-center gap-2">
-            <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
-            {progress !== undefined && (
-              <span className="text-xs text-blue-500">{progress}%</span>
-            )}
+            <div className="relative">
+              <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse" />
+              <div className="absolute inset-0 h-3 w-3 rounded-full bg-blue-500 animate-ping opacity-75" />
+            </div>
+            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Syncing {progress}%</span>
           </div>
         );
       case 'error':
-        return <XCircle className="h-5 w-5 text-red-500" />;
+        return (
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
+              <div className="absolute inset-0 h-3 w-3 rounded-full bg-red-500 animate-ping opacity-75" />
+            </div>
+            <span className="text-xs font-medium text-red-600 dark:text-red-400">Error</span>
+          </div>
+        );
+      case 'pending':
+        return (
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <div className="h-3 w-3 rounded-full bg-yellow-500 animate-pulse" />
+              <div className="absolute inset-0 h-3 w-3 rounded-full bg-yellow-500 animate-ping opacity-75" />
+            </div>
+            <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">Pending</span>
+          </div>
+        );
       default:
-        return <div className="h-5 w-5 rounded-full bg-gray-300" />;
+        return (
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-3 rounded-full bg-gray-400" />
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Inactive</span>
+          </div>
+        );
     }
   };
 
@@ -288,25 +320,45 @@ export default function AccountsPage() {
                 <CardContent>
                   {/* Progress Bar for Background Sync */}
                   {(account.syncStatus === 'background_syncing' || account.syncStatus === 'syncing') && (
-                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                          Syncing emails in background...
-                        </span>
-                        <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                    <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+                          <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                            Syncing emails in background...
+                          </span>
+                        </div>
+                        <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
                           {account.syncProgress || 0}%
                         </span>
                       </div>
-                      <div className="w-full bg-blue-200 dark:bg-blue-900 rounded-full h-2">
+                      <div className="w-full bg-blue-200 dark:bg-blue-900 rounded-full h-3 overflow-hidden">
                         <div
-                          className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
+                          className="bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-400 dark:to-indigo-500 h-3 rounded-full transition-all duration-500 ease-out relative"
                           style={{ width: `${account.syncProgress || 0}%` }}
-                        />
+                        >
+                          <div className="absolute inset-0 bg-white/30 animate-pulse" />
+                        </div>
                       </div>
-                      {account.syncedEmailCount !== undefined && account.totalEmailCount !== undefined && (
-                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                          {account.syncedEmailCount.toLocaleString()} of {account.totalEmailCount.toLocaleString() || '?'} emails synced
-                        </p>
+                      {account.syncedEmailCount !== undefined && (
+                        <div className="mt-3 space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-blue-700 dark:text-blue-300 font-medium">
+                              📧 {account.syncedEmailCount.toLocaleString()} emails synced
+                            </span>
+                            {account.totalEmailCount && (
+                              <span className="text-blue-600 dark:text-blue-400 text-xs">
+                                of ~{account.totalEmailCount.toLocaleString()} total
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
+                            <div className="flex items-center gap-1">
+                              <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                              <span>Live sync in progress</span>
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
@@ -314,7 +366,9 @@ export default function AccountsPage() {
                   <div className="grid grid-cols-3 gap-6 mb-4 pb-4 border-b border-border">
                     <div>
                       <p className="text-xs text-muted-foreground uppercase mb-1">Status</p>
-                      <p className="text-sm font-medium capitalize">{account.syncStatus}</p>
+                      <div className="mt-1">
+                        {getStatusIcon(syncing[account.id] ? 'syncing' : account.syncStatus, account.syncProgress)}
+                      </div>
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -330,7 +384,9 @@ export default function AccountsPage() {
                         <Mail className="h-4 w-4 text-muted-foreground" />
                         <div>
                           <p className="text-xs text-muted-foreground uppercase mb-1">Emails</p>
-                          <p className="text-sm font-medium">{account.emailCount || 0}</p>
+                          <p className="text-sm font-medium">
+                            {(account.syncedEmailCount || account.emailCount || 0).toLocaleString()}
+                          </p>
                         </div>
                       </div>
                     </div>
