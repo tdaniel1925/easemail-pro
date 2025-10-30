@@ -31,6 +31,7 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAccounts();
@@ -175,10 +176,19 @@ export default function AccountsPage() {
   };
 
   const handleRemoveAccount = async (accountId: string, email: string) => {
-    if (!confirm(`Are you sure you want to remove ${email}?`)) {
+    // First click: ask for confirmation inline
+    if (confirmingDelete !== accountId) {
+      setConfirmingDelete(accountId);
+      setMessage({ 
+        type: 'error', 
+        text: `Are you sure you want to remove ${email}? All emails and folders will be deleted. Click Remove again to confirm.` 
+      });
       return;
     }
 
+    // Second click: actually delete
+    setConfirmingDelete(null);
+    
     try {
       const response = await fetch(`/api/nylas/accounts/${accountId}`, {
         method: 'DELETE',
@@ -453,13 +463,13 @@ export default function AccountsPage() {
                         </Button>
                       )}
                       <Button 
-                        variant="outline" 
+                        variant={confirmingDelete === account.id ? "destructive" : "outline"}
                         size="sm" 
-                        className="text-destructive hover:bg-destructive/10"
+                        className={confirmingDelete === account.id ? "" : "text-destructive hover:bg-destructive/10"}
                         onClick={() => handleRemoveAccount(account.id, account.emailAddress)}
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
-                        Remove
+                        {confirmingDelete === account.id ? "Click Again to Confirm" : "Remove"}
                       </Button>
                     </div>
                   </div>
