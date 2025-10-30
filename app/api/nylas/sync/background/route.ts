@@ -127,7 +127,7 @@ async function performBackgroundSync(
           identifier: grantId,
           queryParams: {
             limit: pageSize,
-            page_token: pageToken,
+            pageToken: pageToken,
           },
         });
 
