@@ -17,7 +17,7 @@ export async function initNylasAuth(userId: string, provider: string) {
   const authUrl = nylas.auth.urlForOAuth2({
     ...config,
     provider: provider as any, // 'google', 'microsoft', 'imap'
-    scopes: ['email.read_only', 'email.send', 'email.modify', 'contacts.read_only'],
+    scope: ['email.read_only', 'email.send', 'email.modify', 'contacts.read_only'],
     state: userId,
   });
 
