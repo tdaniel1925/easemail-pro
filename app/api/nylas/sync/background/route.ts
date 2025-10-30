@@ -143,17 +143,6 @@ async function performBackgroundSync(
         // Insert or update emails in database
         for (const message of messages) {
           try {
-            // Check if email already exists
-            const existing = await db.query.emails.findFirst({
-              where: eq(emails.providerMessageId, message.id),
-            });
-
-            if (existing) {
-              console.log(`⏭️ Email ${message.id} already exists, skipping`);
-              continue;
-            }
-
-            // Insert new email
             // Map attachments to ensure required fields are present
             const mappedAttachments = message.attachments?.map((att: any) => ({
               id: att.id || '',
@@ -165,6 +154,7 @@ async function performBackgroundSync(
               providerFileId: att.id,
             })) || [];
 
+            // Use INSERT ... ON CONFLICT DO NOTHING to handle duplicates gracefully
             await db.insert(emails).values({
               accountId: accountId,
               provider: 'nylas',
@@ -188,11 +178,16 @@ async function performBackgroundSync(
               isStarred: message.starred || false,
               hasAttachments: (message.attachments?.length || 0) > 0,
               attachments: mappedAttachments,
-            });
+            }).onConflictDoNothing(); // Ignore duplicates silently
 
             totalSynced++;
             syncedCount++;
-          } catch (emailError) {
+          } catch (emailError: any) {
+            // If it's a duplicate key error, just skip it silently
+            if (emailError?.code === '23505') {
+              console.log(`⏭️ Email ${message.id} already exists, skipping`);
+              continue;
+            }
             console.error(`❌ Error syncing email ${message.id}:`, emailError);
             // Continue with next email
           }

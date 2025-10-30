@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
             folders: message.folders || [],
             receivedAt: new Date(message.date * 1000),
             providerData: message as any,
-          });
+          }).onConflictDoNothing(); // Ignore duplicates silently
         }
         syncedCount++;
       } catch (messageError) {
