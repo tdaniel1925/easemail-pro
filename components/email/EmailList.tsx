@@ -34,17 +34,27 @@ interface EmailListProps {
 
 export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailClick }: EmailListProps) {
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="h-14 px-4 border-b border-border flex items-center">
-        <div>
-          <h2 className="text-lg font-semibold">Inbox</h2>
-          <p className="text-sm text-muted-foreground">{emails.length} messages</p>
+    <div className="flex flex-col h-full bg-background">
+      {/* Subtle toolbar instead of header */}
+      <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium text-muted-foreground">Primary</h2>
+          <span className="text-xs text-muted-foreground">• {emails.length}</span>
+        </div>
+        
+        {/* Quick filters */}
+        <div className="flex gap-1">
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+            All
+          </Button>
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+            Unread
+          </Button>
         </div>
       </div>
 
       {/* Email List */}
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto px-3 py-2">
         <div className="space-y-2">
         {emails.map((email) => (
           <EmailCard
@@ -79,16 +89,17 @@ function EmailCard({ email, isExpanded, isSelected, onClick }: EmailCardProps) {
   return (
     <div
       className={cn(
-        'border border-border rounded-sm transition-colors bg-card overflow-hidden',
-        !email.isRead && 'bg-accent/50',
-        isSelected && 'border-l-4 border-l-primary'
+        'border border-border/50 rounded-lg transition-all bg-card overflow-hidden cursor-pointer',
+        'hover:shadow-md hover:-translate-y-0.5',
+        !email.isRead && 'bg-accent/30',
+        isSelected && 'ring-2 ring-primary ring-offset-1'
       )}
     >
       {/* Email Preview - Always Visible */}
       <div
         className={cn(
-          'p-3.5 cursor-pointer hover:bg-accent',
-          isExpanded && 'bg-accent'
+          'p-4 transition-colors',
+          isExpanded && 'bg-accent/50'
         )}
         onClick={onClick}
       >

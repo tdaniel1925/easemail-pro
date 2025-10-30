@@ -157,21 +157,21 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       {/* Left Sidebar - Folders (20%) */}
       <aside
         className={cn(
-          'w-56 border-r border-border bg-card flex flex-col transition-all duration-300',
+          'w-64 border-r border-border/50 bg-muted/30 flex flex-col transition-all duration-300',
           !sidebarOpen && 'w-0 overflow-hidden'
         )}
       >
-        {/* Header */}
-        <div className="h-14 px-3 border-b border-border flex items-center justify-between">
+        {/* Brand Header - No border, cleaner */}
+        <div className="h-16 px-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-primary rounded-sm"></div>
-            <span className="text-lg font-bold">EaseMail</span>
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/60 rounded-lg"></div>
+            <span className="text-xl font-semibold">EaseMail</span>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden h-8 w-8"
+            className="lg:hidden h-9 w-9"
           >
             <Menu className="h-4 w-4" />
           </Button>
@@ -179,9 +179,10 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
 
         {/* Folders */}
         <div className="flex-1 overflow-y-auto py-2">
-          <div className="px-2 mb-3">
-            <Button className="w-full h-9 text-sm" onClick={() => setIsComposeOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
+          {/* Compose Button - Make it stand out */}
+          <div className="px-4 pb-4">
+            <Button className="w-full h-11 text-base font-medium shadow-sm" onClick={() => setIsComposeOpen(true)}>
+              <Plus className="h-5 w-5 mr-2" />
               Compose
             </Button>
           </div>
@@ -198,13 +199,13 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
                   key={folder.id || folder.name}
                   onClick={() => router.push(folder.href || '/inbox')}
                   className={cn(
-                    'w-full flex items-center justify-between px-2.5 py-2 rounded-md text-sm transition-colors',
+                    'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all',
                     isActive
-                      ? 'bg-primary text-primary-foreground font-medium'
-                      : 'hover:bg-accent text-muted-foreground'
+                      ? 'bg-primary text-primary-foreground font-medium shadow-sm'
+                      : 'hover:bg-accent hover:shadow-sm text-muted-foreground'
                   )}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
                     <Icon className="h-4 w-4 flex-shrink-0" />
                     <span className="truncate">{displayName}</span>
                   </div>
@@ -256,67 +257,32 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             })}
           </div>
           
-          {/* Contacts Link */}
-          <div className="mt-4 px-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2">
-              Quick Access
-            </h3>
+          {/* Subtle divider before Quick Access */}
+          <div className="my-4 mx-4 border-t border-border/50"></div>
+          
+          {/* Quick Access */}
+          <div className="px-2 space-y-0.5">
             <button
               onClick={() => router.push('/calendar')}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm hover:bg-accent text-muted-foreground transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
             >
               <Calendar className="h-4 w-4" />
               <span>Calendar</span>
             </button>
             <button
               onClick={() => router.push('/contacts')}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm hover:bg-accent text-muted-foreground transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
             >
               <User className="h-4 w-4" />
               <span>Contacts</span>
             </button>
             <button
               onClick={() => router.push('/accounts')}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm hover:bg-accent text-muted-foreground transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
             >
               <Mail className="h-4 w-4" />
               <span>Accounts</span>
             </button>
-          </div>
-
-
-          {/* Labels Section */}
-          <div className="mt-4 px-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2">
-              Labels
-            </h3>
-            <div className="space-y-0.5">
-              <button className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm hover:bg-accent text-muted-foreground">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
-                <span>Important</span>
-              </button>
-              <button className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm hover:bg-accent text-muted-foreground">
-                <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
-                <span>Work</span>
-              </button>
-              <button className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm hover:bg-accent text-muted-foreground">
-                <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
-                <span>Personal</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Storage */}
-          <div className="mt-auto pt-6 px-3 pb-4">
-            <div className="p-3 bg-muted rounded-lg">
-              <div className="flex justify-between text-xs mb-2">
-                <span className="text-muted-foreground">Storage</span>
-                <span className="font-medium">4.2 GB / 15 GB</span>
-              </div>
-              <div className="h-2 bg-background rounded-full overflow-hidden">
-                <div className="h-full bg-primary w-[28%]"></div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -405,40 +371,45 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Header */}
-        <header className="h-14 border-b border-border flex items-center bg-card">
-          <div className="flex items-center gap-3 px-4" style={{ width: '75%' }}>
+        {/* Top Header - Cleaner and more spacious */}
+        <header className="h-16 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="h-full px-6 flex items-center gap-6">
             {!sidebarOpen && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setSidebarOpen(true)}
-                className="h-8 w-8"
+                className="h-9 w-9"
               >
                 <Menu className="h-4 w-4" />
               </Button>
             )}
             
-            <div className="flex-1 max-w-xl">
+            {/* Centered Search Bar */}
+            <div className="flex-1 max-w-2xl mx-auto">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search emails..."
-                  className="pl-9 w-full h-9 text-sm"
+                  placeholder="Search emails... (Ctrl+K)"
+                  className="pl-10 pr-4 h-10 bg-muted/50 border-none focus-visible:ring-1 text-sm"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
             </div>
-          </div>
 
-          {/* Vertical divider - aligned with email list/contact panel split */}
-          <div className="h-full border-r border-border"></div>
-
-          {/* Right side - empty space for Contact/AI tabs (25%) */}
-          <div className="flex items-center px-4" style={{ width: '25%' }}>
-            {/* Tabs will be rendered directly by EmailClient */}
+            {/* Right side - Quick actions */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => router.push('/settings')}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </header>
 

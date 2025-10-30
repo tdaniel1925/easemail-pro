@@ -23,7 +23,12 @@
     --border: 0 0% 26%;
     --input: 0 0% 26%;
     --ring: 0 72% 45%;
-    --radius: 0.25rem;
+    --radius: 0.5rem;
+    
+    /* Custom spacing variables for modern layout */
+    --spacing-header: 4rem;
+    --spacing-section: 1.5rem;
+    --sidebar-width: 16rem;
   }
 
   .dark {
@@ -91,18 +96,32 @@
 
 /* Email client specific styles */
 .email-list-item {
-  @apply transition-colors duration-200 cursor-pointer border-b border-border;
+  @apply transition-all duration-200 cursor-pointer border-b border-border/50;
 }
 
 .email-list-item:hover {
-  @apply bg-accent;
+  @apply bg-accent shadow-sm -translate-y-0.5;
 }
 
 .email-list-item.unread {
-  @apply bg-accent/50 font-semibold;
+  @apply bg-accent/30 font-semibold;
 }
 
 .email-composer {
   @apply min-h-[400px] w-full;
+}
+
+/* Modern card hover effects */
+.card-hover {
+  @apply transition-all duration-200;
+}
+
+.card-hover:hover {
+  @apply shadow-md -translate-y-0.5;
+}
+
+/* Smooth transitions for interactive elements */
+button, a {
+  @apply transition-colors duration-200;
 }
 
