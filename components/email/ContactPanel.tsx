@@ -6,12 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getInitials, generateAvatarColor } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import ContactModal from '@/components/contacts/ContactModal';
 
 interface Email {
   id: string;
-  from: { email: string; name: string };
+  fromEmail?: string;
+  fromName?: string;
   subject: string;
   receivedAt: Date;
+  bodyText?: string;
+  bodyHtml?: string;
 }
 
 interface ContactPanelProps {
@@ -72,31 +76,38 @@ export function ContactPanel({ email, onClose, activeTab, onTabChange }: Contact
 }
 
 function ContactInfoTab({ email, avatarColor }: { email: Email; avatarColor: string }) {
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  
   return (
-    <div className="p-4 space-y-6">
-      {/* Contact Header */}
-      <div className="text-center pb-4 border-b border-border">
-        <div
-          className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-medium text-white mx-auto mb-3"
-          style={{ backgroundColor: avatarColor }}
-        >
-          {getInitials(email.fromName || email.fromEmail || 'Unknown')}
+    <>
+      <div className="p-4 space-y-6">
+        {/* Contact Header */}
+        <div className="text-center pb-4 border-b border-border">
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-medium text-white mx-auto mb-3"
+            style={{ backgroundColor: avatarColor }}
+          >
+            {getInitials(email.fromName || email.fromEmail || 'Unknown')}
+          </div>
+          <h3 className="font-semibold text-lg">{email.fromName || email.fromEmail || 'Unknown'}</h3>
+          <p className="text-sm text-muted-foreground">{email.fromEmail}</p>
         </div>
-        <h3 className="font-semibold text-lg">{email.fromName || email.fromEmail || 'Unknown'}</h3>
-        <p className="text-sm text-muted-foreground">{email.fromEmail}</p>
-      </div>
 
-      {/* Action Buttons */}
-      <div className="flex gap-2">
-        <Button variant="outline" className="flex-1">
-          <UserPlus className="h-4 w-4 mr-2" />
-          Add to Contacts
-        </Button>
-        <Button variant="outline" className="flex-1">
-          <Phone className="h-4 w-4 mr-2" />
-          SMS
-        </Button>
-      </div>
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            className="flex-1"
+            onClick={() => setIsContactModalOpen(true)}
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add to Contacts
+          </Button>
+          <Button variant="outline" className="flex-1">
+            <Phone className="h-4 w-4 mr-2" />
+            SMS
+          </Button>
+        </div>
 
       {/* Contact Details - Only Email */}
       <div className="space-y-3">
@@ -127,7 +138,15 @@ function ContactInfoTab({ email, avatarColor }: { email: Email; avatarColor: str
           </div>
         </div>
       </div>
-    </div>
+      </div>
+
+      {/* Contact Modal */}
+      <ContactModal
+        isOpen={isContactModalOpen}
+        onClose={() => setIsContactModalOpen(false)}
+        email={email}
+      />
+    </>
   );
 }
 
