@@ -61,13 +61,15 @@ export async function GET(request: NextRequest) {
     try {
       console.log('🪝 Setting up webhook...');
       const webhook = await createNylasWebhook(account.id);
+      // Nylas v3 returns webhook in the data property
+      const webhookId = webhook.data?.id || (webhook as any).id;
       await db.update(emailAccounts)
         .set({
-          webhookId: webhook.id,
+          webhookId: webhookId,
           webhookStatus: 'active',
         })
         .where(eq(emailAccounts.id, account.id));
-      console.log('✅ Webhook created:', webhook.id);
+      console.log('✅ Webhook created:', webhookId);
     } catch (webhookError) {
       console.error('⚠️ Webhook creation error:', webhookError);
       // Continue anyway - webhooks can be setup later
