@@ -14,9 +14,11 @@ import SettingsMenu from '@/components/layout/SettingsMenu';
 
 interface InboxLayoutProps {
   children: React.ReactNode;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
 }
 
-export default function InboxLayout({ children }: InboxLayoutProps) {
+export default function InboxLayout({ children, searchQuery: externalSearchQuery, onSearchChange }: InboxLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isComposeOpen, setIsComposeOpen] = useState(false);
@@ -32,6 +34,16 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
+
+  // Handle search input changes
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    // Call the external handler if provided
+    if (onSearchChange) {
+      onSearchChange(value);
+    }
+  };
 
   // Check for success/error messages from OAuth callback
   useEffect(() => {
@@ -393,7 +405,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
                   placeholder="Search emails... (Ctrl+K)"
                   className="pl-10 pr-4 h-10 bg-muted/50 border-none focus-visible:ring-1 text-sm"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={handleSearchChange}
                 />
               </div>
             </div>

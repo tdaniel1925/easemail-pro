@@ -6,46 +6,75 @@ import { EmailList } from './EmailList';
 import { ContactPanel } from './ContactPanel';
 import { cn } from '@/lib/utils';
 
-export default function EmailClient() {
+interface EmailClientProps {
+  searchQuery?: string;
+}
+
+export default function EmailClient({ searchQuery = '' }: EmailClientProps) {
   const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'contact' | 'ai'>('contact');
+  const [accountId, setAccountId] = useState<string | null>(null);
 
-  // Fetch real emails from database
+  // Fetch emails when search query changes (with debouncing)
   useEffect(() => {
-    const fetchEmails = async () => {
-      try {
-        // First get the first available account
-        const accountsResponse = await fetch('/api/nylas/accounts');
-        const accountsData = await accountsResponse.json();
-        
-        if (!accountsData.success || !accountsData.accounts || accountsData.accounts.length === 0) {
-          console.log('⚠️ No accounts found');
-          setLoading(false);
-          return;
-        }
+    // Debounce search query changes
+    const timeoutId = setTimeout(() => {
+      const fetchEmails = async () => {
+        setLoading(true);
+        try {
+          // First get the first available account if we don't have one
+          if (!accountId) {
+            const accountsResponse = await fetch('/api/nylas/accounts');
+            const accountsData = await accountsResponse.json();
+            
+            if (!accountsData.success || !accountsData.accounts || accountsData.accounts.length === 0) {
+              console.log('⚠️ No accounts found');
+              setLoading(false);
+              return;
+            }
 
-        const accountId = accountsData.accounts[0].id;
-        console.log('📬 Fetching emails for account:', accountId);
+            const firstAccountId = accountsData.accounts[0].id;
+            setAccountId(firstAccountId);
+            
+            // Fetch emails for this account
+            await fetchEmailsForAccount(firstAccountId, searchQuery);
+          } else {
+            // We already have an account, just fetch
+            await fetchEmailsForAccount(accountId, searchQuery);
+          }
+        } catch (error) {
+          console.error('Failed to fetch emails:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const fetchEmailsForAccount = async (accId: string, query: string) => {
+        console.log('📬 Fetching emails for account:', accId, 'Query:', query);
         
-        const response = await fetch(`/api/nylas/messages?accountId=${accountId}&limit=1000`);
+        // If there's a search query, use search endpoint, otherwise use regular endpoint
+        const url = query.trim()
+          ? `/api/nylas/messages/search?accountId=${accId}&query=${encodeURIComponent(query)}&limit=1000`
+          : `/api/nylas/messages?accountId=${accId}&limit=1000`;
+        
+        const response = await fetch(url);
         const data = await response.json();
         
         if (data.success) {
           console.log('📧 Fetched emails:', data.messages?.length || 0);
           setEmails(data.messages || []);
         }
-      } catch (error) {
-        console.error('Failed to fetch emails:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
 
-    fetchEmails();
-  }, []);
+      fetchEmails();
+    }, 300); // 300ms debounce
+
+    // Cleanup timeout on unmount or when searchQuery changes
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]); // Re-fetch when search query changes
 
   const selectedEmail = emails.find(email => email.id === selectedEmailId);
 
