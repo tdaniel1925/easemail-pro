@@ -80,6 +80,12 @@ export default function InboxLayout({ children, searchQuery: externalSearchQuery
         const firstAccount = data.accounts[0];
         setSelectedAccountId(firstAccount.id);
         console.log('📧 Account loaded:', firstAccount.emailAddress);
+      } else {
+        // No accounts - clear everything
+        console.log('📧 No accounts found - clearing data');
+        setAccounts([]);
+        setSelectedAccountId(null);
+        setFolders([]);
       }
     } catch (error) {
       console.error('Failed to fetch accounts:', error);
