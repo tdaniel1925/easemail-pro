@@ -1,0 +1,435 @@
+Build a full-scale email client called EaseMail using Next.js 14 (App Router), Nylas API, Supabase, and TypeScript. This is a production-ready Gmail/Outlook alternative with real-time sync and multi-account support.
+
+## TECH STACK REQUIREMENTS
+- Next.js 14 with App Router and Server Components
+- Supabase for auth, database, and realtime subscriptions
+- Nylas API for email operations (v3)
+- TypeScript with strict mode
+- Tailwind CSS with shadcn/ui components
+- React Query/Tanstack Query for data fetching
+- Zustand for global state management
+- React Hook Form with Zod validation
+
+## DATABASE SCHEMA (Supabase)
+
+Create these tables with RLS policies:
+```sql
+-- Users table (extends Supabase auth.users)
+create table profiles (
+  id uuid references auth.users primary key,
+  email text unique not null,
+  full_name text,
+  created_at timestamptz default now(),
+  subscription_tier text default 'free'
+);
+
+-- Email accounts (multiple per user)
+create table email_accounts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id) on delete cascade,
+  email_address text not null,
+  provider text not null, -- 'gmail', 'outlook', 'imap'
+  nylas_account_id text unique,
+  nylas_access_token text, -- encrypted
+  nylas_refresh_token text, -- encrypted
+  sync_state text default 'active', -- 'active', 'paused', 'error'
+  last_sync_cursor text,
+  last_synced_at timestamptz,
+  sync_frequency_minutes int default 1,
+  is_primary boolean default false,
+  created_at timestamptz default now(),
+  unique(user_id, email_address)
+);
+
+-- Folder structure cache (mirrors provider folders)
+create table email_folders (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid references email_accounts(id) on delete cascade,
+  nylas_folder_id text not null,
+  parent_folder_id uuid references email_folders(id),
+  display_name text not null,
+  full_path text, -- e.g., "Work/Projects/Q1"
+  folder_type text, -- 'inbox', 'sent', 'drafts', 'trash', 'spam', 'custom'
+  provider_attributes jsonb, -- Gmail labels, colors, etc.
+  unread_count int default 0,
+  total_count int default 0,
+  sync_enabled boolean default true,
+  last_synced_at timestamptz,
+  created_at timestamptz default now(),
+  unique(account_id, nylas_folder_id)
+);
+
+-- Email metadata cache (not full content)
+create table email_messages (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid references email_accounts(id) on delete cascade,
+  folder_id uuid references email_folders(id) on delete cascade,
+  nylas_message_id text not null,
+  nylas_thread_id text,
+  subject text,
+  snippet text,
+  from_email text,
+  from_name text,
+  to_recipients jsonb,
+  cc_recipients jsonb,
+  has_attachments boolean default false,
+  is_read boolean default false,
+  is_starred boolean default false,
+  is_draft boolean default false,
+  received_at timestamptz,
+  created_at timestamptz default now(),
+  unique(account_id, nylas_message_id)
+);
+
+-- Sync operations log
+create table sync_logs (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid references email_accounts(id) on delete cascade,
+  sync_type text, -- 'full', 'delta', 'webhook'
+  status text, -- 'started', 'completed', 'failed'
+  messages_synced int default 0,
+  error_message text,
+  started_at timestamptz default now(),
+  completed_at timestamptz
+);
+
+-- Webhook events queue
+create table webhook_events (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid references email_accounts(id) on delete cascade,
+  nylas_webhook_id text,
+  event_type text, -- 'message.created', 'message.updated', 'folder.updated'
+  payload jsonb,
+  processed boolean default false,
+  created_at timestamptz default now()
+);
+```
+
+Enable RLS and create policies for user access control.
+
+## BACKEND API STRUCTURE (/app/api/)
+
+### /api/nylas/auth/route.ts
+- GET: Initiate Nylas OAuth flow with PKCE
+- Store state in Supabase with expiry
+- Redirect URL: /api/nylas/callback
+
+### /api/nylas/callback/route.ts
+- Handle OAuth callback
+- Exchange code for tokens
+- Create/update email_accounts record
+- Trigger initial folder sync
+- Setup webhooks for this account
+- Redirect to /mail/accounts with success message
+
+### /api/nylas/accounts/[accountId]/sync/route.ts
+- POST: Trigger manual sync
+- GET: Get sync status
+- Implement delta sync using stored cursor
+- Update sync_logs table
+- Use Supabase Queue for background processing
+
+### /api/nylas/folders/route.ts
+- GET: Fetch all folders for account
+- POST: Create new folder (two-way sync)
+- PUT: Rename folder (propagate to provider)
+- DELETE: Delete folder (with confirmation)
+- Sync changes immediately to provider via Nylas
+
+### /api/nylas/folders/[folderId]/sync/route.ts
+- POST: Force sync specific folder
+- Handle folder-specific operations
+- Update unread/total counts in Supabase
+
+### /api/nylas/messages/route.ts
+- GET: Fetch messages with pagination (cursor-based)
+- Never fetch all message content at once
+- Stream message bodies on demand
+- Implement search with Nylas syntax
+
+### /api/nylas/messages/[messageId]/route.ts
+- GET: Fetch full message content from Nylas
+- PUT: Update message (read/unread, starred, labels)
+- DELETE: Move to trash or permanent delete
+- Changes must propagate to provider immediately
+
+### /api/nylas/send/route.ts
+- POST: Send new email or reply
+- Support draft creation and updates
+- Handle attachments via Nylas file upload
+- Maintain thread_id for replies
+
+### /api/webhooks/nylas/route.ts
+CRITICAL: Verify webhook signatures!
+- Handle these events:
+  * message.created: Add to folder, update counts
+  * message.updated: Update flags, folder moves
+  * message.deleted: Remove from cache
+  * folder.created: Add new folder
+  * folder.updated: Sync folder changes
+  * thread.replied: Update thread UI
+- Queue events in webhook_events table
+- Process asynchronously to avoid timeout
+
+### /api/cron/sync/route.ts
+- Vercel cron job (run every minute)
+- Check all accounts due for sync
+- Respect sync_frequency_minutes per account
+- Handle rate limits with exponential backoff
+- Update last_synced_at timestamps
+
+## FRONTEND COMPONENTS (/app/components/)
+
+### Layout: EmailClient.tsx
+Three-column responsive layout:
+- Left: Account switcher + folder tree (collapsible)
+- Center: Message list with search bar
+- Right: Message preview (collapsible)
+- Mobile: Stack layout with navigation
+
+### AccountSetupPage.tsx (/mail/accounts)
+```typescript
+Features:
+- List all connected email accounts
+- Show sync status for each account
+  * Last synced timestamp
+  * Message count
+  * Sync frequency selector
+  * Pause/resume sync button
+- "Add Account" button → Nylas OAuth flow
+- Account settings:
+  * Set as primary account
+  * Sync frequency (1, 5, 15, 30 minutes)
+  * Folder sync preferences
+  * Remove account (with confirmation)
+- Real-time sync status via Supabase subscriptions
+- Show sync progress bar during active sync
+- Error states with retry buttons
+```
+
+### FolderTree.tsx
+```typescript
+Requirements:
+- Mirror exact folder structure from email provider
+- Show hierarchy with indentation
+- Folder icons based on type (inbox, sent, etc.)
+- Unread count badges (real-time updates)
+- Drag & drop to move emails between folders
+- Right-click context menu:
+  * Create subfolder
+  * Rename (propagates to provider)
+  * Delete (with email count warning)
+  * Mark all as read
+  * Empty folder (for trash/spam)
+- Collapsible nested folders with state persistence
+- Show sync status indicator per folder
+- Two-way sync: Changes here update provider
+```
+
+### MessageList.tsx
+```typescript
+Features:
+- Virtual scrolling (react-window)
+- Group by conversation threads (collapsible)
+- Show sender, subject, snippet, date, attachments icon
+- Bulk selection with checkbox
+- Bulk actions toolbar:
+  * Mark read/unread
+  * Move to folder
+  * Delete
+  * Add label (Gmail)
+- Pull-to-refresh on mobile
+- Infinite scroll with cursor pagination
+- Optimistic UI updates
+- Search bar with Nylas syntax support:
+  * from:email
+  * to:email
+  * subject:text
+  * has:attachment
+  * in:folder
+  * is:unread
+```
+
+### MessageView.tsx
+```typescript
+Features:
+- Full HTML email rendering (sanitized)
+- Thread view with collapsed messages
+- Reply/Reply All/Forward buttons
+- Attachment list with download links
+- Show all headers (expandable)
+- Print button
+- Mark unread button
+- Move to folder dropdown
+- Add to calendar (for meeting invites)
+- Load external images toggle
+- Render plain text fallback
+```
+
+### ComposeMail.tsx
+```typescript
+Features:
+- Rich text editor (Lexical or TipTap)
+- Draft auto-save every 10 seconds
+- To/CC/BCC with email autocomplete
+- Attachment upload with progress
+- Schedule send (use Nylas scheduled send)
+- Templates support
+- Signature management
+- Save draft and close
+- Cmd+Enter to send
+```
+
+### SyncStatusIndicator.tsx
+```typescript
+Global component showing:
+- Current sync status (idle, syncing, error)
+- Last sync timestamp
+- Number of messages synced
+- Click to open detailed sync log
+- Error messages with retry button
+```
+
+## CRITICAL IMPLEMENTATION DETAILS
+
+### 1. AUTHENTICATION FLOW
+- Use Supabase Auth for app login
+- Each user can add multiple email accounts via Nylas OAuth
+- Store encrypted tokens in email_accounts table
+- Implement token refresh before expiry
+- Handle reauthorization when tokens fail
+
+### 2. TWO-WAY FOLDER SYNC
+CRITICAL: Folders must stay in sync with provider!
+- Initial sync: Import all folders from provider
+- User creates folder in app → Create via Nylas API → Update local DB
+- User renames folder in app → Rename via Nylas → Update local DB
+- Provider folder changes → Webhook updates local DB → Update UI
+- Never allow local-only folders that don't exist on provider
+- Handle folder path changes (nested folder moves)
+- Gmail: Folders are actually labels (handle accordingly)
+
+### 3. REAL-TIME UPDATES
+- Use Supabase Realtime for instant UI updates
+- Subscribe to changes on email_messages table
+- Subscribe to folder unread_count changes
+- Webhook events trigger Supabase broadcasts
+- Optimistic updates with rollback on failure
+
+### 4. PERFORMANCE OPTIMIZATION
+- Never load all emails at once
+- Lazy load message bodies
+- Cache folder structure in Zustand
+- Prefetch next page of messages
+- Index database on nylas_message_id, nylas_thread_id
+- Use database views for complex queries
+- Implement Redis caching for frequently accessed data
+
+### 5. ERROR HANDLING
+- Show inline errors, not disruptive modals
+- Implement retry with exponential backoff
+- Queue failed operations for retry
+- Provide manual sync button as fallback
+- Log all errors to Supabase for debugging
+- Handle provider-specific errors gracefully
+
+### 6. PROVIDER-SPECIFIC HANDLING
+Gmail:
+- Folders are labels (can have multiple)
+- Categories need special handling
+- Important/Priority inbox support
+
+Outlook:
+- Traditional folder hierarchy
+- Focused/Other inbox support
+- Categories are different from Gmail
+
+IMAP:
+- Basic folder support only
+- No labels or categories
+- Limited search capabilities
+
+### 7. SECURITY
+- All Nylas API calls server-side only
+- Encrypt tokens at rest using Supabase Vault
+- Implement CSRF protection
+- Validate all webhook signatures
+- Sanitize HTML emails before rendering
+- Implement rate limiting per user
+- Use RLS policies for all database access
+
+### 8. MONITORING & LOGGING
+- Track sync performance metrics
+- Monitor webhook delivery success rate
+- Alert on sync failures
+- Track API rate limit usage
+- Log user actions for debugging
+- Implement health check endpoint
+
+## ENVIRONMENT VARIABLES (.env.local)
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+NYLAS_CLIENT_ID=
+NYLAS_CLIENT_SECRET=
+NYLAS_API_KEY=
+NYLAS_WEBHOOK_SECRET=
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+ENCRYPTION_KEY= # For token encryption
+```
+
+## DEPLOYMENT CONSIDERATIONS
+- Use Vercel for hosting (automatic cron support)
+- Enable Vercel Edge Functions for API routes
+- Setup Nylas webhook URL: https://yourdomain.com/api/webhooks/nylas
+- Configure CORS for Supabase
+- Setup monitoring with Vercel Analytics
+- Implement error tracking with Sentry
+- Use Vercel KV for rate limiting
+
+## UI/UX REQUIREMENTS
+- Dark/Light mode toggle
+- Keyboard shortcuts (Gmail compatible)
+- Mobile responsive design
+- Loading skeletons for all data fetching
+- Empty states with helpful actions
+- Undo actions (5 second window)
+- Toast notifications for all actions
+- Accessibility (ARIA labels, keyboard nav)
+
+Build this application step by step, starting with the authentication flow, then folder sync, then message display. Ensure two-way sync works perfectly before adding additional features. Always handle errors gracefully and provide feedback to users about sync status.
+```
+
+## Additional Cursor Instructions for Specific Features
+
+### For Advanced Search Implementation
+```
+Implement advanced search with these features:
+- Search syntax parser for Nylas queries
+- Search history stored in localStorage
+- Saved searches in Supabase
+- Search across all accounts or specific account
+- Full-text search fallback when Nylas search fails
+- Search suggestions as user types
+- Filter by date range, size, attachments
+```
+
+### For Offline Support
+```
+Add offline capability:
+- Cache last 50 messages per folder in IndexedDB
+- Queue actions when offline (send, delete, move)
+- Sync queue when back online
+- Show offline indicator
+- Conflict resolution for concurrent edits
+```
+
+### For Email Templates
+```
+Create email template system:
+- Store templates in Supabase
+- Variable substitution {{name}}, {{date}}
+- Template categories
+- Share templates between accounts
+- Quick insert via slash commands

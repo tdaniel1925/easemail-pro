@@ -1,0 +1,141 @@
+
+//Customer Review
+.customer-review-active{
+    display: flex;
+    align-items: center;
+    a{
+        &:not(:first-child){
+            margin-left: -14px;
+        }
+    }
+}
+//Customer Review
+
+//Offer Background
+.offer-sectionv04{
+    background: url(../img/banner/offer-bg.png) no-repeat center center;
+    background-size: cover;
+    .offer-item{
+        background: #1B1B1B;
+        border-radius: 12px;
+        .seri{
+            font-size: 50px;
+            font-weight: 600;
+            font-family: $heading-font;
+            color: $white;
+            opacity: 15%;
+        }
+        &:hover{
+            h5{
+                a{
+                    color: $theme;
+                }
+            }
+            .btn-hover{
+                color: $theme;
+                i{
+                    color: $theme;
+                }
+            }
+        }
+    }
+}
+//Offer Background
+
+.section-title-area	{
+	@include flex;
+	justify-content: space-between;
+	position: relative;
+	z-index: 9;
+	margin-bottom: 30px;
+
+	@include breakpoint (max-md){
+		margin-bottom: 0;
+	}
+
+	@include breakpoint (max-lg) {
+		flex-wrap: wrap;
+		// justify-content: center;
+		// text-align: center;
+		gap: 30px;
+	}
+
+	.link-btn {
+		font-size: 16px;
+		font-weight: 600;
+		display: inline-block;
+		font-family: "Plus Jakarta Sans", sans-serif;
+		text-transform: uppercase;
+		color: $white;
+		border-radius: 100px;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		padding: 11px 25px;
+
+		i {
+			margin-left: 10px;
+			transform: rotate(-40deg);
+			@include transition;
+			font-weight: 700;
+		}
+
+		&:hover {
+			background-color: $theme;
+			color: $black;
+
+			i {
+				transform: rotate(0);
+			}
+		}
+	}
+
+	.section-title {
+		margin-bottom: 0 !important;
+	}
+
+	.review-cont {
+		.texts {
+			font-size: 13px;
+		}
+		i {
+			color: $theme;
+		}
+	}
+	.customer-man {
+		li {
+			&:not(:last-child) {
+				margin-right: -12px;
+			}
+		}
+	}
+}
+
+.section-title {
+	position: relative;
+	z-index: 99;
+	margin-bottom: 30px;
+	//margin-top: -5px;
+
+	@include breakpoint (max-md){
+		margin-bottom: 0;
+	}
+
+	span {
+		color: $white;
+		margin-bottom: 15px;
+		display: inline-block;
+		font-weight: 500;
+		text-transform: capitalize;
+		font-size: 16px;
+		position: relative;
+		border-radius: 100px;
+		border: 1px solid #454750;
+		padding: 6px 20px;
+
+		i {
+			margin-left: 10px;
+			transform: rotate(-40deg);
+		}
+	}
+
+
+}

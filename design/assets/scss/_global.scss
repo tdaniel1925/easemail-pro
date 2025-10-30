@@ -1,0 +1,163 @@
+//Preloader
+#progress {
+	background-color: $theme;
+	width: 40px;
+	height: 40px;
+	line-height: 40px;
+	text-align: center;
+	position: fixed;
+	right: 20px;
+	z-index: 9999;
+	display: none;
+	bottom: 20px;
+	border-radius: 50%;
+	transition: all 0.4s ease-in-out;
+	border: 2px solid $white;
+	i {
+		color: $black;
+	}
+	#valiu {
+		display: block;
+		img {
+			width: 16px;
+		}
+	}
+	&:hover {
+		cursor: pointer;
+		background-color: $theme;
+	}
+}
+//Preloader
+
+//Error Page
+.error-content {
+	.cmn-btn {
+		border: 1px solid $theme;
+		&:hover {
+			color: $theme;
+			background: transparent;
+		}
+	}
+}
+//Error Page
+.mt-50 {
+	margin-top: 50px;
+}
+
+.container{
+	@include minQuery(575){
+		max-width: 1474px;
+		margin: 0 auto;
+	}
+}
+
+.section-padding {
+	padding: 130px 0;
+
+	@include breakpoint(max-xl){
+		padding: 100px 0;
+	}
+
+	@include breakpoint(max-lg){
+		padding: 80px 0;
+	}
+}
+
+
+.margin-top-60 {
+	margin-top: -65px;
+  
+	  @include breakpoint (max-xxl){
+		margin-top: -25px;
+	  }
+  
+	  @include breakpoint (max-xl){
+		margin-top: -27px;
+	  }
+  
+	  @include breakpoint (max-lg){
+		margin-top: -75px;
+	  }
+  
+	  @include breakpoint (max-md){
+		margin-top: -65px;
+	  }
+  }
+  
+  .bor-bottom {
+	border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+	padding-bottom: 40px;
+  }
+  
+  .gap-100 {
+	  gap: 80px !important;
+  }
+  
+  .border-none {
+	  border: none !important;
+  }
+  
+  .footer-bg {
+	background: #161616;
+  }
+  
+  .whitehover{
+	  color: $white !important;
+  }
+  
+  .rot60 {
+	  transform: rotate(-45deg);
+	  transition: all 0.4s;
+  }
+  
+  .bt-border {
+	  border-top: 1px solid #454750 !important;
+  }
+  
+  .d-opacity {
+	opacity: 0;
+	visibility: hidden;
+  }
+  
+  .pb-0 {
+	padding-bottom: 0 !important;
+  }
+
+
+  .error-items {
+	text-align: center;
+
+	.error-image {
+		max-width: 660px;
+		margin: 0 auto;
+
+		img {
+			@include imgw;
+		}
+	}
+
+	h2 {
+		margin-top: 30px;
+		font-size: 60px;
+
+		span {
+			color: $theme;
+			font-size: 60px;
+		}
+	}
+
+	p {
+		margin-top: 15px;
+	}
+
+	.theme-btn {
+		border-radius: 0;
+		color: $black;
+		font-weight: 700;
+		margin-top: 20px;
+
+		&::before {
+			background-color: $white;
+		}
+	}
+}
