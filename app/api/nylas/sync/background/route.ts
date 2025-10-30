@@ -121,6 +121,22 @@ async function performBackgroundSync(
       currentPage++;
       console.log(`📄 Fetching page ${currentPage} for account ${accountId}`);
 
+      // Check if account still exists before continuing
+      const accountCheck = await db.query.emailAccounts.findFirst({
+        where: eq(emailAccounts.id, accountId),
+      });
+
+      if (!accountCheck) {
+        console.log(`🛑 Account ${accountId} no longer exists - stopping sync`);
+        return; // Exit the sync function completely
+      }
+
+      // Also check if sync was manually stopped
+      if (accountCheck.syncStatus === 'active' && accountCheck.syncProgress === 0) {
+        console.log(`🛑 Sync was stopped for account ${accountId} - exiting`);
+        return;
+      }
+
       try {
         // Fetch messages from Nylas
         const response = await nylas.messages.list({
