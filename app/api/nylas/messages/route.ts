@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { nylas } from '@/lib/email/nylas-client';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emails, syncLogs } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 
 // GET: Fetch messages for an account
 export async function GET(request: NextRequest) {
   const accountId = request.nextUrl.searchParams.get('accountId');
-  const folderId = request.nextUrl.searchParams.get('folderId');
+  const folder = request.nextUrl.searchParams.get('folder');
   const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50');
   const offset = parseInt(request.nextUrl.searchParams.get('offset') || '0');
   
@@ -16,13 +16,30 @@ export async function GET(request: NextRequest) {
   }
   
   try {
+    // Build where clause
+    let whereClause = eq(emails.accountId, accountId);
+    
+    // Add folder filter if provided
+    if (folder) {
+      const folderCondition = eq(emails.folder, folder);
+      whereClause = sql`${emails.accountId} = ${accountId} AND ${emails.folder} = ${folder}`;
+    }
+    
     // Get messages from database
     const messages = await db.query.emails.findMany({
-      where: eq(emails.accountId, accountId),
+      where: folder ? sql`${emails.accountId} = ${accountId} AND ${emails.folder} = ${folder}` : eq(emails.accountId, accountId),
       limit,
       offset,
       orderBy: [desc(emails.receivedAt)],
     });
+    
+    console.log(`📧 Fetched ${messages.length} emails for account ${accountId}${folder ? ` in folder ${folder}` : ''}`);
+    if (messages.length > 0) {
+      console.log('📅 Date range:', {
+        newest: messages[0].receivedAt,
+        oldest: messages[messages.length - 1].receivedAt
+      });
+    }
     
     return NextResponse.json({ success: true, messages });
   } catch (error) {
