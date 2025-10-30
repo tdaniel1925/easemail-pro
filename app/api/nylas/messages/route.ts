@@ -16,28 +16,25 @@ export async function GET(request: NextRequest) {
   }
   
   try {
-    // Build where clause
-    let whereClause = eq(emails.accountId, accountId);
-    
-    // Add folder filter if provided
-    if (folder) {
-      const folderCondition = eq(emails.folder, folder);
-      whereClause = sql`${emails.accountId} = ${accountId} AND ${emails.folder} = ${folder}`;
-    }
+    // Determine which date field to sort by based on folder
+    const isSentFolder = folder?.toLowerCase().includes('sent');
+    const sortByDate = isSentFolder ? emails.sentAt : emails.receivedAt;
     
     // Get messages from database
     const messages = await db.query.emails.findMany({
       where: folder ? sql`${emails.accountId} = ${accountId} AND ${emails.folder} = ${folder}` : eq(emails.accountId, accountId),
       limit,
       offset,
-      orderBy: [desc(emails.receivedAt)],
+      orderBy: [desc(sortByDate)],
     });
     
     console.log(`📧 Fetched ${messages.length} emails for account ${accountId}${folder ? ` in folder ${folder}` : ''}`);
+    console.log(`📅 Sorting by: ${isSentFolder ? 'sentAt' : 'receivedAt'}`);
     if (messages.length > 0) {
+      const dateField = isSentFolder ? 'sentAt' : 'receivedAt';
       console.log('📅 Date range:', {
-        newest: messages[0].receivedAt,
-        oldest: messages[messages.length - 1].receivedAt
+        newest: messages[0][dateField],
+        oldest: messages[messages.length - 1][dateField]
       });
     }
     

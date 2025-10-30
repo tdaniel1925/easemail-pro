@@ -7,6 +7,7 @@ import { eq, desc, or, ilike, sql } from 'drizzle-orm';
 export async function GET(request: NextRequest) {
   const accountId = request.nextUrl.searchParams.get('accountId');
   const query = request.nextUrl.searchParams.get('query');
+  const folder = request.nextUrl.searchParams.get('folder');
   const limit = parseInt(request.nextUrl.searchParams.get('limit') || '100');
   const offset = parseInt(request.nextUrl.searchParams.get('offset') || '0');
   
@@ -21,22 +22,38 @@ export async function GET(request: NextRequest) {
   try {
     const searchPattern = `%${query.trim()}%`;
     
-    // Search in subject, from_email, from_name, snippet, and body_text
-    const messages = await db
-      .select()
-      .from(emails)
-      .where(
-        sql`${emails.accountId} = ${accountId} AND (
+    // Determine which date field to sort by based on folder
+    const isSentFolder = folder?.toLowerCase().includes('sent');
+    const sortByDate = isSentFolder ? emails.sentAt : emails.receivedAt;
+    
+    // Build where clause with optional folder filter
+    const whereClause = folder 
+      ? sql`${emails.accountId} = ${accountId} AND ${emails.folder} = ${folder} AND (
           ${emails.subject} ILIKE ${searchPattern} OR
           ${emails.fromEmail} ILIKE ${searchPattern} OR
           ${emails.fromName} ILIKE ${searchPattern} OR
           ${emails.snippet} ILIKE ${searchPattern} OR
           ${emails.bodyText} ILIKE ${searchPattern}
         )`
-      )
-      .orderBy(desc(emails.receivedAt))
+      : sql`${emails.accountId} = ${accountId} AND (
+          ${emails.subject} ILIKE ${searchPattern} OR
+          ${emails.fromEmail} ILIKE ${searchPattern} OR
+          ${emails.fromName} ILIKE ${searchPattern} OR
+          ${emails.snippet} ILIKE ${searchPattern} OR
+          ${emails.bodyText} ILIKE ${searchPattern}
+        )`;
+    
+    // Search in subject, from_email, from_name, snippet, and body_text
+    const messages = await db
+      .select()
+      .from(emails)
+      .where(whereClause)
+      .orderBy(desc(sortByDate))
       .limit(limit)
       .offset(offset);
+    
+    console.log(`🔍 Search found ${messages.length} emails for query: "${query}"`);
+    console.log(`📅 Sorting by: ${isSentFolder ? 'sentAt' : 'receivedAt'}`);
     
     return NextResponse.json({ 
       success: true, 
