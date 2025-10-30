@@ -10,7 +10,7 @@ interface ContactModalProps {
   onClose: () => void;
   email?: {
     id: string;
-    fromEmail: string;
+    fromEmail?: string;
     fromName?: string;
     bodyText?: string;
     bodyHtml?: string;
