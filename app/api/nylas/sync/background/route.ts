@@ -171,12 +171,14 @@ async function performBackgroundSync(
               bccEmails: message.bcc?.map(b => ({ email: b.email, name: b.name })),
               subject: message.subject,
               snippet: message.snippet,
-              body: message.body || '',
+              bodyText: message.body || '',
+              bodyHtml: message.body || '',
               receivedAt: message.date ? new Date(message.date * 1000) : new Date(),
               sentAt: message.date ? new Date(message.date * 1000) : new Date(),
               isRead: !message.unread,
               isStarred: message.starred || false,
               hasAttachments: (message.attachments?.length || 0) > 0,
+              attachmentsCount: message.attachments?.length || 0,
               attachments: mappedAttachments,
             }).onConflictDoNothing(); // Ignore duplicates silently
 
