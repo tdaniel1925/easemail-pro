@@ -154,6 +154,17 @@ async function performBackgroundSync(
             }
 
             // Insert new email
+            // Map attachments to ensure required fields are present
+            const mappedAttachments = message.attachments?.map((att: any) => ({
+              id: att.id || '',
+              filename: att.filename || 'untitled',
+              size: att.size || 0, // Default to 0 if size is undefined
+              contentType: att.contentType || 'application/octet-stream',
+              contentId: att.contentId,
+              url: att.url,
+              providerFileId: att.id,
+            })) || [];
+
             await db.insert(emails).values({
               accountId: accountId,
               provider: 'nylas',
@@ -176,7 +187,7 @@ async function performBackgroundSync(
               isRead: !message.unread,
               isStarred: message.starred || false,
               hasAttachments: (message.attachments?.length || 0) > 0,
-              attachments: message.attachments || [],
+              attachments: mappedAttachments,
             });
 
             totalSynced++;

@@ -98,6 +98,17 @@ export async function POST(request: NextRequest) {
             .where(eq(emails.id, existing.id));
         } else {
           // Insert new message
+          // Map attachments to ensure required fields are present
+          const mappedAttachments = message.attachments?.map((att: any) => ({
+            id: att.id || '',
+            filename: att.filename || 'untitled',
+            size: att.size || 0, // Default to 0 if size is undefined
+            contentType: att.contentType || 'application/octet-stream',
+            contentId: att.contentId,
+            url: att.url,
+            providerFileId: att.id,
+          })) || [];
+
           await db.insert(emails).values({
             accountId: account.id,
             provider: 'nylas',
@@ -113,7 +124,7 @@ export async function POST(request: NextRequest) {
             bccEmails: message.bcc || [],
             hasAttachments: (message.attachments?.length || 0) > 0,
             attachmentsCount: message.attachments?.length || 0,
-            attachments: message.attachments || [],
+            attachments: mappedAttachments,
             isRead: message.unread === false,
             isStarred: message.starred === true,
             folder: message.folders?.[0] || 'inbox',
