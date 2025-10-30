@@ -21,9 +21,9 @@ export async function POST(request: NextRequest) {
       company: data.company || null,
       jobTitle: data.jobTitle || null,
       website: data.website || null,
-      linkedIn: data.linkedIn || null,
-      twitter: data.twitter || null,
-      address: data.address || null,
+      linkedinUrl: data.linkedIn || null,
+      twitterHandle: data.twitter || null,
+      location: data.address || null,
       notes: data.notes || null,
     }).returning();
 
