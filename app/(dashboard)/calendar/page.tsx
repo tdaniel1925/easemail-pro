@@ -1,11 +1,11 @@
 'use client';
 
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import InboxLayout from '@/components/layout/InboxLayout';
 
-export default function CalendarPage() {
+function CalendarContent() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -106,6 +106,18 @@ export default function CalendarPage() {
         </div>
       </div>
     </InboxLayout>
+  );
+}
+
+export default function CalendarPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <CalendarContent />
+    </Suspense>
   );
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Plus, RefreshCw, Trash2, CheckCircle, XCircle, Loader2, Mail, Folder, StopCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,7 +26,7 @@ interface EmailAccount {
   initialSyncCompleted?: boolean;
 }
 
-export default function AccountsPage() {
+function AccountsContent() {
   const [accounts, setAccounts] = useState<EmailAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
@@ -480,6 +480,18 @@ export default function AccountsPage() {
         )}
       </div>
     </InboxLayout>
+  );
+}
+
+export default function AccountsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <AccountsContent />
+    </Suspense>
   );
 }
 
