@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, RefreshCw, Trash2, CheckCircle, XCircle, Loader2, Mail, Folder } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, CheckCircle, XCircle, Loader2, Mail, Folder, StopCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getInitials, generateAvatarColor } from '@/lib/utils';
@@ -147,6 +147,30 @@ export default function AccountsPage() {
       setMessage({ type: 'error', text: 'Failed to sync account' });
     } finally {
       setSyncing({ ...syncing, [accountId]: false });
+    }
+  };
+
+  const handleStopSync = async (accountId: string) => {
+    try {
+      // Call stop sync API
+      const response = await fetch('/api/nylas/sync/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMessage({ type: 'info', text: 'Sync stopped - you can resume by clicking Sync Now' });
+        // Refresh accounts to update status
+        await fetchAccounts();
+      } else {
+        throw new Error(data.error || 'Failed to stop sync');
+      }
+    } catch (error) {
+      console.error('Stop sync failed:', error);
+      setMessage({ type: 'error', text: 'Failed to stop sync' });
     }
   };
 
@@ -397,24 +421,37 @@ export default function AccountsPage() {
                       <p>Last synced: {formatLastSync(account.lastSyncedAt)}</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSyncAccount(account.id)}
-                        disabled={syncing[account.id]}
-                      >
-                        {syncing[account.id] ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Syncing...
-                          </>
-                        ) : (
-                          <>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Sync Now
-                          </>
-                        )}
-                      </Button>
+                      {/* Show Stop Sync button when actively syncing */}
+                      {(account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing') ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleStopSync(account.id)}
+                          className="text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
+                        >
+                          <StopCircle className="h-4 w-4 mr-2" />
+                          Stop Sync
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSyncAccount(account.id)}
+                          disabled={syncing[account.id]}
+                        >
+                          {syncing[account.id] ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Syncing...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Sync Now
+                            </>
+                          )}
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm" 
