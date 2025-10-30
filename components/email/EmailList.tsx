@@ -8,10 +8,11 @@ import { cn } from '@/lib/utils';
 
 interface Email {
   id: string;
-  from: { email: string; name: string };
+  fromEmail?: string;
+  fromName?: string;
   subject: string;
   snippet: string;
-  body: string;
+  body?: string;
   receivedAt: Date;
   isRead: boolean;
   isStarred: boolean;
