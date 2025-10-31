@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useEmailSummary } from '@/lib/hooks/useEmailSummary';
+import { ToastContainer, useToast } from '@/components/ui/toast';
 
 interface Email {
   id: string;
@@ -43,6 +44,7 @@ interface EmailListProps {
 export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailClick, searchQuery = '', onSearchChange }: EmailListProps) {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
+  const { toasts, closeToast, success, error, info } = useToast();
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (onSearchChange) {
@@ -82,6 +84,7 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
     }
 
     console.log(`📦 Performing bulk action: ${action} on ${selectedIds.length} emails`);
+    info(`Processing ${selectedIds.length} emails...`);
 
     try {
       const response = await fetch('/api/nylas/messages/bulk', {
@@ -99,20 +102,23 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
 
       if (data.success) {
         console.log(`✅ Bulk action successful: ${data.message}`);
+        success(data.message);
         
         // Clear selection
         setSelectedEmails(new Set());
         setSelectMode(false);
         
-        // Refresh the email list (you might want to trigger a re-fetch here)
-        window.location.reload(); // Simple approach - you can improve this with a refetch function
+        // Refresh the email list
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       } else {
         console.error('Bulk action failed:', data.error);
-        alert(`Failed: ${data.error}`);
+        error(`Failed: ${data.error || 'Unknown error'}`);
       }
-    } catch (error) {
-      console.error('Bulk action error:', error);
-      alert('Failed to perform bulk action. Please try again.');
+    } catch (err) {
+      console.error('Bulk action error:', err);
+      error('Failed to perform bulk action. Please try again.');
     }
   };
 
@@ -120,6 +126,9 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
 
   return (
     <div className="flex flex-col h-full bg-background">
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onClose={closeToast} />
+      
       {/* Toolbar - switches between normal and bulk actions */}
       <div className="h-14 px-4 border-b border-border/50 flex items-center">
         {selectMode ? (
@@ -257,6 +266,11 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
             selectMode={selectMode}
             onSelect={(e) => handleSelectEmail(email.id, e)}
             onClick={() => onEmailClick(email.id)}
+            showToast={(type, message) => {
+              if (type === 'success') success(message);
+              else if (type === 'error') error(message);
+              else if (type === 'info') info(message);
+            }}
           />
         ))}
         </div>
@@ -273,9 +287,10 @@ interface EmailCardProps {
   selectMode: boolean;
   onSelect: (e: React.MouseEvent) => void;
   onClick: () => void;
+  showToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
 }
 
-function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSelect, onClick }: EmailCardProps) {
+function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSelect, onClick, showToast }: EmailCardProps) {
   const avatarColor = generateAvatarColor(email.fromEmail || 'unknown@example.com');
   const [mounted, setMounted] = useState(false);
   const [fullEmail, setFullEmail] = useState<Email | null>(null);
@@ -326,29 +341,29 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
   const handleReply = (e: React.MouseEvent) => {
     e.stopPropagation();
     console.log('Reply to:', email.fromEmail);
+    showToast('info', `Reply to: ${email.fromEmail} - Subject: Re: ${email.subject}`);
     // TODO: Open compose modal with reply data
-    alert(`Reply to: ${email.fromEmail}\nSubject: Re: ${email.subject}`);
   };
   
   const handleReplyAll = (e: React.MouseEvent) => {
     e.stopPropagation();
     console.log('Reply all to:', email.fromEmail);
+    showToast('info', `Reply All to: ${email.fromEmail} - Subject: Re: ${email.subject}`);
     // TODO: Open compose modal with reply all data
-    alert(`Reply All to: ${email.fromEmail}\nSubject: Re: ${email.subject}`);
   };
   
   const handleForward = (e: React.MouseEvent) => {
     e.stopPropagation();
     console.log('Forward:', email.subject);
+    showToast('info', `Forward email - Subject: Fwd: ${email.subject}`);
     // TODO: Open compose modal with forward data
-    alert(`Forward email:\nSubject: Fwd: ${email.subject}`);
   };
   
   const handleDownloadAttachment = (e: React.MouseEvent, attachment: any) => {
     e.stopPropagation();
     console.log('Download:', attachment.filename);
+    showToast('success', `Downloading: ${attachment.filename}`);
     // TODO: Implement actual download
-    alert(`Downloading: ${attachment.filename}`);
   };
 
   return (
