@@ -56,13 +56,20 @@ export function VoiceMessageRecorderModal({
   const startWaveformAnimation = () => {
     const canvas = canvasRef.current;
     const analyser = analyserRef.current;
-    if (!canvas || !analyser) return;
+    if (!canvas || !analyser) {
+      console.log('❌ Missing canvas or analyser');
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.log('❌ No canvas context');
+      return;
+    }
 
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
+    console.log('✅ Starting waveform animation, bufferLength:', bufferLength);
 
     // Get primary color from CSS
     const primaryColor = getComputedStyle(document.documentElement)
@@ -70,49 +77,61 @@ export function VoiceMessageRecorderModal({
       .trim();
 
     const animate = () => {
-      if (status !== 'recording') return;
+      if (status !== 'recording') {
+        console.log('Stopping animation, status:', status);
+        return;
+      }
 
       analyser.getByteFrequencyData(dataArray);
 
+      // Get actual canvas dimensions (accounting for device pixel ratio)
+      const width = canvas.width / window.devicePixelRatio;
+      const height = canvas.height / window.devicePixelRatio;
+
       // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, width, height);
 
       // Calculate bars
       const barCount = 60;
-      const barWidth = canvas.width / barCount;
+      const barWidth = width / barCount;
       const gap = 2;
 
       let sum = 0;
+      let maxValue = 0;
 
       for (let i = 0; i < barCount; i++) {
-        // Logarithmic frequency mapping
-        const t = i / Math.max(1, barCount - 1);
-        const bin = Math.min(
-          bufferLength - 1,
-          Math.floor((Math.pow(2, t) - 1) / (2 - 1) * (bufferLength - 1))
-        );
-
-        const value = dataArray[bin] / 255;
+        // Simple linear mapping for better debugging
+        const bin = Math.floor((i / barCount) * bufferLength);
+        const rawValue = dataArray[bin];
+        maxValue = Math.max(maxValue, rawValue);
+        
+        const value = rawValue / 255;
         sum += value;
 
-        // Calculate bar height
+        // Calculate bar height with more sensitivity
         const minHeight = 4;
-        const barHeight = Math.max(minHeight, value * canvas.height * 0.8);
+        const barHeight = Math.max(minHeight, value * height * 0.9);
 
         // Calculate opacity based on value
-        const opacity = 0.3 + (value * 0.7);
+        const opacity = 0.4 + (value * 0.6);
 
         // Draw bar
         const x = i * barWidth;
-        const y = canvas.height - barHeight;
+        const y = height - barHeight;
 
-        ctx.fillStyle = `hsl(${primaryColor} / ${opacity})`;
+        // Use a solid color that works in all themes
+        ctx.fillStyle = `rgba(99, 102, 241, ${opacity})`; // Indigo color
         ctx.fillRect(x, y, barWidth - gap, barHeight);
       }
 
       // Update audio level
       const avg = sum / barCount;
       setAudioLevel(Math.min(100, Math.round(avg * 150)));
+
+      // Debug log every 30 frames (~0.5 seconds)
+      if (animationRef.current && animationRef.current % 30 === 0) {
+        console.log('Audio data - max:', maxValue, 'avg:', (sum/barCount).toFixed(2), 'level:', Math.round(avg * 150));
+      }
 
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -131,26 +150,37 @@ export function VoiceMessageRecorderModal({
     try {
       setError(null);
       
-      // Get microphone stream
+      console.log('🎤 Requesting microphone access...');
+      
+      // Get microphone stream with settings optimized for visualization
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: false,
+          noiseSuppression: false, // Turn OFF for better visualization
+          autoGainControl: true,
+          sampleRate: 48000,
         },
       });
+
+      console.log('✅ Microphone access granted');
 
       // Set up audio analysis
       const audioContext = new AudioContext();
       const analyser = audioContext.createAnalyser();
       const source = audioContext.createMediaStreamSource(stream);
       
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.85;
+      // Optimize analyser settings for visualization
+      analyser.fftSize = 1024; // Higher = more frequency resolution
+      analyser.smoothingTimeConstant = 0.75; // Less smoothing = more responsive
+      analyser.minDecibels = -90;
+      analyser.maxDecibels = -10;
+      
       source.connect(analyser);
 
       audioContextRef.current = audioContext;
       analyserRef.current = analyser;
+
+      console.log('✅ Audio context created, FFT size:', analyser.fftSize, 'Frequency bins:', analyser.frequencyBinCount);
 
       // Start recorder
       recorderRef.current = new VoiceMessageRecorder({ maxDuration: 600 });
@@ -161,12 +191,14 @@ export function VoiceMessageRecorderModal({
 
       setStatus('recording');
       
+      console.log('✅ Recording started, beginning waveform...');
+      
       // Start waveform after a short delay
-      requestAnimationFrame(() => {
+      setTimeout(() => {
         startWaveformAnimation();
-      });
+      }, 100);
     } catch (error: any) {
-      console.error('Recording start error:', error);
+      console.error('❌ Recording start error:', error);
       setError(error.message || 'Failed to start recording');
       setStatus('ready');
     }
@@ -263,17 +295,21 @@ export function VoiceMessageRecorderModal({
       if (!canvas) return;
 
       const rect = canvas.getBoundingClientRect();
+      
+      // Set actual size (with device pixel ratio for crisp rendering)
       canvas.width = rect.width * window.devicePixelRatio;
       canvas.height = rect.height * window.devicePixelRatio;
 
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-      }
+      console.log('Canvas sized:', rect.width, 'x', rect.height, 'DPR:', window.devicePixelRatio);
+
+      // DON'T scale the context - we'll handle DPR in the animate function
     };
 
     if (isOpen) {
-      setTimeout(updateCanvasSize, 100);
+      // Multiple attempts to ensure canvas is sized
+      setTimeout(updateCanvasSize, 50);
+      setTimeout(updateCanvasSize, 150);
+      setTimeout(updateCanvasSize, 300);
     }
 
     window.addEventListener('resize', updateCanvasSize);
