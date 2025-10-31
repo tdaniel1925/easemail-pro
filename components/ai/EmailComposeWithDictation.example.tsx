@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { DictateButton, DictationWidget } from '@/components/ai/DictateButton';
 import { InlineUpgradePrompt } from '@/components/ai/DictationUpgradeModal';
 import { useDictationUsage } from '@/lib/ai/dictation-usage';
