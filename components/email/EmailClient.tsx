@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { EmailList } from './EmailList';
-import { ContactPanel } from './ContactPanel';
+import { MiniCalendar } from '@/components/calendar/MiniCalendar';
 import SyncingIndicator from './SyncingIndicator';
 
 interface EmailClientProps {
@@ -123,9 +123,9 @@ export default function EmailClient({ searchQuery = '', onSearchChange }: EmailC
         />
       </div>
 
-      {/* Contact Panel (25%) */}
+      {/* Mini Calendar Sidebar (25%) */}
       <div className="w-1/4 border-l border-border">
-        <ContactPanel email={selectedEmail} />
+        <MiniCalendar />
       </div>
     </div>
   );
