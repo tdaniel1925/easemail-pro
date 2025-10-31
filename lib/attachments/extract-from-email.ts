@@ -14,7 +14,7 @@ interface ExtractAttachmentsParams {
   accountId: string;
   userId: string;
   grantId: string;
-  nylas: typeof Nylas;
+  nylas: Nylas;
 }
 
 export async function extractAndSaveAttachments({
