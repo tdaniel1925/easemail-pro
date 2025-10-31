@@ -61,7 +61,8 @@ export async function classifyDocument(
     };
   } catch (error) {
     console.error('Classification error:', error);
-    throw new Error(`Failed to classify document: ${error.message}`);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to classify document: ${message}`);
   }
 }
 
@@ -447,12 +448,13 @@ export async function processAttachment(
     };
   } catch (error) {
     console.error('Processing failed:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return {
       documentType: 'other',
       confidence: 0,
       extractedMetadata: {},
       keyTerms: [],
-      error: error.message,
+      error: message,
     };
   }
 }
