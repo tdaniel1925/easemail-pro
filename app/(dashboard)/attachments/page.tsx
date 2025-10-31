@@ -153,7 +153,7 @@ function AttachmentsContent() {
   };
 
   const hasAttachments = data && data.data.length > 0;
-  const hasFilters = filters.search || filters.fileTypes.length > 0 || filters.documentTypes.length > 0 || filters.senders.length > 0 || filters.dateRange;
+  const hasFilters = !!(filters.search || filters.fileTypes.length > 0 || filters.documentTypes.length > 0 || filters.senders.length > 0 || filters.dateRange);
 
   return (
     <InboxLayout>
