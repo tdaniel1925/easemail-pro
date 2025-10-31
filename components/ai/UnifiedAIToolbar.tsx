@@ -175,25 +175,25 @@ export function AIToolbarShortcuts({ toolbar }: { toolbar: HTMLDivElement | null
       // Ctrl+Shift+W - AI Write
       if (e.ctrlKey && e.shiftKey && e.key === 'W') {
         e.preventDefault();
-        toolbar.querySelector('[title*="AI Write"]')?.click();
+        (toolbar.querySelector('[title*="AI Write"]') as HTMLElement)?.click();
       }
 
       // Ctrl+Shift+R - AI Remix
       if (e.ctrlKey && e.shiftKey && e.key === 'R') {
         e.preventDefault();
-        toolbar.querySelector('[title*="AI Remix"]')?.click();
+        (toolbar.querySelector('[title*="AI Remix"]') as HTMLElement)?.click();
       }
 
       // Ctrl+D - Dictate
       if (e.ctrlKey && e.key === 'd') {
         e.preventDefault();
-        toolbar.querySelector('[title*="Dictate"]')?.click();
+        (toolbar.querySelector('[title*="Dictate"]') as HTMLElement)?.click();
       }
 
       // Ctrl+Shift+M - Voice Message
       if (e.ctrlKey && e.shiftKey && e.key === 'M') {
         e.preventDefault();
-        toolbar.querySelector('[title*="Voice Message"]')?.click();
+        (toolbar.querySelector('[title*="Voice Message"]') as HTMLElement)?.click();
       }
     };
 
