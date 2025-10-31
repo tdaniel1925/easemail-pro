@@ -40,6 +40,7 @@ export function VoiceMessageRecorderModal({
   const startTimeRef = useRef<number>(0);
   const timerRef = useRef<NodeJS.Timeout>();
   const audioRef = useRef<HTMLAudioElement>(null);
+  const isRecordingRef = useRef(false); // Use ref instead of state for animation loop
 
   // Check if recording is supported
   const isSupported = typeof window !== 'undefined' && 
@@ -101,11 +102,13 @@ export function VoiceMessageRecorderModal({
         }
       }, 100);
 
+      // Set recording flag BEFORE updating state
+      isRecordingRef.current = true;
       setStatus('recording');
       console.log('✅ Recording started');
       
       // Start waveform animation
-      requestAnimationFrame(() => animateWaveform());
+      animateWaveform();
 
     } catch (error: any) {
       console.error('❌ Recording error:', error);
@@ -118,7 +121,14 @@ export function VoiceMessageRecorderModal({
     const canvas = canvasRef.current;
     const analyser = analyserRef.current;
     
-    if (!canvas || !analyser || status !== 'recording') return;
+    if (!canvas || !analyser || !isRecordingRef.current) {
+      console.log('⚠️ Animation check:', { 
+        hasCanvas: !!canvas, 
+        hasAnalyser: !!analyser, 
+        isRecording: isRecordingRef.current 
+      });
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -161,7 +171,7 @@ export function VoiceMessageRecorderModal({
     setAudioLevel(Math.min(100, Math.round(avgLevel * 1.5)));
 
     // Continue animation
-    if (status === 'recording') {
+    if (isRecordingRef.current) {
       animationRef.current = requestAnimationFrame(animateWaveform);
     }
   };
@@ -169,6 +179,9 @@ export function VoiceMessageRecorderModal({
   // Stop recording
   const handleStop = async () => {
     console.log('⏹️ Stopping recording...');
+
+    // Stop animation first
+    isRecordingRef.current = false;
 
     if (timerRef.current) {
       clearInterval(timerRef.current);
