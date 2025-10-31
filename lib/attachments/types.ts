@@ -41,7 +41,8 @@ export interface Attachment {
   // Identity
   id: string;
   userId: string;
-  emailId: string;
+  emailId: string | null;
+  accountId?: string | null;
   threadId?: string | null;
   
   // File metadata
@@ -52,8 +53,9 @@ export interface Attachment {
   
   // Storage
   storagePath: string;
-  storageBucket: string;
+  storageUrl?: string | null;
   thumbnailPath?: string | null;
+  thumbnailUrl?: string | null;
   
   // Email context
   senderEmail: string | null;
@@ -69,13 +71,9 @@ export interface Attachment {
   
   // AI processing status
   aiProcessed: boolean;
-  aiProcessedAt?: Date | null;
-  aiProcessingError?: string | null;
-  aiModelVersion?: string | null;
-  
-  // Usage tracking
-  accessCount: number;
-  lastAccessedAt?: Date | null;
+  processingStatus: string;
+  processingError?: string | null;
+  processedAt?: Date | null;
   
   // Timestamps
   createdAt: Date;
