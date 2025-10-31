@@ -125,3 +125,34 @@ button, a {
   @apply transition-colors duration-200;
 }
 
+/* Email content styling - sanitize and contain HTML emails */
+.email-content {
+  @apply max-w-full overflow-hidden;
+}
+
+.email-content * {
+  max-width: 100% !important;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.email-content img {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+.email-content table {
+  max-width: 100% !important;
+  table-layout: fixed !important;
+}
+
+.email-content a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
+.email-content pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+

@@ -89,8 +89,8 @@ function ContactInfoTab({ email, avatarColor }: { email: Email; avatarColor: str
           >
             {getInitials(email.fromName || email.fromEmail || 'Unknown')}
           </div>
-          <h3 className="font-semibold text-lg">{email.fromName || email.fromEmail || 'Unknown'}</h3>
-          <p className="text-sm text-muted-foreground">{email.fromEmail}</p>
+          <h3 className="font-semibold text-lg break-words px-2">{email.fromName || email.fromEmail || 'Unknown'}</h3>
+          <p className="text-sm text-muted-foreground break-all px-2">{email.fromEmail}</p>
         </div>
 
         {/* Action Buttons */}
