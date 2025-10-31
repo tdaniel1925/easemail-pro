@@ -278,33 +278,34 @@ function AccountsContent() {
 
   return (
     <InboxLayout>
-      <div className="p-8 max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Email Accounts</h1>
-            <p className="text-muted-foreground mt-2">
-              Manage your connected email accounts and sync settings
-            </p>
+      <div className="h-full overflow-y-auto">
+        <div className="p-8 max-w-6xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h1 className="text-3xl font-bold">Email Accounts</h1>
+              <p className="text-muted-foreground mt-2">
+                Manage your connected email accounts and sync settings
+              </p>
+            </div>
+            <Button onClick={handleAddAccount}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Account
+            </Button>
           </div>
-          <Button onClick={handleAddAccount}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Account
-          </Button>
-        </div>
 
-        {message && (
-          <InlineMessage
-            type={message.type}
-            message={message.text}
-            onClose={() => setMessage(null)}
-          />
-        )}
+          {message && (
+            <InlineMessage
+              type={message.type}
+              message={message.text}
+              onClose={() => setMessage(null)}
+            />
+          )}
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : accounts.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : accounts.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -509,6 +510,7 @@ function AccountsContent() {
             ))}
           </div>
         )}
+        </div>
       </div>
     </InboxLayout>
   );
