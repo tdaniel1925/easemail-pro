@@ -52,9 +52,8 @@ export async function extractAndSaveAttachments({
 
       // Download attachment from Nylas
       console.log(`📥 Downloading: ${file.filename}`);
-      const attachmentResponse = await nylas.messages.downloadAttachment({
+      const attachmentResponse = await nylas.attachments.download({
         identifier: grantId,
-        messageId: message.id,
         attachmentId: file.id,
       });
 
