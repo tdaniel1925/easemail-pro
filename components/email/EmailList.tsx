@@ -75,11 +75,45 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
   };
 
   const handleBulkAction = async (action: string) => {
-    console.log(`Bulk action: ${action} on ${selectedEmails.size} emails`);
-    // TODO: Implement actual bulk actions via API
-    // For now, just clear selection
-    setSelectedEmails(new Set());
-    setSelectMode(false);
+    const selectedIds = Array.from(selectedEmails);
+    
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    console.log(`📦 Performing bulk action: ${action} on ${selectedIds.length} emails`);
+
+    try {
+      const response = await fetch('/api/nylas/messages/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messageIds: selectedIds,
+          action,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log(`✅ Bulk action successful: ${data.message}`);
+        
+        // Clear selection
+        setSelectedEmails(new Set());
+        setSelectMode(false);
+        
+        // Refresh the email list (you might want to trigger a re-fetch here)
+        window.location.reload(); // Simple approach - you can improve this with a refetch function
+      } else {
+        console.error('Bulk action failed:', data.error);
+        alert(`Failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Bulk action error:', error);
+      alert('Failed to perform bulk action. Please try again.');
+    }
   };
 
   const allSelected = emails.length > 0 && selectedEmails.size === emails.length;
