@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense, lazy } from 'react';
 import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, Smile, Bold, Italic, Underline, AlignLeft, List, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { UnifiedAIToolbar } from '@/components/ai/UnifiedAIToolbar';
+
+// Lazy load the AI toolbar to prevent SSR issues
+const UnifiedAIToolbar = lazy(() => 
+  import('@/components/ai/UnifiedAIToolbar').then(mod => ({ default: mod.UnifiedAIToolbar }))
+);
 
 interface EmailComposeProps {
   isOpen: boolean;
@@ -320,15 +324,21 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
             )}
 
             {/* AI Composition Toolbar */}
-            <UnifiedAIToolbar
-              subject={subject}
-              body={body}
-              onSubjectChange={setSubject}
-              onBodyChange={setBody}
-              recipientEmail={to}
-              userTier="free"
-              onAttachVoiceMessage={handleVoiceMessageAttachment}
-            />
+            <Suspense fallback={
+              <div className="p-3 border-t border-border bg-muted/10 text-center text-sm text-muted-foreground">
+                Loading AI features...
+              </div>
+            }>
+              <UnifiedAIToolbar
+                subject={subject}
+                body={body}
+                onSubjectChange={setSubject}
+                onBodyChange={setBody}
+                recipientEmail={to}
+                userTier="free"
+                onAttachVoiceMessage={handleVoiceMessageAttachment}
+              />
+            </Suspense>
 
             {/* Footer */}
             <div className="flex items-center justify-between p-3 border-t border-border">
