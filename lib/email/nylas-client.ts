@@ -14,10 +14,24 @@ export async function initNylasAuth(userId: string, provider: string) {
     redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/callback`,
   };
 
+  // Different providers require different scopes
+  let scopes: string[];
+  
+  if (provider === 'microsoft') {
+    // Microsoft (Outlook) specific scopes
+    scopes = ['email.send', 'email.modify', 'contacts.read_only'];
+  } else if (provider === 'google') {
+    // Google specific scopes
+    scopes = ['email.read_only', 'email.send', 'email.modify', 'contacts.read_only'];
+  } else {
+    // Default scopes for other providers (IMAP, etc.)
+    scopes = ['email.send', 'email.modify', 'contacts.read_only'];
+  }
+
   const authUrl = nylas.auth.urlForOAuth2({
     ...config,
     provider: provider as any, // 'google', 'microsoft', 'imap'
-    scope: ['email.read_only', 'email.send', 'email.modify', 'contacts.read_only'],
+    scope: scopes,
     state: userId,
   });
 
