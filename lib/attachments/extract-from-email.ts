@@ -55,6 +55,9 @@ export async function extractAndSaveAttachments({
       const attachmentResponse = await nylas.attachments.download({
         identifier: grantId,
         attachmentId: file.id,
+        queryParams: {
+          messageId: message.id,
+        },
       });
 
       // Upload to Supabase Storage
