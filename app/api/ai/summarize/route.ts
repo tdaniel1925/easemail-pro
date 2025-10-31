@@ -2,10 +2,14 @@
  * AI Email Summary API
  * POST /api/ai/summarize
  * Generates a concise summary of an email using OpenAI
+ * SAVES TO DATABASE for permanent caching
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { db } from '@/lib/db/drizzle';
+import { emails } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -35,6 +39,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 🔥 CHECK DATABASE FIRST - One-time generation!
+    const existingEmail = await db.query.emails.findFirst({
+      where: eq(emails.id, emailId),
+      columns: { aiSummary: true },
+    });
+
+    if (existingEmail?.aiSummary) {
+      console.log(`✅ Using cached summary from database for ${emailId}`);
+      return NextResponse.json({
+        emailId,
+        summary: existingEmail.aiSummary,
+        cached: true, // From database!
+        tokens: 0, // No OpenAI cost
+      });
+    }
+
     // Use snippet, bodyText, or subject as content (in order of preference)
     const content = snippet || bodyText?.substring(0, 1000) || subject || '';
     
@@ -58,7 +78,7 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    console.log(`🤖 Generating AI summary for email: ${emailId}`);
+    console.log(`🤖 Generating NEW AI summary for email: ${emailId}`);
 
     // Generate summary using OpenAI
     const completion = await openai.chat.completions.create({
@@ -105,12 +125,27 @@ ${content}`
 
     const summary = completion.choices[0]?.message?.content?.trim() || snippet;
 
+    // 🔥 SAVE TO DATABASE - Never generate again!
+    try {
+      await db.update(emails)
+        .set({
+          aiSummary: summary,
+          updatedAt: new Date(),
+        })
+        .where(eq(emails.id, emailId));
+      
+      console.log(`💾 Summary saved to database for ${emailId}`);
+    } catch (dbError) {
+      console.error('⚠️ Failed to save summary to database:', dbError);
+      // Continue anyway - at least return the summary
+    }
+
     console.log(`✅ Summary generated for ${emailId}: "${summary}"`);
 
     return NextResponse.json({
       emailId,
       summary,
-      cached: false,
+      cached: false, // First generation
       tokens: completion.usage?.total_tokens || 0,
     });
 
