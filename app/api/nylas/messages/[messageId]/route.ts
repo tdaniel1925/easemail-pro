@@ -14,7 +14,7 @@ export async function GET(
   try {
     // Get message from database
     const message = await db.query.emails.findFirst({
-      where: eq(emails.providerMessageId, messageId),
+      where: eq(emails.id, messageId),
       with: {
         account: true,
       },
@@ -68,7 +68,7 @@ export async function PUT(
   try {
     // Get message
     const message = await db.query.emails.findFirst({
-      where: eq(emails.providerMessageId, messageId),
+      where: eq(emails.id, messageId),
       with: { account: true },
     });
     
@@ -113,7 +113,7 @@ export async function DELETE(
   try {
     // Get message
     const message = await db.query.emails.findFirst({
-      where: eq(emails.providerMessageId, messageId),
+      where: eq(emails.id, messageId),
       with: { account: true },
     });
     
