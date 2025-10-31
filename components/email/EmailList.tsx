@@ -39,9 +39,10 @@ interface EmailListProps {
   onEmailClick: (id: string) => void;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
+  onRefresh?: () => void;
 }
 
-export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailClick, searchQuery = '', onSearchChange }: EmailListProps) {
+export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailClick, searchQuery = '', onSearchChange, onRefresh }: EmailListProps) {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const { toasts, closeToast, success, error, info } = useToast();
@@ -108,10 +109,12 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
         setSelectedEmails(new Set());
         setSelectMode(false);
         
-        // Refresh the email list
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        // Refresh the email list without full page reload
+        if (onRefresh) {
+          setTimeout(() => {
+            onRefresh();
+          }, 500);
+        }
       } else {
         console.error('Bulk action failed:', data.error);
         error(`Failed: ${data.error || 'Unknown error'}`);

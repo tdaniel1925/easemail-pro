@@ -25,15 +25,27 @@ export async function GET(request: NextRequest) {
     const isSentFolder = folder?.toLowerCase().includes('sent');
     const sortByDate = isSentFolder ? emails.sentAt : emails.receivedAt;
     
+    // Build WHERE clause with proper filtering
+    let whereClause;
+    if (folder) {
+      // Specific folder - filter by folder name
+      whereClause = sql`${emails.accountId} = ${accountId} AND ${emails.folder} = ${folder}`;
+    } else {
+      // Inbox view - exclude trashed and archived emails
+      whereClause = sql`${emails.accountId} = ${accountId} 
+        AND ${emails.isTrashed} = false 
+        AND ${emails.isArchived} = false`;
+    }
+    
     // Get messages from database
     const messages = await db.query.emails.findMany({
-      where: folder ? sql`${emails.accountId} = ${accountId} AND ${emails.folder} = ${folder}` : eq(emails.accountId, accountId),
+      where: whereClause,
       limit,
       offset,
       orderBy: [desc(sortByDate)],
     });
     
-    console.log(`📧 Fetched ${messages.length} emails for account ${accountId}${folder ? ` in folder ${folder}` : ''}`);
+    console.log(`📧 Fetched ${messages.length} emails for account ${accountId}${folder ? ` in folder ${folder}` : ' (inbox, excluding trash/archive)'}`);
     console.log(`📅 Sorting by: ${isSentFolder ? 'sentAt' : 'receivedAt'}`);
     if (messages.length > 0) {
       const dateField = isSentFolder ? 'sentAt' : 'receivedAt';

@@ -16,6 +16,12 @@ export default function EmailClient({ searchQuery = '', onSearchChange }: EmailC
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0); // Force refresh trigger
+
+  // Function to refresh email list
+  const refreshEmails = () => {
+    setRefreshKey(prev => prev + 1);
+  };
 
   // Fetch emails when search query changes (with debouncing)
   useEffect(() => {
@@ -74,7 +80,7 @@ export default function EmailClient({ searchQuery = '', onSearchChange }: EmailC
 
     // Cleanup timeout on unmount or when searchQuery changes
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]); // Re-fetch when search query changes
+  }, [searchQuery, refreshKey]); // Re-fetch when search query OR refreshKey changes
 
   const selectedEmail = emails.find(email => email.id === selectedEmailId);
 
@@ -113,6 +119,7 @@ export default function EmailClient({ searchQuery = '', onSearchChange }: EmailC
           onEmailClick={handleEmailClick}
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
+          onRefresh={refreshEmails}
         />
       </div>
 
