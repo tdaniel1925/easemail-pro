@@ -181,7 +181,7 @@ export class VoiceMessageRecorder {
    * Check if recording is supported
    */
   static isSupported(): boolean {
-    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && MediaRecorder);
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && typeof MediaRecorder !== 'undefined');
   }
 
   /**
