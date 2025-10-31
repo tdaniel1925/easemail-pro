@@ -9,9 +9,10 @@ import SyncingIndicator from './SyncingIndicator';
 
 interface EmailClientProps {
   searchQuery?: string;
+  onSearchChange?: (query: string) => void;
 }
 
-export default function EmailClient({ searchQuery = '' }: EmailClientProps) {
+export default function EmailClient({ searchQuery = '', onSearchChange }: EmailClientProps) {
   const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [emails, setEmails] = useState<any[]>([]);
@@ -112,6 +113,8 @@ export default function EmailClient({ searchQuery = '' }: EmailClientProps) {
           expandedEmailId={expandedEmailId}
           selectedEmailId={selectedEmailId}
           onEmailClick={handleEmailClick}
+          searchQuery={searchQuery}
+          onSearchChange={onSearchChange}
         />
       </div>
 

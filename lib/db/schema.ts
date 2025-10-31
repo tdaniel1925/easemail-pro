@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, boolean, integer, bigint, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, boolean, integer, bigint, jsonb, index, serial } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Users Table (synced with Supabase Auth)
@@ -147,6 +147,54 @@ export const emails = pgTable('emails', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Attachments (extracted from emails)
+export const attachments = pgTable('attachments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  emailId: uuid('email_id').references(() => emails.id, { onDelete: 'cascade' }),
+  accountId: uuid('account_id').references(() => emailAccounts.id, { onDelete: 'cascade' }),
+  
+  // File details
+  filename: varchar('filename', { length: 500 }).notNull(),
+  fileExtension: varchar('file_extension', { length: 50 }),
+  mimeType: varchar('mime_type', { length: 255 }),
+  fileSizeBytes: bigint('file_size_bytes', { mode: 'number' }).notNull(),
+  
+  // Storage
+  storagePath: varchar('storage_path', { length: 1000 }).notNull(),
+  storageUrl: text('storage_url'),
+  thumbnailPath: varchar('thumbnail_path', { length: 1000 }),
+  thumbnailUrl: text('thumbnail_url'),
+  
+  // Email context
+  emailSubject: text('email_subject'),
+  senderEmail: varchar('sender_email', { length: 255 }),
+  senderName: varchar('sender_name', { length: 255 }),
+  emailDate: timestamp('email_date'),
+  threadId: uuid('thread_id'),
+  
+  // AI Classification
+  documentType: varchar('document_type', { length: 100 }), // 'invoice', 'receipt', 'contract', 'report', 'image', etc.
+  classificationConfidence: integer('classification_confidence'), // 0-100
+  extractedMetadata: jsonb('extracted_metadata').$type<Record<string, any>>(), // AI-extracted data
+  keyTerms: jsonb('key_terms').$type<string[]>(),
+  
+  // Processing status
+  aiProcessed: boolean('ai_processed').default(false),
+  processingStatus: varchar('processing_status', { length: 50 }).default('pending'), // 'pending', 'processing', 'completed', 'failed'
+  processingError: text('processing_error'),
+  processedAt: timestamp('processed_at'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('attachments_user_id_idx').on(table.userId),
+  emailIdIdx: index('attachments_email_id_idx').on(table.emailId),
+  fileExtensionIdx: index('attachments_file_extension_idx').on(table.fileExtension),
+  documentTypeIdx: index('attachments_document_type_idx').on(table.documentType),
+  emailDateIdx: index('attachments_email_date_idx').on(table.emailDate),
+}));
+
 // Contacts
 export const contacts = pgTable('contacts', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -290,6 +338,7 @@ export const userPreferences = pgTable('user_preferences', {
   // AI Features
   aiEnabled: boolean('ai_enabled').default(true),
   aiAutoSummarize: boolean('ai_auto_summarize').default(true),
+  aiAttachmentProcessing: boolean('ai_attachment_processing').default(false), // Default OFF for security
   
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { formatDate, getInitials, generateAvatarColor, formatFileSize } from '@/lib/utils';
-import { Star, Paperclip, Reply, ReplyAll, Forward, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { Star, Paperclip, Reply, ReplyAll, Forward, Download, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 interface Email {
@@ -33,26 +34,48 @@ interface EmailListProps {
   expandedEmailId: string | null;
   selectedEmailId: string | null;
   onEmailClick: (id: string) => void;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
 }
 
-export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailClick }: EmailListProps) {
+export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailClick, searchQuery = '', onSearchChange }: EmailListProps) {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (onSearchChange) {
+      onSearchChange(e.target.value);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Subtle toolbar instead of header */}
-      <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-medium text-muted-foreground">Primary</h2>
-          <span className="text-xs text-muted-foreground">• {emails.length}</span>
-        </div>
-        
-        {/* Quick filters */}
-        <div className="flex gap-1">
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-            All
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-            Unread
-          </Button>
+      {/* Single row toolbar - everything inline */}
+      <div className="h-14 px-4 border-b border-border/50 flex items-center">
+        <div className="flex items-center gap-4 w-full">
+          {/* Folder name only */}
+          <div className="flex-shrink-0">
+            <h2 className="text-sm font-medium">Primary</h2>
+          </div>
+
+          {/* Search bar - takes remaining space */}
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search emails... (Ctrl+K)"
+              className="w-full pl-10 pr-3 h-9 bg-background border-border"
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
+          </div>
+          
+          {/* Quick filters - right aligned */}
+          <div className="flex gap-1 flex-shrink-0">
+            <Button variant="ghost" size="sm" className="h-9 px-3 text-sm">
+              All
+            </Button>
+            <Button variant="ghost" size="sm" className="h-9 px-3 text-sm">
+              Unread
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -117,65 +140,55 @@ function EmailCard({ email, isExpanded, isSelected, onClick }: EmailCardProps) {
 
           {/* Email Preview Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2 mb-1">
+            <div className="flex items-start justify-between gap-2 mb-1.5">
               <div className="flex-1 min-w-0">
-                <p className={cn('text-sm truncate', !email.isRead && 'font-semibold')}>
+                <p className={cn('text-sm', !email.isRead && 'font-semibold')}>
                   {email.fromName || email.fromEmail || 'Unknown'}
-                </p>
-                <p className={cn('text-sm truncate', !email.isRead ? 'font-medium' : 'text-muted-foreground')}>
-                  {email.subject || '(No subject)'}
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
                   {mounted ? formatDate(email.receivedAt) : ''}
                 </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Handle star toggle
-                      }}
-                      className="text-muted-foreground hover:text-yellow-500"
-                    >
-                      <Star
-                        className={cn('h-4 w-4', email.isStarred && 'fill-yellow-500 text-yellow-500')}
-                      />
-                    </button>
-                    {isExpanded ? (
-                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </div>
-                </div>
-
-                {!isExpanded && (
-                  <>
-                    <p className="text-sm text-muted-foreground truncate mb-2">
-                      {email.snippet}
-                    </p>
-
-                    <div className="flex items-center gap-2">
-                      {email.hasAttachments && email.attachments && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Paperclip className="h-3.5 w-3.5" />
-                          {email.attachments.length}
-                        </div>
-                      )}
-                      {email.labels && email.labels.map((label: string) => (
-                        <span
-                          key={label}
-                          className="px-2 py-0.5 text-xs rounded-full bg-primary/20 text-primary"
-                        >
-                          {label}
-                        </span>
-                      ))}
-                    </div>
-                  </>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Handle star toggle
+                  }}
+                  className="text-muted-foreground hover:text-yellow-500"
+                >
+                  <Star
+                    className={cn('h-4 w-4', email.isStarred && 'fill-yellow-500 text-yellow-500')}
+                  />
+                </button>
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
             </div>
+
+            {!isExpanded && (
+              <>
+                <p className={cn('text-sm mb-1', !email.isRead ? 'font-medium' : 'text-muted-foreground')}>
+                  {email.subject || '(No subject)'}
+                </p>
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {email.snippet}
+                </p>
+
+                {email.hasAttachments && email.attachments && email.attachments.length > 0 && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    <span>{email.attachments.length} attachment{email.attachments.length > 1 ? 's' : ''}</span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
+        </div>
+      </div>
 
       {/* Expanded Email Content - Dropdown */}
       {isExpanded && (

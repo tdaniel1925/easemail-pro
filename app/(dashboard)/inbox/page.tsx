@@ -9,8 +9,8 @@ function InboxContent() {
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <InboxLayout searchQuery={searchQuery} onSearchChange={setSearchQuery}>
-      <EmailClient searchQuery={searchQuery} />
+    <InboxLayout>
+      <EmailClient searchQuery={searchQuery} onSearchChange={setSearchQuery} />
     </InboxLayout>
   );
 }

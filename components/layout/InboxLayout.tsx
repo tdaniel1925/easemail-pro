@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar } from 'lucide-react';
+import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
@@ -14,13 +14,10 @@ import SettingsMenu from '@/components/layout/SettingsMenu';
 
 interface InboxLayoutProps {
   children: React.ReactNode;
-  searchQuery?: string;
-  onSearchChange?: (query: string) => void;
 }
 
-export default function InboxLayout({ children, searchQuery: externalSearchQuery, onSearchChange }: InboxLayoutProps) {
+export default function InboxLayout({ children }: InboxLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [isProviderSelectorOpen, setIsProviderSelectorOpen] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
@@ -34,16 +31,6 @@ export default function InboxLayout({ children, searchQuery: externalSearchQuery
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
-
-  // Handle search input changes
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-    // Call the external handler if provided
-    if (onSearchChange) {
-      onSearchChange(value);
-    }
-  };
 
   // Check for success/error messages from OAuth callback
   useEffect(() => {
@@ -303,6 +290,13 @@ export default function InboxLayout({ children, searchQuery: externalSearchQuery
               <span>Contacts</span>
             </button>
             <button
+              onClick={() => router.push('/attachments')}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
+            >
+              <Paperclip className="h-4 w-4" />
+              <span>Attachments</span>
+            </button>
+            <button
               onClick={() => router.push('/accounts')}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
             >
@@ -397,47 +391,6 @@ export default function InboxLayout({ children, searchQuery: externalSearchQuery
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Header - Cleaner and more spacious */}
-        <header className="h-16 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="h-full px-6 flex items-center gap-6">
-            {!sidebarOpen && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSidebarOpen(true)}
-                className="h-9 w-9"
-              >
-                <Menu className="h-4 w-4" />
-              </Button>
-            )}
-            
-            {/* Centered Search Bar */}
-            <div className="flex-1 max-w-2xl mx-auto">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search emails... (Ctrl+K)"
-                  className="pl-10 pr-4 h-10 bg-muted/50 border-none focus-visible:ring-1 text-sm"
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                />
-              </div>
-            </div>
-
-            {/* Right side - Quick actions */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9"
-                onClick={() => router.push('/settings')}
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </header>
 
         {/* Main Content */}
         <main className="flex-1 overflow-hidden flex flex-col">

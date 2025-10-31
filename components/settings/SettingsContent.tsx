@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, User } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, User, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 
 export default function SettingsContent() {
@@ -286,6 +287,45 @@ function NotificationsSettings() {
 }
 
 function PrivacySettings() {
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Load current setting
+  useEffect(() => {
+    fetch('/api/user/preferences')
+      .then(res => res.json())
+      .then(data => {
+        setAiEnabled(data.aiAttachmentProcessing || false);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to load preferences:', err);
+        setLoading(false);
+      });
+  }, []);
+
+  const handleAiToggle = async (enabled: boolean) => {
+    setSaving(true);
+    try {
+      const response = await fetch('/api/user/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aiAttachmentProcessing: enabled }),
+      });
+
+      if (response.ok) {
+        setAiEnabled(enabled);
+      } else {
+        console.error('Failed to update preference');
+      }
+    } catch (error) {
+      console.error('Error updating preference:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="max-w-3xl space-y-6">
       <div>
@@ -293,6 +333,65 @@ function PrivacySettings() {
         <p className="text-muted-foreground">Control your privacy and security settings</p>
       </div>
 
+      {/* AI Features Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <CardTitle>AI Features</CardTitle>
+          </div>
+          <CardDescription>
+            Control how artificial intelligence is used to enhance your email experience
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="font-medium">AI Attachment Analysis</p>
+                {saving && <span className="text-xs text-muted-foreground">(saving...)</span>}
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">
+                Automatically classify attachments as invoices, receipts, contracts, and more. 
+                Extract key data like amounts, dates, and vendors using OpenAI's API.
+              </p>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900 p-3">
+                <p className="text-xs text-amber-900 dark:text-amber-200">
+                  <strong>Privacy Notice:</strong> When enabled, attachment files are sent to OpenAI for processing. 
+                  Files are analyzed and deleted after 30 days per OpenAI's data retention policy. 
+                  Your files are never used for AI training.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={aiEnabled}
+              onCheckedChange={handleAiToggle}
+              disabled={loading || saving}
+            />
+          </div>
+
+          {aiEnabled && (
+            <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900 p-4">
+              <div className="flex items-start gap-3">
+                <Sparkles className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
+                <div>
+                  <p className="font-medium text-green-900 dark:text-green-100 mb-1">
+                    AI Analysis Enabled
+                  </p>
+                  <p className="text-sm text-green-800 dark:text-green-200 mb-2">
+                    New attachments will be automatically classified and analyzed.
+                  </p>
+                  <p className="text-xs text-green-700 dark:text-green-300">
+                    Cost: ~$0.003 per attachment • Powered by OpenAI GPT-4
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Privacy Card */}
       <Card>
         <CardHeader>
           <CardTitle>Privacy</CardTitle>
@@ -303,18 +402,14 @@ function PrivacySettings() {
               <p className="font-medium">Tracking Protection</p>
               <p className="text-sm text-muted-foreground">Block email tracking pixels</p>
             </div>
-            <div className="w-10 h-6 bg-primary rounded-full relative">
-              <div className="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5"></div>
-            </div>
+            <Switch defaultChecked />
           </div>
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Block External Images</p>
               <p className="text-sm text-muted-foreground">Prevent automatic image loading</p>
             </div>
-            <div className="w-10 h-6 bg-primary rounded-full relative">
-              <div className="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5"></div>
-            </div>
+            <Switch />
           </div>
         </CardContent>
       </Card>
