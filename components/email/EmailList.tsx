@@ -273,16 +273,16 @@ function EmailCard({ email, isExpanded, isSelected, onClick }: EmailCardProps) {
 
               {/* Email Body */}
               <div className="p-5">
-                <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
+                <div className="prose prose-sm dark:prose-invert max-w-none text-sm break-words overflow-wrap-anywhere">
                   {email.bodyHtml ? (
                     <div 
-                      className="email-content"
+                      className="email-content break-words"
                       dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
                     />
                   ) : email.bodyText ? (
-                    <div className="whitespace-pre-wrap">{email.bodyText}</div>
+                    <div className="whitespace-pre-wrap break-words">{email.bodyText}</div>
                   ) : (
-                    <div className="whitespace-pre-wrap">{email.snippet || '(No content)'}</div>
+                    <div className="whitespace-pre-wrap break-words">{email.snippet || '(No content)'}</div>
                   )}
                 </div>
 

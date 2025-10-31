@@ -144,10 +144,13 @@ function ContactInfoTab({ email, avatarColor }: { email: Email; avatarColor: str
         <h4 className="text-sm font-semibold text-muted-foreground uppercase">Contact Information</h4>
         
         <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-          <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
-          <div className="flex-1">
+          <Mail className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
             <p className="text-xs text-muted-foreground mb-1">Email</p>
-            <a href={`mailto:${email.fromEmail || 'unknown@example.com'}`} className="text-sm hover:underline">
+            <a 
+              href={`mailto:${email.fromEmail || 'unknown@example.com'}`} 
+              className="text-sm hover:underline break-all"
+            >
               {email.fromEmail || 'Unknown'}
             </a>
           </div>
