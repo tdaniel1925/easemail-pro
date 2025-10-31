@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
               if (value) {
                 await db.update(emails)
                   .set({
-                    folderId: value,
+                    folder: value,
                     updatedAt: new Date(),
                   })
                   .where(eq(emails.id, message.id));
