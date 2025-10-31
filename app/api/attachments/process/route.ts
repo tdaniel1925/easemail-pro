@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
             senderName: attachment.senderName || null,
             emailDate: attachment.emailDate || null,
             threadId: attachment.threadId || null,
-            documentType: attachment.documentType || null,
+            documentType: (attachment.documentType as any) || null,
             classificationConfidence: attachment.classificationConfidence || null,
             extractedMetadata: attachment.extractedMetadata as any,
             keyTerms: attachment.keyTerms as string[],
