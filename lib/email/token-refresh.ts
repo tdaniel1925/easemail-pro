@@ -99,7 +99,7 @@ function needsTokenRefresh(account: any): boolean {
 async function refreshAccountToken(accountId: string, grantId: string): Promise<void> {
   try {
     // Validate grant is still valid
-    const grant = await nylas.auth.grants.find({
+    const grant = await nylas.grants.find({
       grantId,
     });
 
