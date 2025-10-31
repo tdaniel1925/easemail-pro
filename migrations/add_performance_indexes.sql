@@ -20,9 +20,9 @@ CREATE INDEX IF NOT EXISTS idx_emails_account_folder ON emails(account_id, folde
 CREATE INDEX IF NOT EXISTS idx_emails_account_received ON emails(account_id, received_at DESC);
 CREATE INDEX IF NOT EXISTS idx_emails_account_folder_received ON emails(account_id, folder, received_at DESC);
 
--- Folders indexes
-CREATE INDEX IF NOT EXISTS idx_folders_account_id ON folders(account_id);
-CREATE INDEX IF NOT EXISTS idx_folders_provider_folder_id ON folders(provider_folder_id);
+-- Email folders indexes (table is called email_folders, not folders)
+CREATE INDEX IF NOT EXISTS idx_email_folders_account_id ON email_folders(account_id);
+CREATE INDEX IF NOT EXISTS idx_email_folders_provider_folder_id ON email_folders(provider_folder_id);
 
 -- Contacts indexes
 CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON contacts(user_id);
@@ -42,5 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_emails_starred ON emails(account_id, received_at 
 
 ANALYZE emails;
 ANALYZE email_accounts;
-ANALYZE folders;
+ANALYZE email_folders;
+ANALYZE contacts;
+ANALYZE sync_logs;
 
