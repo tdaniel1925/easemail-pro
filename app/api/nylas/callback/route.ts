@@ -84,11 +84,11 @@ export async function GET(request: NextRequest) {
     }).catch(err => console.error('⚠️ Folder sync trigger error:', err));
     
     // Trigger initial email sync (async - don't wait)
-    console.log('📧 Triggering initial email sync (first 1000 emails)...');
+    console.log('📧 Triggering initial email sync (first 200 emails)...');
     fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accountId: account.id, limit: 1000, fullSync: true }),
+      body: JSON.stringify({ accountId: account.id, limit: 200, fullSync: true }),
     }).then(() => {
       // After initial sync, trigger background sync for remaining emails
       console.log('🔄 Triggering background sync for remaining emails...');

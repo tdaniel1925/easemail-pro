@@ -126,11 +126,11 @@ function AccountsContent() {
         method: 'POST',
       });
       
-      // Sync initial batch of messages (1000)
+      // Sync initial batch of messages (200 - Nylas max limit)
       await fetch('/api/nylas/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId, limit: 1000, fullSync: true }),
+        body: JSON.stringify({ accountId, limit: 200, fullSync: true }),
       });
       
       // Trigger background sync for remaining emails
