@@ -48,7 +48,12 @@ export async function POST(request: NextRequest) {
       .where(eq(emailAccounts.id, accountId));
 
     // Start the background sync (don't await - runs in background)
-    performBackgroundSync(accountId, account.nylasGrantId!, account.syncCursor || undefined, account.nylasProvider).catch(err => {
+    performBackgroundSync(
+      accountId, 
+      account.nylasGrantId!, 
+      account.syncCursor || undefined, 
+      account.nylasProvider || undefined
+    ).catch(err => {
       console.error(`❌ Background sync error for ${accountId}:`, err);
     });
 
