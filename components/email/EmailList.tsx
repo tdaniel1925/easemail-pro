@@ -278,6 +278,8 @@ interface EmailCardProps {
 function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSelect, onClick }: EmailCardProps) {
   const avatarColor = generateAvatarColor(email.fromEmail || 'unknown@example.com');
   const [mounted, setMounted] = useState(false);
+  const [fullEmail, setFullEmail] = useState<Email | null>(null);
+  const [loadingFullEmail, setLoadingFullEmail] = useState(false);
   
   // Viewport detection
   const { ref, inView } = useInView({
@@ -292,9 +294,62 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
     setMounted(true);
   }, []);
   
+  // Fetch full email body when expanded
+  useEffect(() => {
+    if (isExpanded && !fullEmail && !email.bodyHtml && !email.bodyText) {
+      const fetchFullEmail = async () => {
+        setLoadingFullEmail(true);
+        try {
+          const response = await fetch(`/api/nylas/messages/${email.id}`);
+          const data = await response.json();
+          if (data.success && data.message) {
+            setFullEmail(data.message);
+          }
+        } catch (error) {
+          console.error('Failed to fetch full email:', error);
+        } finally {
+          setLoadingFullEmail(false);
+        }
+      };
+      fetchFullEmail();
+    }
+  }, [isExpanded, email.id, email.bodyHtml, email.bodyText, fullEmail]);
+  
+  // Use full email data if available
+  const displayEmail = fullEmail || email;
+  
   // Use AI summary if available, otherwise use snippet
   const displayText = summaryData?.summary || email.snippet;
   const hasAISummary = !!(summaryData && summaryData.summary);
+  
+  // Action handlers
+  const handleReply = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('Reply to:', email.fromEmail);
+    // TODO: Open compose modal with reply data
+    alert(`Reply to: ${email.fromEmail}\nSubject: Re: ${email.subject}`);
+  };
+  
+  const handleReplyAll = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('Reply all to:', email.fromEmail);
+    // TODO: Open compose modal with reply all data
+    alert(`Reply All to: ${email.fromEmail}\nSubject: Re: ${email.subject}`);
+  };
+  
+  const handleForward = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log('Forward:', email.subject);
+    // TODO: Open compose modal with forward data
+    alert(`Forward email:\nSubject: Fwd: ${email.subject}`);
+  };
+  
+  const handleDownloadAttachment = (e: React.MouseEvent, attachment: any) => {
+    e.stopPropagation();
+    console.log('Download:', attachment.filename);
+    // TODO: Implement actual download
+    alert(`Downloading: ${attachment.filename}`);
+  };
 
   return (
     <div
@@ -462,18 +517,25 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
 
               {/* Email Body */}
               <div className="p-5">
-                <div className="prose prose-sm dark:prose-invert max-w-none text-sm break-words overflow-wrap-anywhere">
-                  {email.bodyHtml ? (
-                    <div 
-                      className="email-content break-words"
-                      dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
-                    />
-                  ) : email.bodyText ? (
-                    <div className="whitespace-pre-wrap break-words">{email.bodyText}</div>
-                  ) : (
-                    <div className="whitespace-pre-wrap break-words">{email.snippet || '(No content)'}</div>
-                  )}
-                </div>
+                {loadingFullEmail ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-sm text-muted-foreground">Loading full email...</span>
+                  </div>
+                ) : (
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-sm break-words overflow-wrap-anywhere">
+                    {displayEmail.bodyHtml ? (
+                      <div 
+                        className="email-content break-words"
+                        dangerouslySetInnerHTML={{ __html: displayEmail.bodyHtml }}
+                      />
+                    ) : displayEmail.bodyText ? (
+                      <div className="whitespace-pre-wrap break-words">{displayEmail.bodyText}</div>
+                    ) : (
+                      <div className="whitespace-pre-wrap break-words">{displayEmail.snippet || '(No content)'}</div>
+                    )}
+                  </div>
+                )}
 
                 {/* Attachments */}
                 {email.hasAttachments && email.attachments.length > 0 && (
@@ -504,7 +566,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
                               </p>
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleDownloadAttachment(e, attachment)}>
                             <Download className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -517,15 +579,15 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
               {/* Action Footer */}
               <div className="p-3.5 border-t border-border bg-muted/30">
                 <div className="flex gap-2">
-                  <Button className="flex-1 h-8 text-sm">
+                  <Button className="flex-1 h-8 text-sm" onClick={handleReply}>
                     <Reply className="h-3.5 w-3.5 mr-1.5" />
                     Reply
                   </Button>
-                  <Button variant="outline" className="flex-1 h-8 text-sm">
+                  <Button variant="outline" className="flex-1 h-8 text-sm" onClick={handleReplyAll}>
                     <ReplyAll className="h-3.5 w-3.5 mr-1.5" />
                     Reply All
                   </Button>
-                  <Button variant="outline" className="flex-1 h-8 text-sm">
+                  <Button variant="outline" className="flex-1 h-8 text-sm" onClick={handleForward}>
                     <Forward className="h-3.5 w-3.5 mr-1.5" />
                     Forward
                   </Button>

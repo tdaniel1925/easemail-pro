@@ -55,9 +55,10 @@ export default function EmailClient({ searchQuery = '', onSearchChange }: EmailC
         console.log('📬 Fetching emails for account:', accId, 'Query:', query);
         
         // If there's a search query, use search endpoint, otherwise use regular endpoint
+        // PERFORMANCE: Reduced from 1000 to 100 for faster loading
         const url = query.trim()
-          ? `/api/nylas/messages/search?accountId=${accId}&query=${encodeURIComponent(query)}&limit=1000`
-          : `/api/nylas/messages?accountId=${accId}&limit=1000`;
+          ? `/api/nylas/messages/search?accountId=${accId}&query=${encodeURIComponent(query)}&limit=100`
+          : `/api/nylas/messages?accountId=${accId}&limit=100`;
         
         const response = await fetch(url);
         const data = await response.json();
