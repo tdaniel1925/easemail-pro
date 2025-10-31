@@ -76,11 +76,12 @@ export function VoiceMessageRecorderModal({
 
     for (let i = 0; i < count; i++) {
       const bar = document.createElement('div');
-      bar.className = 'rounded-sm bg-gradient-to-t from-orange-500 to-red-500 transition-all duration-75 ease-out';
-      bar.style.height = '8px';
+      // Theme-aware: use foreground color that adapts to light/dark mode
+      bar.className = 'rounded-sm bg-foreground/40 transition-all duration-75 ease-out';
+      bar.style.height = '6px';
       bar.style.minHeight = '4px';
       barElementsRef.current.push(bar);
-      prevHeightsRef.current.push(8);
+      prevHeightsRef.current.push(6);
       container.appendChild(bar);
     }
   };
@@ -226,7 +227,7 @@ export function VoiceMessageRecorderModal({
       let sum = 0;
 
       for (let i = 0; i < nBars; i++) {
-        // Logarithmic frequency mapping (like the example)
+        // Logarithmic frequency mapping for better visualization
         const t = i / Math.max(1, nBars - 1);
         const bin = Math.min(
           bufferLength - 1,
@@ -238,7 +239,7 @@ export function VoiceMessageRecorderModal({
 
         // Target height with minimum for visibility
         const minPx = 6;
-        const target = Math.max(minPx, Math.floor(v * containerHeight * 0.85));
+        const target = Math.max(minPx, Math.floor(v * containerHeight * 0.9));
 
         // Lerp (smooth interpolation) for fluid motion
         const prev = prevHeightsRef.current[i] ?? minPx;
@@ -249,8 +250,8 @@ export function VoiceMessageRecorderModal({
         const bar = bars[i];
         if (bar) {
           bar.style.height = `${lerped}px`;
-          // Dynamic opacity based on volume
-          bar.style.opacity = `${0.4 + (v * 0.6)}`;
+          // Dynamic opacity: quieter = 30%, louder = 80% (theme-aware)
+          bar.style.opacity = `${0.3 + (v * 0.5)}`;
         }
       }
 
@@ -276,10 +277,10 @@ export function VoiceMessageRecorderModal({
     }
     analyserRef.current = null;
     
-    // Reset bars to idle state
+    // Reset bars to idle state (subtle visibility)
     barElementsRef.current.forEach(bar => {
-      bar.style.height = '8px';
-      bar.style.opacity = '0.4';
+      bar.style.height = '6px';
+      bar.style.opacity = '0.3'; // Subtle in idle state
     });
     setAudioLevel(0);
   };
