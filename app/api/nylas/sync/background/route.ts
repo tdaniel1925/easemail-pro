@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       .where(eq(emailAccounts.id, accountId));
 
     // Start the background sync (don't await - runs in background)
-    performBackgroundSync(accountId, account.nylasGrantId!, account.syncCursor).catch(err => {
+    performBackgroundSync(accountId, account.nylasGrantId!, account.syncCursor, account.nylasProvider).catch(err => {
       console.error(`❌ Background sync error for ${accountId}:`, err);
     });
 
@@ -99,15 +99,19 @@ export async function GET(request: NextRequest) {
 async function performBackgroundSync(
   accountId: string, 
   grantId: string, 
-  startingCursor: string | null = null
+  startingCursor: string | null = null,
+  provider?: string
 ) {
-  console.log(`📧 Starting background email sync for account ${accountId}`);
+  console.log(`📧 Starting background email sync for account ${accountId} (Provider: ${provider})`);
   
   let pageToken: string | undefined = startingCursor || undefined;
   let totalSynced = 0;
   const pageSize = 200; // Sync 200 emails per batch
   const maxPages = 250; // Max 50,000 emails (250 pages × 200)
   let currentPage = 0;
+  
+  // Provider-specific delays to avoid rate limiting
+  const delayMs = provider === 'microsoft' ? 500 : 100; // Microsoft needs more delay
 
   try {
     // Get current synced count
@@ -245,8 +249,9 @@ async function performBackgroundSync(
 
         pageToken = response.nextCursor;
 
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Provider-specific delay to avoid rate limiting
+        // Microsoft needs more time between requests to avoid throttling
+        await new Promise(resolve => setTimeout(resolve, delayMs));
 
       } catch (pageError) {
         console.error(`❌ Error fetching page ${currentPage}:`, pageError);
