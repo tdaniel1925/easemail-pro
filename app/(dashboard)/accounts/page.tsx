@@ -362,9 +362,22 @@ function AccountsContent() {
                           <h4 className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">
                             Sync Error
                           </h4>
-                          <p className="text-sm text-red-700 dark:text-red-400">
+                          <p className="text-sm text-red-700 dark:text-red-400 mb-3">
                             {account.lastError}
                           </p>
+                          {(account.lastError.toLowerCase().includes('token') || 
+                            account.lastError.toLowerCase().includes('auth') ||
+                            account.lastError.toLowerCase().includes('expired') ||
+                            account.lastError.toLowerCase().includes('unauthorized')) && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900"
+                              onClick={() => window.location.href = `/api/nylas/auth?provider=${account.nylasProvider || account.emailProvider}`}
+                            >
+                              Reconnect Account
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
