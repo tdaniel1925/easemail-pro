@@ -64,6 +64,17 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   // Fetch accounts on mount
   useEffect(() => {
     fetchAccounts();
+    
+    // Auto-refresh tokens every 30 minutes
+    const tokenRefreshInterval = setInterval(() => {
+      console.log('🔑 Auto-refreshing tokens...');
+      fetch('/api/nylas/token-refresh', { method: 'POST', body: JSON.stringify({}) })
+        .then(res => res.json())
+        .then(data => console.log('✅ Token refresh result:', data))
+        .catch(err => console.error('❌ Token refresh failed:', err));
+    }, 30 * 60 * 1000); // Every 30 minutes
+
+    return () => clearInterval(tokenRefreshInterval);
   }, []);
 
   const fetchAccounts = async () => {
