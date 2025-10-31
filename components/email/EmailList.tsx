@@ -344,21 +344,18 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
   const handleReply = (e: React.MouseEvent) => {
     e.stopPropagation();
     console.log('Reply to:', email.fromEmail);
-    showToast('info', `Reply to: ${email.fromEmail} - Subject: Re: ${email.subject}`);
     // TODO: Open compose modal with reply data
   };
   
   const handleReplyAll = (e: React.MouseEvent) => {
     e.stopPropagation();
     console.log('Reply all to:', email.fromEmail);
-    showToast('info', `Reply All to: ${email.fromEmail} - Subject: Re: ${email.subject}`);
     // TODO: Open compose modal with reply all data
   };
   
   const handleForward = (e: React.MouseEvent) => {
     e.stopPropagation();
     console.log('Forward:', email.subject);
-    showToast('info', `Forward email - Subject: Fwd: ${email.subject}`);
     // TODO: Open compose modal with forward data
   };
   
@@ -501,21 +498,6 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
                         {formatDate(email.receivedAt)}
                       </p>
                     </div>
-                  </div>
-
-                  <div className="flex gap-1.5">
-                    <Button variant="outline" size="sm" className="h-8 text-sm px-3">
-                      <Reply className="h-3.5 w-3.5 mr-1" />
-                      Reply
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-8 text-sm px-3">
-                      <ReplyAll className="h-3.5 w-3.5 mr-1" />
-                      All
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-8 text-sm px-3">
-                      <Forward className="h-3.5 w-3.5 mr-1" />
-                      Forward
-                    </Button>
                   </div>
                 </div>
 
