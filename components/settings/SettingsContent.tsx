@@ -13,7 +13,6 @@ export default function SettingsContent() {
 
   const sections = [
     { id: 'general', name: 'General', icon: User },
-    { id: 'accounts', name: 'Email Accounts', icon: Mail },
     { id: 'signatures', name: 'Signatures', icon: PenTool },
     { id: 'preferences', name: 'Preferences', icon: Sliders },
     { id: 'notifications', name: 'Notifications', icon: Bell },
@@ -51,7 +50,6 @@ export default function SettingsContent() {
       {/* Settings Content */}
       <div className="flex-1 overflow-y-auto p-8">
         {activeSection === 'general' && <GeneralSettings />}
-        {activeSection === 'accounts' && <EmailAccountsSettings />}
         {activeSection === 'signatures' && <SignaturesSettings />}
         {activeSection === 'preferences' && <PreferencesSettings />}
         {activeSection === 'notifications' && <NotificationsSettings />}
@@ -126,94 +124,6 @@ function GeneralSettings() {
             </div>
           </div>
           <Button>Save Changes</Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function EmailAccountsSettings() {
-  return (
-    <div className="max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Email Accounts</h1>
-          <p className="text-muted-foreground">Manage your connected email accounts</p>
-        </div>
-        <Button>
-          <Mail className="h-4 w-4 mr-2" />
-          Add Account
-        </Button>
-      </div>
-
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
-                <Mail className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <div>
-                <h3 className="font-semibold">john@company.com</h3>
-                <p className="text-sm text-muted-foreground">Gmail • Connected via Nylas</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">
-                    ● Active
-                  </span>
-                  <span className="text-xs text-muted-foreground">Last synced 2 minutes ago</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">Configure</Button>
-              <Button variant="outline" size="sm">Remove</Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-4 gap-4 pt-4 border-t border-border">
-            <div>
-              <p className="text-sm text-muted-foreground">Storage Used</p>
-              <p className="font-medium">2.4 GB / 15 GB</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Emails</p>
-              <p className="font-medium">1,247</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Unread</p>
-              <p className="font-medium">24</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Type</p>
-              <p className="font-medium">Work</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center">
-                <Mail className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold">personal@gmail.com</h3>
-                <p className="text-sm text-muted-foreground">Gmail • Connected via Aurinko</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded-full">
-                    ● Syncing
-                  </span>
-                  <span className="text-xs text-muted-foreground">Syncing messages (47%)</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">Configure</Button>
-              <Button variant="outline" size="sm">Remove</Button>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>

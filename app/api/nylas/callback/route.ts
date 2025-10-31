@@ -83,24 +83,30 @@ export async function GET(request: NextRequest) {
       method: 'POST',
     }).catch(err => console.error('⚠️ Folder sync trigger error:', err));
     
-    // Trigger initial email sync (async - don't wait)
-    console.log('📧 Triggering initial email sync (first 200 emails)...');
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accountId: account.id, limit: 200, fullSync: true }),
-    }).then(() => {
-      // After initial sync, trigger background sync for remaining emails
+    // Trigger initial email sync (WAIT for first 200 emails so they show immediately)
+    console.log('📧 Syncing initial emails (first 200) before redirect...');
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: account.id, limit: 200, fullSync: true }),
+      });
+      console.log('✅ Initial emails synced successfully');
+      
+      // After initial sync, trigger background sync for remaining emails (async)
       console.log('🔄 Triggering background sync for remaining emails...');
       fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId: account.id }),
       }).catch(err => console.error('⚠️ Background sync trigger error:', err));
-    }).catch(err => console.error('⚠️ Email sync trigger error:', err));
+    } catch (syncError) {
+      console.error('⚠️ Initial email sync error:', syncError);
+      // Continue anyway - user can manually sync
+    }
     
     console.log('🎉 Redirecting to inbox with success message');
-    return NextResponse.redirect(new URL('/inbox?success=account_added', request.url));
+    return NextResponse.redirect(new URL('/inbox?success=account_added&syncing=true', request.url));
   } catch (error) {
     console.error('❌ OAuth callback error:', error);
     console.error('Error details:', JSON.stringify(error, null, 2));

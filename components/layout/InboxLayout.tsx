@@ -49,10 +49,18 @@ export default function InboxLayout({ children, searchQuery: externalSearchQuery
   useEffect(() => {
     const success = searchParams.get('success');
     const error = searchParams.get('error');
+    const syncing = searchParams.get('syncing');
     
     if (success === 'account_added') {
       console.log('✅ Account added successfully! Fetching accounts and folders...');
-      setMessage({ type: 'success', text: 'Email account connected successfully!' });
+      if (syncing === 'true') {
+        setMessage({ 
+          type: 'info', 
+          text: '✅ Account connected! Initial emails are loading below. Background sync is analyzing remaining emails - this may take a few minutes.' 
+        });
+      } else {
+        setMessage({ type: 'success', text: 'Email account connected successfully!' });
+      }
       // Refetch accounts and folders
       fetchAccounts();
       // Clear the query param
@@ -299,7 +307,7 @@ export default function InboxLayout({ children, searchQuery: externalSearchQuery
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
             >
               <Mail className="h-4 w-4" />
-              <span>Accounts</span>
+              <span>Email Accounts</span>
             </button>
           </div>
         </div>
