@@ -1,13 +1,58 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { Plus, RefreshCw, Trash2, CheckCircle, XCircle, Loader2, Mail, Folder, StopCircle } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, CheckCircle, XCircle, Loader2, Mail, Folder, StopCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getInitials, generateAvatarColor } from '@/lib/utils';
 import InboxLayout from '@/components/layout/InboxLayout';
 import InlineMessage from '@/components/ui/inline-message';
 import ProviderSelector from '@/components/email/ProviderSelector';
+
+// Helper functions for better error messages
+function getErrorTitle(error: string): string {
+  const lowerError = error.toLowerCase();
+  
+  if (lowerError.includes('service unavailable') || lowerError.includes('503')) {
+    return 'Connection Issue';
+  }
+  if (lowerError.includes('timeout') || lowerError.includes('etimedout')) {
+    return 'Sync Taking Longer Than Expected';
+  }
+  if (lowerError.includes('token') || lowerError.includes('auth') || lowerError.includes('401') || lowerError.includes('403')) {
+    return 'Account Needs Reconnection';
+  }
+  if (lowerError.includes('rate limit') || lowerError.includes('429')) {
+    return 'Too Many Requests';
+  }
+  if (lowerError.includes('network') || lowerError.includes('connection')) {
+    return 'Network Issue';
+  }
+  
+  return 'Sync Paused';
+}
+
+function getErrorMessage(error: string): string {
+  const lowerError = error.toLowerCase();
+  
+  if (lowerError.includes('service unavailable') || lowerError.includes('503')) {
+    return "We're having trouble reaching the email service. This is usually temporary and resolves in a few minutes. Your emails are safe.";
+  }
+  if (lowerError.includes('timeout') || lowerError.includes('etimedout')) {
+    return "Your mailbox is large and sync is taking longer than expected. We'll keep trying in the background.";
+  }
+  if (lowerError.includes('token') || lowerError.includes('auth') || lowerError.includes('401') || lowerError.includes('403')) {
+    return "Your email provider requires you to sign in again. This is normal and helps keep your account secure.";
+  }
+  if (lowerError.includes('rate limit') || lowerError.includes('429')) {
+    return "We're syncing too fast. We'll automatically slow down and resume shortly. Your emails are safe.";
+  }
+  if (lowerError.includes('network') || lowerError.includes('connection')) {
+    return "Can't reach the email server. Check your internet connection and we'll retry automatically.";
+  }
+  
+  return `${error.substring(0, 200)}... We're investigating this issue and will retry automatically.`;
+}
 
 interface EmailAccount {
   id: string;
@@ -358,29 +403,57 @@ function AccountsContent() {
                 <CardContent>
                   {/* Error Message Display */}
                   {account.syncStatus === 'error' && account.lastError && (
-                    <div className="mb-4 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
+                    <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                       <div className="flex items-start gap-3">
-                        <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                        <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                         <div className="flex-1">
-                          <h4 className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">
-                            Sync Error
+                          <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">
+                            {getErrorTitle(account.lastError)}
                           </h4>
-                          <p className="text-sm text-red-700 dark:text-red-400 mb-3">
-                            {account.lastError}
+                          <p className="text-sm text-amber-700 dark:text-amber-400 mb-3">
+                            {getErrorMessage(account.lastError)}
                           </p>
-                          {(account.lastError.toLowerCase().includes('token') || 
-                            account.lastError.toLowerCase().includes('auth') ||
-                            account.lastError.toLowerCase().includes('expired') ||
-                            account.lastError.toLowerCase().includes('unauthorized')) && (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="border-red-300 text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900"
-                              onClick={() => window.location.href = `/api/nylas/auth?provider=${account.nylasProvider || account.emailProvider}`}
-                            >
-                              Reconnect Account
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {(account.lastError.toLowerCase().includes('token') || 
+                              account.lastError.toLowerCase().includes('auth') ||
+                              account.lastError.toLowerCase().includes('expired') ||
+                              account.lastError.toLowerCase().includes('401') ||
+                              account.lastError.toLowerCase().includes('403') ||
+                              account.lastError.toLowerCase().includes('unauthorized')) ? (
+                              <Button 
+                                size="sm" 
+                                variant="default"
+                                onClick={() => window.location.href = `/api/nylas/auth?provider=${account.nylasProvider || account.emailProvider}`}
+                              >
+                                Reconnect Account
+                              </Button>
+                            ) : (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  variant="default"
+                                  onClick={() => handleManualSync(account.id)}
+                                  disabled={syncing[account.id]}
+                                >
+                                  {syncing[account.id] ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      Retrying...
+                                    </>
+                                  ) : (
+                                    'Retry Now'
+                                  )}
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => window.location.href = `/api/nylas/auth?provider=${account.nylasProvider || account.emailProvider}`}
+                                >
+                                  Or Reconnect
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
