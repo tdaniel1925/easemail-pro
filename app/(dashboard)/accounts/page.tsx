@@ -199,6 +199,9 @@ function AccountsContent() {
     }
   };
 
+  // Alias for retry functionality
+  const handleManualSync = handleSyncAccount;
+
   const handleStopSync = async (accountId: string) => {
     try {
       // Call stop sync API
