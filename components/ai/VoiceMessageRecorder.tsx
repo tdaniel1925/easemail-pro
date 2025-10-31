@@ -40,15 +40,63 @@ export function VoiceMessageRecorderModal({
 
   const recorderRef = useRef<VoiceMessageRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const barsContainerRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number>();
+  const barElementsRef = useRef<HTMLDivElement[]>([]);
+  const prevHeightsRef = useRef<number[]>([]);
+  const [audioLevel, setAudioLevel] = useState(0);
 
   useEffect(() => {
     if (!VoiceMessageRecorder.isSupported()) {
       setError('Voice recording is not supported in your browser');
     }
+  }, []);
+
+  // Setup bars based on container size
+  const setupBars = () => {
+    const container = barsContainerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const containerWidth = rect.width || 0;
+    const barWidth = 6;
+    const gap = 6;
+    const maxBars = 128;
+    const count = Math.max(16, Math.min(maxBars, Math.floor((containerWidth + gap) / (barWidth + gap))));
+
+    const current = barElementsRef.current.length;
+    if (count === current) return;
+
+    // Clear and rebuild bars
+    container.innerHTML = '';
+    barElementsRef.current = [];
+    prevHeightsRef.current = [];
+
+    for (let i = 0; i < count; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'rounded-sm bg-gradient-to-t from-orange-500 to-red-500 transition-all duration-75 ease-out';
+      bar.style.height = '8px';
+      bar.style.minHeight = '4px';
+      barElementsRef.current.push(bar);
+      prevHeightsRef.current.push(8);
+      container.appendChild(bar);
+    }
+  };
+
+  // Initialize bars on mount and resize
+  useEffect(() => {
+    setupBars();
+    
+    const resizeObserver = new ResizeObserver(setupBars);
+    if (barsContainerRef.current) {
+      resizeObserver.observe(barsContainerRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, []);
 
   const handleStart = async () => {
@@ -60,7 +108,7 @@ export function VoiceMessageRecorderModal({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true,
+          autoGainControl: false, // Better for visualization
         },
       });
 
@@ -69,8 +117,8 @@ export function VoiceMessageRecorderModal({
       const analyser = audioContext.createAnalyser();
       const source = audioContext.createMediaStreamSource(stream);
       
-      analyser.fftSize = 64; // Smaller for better bar representation
-      analyser.smoothingTimeConstant = 0.8;
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.85;
       source.connect(analyser);
 
       audioContextRef.current = audioContext;
@@ -160,48 +208,55 @@ export function VoiceMessageRecorderModal({
     setIsPlaying(!isPlaying);
   };
 
-  // Real-time audio-reactive waveform
+  // Real-time audio-reactive waveform with rectangular bars
   const startWaveformAnimation = () => {
-    const canvas = canvasRef.current;
     const analyser = analyserRef.current;
-    if (!canvas || !analyser) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const container = barsContainerRef.current;
+    if (!analyser || !container) return;
 
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
-    const bars = 32; // Number of equalizer bars
+    const containerHeight = container.clientHeight;
 
     const animate = () => {
-      // Get real audio frequency data
       analyser.getByteFrequencyData(dataArray);
       
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      const barWidth = canvas.width / bars;
-      const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-      gradient.addColorStop(0, '#F97316'); // Orange
-      gradient.addColorStop(0.5, '#EF4444'); // Red
-      gradient.addColorStop(1, '#DC2626'); // Dark red
+      const bars = barElementsRef.current;
+      const nBars = bars.length;
+      let sum = 0;
 
-      // Draw bars based on actual audio levels
-      for (let i = 0; i < bars; i++) {
-        // Average multiple frequency bins for each bar
-        const dataIndex = Math.floor((i / bars) * bufferLength);
-        const value = dataArray[dataIndex] || 0;
-        
-        // Calculate height based on audio level (0-255)
-        const height = (value / 255) * canvas.height * 0.9;
-        const minHeight = 4; // Minimum bar height for visibility
-        const barHeight = Math.max(height, minHeight);
-        
-        const x = i * barWidth;
-        const y = (canvas.height - barHeight) / 2;
+      for (let i = 0; i < nBars; i++) {
+        // Logarithmic frequency mapping (like the example)
+        const t = i / Math.max(1, nBars - 1);
+        const bin = Math.min(
+          bufferLength - 1,
+          Math.floor((Math.pow(2, t) - 1) / (2 - 1) * (bufferLength - 1))
+        );
 
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x + 1, y, barWidth - 3, barHeight);
+        const v = dataArray[bin] / 255; // 0..1
+        sum += v;
+
+        // Target height with minimum for visibility
+        const minPx = 6;
+        const target = Math.max(minPx, Math.floor(v * containerHeight * 0.85));
+
+        // Lerp (smooth interpolation) for fluid motion
+        const prev = prevHeightsRef.current[i] ?? minPx;
+        const lerped = prev + (target - prev) * 0.35;
+
+        prevHeightsRef.current[i] = lerped;
+        
+        const bar = bars[i];
+        if (bar) {
+          bar.style.height = `${lerped}px`;
+          // Dynamic opacity based on volume
+          bar.style.opacity = `${0.4 + (v * 0.6)}`;
+        }
       }
+
+      // Update audio level indicator
+      const avg = sum / Math.max(1, nBars);
+      setAudioLevel(Math.min(100, Math.round(avg * 100)));
 
       if (status === 'recording') {
         animationRef.current = requestAnimationFrame(animate);
@@ -220,6 +275,13 @@ export function VoiceMessageRecorderModal({
       audioContextRef.current = null;
     }
     analyserRef.current = null;
+    
+    // Reset bars to idle state
+    barElementsRef.current.forEach(bar => {
+      bar.style.height = '8px';
+      bar.style.opacity = '0.4';
+    });
+    setAudioLevel(0);
   };
 
   useEffect(() => {
@@ -248,18 +310,43 @@ export function VoiceMessageRecorderModal({
           </p>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-4">
+          {/* Status & Audio Level */}
+          {status !== 'stopped' && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={cn(
+                  "h-2 w-2 rounded-full",
+                  status === 'recording' ? "bg-red-500 animate-pulse" : "bg-amber-500"
+                )} />
+                <span className="text-sm text-muted-foreground">
+                  {status === 'recording' ? 'Recording...' : status === 'paused' ? 'Paused' : 'Ready'}
+                </span>
+              </div>
+              {status === 'recording' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Level</span>
+                  <div className="h-1.5 w-24 rounded-full bg-muted overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-orange-500 to-red-500 transition-[width] duration-150 ease-out"
+                      style={{ width: `${audioLevel}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Waveform Visualization */}
           {status !== 'stopped' && (
-            <div className="relative">
-              <canvas
-                ref={canvasRef}
-                width={500}
-                height={100}
-                className="w-full h-24 bg-gray-50 rounded-lg"
+            <div className="h-32 md:h-40 rounded-lg border border-border bg-card p-2 overflow-hidden">
+              <div 
+                ref={barsContainerRef}
+                className="h-full w-full grid items-end"
+                style={{ gap: '6px' }}
               />
               {status === 'ready' && (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                   <Mic className="w-8 h-8" />
                 </div>
               )}
@@ -269,7 +356,7 @@ export function VoiceMessageRecorderModal({
           {/* Audio Playback */}
           {status === 'stopped' && audioUrl && (
             <div className="space-y-3">
-              <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -279,7 +366,7 @@ export function VoiceMessageRecorderModal({
                   {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                 </Button>
                 <div className="flex-1">
-                  <div className="h-2 bg-gray-200 rounded-full">
+                  <div className="h-2 bg-muted rounded-full">
                     <div className="h-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full w-0" />
                   </div>
                 </div>
@@ -301,7 +388,7 @@ export function VoiceMessageRecorderModal({
               <span className="font-medium">
                 ⏱ {formatDuration(duration)} / 10:00
               </span>
-              <span className="text-gray-600">
+              <span className="text-muted-foreground">
                 📎 {formatFileSize(fileSize)}
               </span>
             </div>
