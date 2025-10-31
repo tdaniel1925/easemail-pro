@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, Suspense, lazy } from 'react';
-import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, Smile, Bold, Italic, Underline, AlignLeft, List, MoreHorizontal } from 'lucide-react';
+import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, Bold, Italic, Underline, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -75,14 +75,6 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
     const url = prompt('Enter URL:');
     if (url) {
       setBody(body + ` ${url}`);
-    }
-  };
-
-  const handleInsertEmoji = () => {
-    // Simple emoji picker - you can enhance this
-    const emoji = prompt('Enter emoji (e.g., 😊, 👍, ❤️):');
-    if (emoji) {
-      setBody(body + emoji);
     }
   };
 
@@ -283,15 +275,6 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8" 
-                title="Align left"
-                onClick={() => console.log('Align clicked')}
-              >
-                <AlignLeft className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
                 title="Bullet list"
                 onClick={() => setBody(body + '\n• ')}
               >
@@ -325,25 +308,6 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
                   </span>
                 </Button>
               </label>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
-                title="Insert emoji"
-                onClick={handleInsertEmoji}
-              >
-                <Smile className="h-4 w-4" />
-              </Button>
-              <div className="flex-1" />
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8"
-                title="More options"
-                onClick={() => console.log('More options')}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
             </div>
 
             {/* Email Body */}
