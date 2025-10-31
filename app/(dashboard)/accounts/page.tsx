@@ -166,19 +166,38 @@ function AccountsContent() {
 
   const handleSyncAccount = async (accountId: string) => {
     setSyncing({ ...syncing, [accountId]: true });
+    setMessage(null); // Clear previous messages
     
     try {
+      console.log(`🔄 Starting manual sync for account: ${accountId}`);
+      
       // Sync folders first
-      await fetch(`/api/nylas/folders/sync?accountId=${accountId}`, {
+      const folderResponse = await fetch(`/api/nylas/folders/sync?accountId=${accountId}`, {
         method: 'POST',
       });
       
+      if (!folderResponse.ok) {
+        const folderError = await folderResponse.text();
+        console.error('❌ Folder sync failed:', folderError);
+        throw new Error(`Folder sync failed: ${folderError}`);
+      }
+      
+      console.log('✅ Folders synced');
+      
       // Sync initial batch of messages (200 - Nylas max limit)
-      await fetch('/api/nylas/messages', {
+      const messagesResponse = await fetch('/api/nylas/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId, limit: 200, fullSync: true }),
       });
+      
+      if (!messagesResponse.ok) {
+        const messagesError = await messagesResponse.text();
+        console.error('❌ Messages sync failed:', messagesError);
+        throw new Error(`Messages sync failed: ${messagesError}`);
+      }
+      
+      console.log('✅ Messages synced');
       
       // Trigger background sync for remaining emails
       fetch('/api/nylas/sync/background', {
@@ -187,15 +206,37 @@ function AccountsContent() {
         body: JSON.stringify({ accountId }),
       }).catch(err => console.error('Background sync trigger error:', err));
       
-      setMessage({ type: 'success', text: 'Sync started - initial emails synced, background sync running' });
+      setMessage({ type: 'success', text: 'Sync restarted successfully! Emails are loading...' });
       
       // Refresh accounts
       await fetchAccounts();
-    } catch (error) {
-      console.error('Sync failed:', error);
-      setMessage({ type: 'error', text: 'Failed to sync account' });
+      
+      console.log('✅ Sync completed successfully');
+    } catch (error: any) {
+      console.error('❌ Sync failed:', error);
+      
+      // Show helpful error message
+      const errorMessage = error.message || 'Failed to sync account';
+      
+      if (errorMessage.toLowerCase().includes('service unavailable') || errorMessage.includes('503')) {
+        setMessage({ 
+          type: 'error', 
+          text: 'Still having connection issues. The email service may be temporarily down. Try again in a few minutes.' 
+        });
+      } else if (errorMessage.toLowerCase().includes('auth') || errorMessage.includes('401') || errorMessage.includes('403')) {
+        setMessage({ 
+          type: 'error', 
+          text: 'Authentication expired. Please reconnect your account using the button below.' 
+        });
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: `Sync failed: ${errorMessage}. Check your internet connection and try again.` 
+        });
+      }
     } finally {
       setSyncing({ ...syncing, [accountId]: false });
+      console.log('🏁 Sync attempt finished');
     }
   };
 
