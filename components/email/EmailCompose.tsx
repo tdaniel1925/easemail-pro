@@ -44,13 +44,14 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
   if (!isOpen) return null;
 
   const handleSend = () => {
-    // TODO: Implement send logic
+    // TODO: Implement send logic with API call
     console.log('Sending email:', { to, cc, bcc, subject, body, attachments });
+    // Here you would call your email API
     onClose();
   };
 
   const handleSaveDraft = () => {
-    // TODO: Implement save draft logic
+    // TODO: Implement save draft logic with API call
     console.log('Saving draft:', { to, cc, bcc, subject, body });
   };
 
@@ -66,7 +67,23 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
   };
 
   const handleVoiceMessageAttachment = (file: File, duration: number) => {
+    console.log('Attaching voice message:', file.name, duration);
     setAttachments([...attachments, file]);
+  };
+
+  const handleInsertLink = () => {
+    const url = prompt('Enter URL:');
+    if (url) {
+      setBody(body + ` ${url}`);
+    }
+  };
+
+  const handleInsertEmoji = () => {
+    // Simple emoji picker - you can enhance this
+    const emoji = prompt('Enter emoji (e.g., 😊, 👍, ❤️):');
+    if (emoji) {
+      setBody(body + emoji);
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -111,22 +128,27 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
               size="icon"
               className="h-8 w-8"
               onClick={() => setIsMinimized(!isMinimized)}
+              title={isMinimized ? "Restore" : "Minimize"}
             >
               <Minimize2 className="h-4 w-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setIsFullscreen(!isFullscreen)}
-            >
-              <Maximize2 className="h-4 w-4" />
-            </Button>
+            {!isMinimized && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8"
               onClick={onClose}
+              title="Close"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -234,7 +256,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
                 size="icon"
                 className={cn('h-8 w-8', isBold && 'bg-accent')}
                 onClick={() => setIsBold(!isBold)}
-                title="Bold"
+                title="Bold (Ctrl+B)"
               >
                 <Bold className="h-4 w-4" />
               </Button>
@@ -243,7 +265,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
                 size="icon"
                 className={cn('h-8 w-8', isItalic && 'bg-accent')}
                 onClick={() => setIsItalic(!isItalic)}
-                title="Italic"
+                title="Italic (Ctrl+I)"
               >
                 <Italic className="h-4 w-4" />
               </Button>
@@ -252,29 +274,74 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
                 size="icon"
                 className={cn('h-8 w-8', isUnderline && 'bg-accent')}
                 onClick={() => setIsUnderline(!isUnderline)}
-                title="Underline"
+                title="Underline (Ctrl+U)"
               >
                 <Underline className="h-4 w-4" />
               </Button>
               <div className="w-px h-6 bg-border mx-1" />
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Align">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                title="Align left"
+                onClick={() => console.log('Align clicked')}
+              >
                 <AlignLeft className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="List">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                title="Bullet list"
+                onClick={() => setBody(body + '\n• ')}
+              >
                 <List className="h-4 w-4" />
               </Button>
               <div className="w-px h-6 bg-border mx-1" />
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Insert link">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                title="Insert link"
+                onClick={handleInsertLink}
+              >
                 <Link2 className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Insert image">
-                <Image className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Insert emoji">
+              <label title="Insert image">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAttachment}
+                  className="hidden"
+                />
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 cursor-pointer" 
+                  asChild
+                >
+                  <span>
+                    <Image className="h-4 w-4" />
+                  </span>
+                </Button>
+              </label>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                title="Insert emoji"
+                onClick={handleInsertEmoji}
+              >
                 <Smile className="h-4 w-4" />
               </Button>
               <div className="flex-1" />
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                title="More options"
+                onClick={() => console.log('More options')}
+              >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </div>
