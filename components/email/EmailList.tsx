@@ -192,7 +192,7 @@ function EmailCard({ email, isExpanded, isSelected, onClick }: EmailCardProps) {
                 </p>
                 
                 {/* AI Summary or Snippet */}
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-2 pr-2">
                   {isSummaryLoading && (
                     <Loader2 className="h-3 w-3 animate-spin text-muted-foreground mt-1 flex-shrink-0" />
                   )}
@@ -200,7 +200,7 @@ function EmailCard({ email, isExpanded, isSelected, onClick }: EmailCardProps) {
                     <Sparkles className="h-3 w-3 text-primary mt-1 flex-shrink-0" />
                   )}
                   <p className={cn(
-                    'text-sm line-clamp-2 flex-1',
+                    'text-sm line-clamp-2 flex-1 leading-relaxed',
                     hasAISummary ? 'text-primary font-medium' : 'text-muted-foreground'
                   )}>
                     {displayText}
