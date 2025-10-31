@@ -157,18 +157,19 @@ export default function InboxLayout({ children, searchQuery: externalSearchQuery
   const hasMoreFolders = customFolders.length > 5;
 
   const defaultFolders = [
-    { name: 'Inbox', icon: Mail, count: 24, href: '/inbox', active: true },
-    { name: 'Starred', icon: Star, count: 5, href: '/inbox' },
+    { name: 'Inbox', icon: Mail, count: 0, href: '/inbox', active: true },
+    { name: 'Starred', icon: Star, count: 0, href: '/inbox' },
     { name: 'Snoozed', icon: Clock, count: 0, href: '/inbox' },
     { name: 'Sent', icon: Send, count: 0, href: '/inbox' },
-    { name: 'Drafts', icon: FileText, count: 3, href: '/inbox' },
+    { name: 'Drafts', icon: FileText, count: 0, href: '/inbox' },
     { name: 'Archive', icon: Archive, count: 0, href: '/inbox' },
     { name: 'Trash', icon: Trash2, count: 0, href: '/inbox' },
   ];
 
-  const foldersToDisplay = folders.length > 0 ? 
-    [...systemFolders, ...visibleCustomFolders] : 
-    defaultFolders;
+  // Only show folders if we have accounts, otherwise show empty state
+  const foldersToDisplay = accounts.length > 0 
+    ? (folders.length > 0 ? [...systemFolders, ...visibleCustomFolders] : defaultFolders)
+    : [];
 
   return (
     <div className="flex h-screen w-full">
