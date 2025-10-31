@@ -362,7 +362,6 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
   const handleDownloadAttachment = (e: React.MouseEvent, attachment: any) => {
     e.stopPropagation();
     console.log('Download:', attachment.filename);
-    showToast('success', `Downloading: ${attachment.filename}`);
     // TODO: Implement actual download
   };
 
@@ -574,24 +573,6 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
                     </div>
                   </div>
                 )}
-              </div>
-
-              {/* Action Footer */}
-              <div className="p-3.5 border-t border-border bg-muted/30">
-                <div className="flex gap-2">
-                  <Button className="flex-1 h-8 text-sm" onClick={handleReply}>
-                    <Reply className="h-3.5 w-3.5 mr-1.5" />
-                    Reply
-                  </Button>
-                  <Button variant="outline" className="flex-1 h-8 text-sm" onClick={handleReplyAll}>
-                    <ReplyAll className="h-3.5 w-3.5 mr-1.5" />
-                    Reply All
-                  </Button>
-                  <Button variant="outline" className="flex-1 h-8 text-sm" onClick={handleForward}>
-                    <Forward className="h-3.5 w-3.5 mr-1.5" />
-                    Forward
-                  </Button>
-                </div>
               </div>
             </div>
       )}
