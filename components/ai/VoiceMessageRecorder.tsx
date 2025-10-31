@@ -41,6 +41,9 @@ export function VoiceMessageRecorderModal({
   const recorderRef = useRef<VoiceMessageRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationRef = useRef<number>();
 
   useEffect(() => {
     if (!VoiceMessageRecorder.isSupported()) {
@@ -51,8 +54,30 @@ export function VoiceMessageRecorderModal({
   const handleStart = async () => {
     try {
       setError(null);
-      recorderRef.current = new VoiceMessageRecorder({ maxDuration: 600 });
       
+      // Get microphone stream
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+
+      // Set up audio analysis
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      const source = audioContext.createMediaStreamSource(stream);
+      
+      analyser.fftSize = 64; // Smaller for better bar representation
+      analyser.smoothingTimeConstant = 0.8;
+      source.connect(analyser);
+
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+
+      // Start recorder
+      recorderRef.current = new VoiceMessageRecorder({ maxDuration: 600 });
       await recorderRef.current.startRecording((dur, size) => {
         setDuration(dur);
         setFileSize(size);
@@ -135,35 +160,52 @@ export function VoiceMessageRecorderModal({
     setIsPlaying(!isPlaying);
   };
 
-  // Waveform animation
-  const animationRef = useRef<number>();
+  // Real-time audio-reactive waveform
   const startWaveformAnimation = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const analyser = analyserRef.current;
+    if (!canvas || !analyser) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const bars = 40;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    const bars = 32; // Number of equalizer bars
+
     const animate = () => {
+      // Get real audio frequency data
+      analyser.getByteFrequencyData(dataArray);
+      
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       const barWidth = canvas.width / bars;
       const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-      gradient.addColorStop(0, '#3B82F6');
-      gradient.addColorStop(0.5, '#8B5CF6');
-      gradient.addColorStop(1, '#EC4899');
+      gradient.addColorStop(0, '#F97316'); // Orange
+      gradient.addColorStop(0.5, '#EF4444'); // Red
+      gradient.addColorStop(1, '#DC2626'); // Dark red
 
+      // Draw bars based on actual audio levels
       for (let i = 0; i < bars; i++) {
-        const height = Math.random() * canvas.height * 0.8 + canvas.height * 0.1;
+        // Average multiple frequency bins for each bar
+        const dataIndex = Math.floor((i / bars) * bufferLength);
+        const value = dataArray[dataIndex] || 0;
+        
+        // Calculate height based on audio level (0-255)
+        const height = (value / 255) * canvas.height * 0.9;
+        const minHeight = 4; // Minimum bar height for visibility
+        const barHeight = Math.max(height, minHeight);
+        
         const x = i * barWidth;
-        const y = (canvas.height - height) / 2;
+        const y = (canvas.height - barHeight) / 2;
 
         ctx.fillStyle = gradient;
-        ctx.fillRect(x, y, barWidth - 2, height);
+        ctx.fillRect(x + 1, y, barWidth - 3, barHeight);
       }
 
-      animationRef.current = requestAnimationFrame(animate);
+      if (status === 'recording') {
+        animationRef.current = requestAnimationFrame(animate);
+      }
     };
 
     animate();
@@ -173,6 +215,11 @@ export function VoiceMessageRecorderModal({
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
     }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
   };
 
   useEffect(() => {
