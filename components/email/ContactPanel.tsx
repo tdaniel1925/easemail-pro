@@ -31,8 +31,10 @@ export function ContactPanel({ email, onClose, activeTab, onTabChange }: Contact
 
   if (!email) {
     return (
-      <div className="flex flex-col h-full bg-card items-center justify-center">
-        <p className="text-sm text-muted-foreground">Select an email to view contact information</p>
+      <div className="flex flex-col h-full bg-card items-center justify-center px-4">
+        <p className="text-sm text-muted-foreground text-center">
+          Select an email<br />to view contact information
+        </p>
       </div>
     );
   }
