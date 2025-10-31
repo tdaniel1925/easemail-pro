@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { getInitials, generateAvatarColor } from '@/lib/utils';
 import InboxLayout from '@/components/layout/InboxLayout';
 import InlineMessage from '@/components/ui/inline-message';
+import ProviderSelector from '@/components/email/ProviderSelector';
 
 interface EmailAccount {
   id: string;
@@ -33,6 +34,7 @@ function AccountsContent() {
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [isProviderSelectorOpen, setIsProviderSelectorOpen] = useState(false);
 
   useEffect(() => {
     fetchAccounts();
@@ -114,7 +116,7 @@ function AccountsContent() {
   };
 
   const handleAddAccount = () => {
-    window.location.href = '/api/nylas/auth?provider=google';
+    setIsProviderSelectorOpen(true);
   };
 
   const handleSyncAccount = async (accountId: string) => {
@@ -512,6 +514,12 @@ function AccountsContent() {
         )}
         </div>
       </div>
+
+      {/* Provider Selector Modal */}
+      <ProviderSelector
+        isOpen={isProviderSelectorOpen}
+        onClose={() => setIsProviderSelectorOpen(false)}
+      />
     </InboxLayout>
   );
 }
