@@ -60,8 +60,17 @@ export async function POST(request: NextRequest) {
     });
     
     if (!account || !account.nylasGrantId) {
+      console.error('❌ Account not found or missing grant ID:', { accountId, hasAccount: !!account, hasGrantId: !!account?.nylasGrantId });
       return NextResponse.json({ error: 'Account not found' }, { status: 404 });
     }
+    
+    console.log('📧 Starting email sync for account:', {
+      accountId,
+      email: account.emailAddress,
+      grantId: account.nylasGrantId,
+      fullSync,
+      limit,
+    });
     
     // Create sync log
     const [syncLog] = await db.insert(syncLogs).values({
@@ -82,11 +91,19 @@ export async function POST(request: NextRequest) {
     if (fullSync && !account.initialSyncCompleted) {
       const oneWeekAgo = Math.floor((Date.now() - (7 * 24 * 60 * 60 * 1000)) / 1000);
       queryParams.receivedAfter = oneWeekAgo;
+      console.log('📅 Initial sync - fetching emails from last 7 days');
     }
+    
+    console.log('🔍 Fetching messages from Nylas with params:', queryParams);
     
     const response = await nylas.messages.list({
       identifier: account.nylasGrantId,
       queryParams,
+    });
+    
+    console.log('✅ Received messages from Nylas:', {
+      count: response.data.length,
+      hasMore: !!(response as any).nextCursor,
     });
     
     let syncedCount = 0;
@@ -175,6 +192,12 @@ export async function POST(request: NextRequest) {
       })
       .where(eq(syncLogs.id, syncLog.id));
     
+    console.log('✅ Email sync completed:', {
+      syncedCount,
+      hasMore: !!nextCursor,
+      nextCursor: nextCursor?.substring(0, 20) + '...',
+    });
+    
     return NextResponse.json({ 
       success: true, 
       messagesSynced: syncedCount,
@@ -182,7 +205,24 @@ export async function POST(request: NextRequest) {
       nextCursor,
     });
   } catch (error) {
-    console.error('Message sync error:', error);
+    console.error('❌ Message sync error:', error);
+    console.error('Error details:', {
+      message: (error as Error).message,
+      stack: (error as Error).stack,
+    });
+    
+    // Update account with error
+    try {
+      await db.update(emailAccounts)
+        .set({
+          syncStatus: 'error',
+          lastError: (error as Error).message,
+        })
+        .where(eq(emailAccounts.id, accountId));
+    } catch (updateError) {
+      console.error('Failed to update account error status:', updateError);
+    }
+    
     return NextResponse.json({ 
       error: 'Sync failed', 
       details: (error as Error).message 
