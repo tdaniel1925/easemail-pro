@@ -61,6 +61,8 @@ export function VoiceMessageRecorderModal({
 
     const rect = container.getBoundingClientRect();
     const containerWidth = rect.width || 0;
+    if (containerWidth === 0) return; // Wait for container to have size
+    
     const barWidth = 6;
     const gap = 6;
     const maxBars = 128;
@@ -74,12 +76,16 @@ export function VoiceMessageRecorderModal({
     barElementsRef.current = [];
     prevHeightsRef.current = [];
 
+    // Set grid template columns
+    container.style.gridTemplateColumns = `repeat(${count}, minmax(0, 1fr))`;
+
     for (let i = 0; i < count; i++) {
       const bar = document.createElement('div');
       // Theme-aware: use foreground color that adapts to light/dark mode
-      bar.className = 'rounded-sm bg-foreground/40 transition-all duration-75 ease-out';
+      bar.className = 'rounded-sm bg-foreground transition-all duration-75 ease-out';
       bar.style.height = '6px';
       bar.style.minHeight = '4px';
+      bar.style.opacity = '0.3'; // Start subtle
       barElementsRef.current.push(bar);
       prevHeightsRef.current.push(6);
       container.appendChild(bar);
@@ -88,9 +94,18 @@ export function VoiceMessageRecorderModal({
 
   // Initialize bars on mount and resize
   useEffect(() => {
-    setupBars();
+    if (isOpen) {
+      // Delay to ensure container is rendered and has size
+      const timer = setTimeout(() => setupBars(), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const resizeObserver = new ResizeObserver(() => {
+      setupBars();
+    });
     
-    const resizeObserver = new ResizeObserver(setupBars);
     if (barsContainerRef.current) {
       resizeObserver.observe(barsContainerRef.current);
     }
