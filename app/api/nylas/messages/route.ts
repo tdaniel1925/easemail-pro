@@ -4,6 +4,11 @@ import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emails, syncLogs } from '@/lib/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 
+// Enable Node.js runtime for better performance
+export const runtime = 'nodejs';
+// Cache responses for 5 seconds to reduce database load
+export const revalidate = 5;
+
 // GET: Fetch messages for an account
 export async function GET(request: NextRequest) {
   const accountId = request.nextUrl.searchParams.get('accountId');
