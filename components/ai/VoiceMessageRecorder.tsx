@@ -340,15 +340,15 @@ export function VoiceMessageRecorderModal({
 
           {/* Waveform Visualization */}
           {status !== 'stopped' && (
-            <div className="h-32 md:h-40 rounded-lg border border-border bg-card p-2 overflow-hidden">
+            <div className="relative h-32 md:h-40 rounded-lg border border-border bg-card p-2 overflow-hidden">
               <div 
                 ref={barsContainerRef}
                 className="h-full w-full grid items-end"
                 style={{ gap: '6px' }}
               />
               {status === 'ready' && (
-                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                  <Mic className="w-8 h-8" />
+                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground pointer-events-none">
+                  <Mic className="w-8 h-8 opacity-50" />
                 </div>
               )}
             </div>
