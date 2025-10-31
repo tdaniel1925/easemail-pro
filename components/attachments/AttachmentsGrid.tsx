@@ -57,7 +57,7 @@ export function AttachmentsGrid({
           attachment={attachment}
           onPreview={() => onPreview(attachment)}
           onDownload={() => onDownload(attachment.id)}
-          onOpenEmail={() => onOpenEmail(attachment.emailId)}
+          onOpenEmail={() => attachment.emailId && onOpenEmail(attachment.emailId)}
           isSelected={selectedIds.includes(attachment.id)}
           onSelect={() => onToggleSelect?.(attachment.id)}
           showCheckbox={showCheckboxes}

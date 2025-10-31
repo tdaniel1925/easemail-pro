@@ -33,8 +33,7 @@ export async function checkAndRefreshTokens(): Promise<TokenRefreshResult[]> {
       .from(emailAccounts)
       .where(
         and(
-          not(eq(emailAccounts.status, 'error')),
-          not(eq(emailAccounts.status, 'disconnected'))
+          not(eq(emailAccounts.syncStatus, 'error'))
         )
       );
 
@@ -63,7 +62,7 @@ export async function checkAndRefreshTokens(): Promise<TokenRefreshResult[]> {
           .update(emailAccounts)
           .set({
             lastError: 'Token refresh failed - please reconnect',
-            status: 'error',
+            syncStatus: 'error',
             updatedAt: new Date(),
           })
           .where(eq(emailAccounts.id, account.id));
@@ -116,7 +115,7 @@ async function refreshAccountToken(accountId: string, grantId: string): Promise<
       .set({
         lastSyncedAt: new Date(),
         lastError: null,
-        status: 'active',
+        syncStatus: 'idle',
         updatedAt: new Date(),
       })
       .where(eq(emailAccounts.id, accountId));
@@ -130,7 +129,7 @@ async function refreshAccountToken(accountId: string, grantId: string): Promise<
         .update(emailAccounts)
         .set({
           lastError: 'Authentication expired - please reconnect',
-          status: 'error',
+          syncStatus: 'error',
           updatedAt: new Date(),
         })
         .where(eq(emailAccounts.id, accountId));

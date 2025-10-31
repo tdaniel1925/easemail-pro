@@ -47,7 +47,7 @@ export function useEmailSummary(email: Email, enabled: boolean = false) {
     queryFn: () => fetchSummary(email),
     enabled, // Only fetch when enabled (viewport visible)
     staleTime: Infinity, // Never refetch - summaries don't change
-    cacheTime: 1000 * 60 * 60 * 24, // Keep in cache for 24 hours
+    gcTime: 1000 * 60 * 60 * 24, // Keep in cache for 24 hours (replaces cacheTime)
     retry: 1, // Only retry once on failure
   });
 }

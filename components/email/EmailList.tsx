@@ -125,7 +125,7 @@ function EmailCard({ email, isExpanded, isSelected, onClick }: EmailCardProps) {
   
   // Use AI summary if available, otherwise use snippet
   const displayText = summaryData?.summary || email.snippet;
-  const hasAISummary = !!summaryData?.summary;
+  const hasAISummary = !!(summaryData && summaryData.summary);
 
   return (
     <div
