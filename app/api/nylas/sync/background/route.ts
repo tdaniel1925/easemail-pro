@@ -142,13 +142,19 @@ async function performBackgroundSync(
       }
 
       try {
+        // Build query params - only include pageToken if it exists
+        const queryParams: any = {
+          limit: pageSize,
+        };
+        
+        if (pageToken) {
+          queryParams.pageToken = pageToken;
+        }
+        
         // Fetch messages from Nylas
         const response = await nylas.messages.list({
           identifier: grantId,
-          queryParams: {
-            limit: pageSize,
-            pageToken: pageToken,
-          },
+          queryParams,
         });
 
         const messages = response.data;
