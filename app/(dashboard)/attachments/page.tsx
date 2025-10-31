@@ -295,7 +295,7 @@ function AttachmentsContent() {
           isOpen={!!previewAttachment}
           onClose={closePreview}
           onDownload={() => previewAttachment && handleDownload(previewAttachment.id)}
-          onOpenEmail={() => previewAttachment && handleOpenEmail(previewAttachment.emailId)}
+          onOpenEmail={() => previewAttachment?.emailId && handleOpenEmail(previewAttachment.emailId)}
         />
       </div>
     </InboxLayout>
