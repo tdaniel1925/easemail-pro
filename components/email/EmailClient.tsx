@@ -94,10 +94,11 @@ export default function EmailClient({ searchQuery = '' }: EmailClientProps) {
     );
   }
 
+  // Show syncing indicator only if NO emails at all
   if (emails.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
-        <SyncingIndicator accountId={accountId || undefined} />
+        <SyncingIndicator accountId={accountId || undefined} emailCount={emails.length} />
       </div>
     );
   }

@@ -75,35 +75,40 @@ export async function GET(request: NextRequest) {
       // Continue anyway - webhooks can be setup later
     }
     
-    // Trigger initial folder sync (async - don't wait)
-    console.log('📁 Triggering folder sync...');
-    const syncUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${account.id}`;
-    console.log('📁 Sync URL:', syncUrl);
-    fetch(syncUrl, {
-      method: 'POST',
-    }).catch(err => console.error('⚠️ Folder sync trigger error:', err));
-    
-    // Trigger initial email sync (WAIT for first 200 emails so they show immediately)
-    console.log('📧 Syncing initial emails (first 200) before redirect...');
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/messages`, {
+    // Sync folders and initial emails in PARALLEL for speed
+    console.log('🚀 Starting parallel folder and email sync...');
+    const [folderResult, emailResult] = await Promise.allSettled([
+      // Sync folders (async)
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${account.id}`, {
+        method: 'POST',
+      }),
+      // Sync initial emails (200)
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId: account.id, limit: 200, fullSync: true }),
-      });
-      console.log('✅ Initial emails synced successfully');
-      
-      // After initial sync, trigger background sync for remaining emails (async)
-      console.log('🔄 Triggering background sync for remaining emails...');
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: account.id }),
-      }).catch(err => console.error('⚠️ Background sync trigger error:', err));
-    } catch (syncError) {
-      console.error('⚠️ Initial email sync error:', syncError);
-      // Continue anyway - user can manually sync
+      }),
+    ]);
+    
+    if (folderResult.status === 'fulfilled') {
+      console.log('✅ Folders synced');
+    } else {
+      console.error('⚠️ Folder sync error:', folderResult.reason);
     }
+    
+    if (emailResult.status === 'fulfilled') {
+      console.log('✅ Initial emails synced');
+    } else {
+      console.error('⚠️ Email sync error:', emailResult.reason);
+    }
+    
+    // Trigger background sync for remaining emails (async - don't wait)
+    console.log('🔄 Triggering background sync for remaining emails...');
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId: account.id }),
+    }).catch(err => console.error('⚠️ Background sync trigger error:', err));
     
     console.log('🎉 Redirecting to inbox with success message');
     return NextResponse.redirect(new URL('/inbox?success=account_added&syncing=true', request.url));

@@ -9,7 +9,7 @@ interface ProviderSelectorProps {
 }
 
 export default function ProviderSelector({ isOpen, onClose }: ProviderSelectorProps) {
-  const handleProviderSelect = (provider: 'google' | 'microsoft') => {
+  const handleProviderSelect = (provider: 'google' | 'microsoft' | 'imap') => {
     window.location.href = `/api/nylas/auth?provider=${provider}`;
   };
 
@@ -61,6 +61,25 @@ export default function ProviderSelector({ isOpen, onClose }: ProviderSelectorPr
               <div>
                 <div className="font-semibold text-base">Microsoft</div>
                 <div className="text-sm text-muted-foreground">Connect Outlook account</div>
+              </div>
+            </div>
+          </Button>
+
+          <Button
+            onClick={() => handleProviderSelect('imap')}
+            variant="outline"
+            className="w-full h-16 justify-start text-left hover:bg-accent"
+          >
+            <div className="flex items-center gap-4 w-full">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 border border-border flex items-center justify-center flex-shrink-0">
+                <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8" stroke="white" strokeWidth="2">
+                  <rect x="3" y="5" width="18" height="14" rx="2"/>
+                  <path d="M3 7l9 6 9-6"/>
+                </svg>
+              </div>
+              <div>
+                <div className="font-semibold text-base">IMAP</div>
+                <div className="text-sm text-muted-foreground">Connect custom email via IMAP</div>
               </div>
             </div>
           </Button>

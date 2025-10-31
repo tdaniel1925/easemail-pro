@@ -5,9 +5,10 @@ import { useEffect, useState } from 'react';
 
 interface SyncingIndicatorProps {
   accountId?: string;
+  emailCount?: number; // Pass current email count
 }
 
-export default function SyncingIndicator({ accountId }: SyncingIndicatorProps) {
+export default function SyncingIndicator({ accountId, emailCount = 0 }: SyncingIndicatorProps) {
   const [syncStatus, setSyncStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,7 +44,8 @@ export default function SyncingIndicator({ accountId }: SyncingIndicatorProps) {
     return () => clearInterval(interval);
   }, [accountId]);
 
-  if (loading || !syncStatus) {
+  // Don't show if there are already emails OR if not syncing
+  if (loading || !syncStatus || emailCount > 0) {
     return null;
   }
 
