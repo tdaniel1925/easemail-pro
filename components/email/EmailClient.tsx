@@ -5,6 +5,7 @@ import { User, MessageCircle } from 'lucide-react';
 import { EmailList } from './EmailList';
 import { ContactPanel } from './ContactPanel';
 import { cn } from '@/lib/utils';
+import SyncingIndicator from './SyncingIndicator';
 
 interface EmailClientProps {
   searchQuery?: string;
@@ -96,7 +97,7 @@ export default function EmailClient({ searchQuery = '' }: EmailClientProps) {
   if (emails.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-muted-foreground">No emails found. Sync your account to see emails.</p>
+        <SyncingIndicator accountId={accountId || undefined} />
       </div>
     );
   }
