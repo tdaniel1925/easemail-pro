@@ -10,6 +10,7 @@ import type { ToneType } from './ai-write-service';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-build',
+  dangerouslyAllowBrowser: true, // Only for API routes - not exposed to client
 });
 
 // ============================================================================
