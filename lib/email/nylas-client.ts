@@ -22,8 +22,13 @@ export async function initNylasAuth(userId: string, provider: string) {
     // Nylas will translate these to the appropriate Microsoft Graph permissions
     scopes = ['Mail.ReadWrite', 'Mail.Send', 'Contacts.Read', 'offline_access'];
   } else if (provider === 'google') {
-    // Google specific scopes
-    scopes = ['email.read_only', 'email.send', 'email.modify', 'contacts.read_only'];
+    // Google specific scopes - use Gmail API scopes
+    scopes = [
+      'https://www.googleapis.com/auth/gmail.readonly',
+      'https://www.googleapis.com/auth/gmail.send',
+      'https://www.googleapis.com/auth/gmail.modify',
+      'https://www.googleapis.com/auth/contacts.readonly',
+    ];
   } else {
     // Default scopes for other providers (IMAP, etc.)
     scopes = ['email.send', 'email.modify', 'contacts.read_only'];
