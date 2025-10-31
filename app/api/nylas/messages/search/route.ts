@@ -27,23 +27,28 @@ export async function GET(request: NextRequest) {
     const sortByDate = isSentFolder ? emails.sentAt : emails.receivedAt;
     
     // Build where clause with optional folder filter
+    // Search in: subject, from (name/email), to (contacts), snippet, body, and AI summary
     const whereClause = folder 
       ? sql`${emails.accountId} = ${accountId} AND ${emails.folder} = ${folder} AND (
           ${emails.subject} ILIKE ${searchPattern} OR
           ${emails.fromEmail} ILIKE ${searchPattern} OR
           ${emails.fromName} ILIKE ${searchPattern} OR
           ${emails.snippet} ILIKE ${searchPattern} OR
-          ${emails.bodyText} ILIKE ${searchPattern}
+          ${emails.bodyText} ILIKE ${searchPattern} OR
+          ${emails.aiSummary} ILIKE ${searchPattern} OR
+          ${emails.toEmails}::text ILIKE ${searchPattern}
         )`
       : sql`${emails.accountId} = ${accountId} AND (
           ${emails.subject} ILIKE ${searchPattern} OR
           ${emails.fromEmail} ILIKE ${searchPattern} OR
           ${emails.fromName} ILIKE ${searchPattern} OR
           ${emails.snippet} ILIKE ${searchPattern} OR
-          ${emails.bodyText} ILIKE ${searchPattern}
+          ${emails.bodyText} ILIKE ${searchPattern} OR
+          ${emails.aiSummary} ILIKE ${searchPattern} OR
+          ${emails.toEmails}::text ILIKE ${searchPattern}
         )`;
     
-    // Search in subject, from_email, from_name, snippet, and body_text
+    // Search in subject, from, to (contacts), snippet, body, and AI summary
     const messages = await db
       .select()
       .from(emails)
@@ -54,12 +59,14 @@ export async function GET(request: NextRequest) {
     
     console.log(`🔍 Search found ${messages.length} emails for query: "${query}"`);
     console.log(`📅 Sorting by: ${isSentFolder ? 'sentAt' : 'receivedAt'}`);
+    console.log(`🔎 Searched fields: subject, from (name/email), to (contacts), snippet, body, AI summary`);
     
     return NextResponse.json({ 
       success: true, 
       messages,
       count: messages.length,
-      query: query.trim()
+      query: query.trim(),
+      searchedFields: ['subject', 'fromEmail', 'fromName', 'toEmails', 'snippet', 'bodyText', 'aiSummary']
     });
   } catch (error) {
     console.error('Email search error:', error);
