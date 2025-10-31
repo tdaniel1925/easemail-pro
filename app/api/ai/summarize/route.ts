@@ -13,8 +13,8 @@ const openai = new OpenAI({
 
 interface SummaryRequest {
   emailId: string;
-  subject: string;
-  snippet: string;
+  subject?: string;
+  snippet?: string;
   fromName?: string;
   bodyText?: string;
 }
@@ -23,12 +23,28 @@ export async function POST(request: NextRequest) {
   try {
     const { emailId, subject, snippet, fromName, bodyText }: SummaryRequest = await request.json();
 
-    // Validate input
-    if (!emailId || (!snippet && !bodyText)) {
+    // Log the request for debugging
+    console.log('📨 Summarize request:', { emailId, hasSubject: !!subject, hasSnippet: !!snippet, hasBody: !!bodyText });
+
+    // Validate input - need at least emailId and some content
+    if (!emailId) {
+      console.error('❌ Missing emailId');
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing emailId' },
         { status: 400 }
       );
+    }
+
+    // Use snippet, bodyText, or subject as content (in order of preference)
+    const content = snippet || bodyText?.substring(0, 1000) || subject || '';
+    
+    if (!content) {
+      console.warn('⚠️ No content available for email:', emailId);
+      return NextResponse.json({
+        emailId,
+        summary: '(No content available)',
+        cached: false,
+      });
     }
 
     // Check if OpenAI key is configured
@@ -36,14 +52,11 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ OpenAI API key not configured, returning snippet as summary');
       return NextResponse.json({
         emailId,
-        summary: snippet || 'No preview available',
+        summary: content,
         keyPoints: [],
         cached: false,
       });
     }
-
-    // Use snippet or bodyText (prefer snippet for speed)
-    const content = snippet || bodyText?.substring(0, 1000) || '';
     
     console.log(`🤖 Generating AI summary for email: ${emailId}`);
 
