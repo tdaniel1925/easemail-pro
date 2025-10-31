@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { formatDate, getInitials, generateAvatarColor, formatFileSize } from '@/lib/utils';
-import { Star, Paperclip, Reply, ReplyAll, Forward, Download, ChevronDown, ChevronUp, Search, Sparkles, Loader2 } from 'lucide-react';
+import { Star, Paperclip, Reply, ReplyAll, Forward, Download, ChevronDown, ChevronUp, Search, Sparkles, Loader2, Trash2, Archive, Mail, MailOpen, FolderInput, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -41,44 +41,173 @@ interface EmailListProps {
 }
 
 export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailClick, searchQuery = '', onSearchChange }: EmailListProps) {
+  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (onSearchChange) {
       onSearchChange(e.target.value);
     }
   };
 
+  const handleSelectAll = () => {
+    if (selectedEmails.size === emails.length) {
+      setSelectedEmails(new Set());
+    } else {
+      setSelectedEmails(new Set(emails.map(e => e.id)));
+    }
+  };
+
+  const handleSelectEmail = (emailId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    const newSelected = new Set(selectedEmails);
+    if (newSelected.has(emailId)) {
+      newSelected.delete(emailId);
+    } else {
+      newSelected.add(emailId);
+    }
+    setSelectedEmails(newSelected);
+    if (newSelected.size === 0) {
+      setSelectMode(false);
+    } else {
+      setSelectMode(true);
+    }
+  };
+
+  const handleBulkAction = async (action: string) => {
+    console.log(`Bulk action: ${action} on ${selectedEmails.size} emails`);
+    // TODO: Implement actual bulk actions via API
+    // For now, just clear selection
+    setSelectedEmails(new Set());
+    setSelectMode(false);
+  };
+
+  const allSelected = emails.length > 0 && selectedEmails.size === emails.length;
+
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Single row toolbar - everything inline */}
+      {/* Toolbar - switches between normal and bulk actions */}
       <div className="h-14 px-4 border-b border-border/50 flex items-center">
-        <div className="flex items-center gap-4 w-full">
-          {/* Folder name only */}
-          <div className="flex-shrink-0">
-            <h2 className="text-sm font-medium">Primary</h2>
-          </div>
+        {selectMode ? (
+          /* Bulk Actions Toolbar */
+          <div className="flex items-center gap-3 w-full">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSelectAll}
+              className="h-8"
+            >
+              {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+            </Button>
+            
+            <span className="text-sm font-medium">
+              {selectedEmails.size} selected
+            </span>
 
-          {/* Search bar - takes remaining space */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search emails... (Ctrl+K)"
-              className="w-full pl-10 pr-3 h-9 bg-background border-border"
-              value={searchQuery}
-              onChange={handleSearchChange}
-            />
-          </div>
-          
-          {/* Quick filters - right aligned */}
-          <div className="flex gap-1 flex-shrink-0">
-            <Button variant="ghost" size="sm" className="h-9 px-3 text-sm">
-              All
+            <div className="h-6 w-px bg-border mx-2" />
+
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleBulkAction('delete')}
+                title="Delete"
+                className="h-8"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleBulkAction('archive')}
+                title="Archive"
+                className="h-8"
+              >
+                <Archive className="h-4 w-4 mr-2" />
+                Archive
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleBulkAction('markRead')}
+                title="Mark as read"
+                className="h-8"
+              >
+                <MailOpen className="h-4 w-4 mr-2" />
+                Read
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleBulkAction('markUnread')}
+                title="Mark as unread"
+                className="h-8"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Unread
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleBulkAction('move')}
+                title="Move to folder"
+                className="h-8"
+              >
+                <FolderInput className="h-4 w-4 mr-2" />
+                Move
+              </Button>
+            </div>
+
+            <div className="flex-1" />
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedEmails(new Set());
+                setSelectMode(false);
+              }}
+              className="h-8"
+            >
+              Cancel
             </Button>
-            <Button variant="ghost" size="sm" className="h-9 px-3 text-sm">
-              Unread
-            </Button>
           </div>
-        </div>
+        ) : (
+          /* Normal Toolbar */
+          <div className="flex items-center gap-4 w-full">
+            {/* Folder name only */}
+            <div className="flex-shrink-0">
+              <h2 className="text-sm font-medium">Primary</h2>
+            </div>
+
+            {/* Search bar - takes remaining space */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search emails... (Ctrl+K)"
+                className="w-full pl-10 pr-3 h-9 bg-background border-border"
+                value={searchQuery}
+                onChange={handleSearchChange}
+              />
+            </div>
+            
+            {/* Quick filters - right aligned */}
+            <div className="flex gap-1 flex-shrink-0">
+              <Button variant="ghost" size="sm" className="h-9 px-3 text-sm">
+                All
+              </Button>
+              <Button variant="ghost" size="sm" className="h-9 px-3 text-sm">
+                Unread
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Email List */}
@@ -90,6 +219,9 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
             email={email}
             isExpanded={expandedEmailId === email.id}
             isSelected={selectedEmailId === email.id}
+            isChecked={selectedEmails.has(email.id)}
+            selectMode={selectMode}
+            onSelect={(e) => handleSelectEmail(email.id, e)}
             onClick={() => onEmailClick(email.id)}
           />
         ))}
@@ -103,10 +235,13 @@ interface EmailCardProps {
   email: Email;
   isExpanded: boolean;
   isSelected: boolean;
+  isChecked: boolean;
+  selectMode: boolean;
+  onSelect: (e: React.MouseEvent) => void;
   onClick: () => void;
 }
 
-function EmailCard({ email, isExpanded, isSelected, onClick }: EmailCardProps) {
+function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSelect, onClick }: EmailCardProps) {
   const avatarColor = generateAvatarColor(email.fromEmail || 'unknown@example.com');
   const [mounted, setMounted] = useState(false);
   
@@ -146,6 +281,26 @@ function EmailCard({ email, isExpanded, isSelected, onClick }: EmailCardProps) {
         onClick={onClick}
       >
         <div className="flex gap-3">
+          {/* Checkbox - always visible for easy selection */}
+          <div 
+            className="flex items-start pt-0.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(e);
+            }}
+          >
+            <button
+              className={cn(
+                "h-5 w-5 rounded border-2 flex items-center justify-center transition-all",
+                isChecked 
+                  ? "bg-primary border-primary text-primary-foreground" 
+                  : "border-border hover:border-primary/50 bg-background"
+              )}
+            >
+              {isChecked && <CheckSquare className="h-4 w-4" />}
+            </button>
+          </div>
+
           {/* Avatar */}
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium text-white flex-shrink-0"
