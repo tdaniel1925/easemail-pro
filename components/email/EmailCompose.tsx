@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { UnifiedAIToolbar } from '@/components/ai/UnifiedAIToolbar';
 
 interface EmailComposeProps {
   isOpen: boolean;
@@ -58,6 +59,10 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
 
   const removeAttachment = (index: number) => {
     setAttachments(attachments.filter((_, i) => i !== index));
+  };
+
+  const handleVoiceMessageAttachment = (file: File, duration: number) => {
+    setAttachments([...attachments, file]);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -313,6 +318,17 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
                 </div>
               </div>
             )}
+
+            {/* AI Composition Toolbar */}
+            <UnifiedAIToolbar
+              subject={subject}
+              body={body}
+              onSubjectChange={setSubject}
+              onBodyChange={setBody}
+              recipientEmail={to}
+              userTier="free"
+              onAttachVoiceMessage={handleVoiceMessageAttachment}
+            />
 
             {/* Footer */}
             <div className="flex items-center justify-between p-3 border-t border-border">
