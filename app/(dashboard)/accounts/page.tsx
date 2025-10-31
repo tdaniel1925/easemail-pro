@@ -15,6 +15,7 @@ interface EmailAccount {
   nylasProvider?: string;
   syncStatus: string;
   lastSyncedAt?: string;
+  lastError?: string;
   isDefault: boolean;
   isActive: boolean;
   autoSync: boolean;
@@ -352,6 +353,23 @@ function AccountsContent() {
                   </div>
                 </CardHeader>
                 <CardContent>
+                  {/* Error Message Display */}
+                  {account.syncStatus === 'error' && account.lastError && (
+                    <div className="mb-4 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">
+                            Sync Error
+                          </h4>
+                          <p className="text-sm text-red-700 dark:text-red-400">
+                            {account.lastError}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Progress Bar for Background Sync */}
                   {(account.syncStatus === 'background_syncing' || account.syncStatus === 'syncing') && (
                     <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border border-blue-200 dark:border-blue-800 rounded-lg">
