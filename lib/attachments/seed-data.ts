@@ -3,8 +3,8 @@
  * Creates realistic test data for development/testing
  */
 
-import { db } from './db/drizzle';
-import { attachments } from './db/schema';
+import { db } from '@/lib/db/drizzle';
+import { attachments } from '@/lib/db/schema';
 
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000000';
 
