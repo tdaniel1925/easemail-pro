@@ -18,8 +18,9 @@ export async function initNylasAuth(userId: string, provider: string) {
   let scopes: string[];
   
   if (provider === 'microsoft') {
-    // Microsoft (Outlook) specific scopes
-    scopes = ['email.send', 'email.modify', 'contacts.read_only'];
+    // Microsoft (Outlook) requires Graph API scopes
+    // Nylas will translate these to the appropriate Microsoft Graph permissions
+    scopes = ['Mail.ReadWrite', 'Mail.Send', 'Contacts.Read', 'offline_access'];
   } else if (provider === 'google') {
     // Google specific scopes
     scopes = ['email.read_only', 'email.send', 'email.modify', 'contacts.read_only'];
