@@ -148,7 +148,7 @@ export function DictationUpgradeModal({
             <ComparisonRow
               feature="Team features"
               free={<X className="w-5 h-5 text-gray-400" />}
-              free={<X className="w-5 h-5 text-gray-400" />}
+              pro={<X className="w-5 h-5 text-gray-400" />}
               business={<Check className="w-5 h-5 text-green-600" />}
             />
           </div>
