@@ -151,18 +151,27 @@ export function VoiceMessageRecorderModal({
     const gap = (width / barCount) * 0.2;
 
     let sum = 0;
+    let maxValue = 0;
 
     for (let i = 0; i < barCount; i++) {
-      const index = Math.floor((i / barCount) * bufferLength);
+      // Use logarithmic mapping for better frequency distribution
+      // This ensures all bars get data, especially higher frequencies
+      const percent = i / (barCount - 1);
+      const index = Math.floor(Math.pow(percent, 0.5) * bufferLength);
+      
       const value = dataArray[index] / 255;
       sum += value;
+      maxValue = Math.max(maxValue, value);
 
-      const barHeight = Math.max(4, value * height * 0.8);
+      // Add minimum height so all bars are visible
+      const minBarHeight = 8;
+      const barHeight = Math.max(minBarHeight, value * height * 0.85);
       const x = i * (barWidth + gap);
       const y = height - barHeight;
 
-      // Draw bar with theme color
-      ctx.fillStyle = `rgba(99, 102, 241, ${0.4 + value * 0.6})`;
+      // Draw bar with theme color - higher opacity for better visibility
+      const opacity = 0.5 + (value * 0.5);
+      ctx.fillStyle = `rgba(99, 102, 241, ${opacity})`;
       ctx.fillRect(x, y, barWidth, barHeight);
     }
 
