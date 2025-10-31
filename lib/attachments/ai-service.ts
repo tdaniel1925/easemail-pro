@@ -111,7 +111,12 @@ Respond with JSON only: { "type": "...", "confidence": 0.0-1.0, "reasoning": "..
     temperature: 0.3, // Lower temperature = more consistent
   });
 
-  const result = JSON.parse(response.choices[0].message.content);
+  const content = response.choices[0].message.content;
+  if (!content) {
+    throw new Error('No content returned from AI classification');
+  }
+  
+  const result = JSON.parse(content);
 
   return {
     documentType: result.type as DocumentType,
@@ -141,7 +146,12 @@ Respond with JSON only: { "type": "invoice|receipt|contract|report|presentation|
     temperature: 0.3,
   });
 
-  const result = JSON.parse(response.choices[0].message.content);
+  const content = response.choices[0].message.content;
+  if (!content) {
+    throw new Error('No content returned from AI classification');
+  }
+  
+  const result = JSON.parse(content);
 
   return {
     documentType: result.type as DocumentType,
@@ -221,7 +231,12 @@ If a field cannot be determined, omit it. Be precise with numbers.`,
     temperature: 0.2,
   });
 
-  return JSON.parse(response.choices[0].message.content) as InvoiceMetadata;
+  const content = response.choices[0].message.content;
+  if (!content) {
+    throw new Error('No content returned from AI extraction');
+  }
+  
+  return JSON.parse(content) as InvoiceMetadata;
 }
 
 async function extractReceiptData(
@@ -264,7 +279,12 @@ If a field cannot be determined, omit it.`,
     temperature: 0.2,
   });
 
-  return JSON.parse(response.choices[0].message.content) as ReceiptMetadata;
+  const content = response.choices[0].message.content;
+  if (!content) {
+    throw new Error('No content returned from AI extraction');
+  }
+  
+  return JSON.parse(content) as ReceiptMetadata;
 }
 
 async function extractContractData(
@@ -304,7 +324,12 @@ Focus on critical business terms. If a field cannot be determined, omit it.`,
     temperature: 0.2,
   });
 
-  return JSON.parse(response.choices[0].message.content) as ContractMetadata;
+  const content = response.choices[0].message.content;
+  if (!content) {
+    throw new Error('No content returned from AI extraction');
+  }
+  
+  return JSON.parse(content) as ContractMetadata;
 }
 
 async function extractGenericData(
@@ -337,7 +362,12 @@ async function extractGenericData(
     temperature: 0.3,
   });
 
-  return JSON.parse(response.choices[0].message.content);
+  const content = response.choices[0].message.content;
+  if (!content) {
+    throw new Error('No content returned from AI extraction');
+  }
+  
+  return JSON.parse(content);
 }
 
 // ============================================================================
@@ -369,7 +399,12 @@ Return JSON: { "terms": ["term1", "term2", ...] }`,
     temperature: 0.3,
   });
 
-  const result = JSON.parse(response.choices[0].message.content);
+  const content = response.choices[0].message.content;
+  if (!content) {
+    throw new Error('No content returned from AI key terms extraction');
+  }
+  
+  const result = JSON.parse(content);
   return result.terms || [];
 }
 

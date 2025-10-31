@@ -20,12 +20,10 @@ interface Email {
 
 interface ContactPanelProps {
   email: Email | undefined;
-  onClose: () => void;
-  activeTab: 'contact' | 'ai';
-  onTabChange: (tab: 'contact' | 'ai') => void;
 }
 
-export function ContactPanel({ email, onClose, activeTab, onTabChange }: ContactPanelProps) {
+export function ContactPanel({ email }: ContactPanelProps) {
+  const [activeTab, setActiveTab] = useState<'contact' | 'ai'>('contact');
   const [aiMessage, setAiMessage] = useState('');
   const [aiMessages, setAiMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
 
@@ -60,7 +58,37 @@ export function ContactPanel({ email, onClose, activeTab, onTabChange }: Contact
 
   return (
     <div className="flex flex-col h-full bg-card">
-      {/* Tab Content - No header, tabs are in main layout */}
+      {/* Tabs Header */}
+      <div className="h-14 border-b border-border flex items-center px-4">
+        <div className="flex gap-2">
+          <button
+            className={cn(
+              'px-3 py-2 text-sm font-medium rounded-sm transition-colors',
+              activeTab === 'contact'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+            )}
+            onClick={() => setActiveTab('contact')}
+          >
+            <User className="h-4 w-4 inline mr-2" />
+            Contact
+          </button>
+          <button
+            className={cn(
+              'px-3 py-2 text-sm font-medium rounded-sm transition-colors',
+              activeTab === 'ai'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+            )}
+            onClick={() => setActiveTab('ai')}
+          >
+            <MessageCircle className="h-4 w-4 inline mr-2" />
+            AI Chat
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Content */}
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'contact' ? (
           <ContactInfoTab email={email} avatarColor={avatarColor} />

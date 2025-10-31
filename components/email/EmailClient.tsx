@@ -1,10 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, MessageCircle } from 'lucide-react';
 import { EmailList } from './EmailList';
 import { ContactPanel } from './ContactPanel';
-import { cn } from '@/lib/utils';
 import SyncingIndicator from './SyncingIndicator';
 
 interface EmailClientProps {
@@ -17,7 +15,6 @@ export default function EmailClient({ searchQuery = '', onSearchChange }: EmailC
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'contact' | 'ai'>('contact');
   const [accountId, setAccountId] = useState<string | null>(null);
 
   // Fetch emails when search query changes (with debouncing)
@@ -119,46 +116,8 @@ export default function EmailClient({ searchQuery = '', onSearchChange }: EmailC
       </div>
 
       {/* Contact Panel (25%) */}
-      <div className="w-1/4 border-l border-border flex flex-col">
-        {/* Tabs Header */}
-        <div className="h-14 border-b border-border flex items-center px-4">
-          <div className="flex gap-2">
-            <button
-              className={cn(
-                'px-3 py-2 text-sm font-medium rounded-sm transition-colors',
-                activeTab === 'contact'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-              )}
-              onClick={() => setActiveTab('contact')}
-            >
-              <User className="h-4 w-4 inline mr-2" />
-              Contact
-            </button>
-            <button
-              className={cn(
-                'px-3 py-2 text-sm font-medium rounded-sm transition-colors',
-                activeTab === 'ai'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-              )}
-              onClick={() => setActiveTab('ai')}
-            >
-              <MessageCircle className="h-4 w-4 inline mr-2" />
-              AI Chat
-            </button>
-          </div>
-        </div>
-
-        {/* Contact Panel Content */}
-        <div className="flex-1 overflow-hidden">
-          <ContactPanel
-            email={selectedEmail}
-            onClose={() => setSelectedEmailId(null)}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
-        </div>
+      <div className="w-1/4 border-l border-border">
+        <ContactPanel email={selectedEmail} />
       </div>
     </div>
   );
