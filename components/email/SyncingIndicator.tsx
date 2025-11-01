@@ -13,6 +13,8 @@ export default function SyncingIndicator({ accountId, emailCount = 0 }: SyncingI
   const [syncStatus, setSyncStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [stopping, setStopping] = useState(false);
+  const [stopped, setStopped] = useState(false);
+  const [restarting, setRestarting] = useState(false);
 
   useEffect(() => {
     if (!accountId) {
@@ -27,6 +29,7 @@ export default function SyncingIndicator({ accountId, emailCount = 0 }: SyncingI
         
         if (data.success && (data.syncStatus === 'syncing' || data.syncStatus === 'background_syncing')) {
           setSyncStatus(data);
+          setStopped(false); // Reset stopped state if sync resumes
         } else {
           setSyncStatus(null);
         }
@@ -60,7 +63,8 @@ export default function SyncingIndicator({ accountId, emailCount = 0 }: SyncingI
       const data = await response.json();
 
       if (data.success) {
-        setSyncStatus(null); // Hide the syncing indicator
+        setSyncStatus(null);
+        setStopped(true); // Show stopped confirmation
       }
     } catch (error) {
       console.error('Stop sync failed:', error);
@@ -68,6 +72,78 @@ export default function SyncingIndicator({ accountId, emailCount = 0 }: SyncingI
       setStopping(false);
     }
   };
+
+  const handleRestartSync = async () => {
+    if (!accountId) return;
+    
+    setRestarting(true);
+    try {
+      // Trigger sync restart
+      const response = await fetch('/api/nylas/sync/background', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setStopped(false); // Hide confirmation
+        // The sync status will be picked up by the polling useEffect
+      }
+    } catch (error) {
+      console.error('Restart sync failed:', error);
+    } finally {
+      setRestarting(false);
+    }
+  };
+
+  // Show stopped confirmation
+  if (stopped) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 space-y-6">
+        <div className="relative">
+          <div className="w-32 h-32 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center shadow-2xl">
+            <StopCircle className="w-16 h-16 text-white" />
+          </div>
+        </div>
+
+        <div className="text-center space-y-4 max-w-md">
+          <h3 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+            Sync Stopped
+          </h3>
+          
+          <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+            <p className="text-sm text-orange-800 dark:text-orange-300">
+              ✅ Email sync has been stopped successfully. You can restart it anytime using the button below.
+            </p>
+          </div>
+
+          <Button
+            onClick={handleRestartSync}
+            disabled={restarting}
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+          >
+            {restarting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Restarting Sync...
+              </>
+            ) : (
+              <>
+                <Mail className="h-4 w-4 mr-2" />
+                Restart Sync
+              </>
+            )}
+          </Button>
+
+          <p className="text-xs text-muted-foreground mt-2">
+            Or go to <a href="/accounts" className="text-primary hover:underline">Email Accounts</a> to manage sync settings
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Don't show if there are already emails OR if not syncing
   if (loading || !syncStatus || emailCount > 0) {
