@@ -12,15 +12,33 @@ export async function GET(request: NextRequest) {
   }
   
   try {
-    // Get folders from database
-    const folders = await db.query.emailFolders.findMany({
+    // Get folders from database WITH live email counts
+    const foldersRaw = await db.query.emailFolders.findMany({
       where: eq(emailFolders.accountId, accountId),
       orderBy: (folders, { asc }) => [asc(folders.displayName)],
     });
     
-    console.log('📥 GET /api/nylas/folders/sync - Returning folders:', folders.map(f => `${f.displayName} (${f.folderType})`));
+    // Calculate LIVE email counts from emails table (not stale totalCount)
+    const { emails } = await import('@/lib/db/schema');
+    const { count, sql } = await import('drizzle-orm');
     
-    return NextResponse.json({ success: true, folders });
+    const foldersWithLiveCounts = await Promise.all(
+      foldersRaw.map(async (folder) => {
+        const result = await db
+          .select({ count: count() })
+          .from(emails)
+          .where(eq(emails.folderId, folder.id));
+        
+        return {
+          ...folder,
+          emailCount: result[0]?.count || 0, // Live count from actual emails in DB
+        };
+      })
+    );
+    
+    console.log('📥 GET /api/nylas/folders/sync - Returning folders with live counts:', foldersWithLiveCounts.map(f => `${f.displayName} (${f.emailCount} emails)`));
+    
+    return NextResponse.json({ success: true, folders: foldersWithLiveCounts });
   } catch (error) {
     console.error('Folder fetch error:', error);
     return NextResponse.json({ error: 'Fetch failed' }, { status: 500 });
