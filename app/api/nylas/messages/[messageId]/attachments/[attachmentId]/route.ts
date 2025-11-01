@@ -69,15 +69,27 @@ export async function GET(
           },
         });
 
-        console.log('✅ Attachment downloaded:', attachment);
+        console.log('✅ Attachment downloaded');
 
         // Find attachment metadata from email
         const attachmentMeta = email.attachments?.find((a: any) => a.id === attachmentId);
         const filename = attachmentMeta?.filename || 'download';
         const contentType = attachmentMeta?.contentType || 'application/octet-stream';
 
-        // Return the file (attachment is a ReadableStream)
-        return new NextResponse(attachment, {
+        // Convert ReadableStream to Buffer
+        const reader = attachment.getReader();
+        const chunks: Uint8Array[] = [];
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) chunks.push(value);
+        }
+        
+        const buffer = Buffer.concat(chunks);
+
+        // Return the file
+        return new NextResponse(buffer, {
           status: 200,
           headers: {
             'Content-Type': contentType,
