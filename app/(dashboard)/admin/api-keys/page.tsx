@@ -144,15 +144,14 @@ export default function ApiKeysManagement() {
 
   return (
     <AdminLayout>
-      <div className="h-full overflow-y-auto">
-        <div className="p-8 max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold">API Keys Management</h1>
-            <p className="text-muted-foreground mt-2">
-              Configure API keys for third-party services
-            </p>
-          </div>
+      <div className="p-8">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">API Keys Management</h1>
+          <p className="text-muted-foreground mt-2">
+            Configure API keys for third-party services
+          </p>
+        </div>
 
           {/* Toast Notification */}
           {toast && (

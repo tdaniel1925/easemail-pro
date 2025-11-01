@@ -42,14 +42,13 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout>
-      <div className="h-full overflow-y-auto">
-        <div className="p-8 max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-            <p className="text-muted-foreground mt-2">
-              Manage users, settings, and system configuration
-            </p>
-          </div>
+      <div className="p-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage users, settings, and system configuration
+          </p>
+        </div>
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -206,8 +205,7 @@ export default function AdminDashboard() {
                   View system performance and health metrics
                 </CardDescription>
               </CardHeader>
-            </Card>
-          </div>
+          </Card>
         </div>
       </div>
     </AdminLayout>

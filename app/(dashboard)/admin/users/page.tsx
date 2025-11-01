@@ -216,15 +216,14 @@ export default function UsersManagement() {
 
   return (
     <AdminLayout>
-      <div className="h-full overflow-y-auto">
-        <div className="p-8 max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold">User Management</h1>
-            <p className="text-muted-foreground mt-2">
-              Manage user accounts, roles, and permissions
-            </p>
-          </div>
+      <div className="p-8">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">User Management</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage user accounts, roles, and permissions
+          </p>
+        </div>
 
           {/* Search */}
           <div className="mb-6">
@@ -551,6 +550,7 @@ export default function UsersManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </AdminLayout>
   );
 }

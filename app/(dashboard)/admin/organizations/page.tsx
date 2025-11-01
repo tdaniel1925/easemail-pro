@@ -239,21 +239,20 @@ export default function OrganizationsManagement() {
 
   return (
     <AdminLayout>
-      <div className="h-full overflow-y-auto">
-        <div className="p-8 max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold">Team Organizations</h1>
-              <p className="text-muted-foreground mt-2">
-                Create and manage team accounts
-              </p>
-            </div>
-            <Button onClick={() => setCreateModalOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Organization
-            </Button>
+      <div className="p-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Team Organizations</h1>
+            <p className="text-muted-foreground mt-2">
+              Create and manage team accounts
+            </p>
           </div>
+          <Button onClick={() => setCreateModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Organization
+          </Button>
+        </div>
 
           {/* Toast Notification */}
           {toast && (
@@ -650,6 +649,7 @@ export default function OrganizationsManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </AdminLayout>
   );
 }
