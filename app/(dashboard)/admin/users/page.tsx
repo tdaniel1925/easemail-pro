@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import InboxLayout from '@/components/layout/InboxLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Mail, Shield, Trash2, ArrowLeft, Search, MoreVertical, Ban, Key, UserX, CheckCircle } from 'lucide-react';
+import { Users, Mail, Shield, Trash2, ArrowLeft, Search, MoreVertical, Ban, Key, UserX, CheckCircle, Edit } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
 import {
@@ -16,6 +17,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface User {
   id: string;
@@ -34,6 +50,17 @@ export default function UsersManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [saving, setSaving] = useState(false);
+  
+  // Form state for editing
+  const [editForm, setEditForm] = useState({
+    fullName: '',
+    email: '',
+    role: '',
+    organizationId: '',
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -127,6 +154,54 @@ export default function UsersManagement() {
       }
     } catch (error) {
       console.error('Failed to send reset email:', error);
+    }
+  };
+
+  const handleOpenEditModal = (user: User) => {
+    setEditingUser(user);
+    setEditForm({
+      fullName: user.fullName || '',
+      email: user.email,
+      role: user.role,
+      organizationId: '', // We'll add org selection later if needed
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setEditModalOpen(false);
+    setEditingUser(null);
+    setSaving(false);
+  };
+
+  const handleSaveUser = async () => {
+    if (!editingUser) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: editForm.fullName,
+          email: editForm.email,
+          role: editForm.role,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchUsers();
+        handleCloseEditModal();
+        alert('User updated successfully!');
+      } else {
+        const data = await response.json();
+        alert(`Failed to update user: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to update user:', error);
+      alert('Failed to update user');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -291,6 +366,11 @@ export default function UsersManagement() {
                               <DropdownMenuLabel>User Actions</DropdownMenuLabel>
                               <DropdownMenuSeparator />
                               
+                              <DropdownMenuItem onClick={() => handleOpenEditModal(user)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit User Details
+                              </DropdownMenuItem>
+
                               <DropdownMenuItem onClick={() => handleResetPassword(user.id, user.email)}>
                                 <Key className="h-4 w-4 mr-2" />
                                 Reset Password
@@ -329,6 +409,128 @@ export default function UsersManagement() {
           </Card>
         </div>
       </div>
+
+      {/* Edit User Modal */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit User Details</DialogTitle>
+            <DialogDescription>
+              Update user information and permissions. Changes will take effect immediately.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Full Name */}
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input
+                id="fullName"
+                value={editForm.fullName}
+                onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                placeholder="Enter full name"
+              />
+            </div>
+
+            {/* Email */}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                placeholder="user@example.com"
+              />
+              <p className="text-xs text-muted-foreground">
+                ⚠️ Changing email may require the user to re-verify their account
+              </p>
+            </div>
+
+            {/* Role */}
+            <div className="space-y-2">
+              <Label htmlFor="role">User Role</Label>
+              <Select
+                value={editForm.role}
+                onValueChange={(value) => setEditForm({ ...editForm, role: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="platform_admin">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      <span>Platform Admin</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="org_admin">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-blue-500" />
+                      <span>Organization Admin</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="org_user">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span>Organization User</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="individual">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span>Individual User</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Defines user permissions and access level
+              </p>
+            </div>
+
+            {/* User Info Display */}
+            {editingUser && (
+              <div className="border-t pt-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">User ID:</span>
+                  <span className="font-mono text-xs">{editingUser.id.substring(0, 8)}...</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Account Created:</span>
+                  <span>{formatDate(editingUser.createdAt.toString())}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Email Accounts:</span>
+                  <span>{editingUser._count?.emailAccounts || 0}</span>
+                </div>
+                {editingUser.suspended && (
+                  <div className="flex items-center gap-2 text-sm text-red-500">
+                    <Ban className="h-4 w-4" />
+                    <span>This user is currently suspended</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCloseEditModal}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveUser}
+              disabled={saving}
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </InboxLayout>
   );
 }

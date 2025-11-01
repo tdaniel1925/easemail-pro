@@ -29,7 +29,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     const body = await request.json();
-    const { role, suspended } = body;
+    const { role, suspended, fullName, email } = body;
 
     // Build update object
     const updateData: any = {
@@ -48,6 +48,25 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // Add suspended status if provided
     if (suspended !== undefined) {
       updateData.suspended = suspended;
+    }
+
+    // Add full name if provided
+    if (fullName !== undefined) {
+      updateData.fullName = fullName;
+    }
+
+    // Add email if provided (requires validation)
+    if (email !== undefined && email !== '') {
+      // Check if email is already taken by another user
+      const existingUser = await db.query.users.findFirst({
+        where: eq(users.email, email),
+      });
+
+      if (existingUser && existingUser.id !== userId) {
+        return NextResponse.json({ error: 'Email already in use by another user' }, { status: 400 });
+      }
+
+      updateData.email = email;
     }
 
     // Update user
