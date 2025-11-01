@@ -17,11 +17,13 @@ export async function POST(request: NextRequest) {
     console.log('🛑 Stopping sync for account:', accountId);
 
     // Update account status to 'active' (stopped syncing)
+    // IMPORTANT: Preserve syncCursor so sync can resume from where it left off
     await db.update(emailAccounts)
       .set({
         syncStatus: 'active',
         syncProgress: 0,
-        syncCursor: null, // Reset cursor so next sync starts fresh
+        syncStopped: true, // Flag that sync was manually stopped
+        // syncCursor: null, // ❌ DON'T RESET - preserve for resume!
       })
       .where(eq(emailAccounts.id, accountId));
 

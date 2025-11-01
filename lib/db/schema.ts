@@ -50,6 +50,9 @@ export const emailAccounts = pgTable('email_accounts', {
   totalEmailCount: integer('total_email_count').default(0),
   syncedEmailCount: integer('synced_email_count').default(0),
   syncProgress: integer('sync_progress').default(0), // 0-100 percentage
+  syncStopped: boolean('sync_stopped').default(false), // Manual stop flag
+  retryCount: integer('retry_count').default(0), // Auto-retry counter
+  lastRetryAt: timestamp('last_retry_at'), // Last retry timestamp
   
   // Webhooks
   webhookId: varchar('webhook_id', { length: 255 }),

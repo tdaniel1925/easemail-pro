@@ -39,11 +39,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Update status to background_syncing
+    // Update status to background_syncing and clear stop flag
     await db.update(emailAccounts)
       .set({
         syncStatus: 'background_syncing',
         lastError: null,
+        syncStopped: false, // Clear the stop flag when starting
+        retryCount: 0, // Reset retry count on manual start
       })
       .where(eq(emailAccounts.id, accountId));
 
@@ -140,9 +142,9 @@ async function performBackgroundSync(
         return; // Exit the sync function completely
       }
 
-      // Also check if sync was manually stopped
-      if (accountCheck.syncStatus === 'active' && accountCheck.syncProgress === 0) {
-        console.log(`🛑 Sync was stopped for account ${accountId} - exiting`);
+      // Check if sync was manually stopped (using dedicated flag)
+      if (accountCheck.syncStopped) {
+        console.log(`🛑 Sync was manually stopped for account ${accountId} - exiting`);
         return;
       }
 
@@ -267,15 +269,45 @@ async function performBackgroundSync(
       } catch (pageError) {
         console.error(`❌ Error fetching page ${currentPage}:`, pageError);
         
-        // Update error status
-        await db.update(emailAccounts)
-          .set({
-            syncStatus: 'error',
-            lastError: pageError instanceof Error ? pageError.message : 'Unknown error',
-          })
-          .where(eq(emailAccounts.id, accountId));
-        
-        throw pageError;
+        // Get current account state for retry logic
+        const currentAccount = await db.query.emailAccounts.findFirst({
+          where: eq(emailAccounts.id, accountId),
+        });
+
+        const retryCount = (currentAccount?.retryCount || 0) + 1;
+        const maxRetries = 3;
+
+        if (retryCount <= maxRetries) {
+          // Auto-retry with exponential backoff
+          const backoffMs = Math.min(1000 * Math.pow(2, retryCount - 1), 30000); // Max 30s
+          console.log(`🔄 Retry ${retryCount}/${maxRetries} in ${backoffMs}ms for account ${accountId}`);
+
+          await db.update(emailAccounts)
+            .set({
+              retryCount: retryCount,
+              lastRetryAt: new Date(),
+              lastError: `Retry ${retryCount}/${maxRetries}: ${pageError instanceof Error ? pageError.message : 'Unknown error'}`,
+            })
+            .where(eq(emailAccounts.id, accountId));
+
+          // Wait for backoff period
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+
+          // Retry this page (decrement currentPage to retry)
+          currentPage--;
+          continue;
+        } else {
+          // Max retries exceeded - update error status
+          console.error(`❌ Max retries (${maxRetries}) exceeded for account ${accountId}`);
+          await db.update(emailAccounts)
+            .set({
+              syncStatus: 'error',
+              lastError: `Sync failed after ${maxRetries} retries: ${pageError instanceof Error ? pageError.message : 'Unknown error'}`,
+            })
+            .where(eq(emailAccounts.id, accountId));
+          
+          throw pageError;
+        }
       }
     }
 

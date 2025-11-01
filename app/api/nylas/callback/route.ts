@@ -116,16 +116,20 @@ export async function GET(request: NextRequest) {
         }),
       ]);
       
+      let syncErrors = [];
+      
       if (folderResult.status === 'fulfilled') {
         console.log('✅ Folders synced');
       } else {
         console.error('⚠️ Folder sync error:', folderResult.reason);
+        syncErrors.push('folders');
       }
       
       if (emailResult.status === 'fulfilled') {
         console.log('✅ Initial emails synced');
       } else {
         console.error('⚠️ Email sync error:', emailResult.reason);
+        syncErrors.push('emails');
       }
       
       // Trigger background sync for remaining emails (async - don't wait)
@@ -135,6 +139,12 @@ export async function GET(request: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId: account.id }),
       }).catch(err => console.error('⚠️ Background sync trigger error:', err));
+      
+      // Redirect with sync status info
+      if (syncErrors.length > 0) {
+        console.log('⚠️ Some sync operations failed:', syncErrors);
+        return NextResponse.redirect(new URL(`/inbox?success=account_added&syncing=true&warnings=${syncErrors.join(',')}`, request.url));
+      }
     } else {
       console.log('✅ Reconnected - skipping initial sync, cursor preserved');
       console.log('📊 Existing sync state:', {

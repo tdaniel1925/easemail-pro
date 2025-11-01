@@ -51,10 +51,19 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     const success = searchParams.get('success');
     const error = searchParams.get('error');
     const syncing = searchParams.get('syncing');
+    const warnings = searchParams.get('warnings');
     
     if (success === 'account_added') {
       console.log('✅ Account added successfully! Fetching accounts and folders...');
-      if (syncing === 'true') {
+      
+      if (warnings) {
+        const failedItems = warnings.split(',');
+        const warningText = failedItems.join(' and ');
+        setMessage({ 
+          type: 'info', 
+          text: `⚠️ Account connected, but ${warningText} sync had issues. Background sync is running and will retry automatically.` 
+        });
+      } else if (syncing === 'true') {
         setMessage({ 
           type: 'info', 
           text: '✅ Account connected! Initial emails are loading below. Background sync is analyzing remaining emails - this may take a few minutes.' 
