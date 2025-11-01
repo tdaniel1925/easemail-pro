@@ -27,9 +27,6 @@ export async function POST(request: NextRequest) {
     // Find invitation
     const invitation = await db.query.teamInvitations.findFirst({
       where: eq(teamInvitations.token, token),
-      with: {
-        organization: true,
-      },
     });
 
     if (!invitation) {
@@ -93,18 +90,25 @@ export async function POST(request: NextRequest) {
       .where(eq(teamInvitations.id, invitation.id));
 
     // Update organization seat count
-    await db.update(organizations)
-      .set({
-        currentSeats: (invitation.organization?.currentSeats || 0) + 1,
-        updatedAt: new Date(),
-      })
-      .where(eq(organizations.id, invitation.organizationId));
+    // First get current org to get seat count
+    const org = await db.query.organizations.findFirst({
+      where: eq(organizations.id, invitation.organizationId),
+    });
+
+    if (org) {
+      await db.update(organizations)
+        .set({
+          currentSeats: (org.currentSeats || 0) + 1,
+          updatedAt: new Date(),
+        })
+        .where(eq(organizations.id, invitation.organizationId));
+    }
 
     return NextResponse.json({
       success: true,
       organization: {
         id: invitation.organizationId,
-        name: invitation.organization?.name,
+        name: org?.name || 'Team',
       },
     });
   } catch (error: any) {
