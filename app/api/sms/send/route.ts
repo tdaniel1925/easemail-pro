@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { smsMessages, smsUsage, contactCommunications } from '@/lib/db/schema';
 import { sendSMSWithTestMode } from '@/lib/sms/twilio-client';
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   
   try {
     // 1. Authenticate
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {

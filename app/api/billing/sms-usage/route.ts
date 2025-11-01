@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { smsUsage, smsAuditLog } from '@/lib/db/schema';
 import { eq, desc, gte, lte, and } from 'drizzle-orm';
@@ -12,7 +12,7 @@ import { generateSMSReceipt } from '@/lib/sms/audit-service';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {

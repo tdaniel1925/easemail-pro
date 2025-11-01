@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { contacts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -7,7 +7,7 @@ import { eq, and } from 'drizzle-orm';
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {

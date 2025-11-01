@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { emailDrafts, emailAccounts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 
 // GET: Fetch drafts for an account
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 // POST: Save draft
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
 // DELETE: Delete a draft
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {

@@ -9,7 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Send, MessageSquare, Loader2, AlertCircle, CheckCircle2, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { calculateSMSSegments } from '@/lib/sms/character-counter';
-import { formatPhoneByCountry } from '@/lib/utils/phone';
+import { formatPhoneForDisplay } from '@/lib/utils/phone';
 
 interface SMSModalProps {
   isOpen: boolean;
@@ -40,7 +40,7 @@ export function SMSModal({ isOpen, onClose, contact, onSuccess }: SMSModalProps)
   if (!isOpen || !contact) return null;
 
   const segments = calculateSMSSegments(message);
-  const formattedPhone = formatPhoneByCountry(contact.phoneNumber);
+  const formattedPhone = formatPhoneForDisplay(contact.phoneNumber);
   const maxSegments = 10;
   const isOverLimit = segments.messageCount > maxSegments;
   const costEstimate = (segments.messageCount * 0.05).toFixed(2);

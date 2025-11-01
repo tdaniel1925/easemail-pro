@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { contactNotes } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -21,7 +21,7 @@ export async function GET(
   { params }: RouteContext
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -55,7 +55,7 @@ export async function POST(
   { params }: RouteContext
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -101,7 +101,7 @@ export async function PATCH(
   { params }: RouteContext
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -158,7 +158,7 @@ export async function DELETE(
   { params }: RouteContext
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
