@@ -1,6 +1,14 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy-initialize Resend only when needed (avoid build-time initialization)
+let resendClient: Resend | null = null;
+
+function getResendClient(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resendClient;
+}
 
 interface SendEmailOptions {
   to: string | string[];
@@ -22,6 +30,7 @@ export async function sendEmail(options: SendEmailOptions) {
       return { success: false, error: 'Email service not configured' };
     }
 
+    const resend = getResendClient();
     const { data, error } = await resend.emails.send({
       from: options.from || `${process.env.EMAIL_FROM_NAME || 'EaseMail'} <${process.env.EMAIL_FROM || 'noreply@easemail.app'}>`,
       to: options.to,
