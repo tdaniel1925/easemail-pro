@@ -518,9 +518,20 @@ function AccountsContent() {
                             Syncing emails in background...
                           </span>
                         </div>
-                        <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                          {account.syncProgress || 0}%
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                            {account.syncProgress || 0}%
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleStopSync(account.id)}
+                            className="text-orange-600 border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950"
+                          >
+                            <StopCircle className="h-3.5 w-3.5 mr-1.5" />
+                            Stop
+                          </Button>
+                        </div>
                       </div>
                       <div className="w-full bg-blue-200 dark:bg-blue-900 rounded-full h-3 overflow-hidden">
                         <div
