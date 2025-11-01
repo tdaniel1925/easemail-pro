@@ -92,8 +92,8 @@ export async function POST(request: NextRequest) {
         attachments: attachments || [],
       });
       providerMessageId = sentMessage.data?.id;
-    } else if (account.emailProvider === 'aurinko' && account.aurinkoAccessToken) {
-      sentMessage = await sendAurinkoEmail(account.id, account.aurinkoAccessToken, {
+    } else if (account.emailProvider === 'aurinko' && account.accessToken) {
+      sentMessage = await sendAurinkoEmail(account.id, account.accessToken, {
         to: parsedTo,
         cc: parsedCc,
         bcc: parsedBcc,
