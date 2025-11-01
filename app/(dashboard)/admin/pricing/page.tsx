@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import InboxLayout from '@/components/layout/InboxLayout';
+import Link from 'next/link';
 import { 
   DollarSign, 
   MessageSquare, 
@@ -12,7 +14,8 @@ import {
   Building2,
   TrendingUp,
   Users,
-  Calendar
+  Calendar,
+  ArrowLeft
 } from 'lucide-react';
 
 interface PricingPlan {
@@ -152,36 +155,50 @@ export default function AdminPricingPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="h-64 bg-gray-200 rounded"></div>
-            <div className="h-64 bg-gray-200 rounded"></div>
+      <InboxLayout>
+        <div className="h-full overflow-y-auto">
+          <div className="p-8 max-w-7xl mx-auto">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-64 mb-6"></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="h-64 bg-gray-200 rounded"></div>
+                <div className="h-64 bg-gray-200 rounded"></div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </InboxLayout>
     );
   }
 
   return (
-    <div className="p-8 space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Pricing & Billing Management</h1>
-        <p className="text-gray-600">Configure subscription plans, usage-based pricing, and billing settings</p>
-      </div>
+    <InboxLayout>
+      <div className="h-full overflow-y-auto">
+        <div className="p-8 max-w-7xl mx-auto space-y-8">
+          {/* Back Button */}
+          <Link href="/admin">
+            <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Admin Dashboard
+            </button>
+          </Link>
 
-      {/* Toast Notification */}
-      {toast && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
-          toast.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-        }`}>
-          <p className={toast.type === 'success' ? 'text-green-800' : 'text-red-800'}>
-            {toast.message}
-          </p>
-        </div>
-      )}
+          {/* Header */}
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Pricing & Billing Management</h1>
+            <p className="text-gray-600">Configure subscription plans, usage-based pricing, and billing settings</p>
+          </div>
+
+          {/* Toast Notification */}
+          {toast && (
+            <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
+              toast.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            }`}>
+              <p className={toast.type === 'success' ? 'text-green-800' : 'text-red-800'}>
+                {toast.message}
+              </p>
+            </div>
+          )}
 
       {/* Subscription Plans */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -444,7 +461,9 @@ export default function AdminPricingPage() {
       </div>
 
       {/* Modals will be added next */}
-    </div>
+        </div>
+      </div>
+    </InboxLayout>
   );
 }
 
