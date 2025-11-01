@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Key, Eye, EyeOff, Save, CheckCircle, Ban } from 'lucide-react';
+import { ArrowLeft, Key, Eye, EyeOff, Save, CheckCircle, Ban, X } from 'lucide-react';
 import Link from 'next/link';
 
 interface ApiKey {
