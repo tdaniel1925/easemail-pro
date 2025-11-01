@@ -8,8 +8,7 @@ import { requirePlatformAdmin } from '@/lib/auth/permissions';
 // GET /api/admin/pricing/settings - Get all billing settings
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const settings = await db.select().from(billingSettings).orderBy(billingSettings.settingKey);
 
@@ -26,8 +25,7 @@ export async function GET(request: NextRequest) {
 // PATCH /api/admin/pricing/settings - Update billing settings (bulk)
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const body = await request.json();
     const { settings: settingsToUpdate } = body;

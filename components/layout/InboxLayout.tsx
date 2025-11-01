@@ -343,6 +343,13 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
               <User className="h-4 w-4" />
               <span>Contacts</span>
             </button>
+            <button
+              onClick={() => router.push('/attachments')}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
+            >
+              <Paperclip className="h-4 w-4" />
+              <span>Attachments</span>
+            </button>
           </div>
         </div>
 

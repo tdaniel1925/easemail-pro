@@ -11,8 +11,7 @@ export async function PATCH(
   { params }: { params: { overrideId: string } }
 ) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const body = await request.json();
     const { 
@@ -63,8 +62,7 @@ export async function DELETE(
   { params }: { params: { overrideId: string } }
 ) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     await db.delete(organizationPricingOverrides).where(eq(organizationPricingOverrides.id, params.overrideId));
 

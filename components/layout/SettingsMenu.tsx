@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, Palette, User, LogOut, ChevronUp, Shield, Users, Paperclip, Zap, Mail } from 'lucide-react';
+import { Settings, Palette, User, LogOut, ChevronUp, Shield, Users, Zap, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import ThemeSelector from '@/components/theme/ThemeSelector';
@@ -101,18 +101,6 @@ export default function SettingsMenu({ onLogout, onNavigate, userRole: propUserR
                 </div>
               ) : (
                 <>
-                  {/* Attachments */}
-                  <button
-                    onClick={() => {
-                      onNavigate?.('/attachments');
-                      setIsOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent text-muted-foreground transition-colors"
-                  >
-                    <Paperclip className="h-4 w-4" />
-                    <span>Attachments</span>
-                  </button>
-
                   {/* Rules */}
                   <button
                     onClick={() => {

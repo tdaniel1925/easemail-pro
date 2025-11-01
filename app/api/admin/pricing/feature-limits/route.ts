@@ -8,8 +8,7 @@ import { requirePlatformAdmin } from '@/lib/auth/permissions';
 // GET /api/admin/pricing/feature-limits - Get feature limits (optionally by planId)
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const { searchParams } = new URL(request.url);
     const planId = searchParams.get('planId');
@@ -37,8 +36,7 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/pricing/feature-limits - Create feature limit
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const body = await request.json();
     const { planId, featureKey, limitValue, description } = body;
@@ -70,8 +68,7 @@ export async function POST(request: NextRequest) {
 // PATCH /api/admin/pricing/feature-limits/[limitId] - Update feature limit
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const { searchParams } = new URL(request.url);
     const limitId = searchParams.get('limitId');
@@ -110,8 +107,7 @@ export async function PATCH(request: NextRequest) {
 // DELETE /api/admin/pricing/feature-limits - Delete feature limit
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const { searchParams } = new URL(request.url);
     const limitId = searchParams.get('limitId');

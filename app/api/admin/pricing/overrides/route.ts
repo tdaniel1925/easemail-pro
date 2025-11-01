@@ -8,8 +8,7 @@ import { requirePlatformAdmin } from '@/lib/auth/permissions';
 // GET /api/admin/pricing/overrides - List all organization overrides
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     // Fetch overrides with organization names
     const overrides = await db
@@ -41,8 +40,7 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/pricing/overrides - Create new organization override
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const body = await request.json();
     const { 

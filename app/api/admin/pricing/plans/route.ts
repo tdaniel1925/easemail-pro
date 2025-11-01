@@ -8,8 +8,7 @@ import { requirePlatformAdmin } from '@/lib/auth/permissions';
 // GET /api/admin/pricing/plans - List all pricing plans
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const plans = await db.select().from(pricingPlans).orderBy(pricingPlans.name);
 
@@ -26,8 +25,7 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/pricing/plans - Create a new pricing plan
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const body = await request.json();
     const { name, displayName, description, basePriceMonthly, basePriceAnnual, minSeats, maxSeats } = body;

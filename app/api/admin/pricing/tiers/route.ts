@@ -8,8 +8,7 @@ import { requirePlatformAdmin } from '@/lib/auth/permissions';
 // GET /api/admin/pricing/tiers - List all pricing tiers
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const tiers = await db.select().from(pricingTiers).orderBy(pricingTiers.minQuantity);
 
@@ -26,8 +25,7 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/pricing/tiers - Create new pricing tier
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const body = await request.json();
     const { usagePricingId, tierName, minQuantity, maxQuantity, ratePerUnit } = body;

@@ -8,8 +8,7 @@ import { requirePlatformAdmin } from '@/lib/auth/permissions';
 // GET /api/admin/pricing/usage - List all usage pricing
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const usage = await db.select().from(usagePricing).orderBy(usagePricing.serviceType);
 
@@ -26,8 +25,7 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/pricing/usage - Create new usage pricing
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const body = await request.json();
     const { serviceType, pricingModel, baseRate, unit, description } = body;

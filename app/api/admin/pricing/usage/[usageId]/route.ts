@@ -11,8 +11,7 @@ export async function PATCH(
   { params }: { params: { usageId: string } }
 ) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const body = await request.json();
     const { pricingModel, baseRate, unit, description, isActive } = body;
@@ -53,8 +52,7 @@ export async function DELETE(
   { params }: { params: { usageId: string } }
 ) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     await db.delete(usagePricing).where(eq(usagePricing.id, params.usageId));
 

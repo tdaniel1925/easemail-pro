@@ -11,8 +11,7 @@ export async function PATCH(
   { params }: { params: { planId: string } }
 ) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const body = await request.json();
     const { displayName, description, basePriceMonthly, basePriceAnnual, minSeats, maxSeats, isActive } = body;
@@ -55,8 +54,7 @@ export async function DELETE(
   { params }: { params: { planId: string } }
 ) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     await db.delete(pricingPlans).where(eq(pricingPlans.id, params.planId));
 

@@ -11,8 +11,7 @@ export async function PATCH(
   { params }: { params: { tierId: string } }
 ) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     const body = await request.json();
     const { tierName, minQuantity, maxQuantity, ratePerUnit } = body;
@@ -50,8 +49,7 @@ export async function DELETE(
   { params }: { params: { tierId: string } }
 ) {
   try {
-    const supabase = await createClient();
-    await requirePlatformAdmin(supabase);
+    await requirePlatformAdmin();
 
     await db.delete(pricingTiers).where(eq(pricingTiers.id, params.tierId));
 
