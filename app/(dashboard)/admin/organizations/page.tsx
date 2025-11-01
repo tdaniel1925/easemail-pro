@@ -649,7 +649,6 @@ export default function OrganizationsManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </div>
     </AdminLayout>
   );
 }
