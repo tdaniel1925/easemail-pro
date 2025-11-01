@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { formatDate, getInitials, generateAvatarColor, formatFileSize } from '@/lib/utils';
-import { Star, Paperclip, Reply, ReplyAll, Forward, Download, ChevronDown, ChevronUp, Search, Sparkles, Loader2, Trash2, Archive, Mail, MailOpen, FolderInput, CheckSquare, Square } from 'lucide-react';
+import { Star, Paperclip, Reply, ReplyAll, Forward, Download, ChevronDown, ChevronUp, Search, Sparkles, Loader2, Trash2, Archive, Mail, MailOpen, FolderInput, CheckSquare, Square, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useEmailSummary } from '@/lib/hooks/useEmailSummary';
 import { ToastContainer, useToast } from '@/components/ui/toast';
+import { ThreadSummaryPanel } from '@/components/email/ThreadSummaryPanel';
 
 interface Email {
   id: string;
@@ -30,6 +31,8 @@ interface Email {
     contentType: string;
   }>;
   labels: string[];
+  threadId?: string | null;
+  threadEmailCount?: number | null;
 }
 
 interface EmailListProps {
@@ -298,6 +301,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
   const [mounted, setMounted] = useState(false);
   const [fullEmail, setFullEmail] = useState<Email | null>(null);
   const [loadingFullEmail, setLoadingFullEmail] = useState(false);
+  const [showThread, setShowThread] = useState(false);
   
   // Viewport detection
   const { ref, inView } = useInView({
@@ -421,6 +425,27 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Thread Badge */}
+                {email.threadId && email.threadEmailCount && email.threadEmailCount > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowThread(!showThread);
+                    }}
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1 rounded-full transition-all",
+                      showThread 
+                        ? "bg-primary text-primary-foreground" 
+                        : "bg-primary/10 hover:bg-primary/20 text-primary"
+                    )}
+                    title={`View thread (${email.threadEmailCount} emails)`}
+                  >
+                    <MessageSquare className="h-3 w-3" />
+                    <span className="text-xs font-medium">
+                      {email.threadEmailCount}
+                    </span>
+                  </button>
+                )}
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
                   {mounted ? formatDate(email.receivedAt) : ''}
                 </span>
@@ -575,6 +600,19 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
                 )}
               </div>
             </div>
+      )}
+      
+      {/* Thread Summary Panel - Shows when thread badge is clicked */}
+      {showThread && email.threadId && (
+        <ThreadSummaryPanel
+          threadId={email.threadId}
+          onEmailClick={(emailId) => {
+            // Navigate to that email
+            console.log('Navigate to email:', emailId);
+            // You can implement navigation here
+          }}
+          onClose={() => setShowThread(false)}
+        />
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { SignatureEditorModal } from '@/components/signatures/SignatureEditorModal';
 
 export default function SettingsContent() {
   const [activeSection, setActiveSection] = useState('general');
@@ -22,10 +23,22 @@ export default function SettingsContent() {
   ];
 
   return (
-    <div className="flex h-full">
+    <div className="flex w-full h-full">
       {/* Settings Sidebar */}
-      <aside className="w-64 border-r border-border bg-card p-4">
-        <h2 className="text-xl font-bold mb-6">Settings</h2>
+      <aside className="w-64 border-r border-border bg-card p-4 overflow-y-auto flex-shrink-0">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold mb-3 text-foreground">Settings</h2>
+          <a 
+            href="/inbox"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m12 19-7-7 7-7"/>
+              <path d="M19 12H5"/>
+            </svg>
+            Back to Inbox
+          </a>
+        </div>
         <nav className="space-y-1">
           {sections.map((section) => {
             const Icon = section.icon;
@@ -49,14 +62,14 @@ export default function SettingsContent() {
       </aside>
 
       {/* Settings Content */}
-      <div className="flex-1 overflow-y-auto p-8">
+      <main className="flex-1 overflow-y-auto p-8">
         {activeSection === 'general' && <GeneralSettings />}
         {activeSection === 'signatures' && <SignaturesSettings />}
         {activeSection === 'preferences' && <PreferencesSettings />}
         {activeSection === 'notifications' && <NotificationsSettings />}
         {activeSection === 'privacy' && <PrivacySettings />}
         {activeSection === 'integrations' && <IntegrationsSettings />}
-      </div>
+      </main>
     </div>
   );
 }
@@ -132,50 +145,230 @@ function GeneralSettings() {
 }
 
 function SignaturesSettings() {
+  const [signatures, setSignatures] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingSignature, setEditingSignature] = useState<any>(null);
+  const [previewSignature, setPreviewSignature] = useState<any>(null);
+
+  useEffect(() => {
+    loadSignatures();
+    loadAccounts();
+  }, []);
+
+  const loadSignatures = async () => {
+    try {
+      const response = await fetch('/api/signatures');
+      const data = await response.json();
+      setSignatures(data.signatures || []);
+    } catch (error) {
+      console.error('Error loading signatures:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAccounts = async () => {
+    try {
+      const response = await fetch('/api/nylas/accounts');
+      const data = await response.json();
+      setAccounts(data.accounts || []);
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+    }
+  };
+
+  const handleCreateNew = () => {
+    setEditingSignature(null);
+    setEditorOpen(true);
+  };
+
+  const handleEdit = (signature: any) => {
+    setEditingSignature(signature);
+    setEditorOpen(true);
+  };
+
+  const handleSave = async (formData: any) => {
+    try {
+      if (editingSignature) {
+        // Update existing
+        await fetch(`/api/signatures/${editingSignature.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+      } else {
+        // Create new
+        await fetch('/api/signatures', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+      }
+      await loadSignatures();
+      setEditorOpen(false);
+    } catch (error) {
+      console.error('Error saving signature:', error);
+      throw error;
+    }
+  };
+
+  const handleDelete = async (signatureId: string) => {
+    if (!confirm('Are you sure you want to delete this signature?')) {
+      return;
+    }
+
+    try {
+      await fetch(`/api/signatures/${signatureId}`, {
+        method: 'DELETE',
+      });
+      await loadSignatures();
+    } catch (error) {
+      console.error('Error deleting signature:', error);
+      alert('Failed to delete signature');
+    }
+  };
+
+  const handleToggleActive = async (signature: any) => {
+    try {
+      await fetch(`/api/signatures/${signature.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isActive: !signature.isActive,
+        }),
+      });
+      await loadSignatures();
+    } catch (error) {
+      console.error('Error toggling signature:', error);
+    }
+  };
+
   return (
-    <div className="max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Email Signatures</h1>
-          <p className="text-muted-foreground">Create and manage email signatures</p>
+    <>
+      <div className="max-w-3xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Email Signatures</h1>
+            <p className="text-muted-foreground">Create and manage email signatures</p>
+          </div>
+          <Button onClick={handleCreateNew}>
+            <PenTool className="h-4 w-4 mr-2" />
+            New Signature
+          </Button>
         </div>
-        <Button>
-          <PenTool className="h-4 w-4 mr-2" />
-          New Signature
-        </Button>
+
+        {loading ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              Loading signatures...
+            </CardContent>
+          </Card>
+        ) : signatures.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <PenTool className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground mb-4">No signatures yet</p>
+              <Button onClick={handleCreateNew}>Create Your First Signature</Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {signatures.map((signature) => (
+              <Card key={signature.id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>{signature.name}</CardTitle>
+                      <CardDescription>
+                        {signature.isDefault && <span className="text-primary font-medium">Default • </span>}
+                        {signature.accountId
+                          ? `For ${signature.account?.emailAddress || 'specific account'}`
+                          : 'All Accounts'}
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {signature.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                      <button
+                        onClick={() => handleToggleActive(signature)}
+                        className={cn(
+                          'w-10 h-6 rounded-full relative transition-colors',
+                          signature.isActive ? 'bg-primary' : 'bg-muted'
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            'w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all',
+                            signature.isActive ? 'right-0.5' : 'left-0.5'
+                          )}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="border border-border rounded-lg p-4 bg-muted/50">
+                    <div dangerouslySetInnerHTML={{ __html: signature.contentHtml }} />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => handleEdit(signature)}>Edit</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setPreviewSignature(signature)}
+                    >
+                      Preview
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => handleDelete(signature.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Work Signature</CardTitle>
-              <CardDescription>Default for john@company.com</CardDescription>
+      {/* Editor Modal */}
+      {editorOpen && (
+        <SignatureEditorModal
+          isOpen={editorOpen}
+          onClose={() => setEditorOpen(false)}
+          onSave={handleSave}
+          signature={editingSignature}
+          accounts={accounts}
+        />
+      )}
+
+      {/* Preview Modal */}
+      {previewSignature && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => setPreviewSignature(null)}
+        >
+          <div
+            className="bg-card rounded-lg shadow-xl max-w-2xl w-full mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">{previewSignature.name} - Preview</h3>
+              <Button variant="ghost" size="sm" onClick={() => setPreviewSignature(null)}>
+                Close
+              </Button>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Active</span>
-              <div className="w-10 h-6 bg-primary rounded-full relative">
-                <div className="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5"></div>
-              </div>
+            <div className="border border-border rounded-lg p-6 bg-background">
+              <div dangerouslySetInnerHTML={{ __html: previewSignature.contentHtml }} />
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="border border-border rounded-lg p-4 bg-muted/50">
-            <p className="font-medium">John Doe</p>
-            <p className="text-sm">Product Manager</p>
-            <p className="text-sm">TechCorp Inc.</p>
-            <p className="text-sm mt-2">📧 john@company.com | 📞 +1 (555) 123-4567</p>
-            <p className="text-sm">🌐 www.techcorp.com</p>
-          </div>
-          <div className="flex gap-2">
-            <Button>Edit</Button>
-            <Button variant="outline">Preview</Button>
-            <Button variant="destructive">Delete</Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      )}
+    </>
   );
 }
 

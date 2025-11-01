@@ -520,4 +520,9 @@ export const emailLabelsRelations = relations(emailLabels, ({ one }) => ({
   }),
 }));
 
+// Export thread tables
+export * from './schema-threads';
+
+// Export rule tables
+export * from './schema-rules';
 

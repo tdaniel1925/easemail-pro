@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar, Paperclip } from 'lucide-react';
+import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar, Paperclip, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
@@ -306,6 +306,13 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             >
               <Paperclip className="h-4 w-4" />
               <span>Attachments</span>
+            </button>
+            <button
+              onClick={() => router.push('/rules')}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
+            >
+              <Zap className="h-4 w-4" />
+              <span>Rules</span>
             </button>
             <button
               onClick={() => router.push('/accounts')}

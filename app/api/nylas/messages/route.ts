@@ -3,6 +3,9 @@ import { nylas } from '@/lib/email/nylas-client';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emails, syncLogs } from '@/lib/db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
+import { RuleEngine } from '@/lib/rules/rule-engine';
+import { retryWithBackoff } from '@/lib/email/retry-utils';
+import { checkConnectionHealth } from '@/lib/email/health-check';
 
 // Enable Node.js runtime for better performance
 export const runtime = 'nodejs';
@@ -87,7 +90,37 @@ export async function POST(request: NextRequest) {
       grantId: account.nylasGrantId,
       fullSync,
       limit,
+      provider: account.emailProvider,
     });
+    
+    // Dev environment: Add small delay after server restart
+    if (process.env.NODE_ENV === 'development') {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    // Health check before syncing
+    console.log('🏥 Checking connection health...');
+    const health = await checkConnectionHealth(account.nylasGrantId);
+    
+    if (!health.canSync) {
+      console.warn('⚠️ Health check failed:', health.reason);
+      
+      // Update account with helpful message
+      await db.update(emailAccounts)
+        .set({
+          syncStatus: 'error',
+          lastError: `${health.reason}. ${health.suggestion}`,
+        })
+        .where(eq(emailAccounts.id, accountId));
+      
+      return NextResponse.json({ 
+        error: health.reason,
+        suggestion: health.suggestion,
+        canRetry: !health.reason?.includes('Authentication'),
+      }, { status: 503 });
+    }
+    
+    console.log('✅ Health check passed');
     
     // Create sync log
     const [syncLog] = await db.insert(syncLogs).values({
@@ -113,14 +146,25 @@ export async function POST(request: NextRequest) {
     
     console.log('🔍 Fetching messages from Nylas with params:', queryParams);
     
-    const response = await nylas.messages.list({
-      identifier: account.nylasGrantId,
-      queryParams,
-    });
+    // ✅ Fetch messages with automatic retry (works for ALL providers: Google, Microsoft, IMAP)
+    const response = await retryWithBackoff(
+      async () => await nylas.messages.list({
+        identifier: account.nylasGrantId,
+        queryParams,
+      }),
+      {
+        maxRetries: 3,
+        initialDelay: 1000, // 1s, 2s, 4s exponential backoff
+        onRetry: (attempt, error) => {
+          console.log(`⏳ Retry attempt ${attempt}/3 for ${account.emailProvider}: ${error.message}`);
+        },
+      }
+    );
     
     console.log('✅ Received messages from Nylas:', {
       count: response.data.length,
       hasMore: !!(response as any).nextCursor,
+      provider: account.emailProvider,
     });
     
     let syncedCount = 0;
@@ -180,6 +224,25 @@ export async function POST(request: NextRequest) {
             receivedAt: new Date(message.date * 1000),
             providerData: message as any,
           }).onConflictDoNothing(); // Ignore duplicates silently
+
+          // Process rules for this email (async, don't block sync)
+          // Get userId from account
+          const userAccount = await db.query.emailAccounts.findFirst({
+            where: eq(emailAccounts.id, account.id),
+          });
+
+          if (userAccount) {
+            // Get the just-inserted email
+            const insertedEmail = await db.query.emails.findFirst({
+              where: eq(emails.providerMessageId, message.id),
+            });
+
+            if (insertedEmail) {
+              // Process rules asynchronously (don't await to not block sync)
+              RuleEngine.processEmail(insertedEmail as any, userAccount.userId)
+                .catch(err => console.error('Rule processing error:', err));
+            }
+          }
         }
         syncedCount++;
       } catch (messageError) {
@@ -197,6 +260,7 @@ export async function POST(request: NextRequest) {
         lastSyncedAt: new Date(),
         syncStatus: 'active',
         initialSyncCompleted: true,
+        lastError: null, // ✅ Clear any previous errors on success
       })
       .where(eq(emailAccounts.id, account.id));
     

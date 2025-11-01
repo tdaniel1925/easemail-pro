@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, Suspense, lazy } from 'react';
-import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, Bold, Italic, Underline, List } from 'lucide-react';
+import { useState, useEffect, Suspense, lazy } from 'react';
+import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, Bold, Italic, Underline, List, PenTool, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { useSignatures } from '@/lib/hooks/useSignatures';
+import { SignatureService } from '@/lib/signatures/signature-service';
 
 // Lazy load the AI toolbar to prevent SSR issues
 const UnifiedAIToolbar = lazy(() => 
@@ -19,10 +21,13 @@ interface EmailComposeProps {
     to: string;
     subject: string;
     messageId: string;
+    body?: string;
   };
+  type?: 'compose' | 'reply' | 'reply-all' | 'forward';
+  accountId?: string;
 }
 
-export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeProps) {
+export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose', accountId }: EmailComposeProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showCc, setShowCc] = useState(false);
@@ -40,6 +45,89 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
+
+  // Signature state
+  const { signatures, getApplicableSignature, renderSignature } = useSignatures();
+  const [selectedSignatureId, setSelectedSignatureId] = useState<string | null>(null);
+  const [useSignature, setUseSignature] = useState(true);
+  const [showSignatureDropdown, setShowSignatureDropdown] = useState(false);
+
+  // Auto-insert signature when compose opens
+  useEffect(() => {
+    if (isOpen && useSignature && !body) {
+      const applicableSignature = getApplicableSignature(type, accountId);
+      if (applicableSignature) {
+        setSelectedSignatureId(applicableSignature.id);
+        insertSignature(applicableSignature);
+      }
+    }
+  }, [isOpen, type, accountId, useSignature]);
+
+  const insertSignature = (signature: any) => {
+    if (!signature) return;
+
+    // Render signature with template variables
+    const renderedSignature = renderSignature(signature, {}, { emailAddress: to });
+
+    // Insert signature based on email type
+    const insertOptions = {
+      type: type as any,
+      quotedContent: replyTo?.body,
+    };
+
+    const newBody = SignatureService.insertSignature(
+      body || '',
+      renderedSignature,
+      insertOptions
+    );
+
+    setBody(newBody);
+  };
+
+  const handleSignatureToggle = () => {
+    const newUseSignature = !useSignature;
+    setUseSignature(newUseSignature);
+
+    if (newUseSignature) {
+      // Add signature
+      const applicableSignature = selectedSignatureId
+        ? signatures.find(s => s.id === selectedSignatureId)
+        : getApplicableSignature(type, accountId);
+      
+      if (applicableSignature) {
+        insertSignature(applicableSignature);
+      }
+    } else {
+      // Remove signature
+      const currentSignature = signatures.find(s => s.id === selectedSignatureId);
+      if (currentSignature) {
+        const renderedSignature = renderSignature(currentSignature, {}, { emailAddress: to });
+        const newBody = SignatureService.stripSignature(body, renderedSignature);
+        setBody(newBody);
+      }
+    }
+  };
+
+  const handleSignatureChange = (signatureId: string) => {
+    // Remove old signature
+    if (selectedSignatureId) {
+      const oldSignature = signatures.find(s => s.id === selectedSignatureId);
+      if (oldSignature) {
+        const renderedOld = renderSignature(oldSignature, {}, { emailAddress: to });
+        const bodyWithoutOld = SignatureService.stripSignature(body, renderedOld);
+        setBody(bodyWithoutOld);
+      }
+    }
+
+    // Insert new signature
+    const newSignature = signatures.find(s => s.id === signatureId);
+    if (newSignature) {
+      setSelectedSignatureId(signatureId);
+      insertSignature(newSignature);
+    }
+
+    setShowSignatureDropdown(false);
+  };
 
   if (!isOpen) return null;
 
@@ -308,6 +396,63 @@ export default function EmailCompose({ isOpen, onClose, replyTo }: EmailComposeP
                   </span>
                 </Button>
               </label>
+
+              {/* Signature Controls */}
+              {signatures.length > 0 && (
+                <>
+                  <div className="w-px h-6 bg-border mx-1" />
+                  <div className="relative">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn('h-8 w-8', useSignature && 'bg-accent')}
+                      onClick={handleSignatureToggle}
+                      title={useSignature ? 'Remove signature' : 'Add signature'}
+                    >
+                      <PenTool className="h-4 w-4" />
+                      {useSignature && (
+                        <Check className="h-2 w-2 absolute top-1 right-1 text-primary" />
+                      )}
+                    </Button>
+                  </div>
+                  {signatures.length > 1 && (
+                    <div className="relative">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-xs"
+                        onClick={() => setShowSignatureDropdown(!showSignatureDropdown)}
+                        title="Choose signature"
+                      >
+                        {selectedSignatureId
+                          ? signatures.find(s => s.id === selectedSignatureId)?.name || 'Signature'
+                          : 'Signature'}
+                      </Button>
+                      {showSignatureDropdown && (
+                        <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[200px]">
+                          {signatures
+                            .filter(s => s.isActive)
+                            .map(sig => (
+                              <button
+                                key={sig.id}
+                                onClick={() => handleSignatureChange(sig.id)}
+                                className={cn(
+                                  'w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors',
+                                  sig.id === selectedSignatureId && 'bg-accent'
+                                )}
+                              >
+                                <div className="font-medium">{sig.name}</div>
+                                {sig.isDefault && (
+                                  <div className="text-xs text-muted-foreground">Default</div>
+                                )}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Email Body */}
