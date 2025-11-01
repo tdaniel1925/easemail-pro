@@ -55,13 +55,39 @@ export async function POST(request: NextRequest) {
         try {
           switch (action) {
             case 'delete':
-              // Move to trash
+              // Move to trash in database AND Nylas
               await db.update(emails)
                 .set({
                   isTrashed: true,
+                  folder: 'trash',
                   updatedAt: new Date(),
                 })
                 .where(eq(emails.id, message.id));
+              
+              // CRITICAL: Also move to trash in Nylas
+              try {
+                await nylas.messages.update({
+                  identifier: grantId,
+                  messageId: message.providerMessageId,
+                  requestBody: {
+                    folders: ['trash'],
+                  },
+                });
+                console.log(`✅ Moved email ${message.id} to trash in Nylas`);
+              } catch (nylasError: any) {
+                console.error('❌ Nylas trash error:', nylasError);
+                // If Nylas fails, try to permanently delete instead
+                try {
+                  await nylas.messages.destroy({
+                    identifier: grantId,
+                    messageId: message.providerMessageId,
+                  });
+                  console.log(`✅ Permanently deleted email ${message.id} from Nylas`);
+                } catch (deleteError) {
+                  console.error('❌ Nylas delete also failed:', deleteError);
+                  throw new Error('Failed to delete from provider');
+                }
+              }
               break;
 
             case 'archive':

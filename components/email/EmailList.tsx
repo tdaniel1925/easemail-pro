@@ -408,8 +408,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
       const data = await response.json();
       
       if (data.success) {
-        showToast('success', 'Email moved to trash');
-        // Trigger refresh if parent provided onRefresh
+        // Trigger refresh - NO TOAST notification
         window.dispatchEvent(new CustomEvent('refreshEmails'));
       } else {
         showToast('error', 'Failed to delete email');
