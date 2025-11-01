@@ -791,3 +791,116 @@ export * from './schema-threads';
 // Export rule tables
 export * from './schema-rules';
 
+// ============================================================================
+// PRICING AND BILLING TABLES
+// ============================================================================
+
+// Pricing Plans
+export const pricingPlans = pgTable('pricing_plans', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 50 }).notNull().unique(),
+  displayName: varchar('display_name', { length: 255 }).notNull(),
+  description: text('description'),
+  basePriceMonthly: decimal('base_price_monthly', { precision: 10, scale: 2 }).notNull(),
+  basePriceAnnual: decimal('base_price_annual', { precision: 10, scale: 2 }).notNull(),
+  minSeats: integer('min_seats').default(1),
+  maxSeats: integer('max_seats'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Usage-based Pricing
+export const usagePricing = pgTable('usage_pricing', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  serviceType: varchar('service_type', { length: 50 }).notNull().unique(),
+  pricingModel: varchar('pricing_model', { length: 50 }).notNull(),
+  baseRate: decimal('base_rate', { precision: 10, scale: 4 }).notNull(),
+  unit: varchar('unit', { length: 50 }).notNull(),
+  description: text('description'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Pricing Tiers
+export const pricingTiers = pgTable('pricing_tiers', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  usagePricingId: uuid('usage_pricing_id').notNull().references(() => usagePricing.id, { onDelete: 'cascade' }),
+  tierName: varchar('tier_name', { length: 100 }),
+  minQuantity: integer('min_quantity').notNull(),
+  maxQuantity: integer('max_quantity'),
+  ratePerUnit: decimal('rate_per_unit', { precision: 10, scale: 4 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Organization Pricing Overrides
+export const organizationPricingOverrides = pgTable('organization_pricing_overrides', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  planId: uuid('plan_id').references(() => pricingPlans.id),
+  customMonthlyRate: decimal('custom_monthly_rate', { precision: 10, scale: 2 }),
+  customAnnualRate: decimal('custom_annual_rate', { precision: 10, scale: 2 }),
+  customSmsRate: decimal('custom_sms_rate', { precision: 10, scale: 4 }),
+  customAiRate: decimal('custom_ai_rate', { precision: 10, scale: 4 }),
+  customStorageRate: decimal('custom_storage_rate', { precision: 10, scale: 4 }),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Billing Settings
+export const billingSettings = pgTable('billing_settings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  settingKey: varchar('setting_key', { length: 100 }).notNull().unique(),
+  settingValue: text('setting_value').notNull(),
+  dataType: varchar('data_type', { length: 20 }).notNull(),
+  description: text('description'),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Plan Feature Limits
+export const planFeatureLimits = pgTable('plan_feature_limits', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  planId: uuid('plan_id').notNull().references(() => pricingPlans.id, { onDelete: 'cascade' }),
+  featureKey: varchar('feature_key', { length: 100 }).notNull(),
+  limitValue: text('limit_value').notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Relations
+export const pricingPlansRelations = relations(pricingPlans, ({ many }) => ({
+  overrides: many(organizationPricingOverrides),
+  featureLimits: many(planFeatureLimits),
+}));
+
+export const usagePricingRelations = relations(usagePricing, ({ many }) => ({
+  tiers: many(pricingTiers),
+}));
+
+export const pricingTiersRelations = relations(pricingTiers, ({ one }) => ({
+  usagePricing: one(usagePricing, {
+    fields: [pricingTiers.usagePricingId],
+    references: [usagePricing.id],
+  }),
+}));
+
+export const organizationPricingOverridesRelations = relations(organizationPricingOverrides, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationPricingOverrides.organizationId],
+    references: [organizations.id],
+  }),
+  plan: one(pricingPlans, {
+    fields: [organizationPricingOverrides.planId],
+    references: [pricingPlans.id],
+  }),
+}));
+
+export const planFeatureLimitsRelations = relations(planFeatureLimits, ({ one }) => ({
+  plan: one(pricingPlans, {
+    fields: [planFeatureLimits.planId],
+    references: [pricingPlans.id],
+  }),
+}));
+
