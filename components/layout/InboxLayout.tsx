@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar, Paperclip, Zap } from 'lucide-react';
+import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar, Paperclip, Zap, Shield, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
@@ -23,6 +23,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [isProviderSelectorOpen, setIsProviderSelectorOpen] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
+  const [userRole, setUserRole] = useState<string>('user');
   const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
   const [folders, setFolders] = useState<any[]>([]);
   const [expandedSections, setExpandedSections] = useState({
@@ -334,6 +335,32 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
               <Mail className="h-4 w-4" />
               <span>Email Accounts</span>
             </button>
+
+            {/* Admin Section */}
+            {userRole === 'admin' && (
+              <>
+                <div className="border-t border-border/50 my-3"></div>
+                <div className="px-3 pb-2">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Admin
+                  </div>
+                </div>
+                <button
+                  onClick={() => router.push('/admin')}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
+                >
+                  <Shield className="h-4 w-4" />
+                  <span>Admin Dashboard</span>
+                </button>
+                <button
+                  onClick={() => router.push('/admin/users')}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
+                >
+                  <Users className="h-4 w-4" />
+                  <span>User Management</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
