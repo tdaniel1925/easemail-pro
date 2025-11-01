@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, Palette, User, LogOut, ChevronUp } from 'lucide-react';
+import { Settings, Palette, User, LogOut, ChevronUp, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import ThemeSelector from '@/components/theme/ThemeSelector';
@@ -17,6 +17,7 @@ export default function SettingsMenu({ onLogout, onNavigate }: SettingsMenuProps
   const [showThemeSelector, setShowThemeSelector] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
   const [userFullName, setUserFullName] = useState<string>('');
+  const [userRole, setUserRole] = useState<string>('user');
   const supabase = createClient();
 
   useEffect(() => {
@@ -39,10 +40,22 @@ export default function SettingsMenu({ onLogout, onNavigate }: SettingsMenuProps
           if (response.ok) {
             const userData = await response.json();
             setUserFullName(userData.fullName || '');
+            setUserRole(userData.role || 'user');
           }
         } catch (error) {
           console.error('Failed to fetch user:', error);
         }
+      }
+      
+      // Always fetch role from database (most up-to-date)
+      try {
+        const response = await fetch(`/api/user/${user.id}`);
+        if (response.ok) {
+          const userData = await response.json();
+          setUserRole(userData.role || 'user');
+        }
+      } catch (error) {
+        console.error('Failed to fetch user role:', error);
       }
     }
   };
@@ -83,6 +96,23 @@ export default function SettingsMenu({ onLogout, onNavigate }: SettingsMenuProps
                 </div>
               ) : (
                 <>
+                  {/* Admin Link - Only show for admin users */}
+                  {userRole === 'admin' && (
+                    <>
+                      <button
+                        onClick={() => {
+                          onNavigate?.('/admin');
+                          setIsOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent text-muted-foreground transition-colors"
+                      >
+                        <Shield className="h-4 w-4" />
+                        <span>Admin Dashboard</span>
+                      </button>
+                      <div className="border-t border-border my-1"></div>
+                    </>
+                  )}
+                  
                   <button
                     onClick={() => setShowThemeSelector(true)}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent text-muted-foreground transition-colors"
