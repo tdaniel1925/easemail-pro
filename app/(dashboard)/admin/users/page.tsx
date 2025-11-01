@@ -54,6 +54,9 @@ export default function UsersManagement() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
   
+  // Toast notification state
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
+  
   // Form state for editing
   const [editForm, setEditForm] = useState({
     fullName: '',
@@ -61,6 +64,12 @@ export default function UsersManagement() {
     role: '',
     organizationId: '',
   });
+
+  // Show toast notification
+  const showToast = (type: 'success' | 'error' | 'info', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 5000); // Auto-hide after 5 seconds
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -97,10 +106,6 @@ export default function UsersManagement() {
   };
 
   const handleSuspendUser = async (userId: string, suspend: boolean) => {
-    if (!confirm(`Are you sure you want to ${suspend ? 'suspend' : 'activate'} this user?`)) {
-      return;
-    }
-
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
@@ -110,22 +115,17 @@ export default function UsersManagement() {
 
       if (response.ok) {
         await fetchUsers();
+        showToast('success', `User ${suspend ? 'suspended' : 'activated'} successfully`);
+      } else {
+        showToast('error', `Failed to ${suspend ? 'suspend' : 'activate'} user`);
       }
     } catch (error) {
       console.error('Failed to suspend user:', error);
+      showToast('error', `Failed to ${suspend ? 'suspend' : 'activate'} user`);
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to DELETE this user? This action cannot be undone!')) {
-      return;
-    }
-
-    const confirmation = prompt('Type "DELETE" to confirm:');
-    if (confirmation !== 'DELETE') {
-      return;
-    }
-
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
@@ -133,27 +133,31 @@ export default function UsersManagement() {
 
       if (response.ok) {
         await fetchUsers();
+        showToast('success', 'User deleted successfully');
+      } else {
+        const data = await response.json();
+        showToast('error', data.error || 'Failed to delete user');
       }
     } catch (error) {
       console.error('Failed to delete user:', error);
+      showToast('error', 'Failed to delete user');
     }
   };
 
   const handleResetPassword = async (userId: string, userEmail: string) => {
-    if (!confirm(`Send password reset email to ${userEmail}?`)) {
-      return;
-    }
-
     try {
       const response = await fetch(`/api/admin/users/${userId}/reset-password`, {
         method: 'POST',
       });
 
       if (response.ok) {
-        alert('Password reset email sent!');
+        showToast('success', `Password reset email sent to ${userEmail}`);
+      } else {
+        showToast('error', 'Failed to send password reset email');
       }
     } catch (error) {
       console.error('Failed to send reset email:', error);
+      showToast('error', 'Failed to send password reset email');
     }
   };
 
@@ -192,14 +196,14 @@ export default function UsersManagement() {
       if (response.ok) {
         await fetchUsers();
         handleCloseEditModal();
-        alert('User updated successfully!');
+        showToast('success', 'User updated successfully');
       } else {
         const data = await response.json();
-        alert(`Failed to update user: ${data.error || 'Unknown error'}`);
+        showToast('error', data.error || 'Failed to update user');
       }
     } catch (error) {
       console.error('Failed to update user:', error);
-      alert('Failed to update user');
+      showToast('error', 'Failed to update user');
     } finally {
       setSaving(false);
     }
@@ -242,6 +246,30 @@ export default function UsersManagement() {
               />
             </div>
           </div>
+
+          {/* Toast Notification */}
+          {toast && (
+            <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 animate-in slide-in-from-top-2 ${
+              toast.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' :
+              toast.type === 'error' ? 'bg-red-500/10 border-red-500 text-red-500' :
+              'bg-blue-500/10 border-blue-500 text-blue-500'
+            }`}>
+              <div className="flex-shrink-0 mt-0.5">
+                {toast.type === 'success' && <CheckCircle className="h-5 w-5" />}
+                {toast.type === 'error' && <Ban className="h-5 w-5" />}
+                {toast.type === 'info' && <Mail className="h-5 w-5" />}
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">{toast.message}</p>
+              </div>
+              <button
+                onClick={() => setToast(null)}
+                className="flex-shrink-0 hover:opacity-70 transition-opacity"
+              >
+                <span className="text-xl">×</span>
+              </button>
+            </div>
+          )}
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
