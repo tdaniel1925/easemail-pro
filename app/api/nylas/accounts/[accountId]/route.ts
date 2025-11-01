@@ -32,9 +32,7 @@ export async function DELETE(
     if (account.nylasGrantId) {
       try {
         console.log('🧹 Revoking Nylas grant:', account.nylasGrantId);
-        await nylas.auth.revoke({
-          grantId: account.nylasGrantId,
-        });
+        await nylas.auth.revoke(account.nylasGrantId);
         console.log('✅ Nylas grant revoked');
       } catch (grantError) {
         console.warn('⚠️ Failed to revoke Nylas grant (may already be revoked):', grantError);
