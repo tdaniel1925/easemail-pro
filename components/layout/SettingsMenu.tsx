@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Settings, Palette, User, LogOut, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import ThemeSelector from '@/components/theme/ThemeSelector';
+import { createClient } from '@/lib/supabase/client';
 
 interface SettingsMenuProps {
   onLogout?: () => void;
@@ -14,6 +15,44 @@ interface SettingsMenuProps {
 export default function SettingsMenu({ onLogout, onNavigate }: SettingsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [userFullName, setUserFullName] = useState<string>('');
+  const supabase = createClient();
+
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  const fetchUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setUserEmail(user.email || '');
+      
+      // Get full name from user metadata or database
+      const fullName = user.user_metadata?.full_name;
+      if (fullName) {
+        setUserFullName(fullName);
+      } else {
+        // Fallback: fetch from database
+        try {
+          const response = await fetch(`/api/user/${user.id}`);
+          if (response.ok) {
+            const userData = await response.json();
+            setUserFullName(userData.fullName || '');
+          }
+        } catch (error) {
+          console.error('Failed to fetch user:', error);
+        }
+      }
+    }
+  };
+
+  const getInitials = () => {
+    if (userFullName) {
+      return userFullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+    return userEmail[0]?.toUpperCase() || 'U';
+  };
 
   return (
     <div className="relative">
@@ -89,7 +128,7 @@ export default function SettingsMenu({ onLogout, onNavigate }: SettingsMenuProps
         </>
       )}
 
-      {/* Settings Button */}
+      {/* User Info Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
@@ -97,10 +136,15 @@ export default function SettingsMenu({ onLogout, onNavigate }: SettingsMenuProps
           isOpen ? "bg-accent" : "hover:bg-accent text-muted-foreground"
         )}
       >
-        <Settings className="h-4 w-4" />
-        <span className="flex-1 text-left">Settings</span>
+        <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-xs">
+          {getInitials()}
+        </div>
+        <div className="flex-1 text-left truncate">
+          <div className="text-[10px] text-muted-foreground leading-tight">Logged in as</div>
+          <div className="font-medium text-xs truncate leading-tight">{userFullName || userEmail || 'User'}</div>
+        </div>
         <ChevronUp className={cn(
-          "h-4 w-4 transition-transform",
+          "h-4 w-4 transition-transform flex-shrink-0",
           isOpen && "rotate-180"
         )} />
       </button>
