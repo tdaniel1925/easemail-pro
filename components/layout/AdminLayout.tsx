@@ -55,11 +55,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* Sidebar */}
       <aside
         className={cn(
-          'bg-white border-r border-gray-200 flex flex-col transition-all duration-300 fixed lg:static inset-y-0 left-0 z-50',
+          'bg-white border-r border-gray-200 flex flex-col transition-all duration-300 fixed lg:static inset-y-0 left-0 z-50 flex-shrink-0',
           sidebarOpen ? 'w-64' : 'w-0 lg:w-16'
         )}
       >
