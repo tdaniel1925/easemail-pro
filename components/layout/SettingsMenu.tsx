@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, Palette, User, LogOut, ChevronUp, Shield } from 'lucide-react';
+import { Settings, Palette, User, LogOut, ChevronUp, Shield, Users, Paperclip, Zap, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import ThemeSelector from '@/components/theme/ThemeSelector';
@@ -10,19 +10,24 @@ import { createClient } from '@/lib/supabase/client';
 interface SettingsMenuProps {
   onLogout?: () => void;
   onNavigate?: (path: string) => void;
+  userRole?: string;
+  hasOrganization?: boolean;
 }
 
-export default function SettingsMenu({ onLogout, onNavigate }: SettingsMenuProps) {
+export default function SettingsMenu({ onLogout, onNavigate, userRole: propUserRole, hasOrganization = false }: SettingsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
   const [userFullName, setUserFullName] = useState<string>('');
-  const [userRole, setUserRole] = useState<string>('user');
+  const [localUserRole, setLocalUserRole] = useState<string>('user');
   const supabase = createClient();
 
   useEffect(() => {
     fetchUser();
   }, []);
+
+  // Use prop if provided, otherwise use local state
+  const userRole = propUserRole || localUserRole;
 
   const fetchUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -36,27 +41,27 @@ export default function SettingsMenu({ onLogout, onNavigate }: SettingsMenuProps
       } else {
         // Fallback: fetch from database
         try {
-          const response = await fetch(`/api/user/${user.id}`);
-          if (response.ok) {
-            const userData = await response.json();
-            setUserFullName(userData.fullName || '');
-            setUserRole(userData.role || 'user');
-          }
-        } catch (error) {
-          console.error('Failed to fetch user:', error);
-        }
-      }
-      
-      // Always fetch role from database (most up-to-date)
-      try {
         const response = await fetch(`/api/user/${user.id}`);
         if (response.ok) {
           const userData = await response.json();
-          setUserRole(userData.role || 'user');
+          setUserFullName(userData.fullName || '');
+          setLocalUserRole(userData.role || 'user');
         }
       } catch (error) {
-        console.error('Failed to fetch user role:', error);
+        console.error('Failed to fetch user:', error);
       }
+    }
+    
+    // Always fetch role from database (most up-to-date)
+    try {
+      const response = await fetch(`/api/user/${user.id}`);
+      if (response.ok) {
+        const userData = await response.json();
+        setLocalUserRole(userData.role || 'user');
+      }
+    } catch (error) {
+      console.error('Failed to fetch user role:', error);
+    }
     }
   };
 
@@ -96,9 +101,66 @@ export default function SettingsMenu({ onLogout, onNavigate }: SettingsMenuProps
                 </div>
               ) : (
                 <>
-                  {/* Admin Link - Only show for platform admin users */}
+                  {/* Attachments */}
+                  <button
+                    onClick={() => {
+                      onNavigate?.('/attachments');
+                      setIsOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent text-muted-foreground transition-colors"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                    <span>Attachments</span>
+                  </button>
+
+                  {/* Rules */}
+                  <button
+                    onClick={() => {
+                      onNavigate?.('/rules');
+                      setIsOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent text-muted-foreground transition-colors"
+                  >
+                    <Zap className="h-4 w-4" />
+                    <span>Rules</span>
+                  </button>
+
+                  {/* Email Accounts */}
+                  <button
+                    onClick={() => {
+                      onNavigate?.('/accounts');
+                      setIsOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent text-muted-foreground transition-colors"
+                  >
+                    <Mail className="h-4 w-4" />
+                    <span>Email Accounts</span>
+                  </button>
+
+                  {/* Team - Only show if user has an organization */}
+                  {hasOrganization && (
+                    <button
+                      onClick={() => {
+                        onNavigate?.('/team');
+                        setIsOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent text-muted-foreground transition-colors"
+                    >
+                      <Users className="h-4 w-4" />
+                      <span>Team</span>
+                    </button>
+                  )}
+
+                  <div className="border-t border-border my-1"></div>
+
+                  {/* Admin Section - Only show for platform admin users */}
                   {userRole === 'platform_admin' && (
                     <>
+                      <div className="px-3 py-1.5">
+                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Admin
+                        </div>
+                      </div>
                       <button
                         onClick={() => {
                           onNavigate?.('/admin');
@@ -108,6 +170,16 @@ export default function SettingsMenu({ onLogout, onNavigate }: SettingsMenuProps
                       >
                         <Shield className="h-4 w-4" />
                         <span>Admin Dashboard</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onNavigate?.('/admin/users');
+                          setIsOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent text-muted-foreground transition-colors"
+                      >
+                        <Users className="h-4 w-4" />
+                        <span>User Management</span>
                       </button>
                       <div className="border-t border-border my-1"></div>
                     </>
