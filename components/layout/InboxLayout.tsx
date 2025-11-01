@@ -24,6 +24,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [userRole, setUserRole] = useState<string>('user');
+  const [hasOrganization, setHasOrganization] = useState(false); // NEW: Track org membership
   const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
   const [folders, setFolders] = useState<any[]>([]);
   const [expandedSections, setExpandedSections] = useState({
@@ -87,6 +88,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   // Fetch accounts on mount
   useEffect(() => {
     fetchAccounts();
+    fetchUserContext(); // NEW: Fetch user role and org status
     
     // Auto-refresh tokens every 30 minutes
     const tokenRefreshInterval = setInterval(() => {
@@ -99,6 +101,24 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
 
     return () => clearInterval(tokenRefreshInterval);
   }, []);
+
+  // NEW: Fetch user's role and organization membership
+  const fetchUserContext = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const response = await fetch(`/api/user/${user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setUserRole(data.role || 'individual');
+        // Check if user has an organization (org_admin or org_user roles, or check for organizationId)
+        setHasOrganization(data.role === 'org_admin' || data.role === 'org_user');
+      }
+    } catch (error) {
+      console.error('Failed to fetch user context:', error);
+    }
+  };
 
   const fetchAccounts = async () => {
     try {
@@ -337,6 +357,18 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
               <Zap className="h-4 w-4" />
               <span>Rules</span>
             </button>
+            
+            {/* Team Section - Only show if user has an organization */}
+            {hasOrganization && (
+              <button
+                onClick={() => router.push('/team')}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
+              >
+                <Users className="h-4 w-4" />
+                <span>Team</span>
+              </button>
+            )}
+            
             <button
               onClick={() => router.push('/accounts')}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
@@ -346,7 +378,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             </button>
 
             {/* Admin Section */}
-            {userRole === 'admin' && (
+            {userRole === 'platform_admin' && (
               <>
                 <div className="border-t border-border/50 my-3"></div>
                 <div className="px-3 pb-2">

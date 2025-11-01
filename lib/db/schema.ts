@@ -1,5 +1,19 @@
-import { pgTable, uuid, varchar, text, timestamp, boolean, integer, bigint, jsonb, index, serial } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, boolean, integer, bigint, jsonb, index, serial, decimal } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+
+// Organizations Table
+export const organizations = pgTable('organizations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  slug: varchar('slug', { length: 100 }).notNull().unique(),
+  planType: varchar('plan_type', { length: 50 }).default('team'), // 'individual', 'team', 'enterprise'
+  billingEmail: varchar('billing_email', { length: 255 }),
+  maxSeats: integer('max_seats').default(5),
+  currentSeats: integer('current_seats').default(1),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
 
 // Users Table (synced with Supabase Auth)
 export const users = pgTable('users', {
@@ -7,7 +21,8 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   fullName: varchar('full_name', { length: 255 }),
   avatarUrl: varchar('avatar_url', { length: 500 }),
-  role: varchar('role', { length: 20 }).default('user').notNull(), // 'admin', 'user'
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
+  role: varchar('role', { length: 50 }).default('individual').notNull(), // 'platform_admin', 'org_admin', 'org_user', 'individual'
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -604,7 +619,90 @@ export const smsAuditLog = pgTable('sms_audit_log', {
   createdAtIdx: index('audit_created_at_idx').on(table.createdAt),
 }));
 
+// Organization Members (Junction Table)
+export const organizationMembers = pgTable('organization_members', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  role: varchar('role', { length: 50 }).notNull(), // 'owner', 'admin', 'member'
+  invitedBy: uuid('invited_by').references(() => users.id),
+  invitedAt: timestamp('invited_at').defaultNow(),
+  joinedAt: timestamp('joined_at'),
+  isActive: boolean('is_active').default(true),
+  permissions: jsonb('permissions').$type<Record<string, any>>().default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  orgIdIdx: index('org_members_org_id_idx').on(table.organizationId),
+  userIdIdx: index('org_members_user_id_idx').on(table.userId),
+}));
+
+// Subscriptions
+export const subscriptions = pgTable('subscriptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  planName: varchar('plan_name', { length: 50 }).notNull(),
+  billingCycle: varchar('billing_cycle', { length: 20 }).default('monthly'),
+  pricePerMonth: decimal('price_per_month', { precision: 10, scale: 2 }),
+  seatsIncluded: integer('seats_included').default(1),
+  seatsUsed: integer('seats_used').default(1),
+  status: varchar('status', { length: 50 }).default('active'),
+  trialEndsAt: timestamp('trial_ends_at'),
+  currentPeriodStart: timestamp('current_period_start'),
+  currentPeriodEnd: timestamp('current_period_end'),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false),
+  canceledAt: timestamp('canceled_at'),
+  stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
+  stripeSubscriptionId: varchar('stripe_subscription_id', { length: 255 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  orgIdIdx: index('subscriptions_org_id_idx').on(table.organizationId),
+  userIdIdx: index('subscriptions_user_id_idx').on(table.userId),
+}));
+
+// Team Invitations
+export const teamInvitations = pgTable('team_invitations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  role: varchar('role', { length: 50 }).notNull(),
+  invitedBy: uuid('invited_by').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  status: varchar('status', { length: 50 }).default('pending'),
+  expiresAt: timestamp('expires_at').notNull(),
+  acceptedAt: timestamp('accepted_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  orgIdIdx: index('invitations_org_id_idx').on(table.organizationId),
+  tokenIdx: index('invitations_token_idx').on(table.token),
+  emailIdx: index('invitations_email_idx').on(table.email),
+}));
+
 // Relations
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  users: many(users),
+  members: many(organizationMembers),
+  subscriptions: many(subscriptions),
+  invitations: many(teamInvitations),
+}));
+
+export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationMembers.organizationId],
+    references: [organizations.id],
+  }),
+  user: one(users, {
+    fields: [organizationMembers.userId],
+    references: [users.id],
+  }),
+  inviter: one(users, {
+    fields: [organizationMembers.invitedBy],
+    references: [users.id],
+  }),
+}));
+
 export const usersRelations = relations(users, ({ many, one }) => ({
   emailAccounts: many(emailAccounts),
   contacts: many(contacts),
@@ -615,6 +713,12 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   drafts: many(emailDrafts),
   smsMessages: many(smsMessages),
   smsUsage: many(smsUsage),
+  organization: one(organizations, {
+    fields: [users.organizationId],
+    references: [organizations.id],
+  }),
+  organizationMemberships: many(organizationMembers),
+  subscriptions: many(subscriptions),
 }));
 
 export const emailAccountsRelations = relations(emailAccounts, ({ one, many }) => ({
