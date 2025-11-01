@@ -76,17 +76,11 @@ export async function GET(
         const filename = attachmentMeta?.filename || 'download';
         const contentType = attachmentMeta?.contentType || 'application/octet-stream';
 
-        // Convert ReadableStream to Buffer
-        const reader = attachment.getReader();
-        const chunks: Uint8Array[] = [];
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (value) chunks.push(value);
-        }
-        
-        const buffer = Buffer.concat(chunks);
+        // Nylas returns a ReadableStream that Response can handle
+        // Create a Response first, then get the blob
+        const response = new Response(attachment as any);
+        const blob = await response.blob();
+        const buffer = Buffer.from(await blob.arrayBuffer());
 
         // Return the file
         return new NextResponse(buffer, {
