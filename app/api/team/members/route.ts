@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireOrgAdmin, getUserContext } from '@/lib/auth/permissions';
 import { db } from '@/lib/db/drizzle';
-import { organizationMembers, users, teamInvitations } from '@/lib/db/schema';
+import { organizationMembers, users, teamInvitations, organizations } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
+import { sendEmail } from '@/lib/email/send';
+import { getTeamInviteTemplate, getTeamInviteSubject } from '@/lib/email/templates/team-invite';
 
 /**
  * GET /api/team/members
@@ -106,9 +108,55 @@ export async function POST(request: NextRequest) {
       status: 'pending',
     }).returning();
 
-    // TODO: Send invitation email
-    console.log(`📧 Invitation created for ${email}. Token: ${token}`);
-    console.log(`Invitation link: ${process.env.NEXT_PUBLIC_APP_URL}/team/accept-invite?token=${token}`);
+    // Get inviter and organization details for email
+    const [inviter, org] = await Promise.all([
+      db.query.users.findFirst({ 
+        where: eq(users.id, context.userId),
+        columns: { fullName: true, email: true }
+      }),
+      db.query.organizations.findFirst({ 
+        where: eq(organizations.id, context.organizationId),
+        columns: { name: true }
+      }),
+    ]);
+
+    // Calculate expiry date
+    const expiryDate = new Date(invitation.expiresAt).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/team/accept-invite?token=${token}`;
+
+    // Send invitation email
+    const emailData = {
+      organizationName: org?.name || 'Team',
+      inviterName: inviter?.fullName || inviter?.email || 'Someone',
+      inviterEmail: inviter?.email || '',
+      recipientEmail: email,
+      role: role as 'admin' | 'member',
+      inviteLink,
+      expiryDate,
+    };
+
+    // Send email (async, don't block the response)
+    sendEmail({
+      to: email,
+      subject: getTeamInviteSubject(emailData),
+      html: getTeamInviteTemplate(emailData),
+    }).then(result => {
+      if (result.success) {
+        console.log(`✅ Invitation email sent to ${email}`);
+      } else {
+        console.error(`❌ Failed to send invitation email to ${email}:`, result.error);
+      }
+    }).catch(err => {
+      console.error(`❌ Error sending invitation email:`, err);
+    });
+
+    console.log(`📧 Invitation created for ${email}`);
+    console.log(`Invitation link: ${inviteLink}`);
 
     return NextResponse.json({
       success: true,
@@ -117,7 +165,7 @@ export async function POST(request: NextRequest) {
         email: invitation.email,
         role: invitation.role,
         status: invitation.status,
-        inviteLink: `${process.env.NEXT_PUBLIC_APP_URL}/team/accept-invite?token=${token}`,
+        inviteLink,
       },
     });
   } catch (error: any) {
