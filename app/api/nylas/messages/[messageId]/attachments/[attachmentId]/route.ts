@@ -64,7 +64,9 @@ export async function GET(
         const attachment = await nylas.attachments.download({
           identifier: account.nylasGrantId,
           attachmentId: attachmentId,
-          messageId: email.providerMessageId,
+          queryParams: {
+            messageId: email.providerMessageId,
+          },
         });
 
         console.log('✅ Attachment downloaded:', attachment);
