@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import InboxLayout from '@/components/layout/InboxLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Settings, Database, Activity, Mail, Zap } from 'lucide-react';
+import { Users, Settings, Database, Activity, Mail, Zap, Key } from 'lucide-react';
 import Link from 'next/link';
 
 interface AdminStats {
@@ -117,6 +117,20 @@ export default function AdminDashboard() {
                   </CardTitle>
                   <CardDescription>
                     View, edit, and manage user accounts and permissions
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            </Link>
+
+            <Link href="/admin/api-keys">
+              <Card className="hover:bg-accent cursor-pointer transition-colors">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Key className="h-5 w-5" />
+                    API Keys
+                  </CardTitle>
+                  <CardDescription>
+                    Configure API keys for Twilio, Resend, Nylas, and more
                   </CardDescription>
                 </CardHeader>
               </Card>

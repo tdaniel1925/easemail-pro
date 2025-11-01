@@ -1,6 +1,16 @@
 import { pgTable, uuid, varchar, text, timestamp, boolean, integer, bigint, jsonb, index, serial, decimal } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
+// System Settings Table (for API keys and configuration)
+export const systemSettings = pgTable('system_settings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  key: varchar('key', { length: 100 }).notNull().unique(),
+  value: text('value'),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Organizations Table
 export const organizations = pgTable('organizations', {
   id: uuid('id').defaultRandom().primaryKey(),
