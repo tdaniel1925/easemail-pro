@@ -5,7 +5,10 @@ import { organizationMembers, users, teamInvitations, organizations } from '@/li
 import { eq, and } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { sendEmail } from '@/lib/email/send';
-import { getTeamInviteTemplate, getTeamInviteSubject } from '@/lib/email/templates/team-invite';
+import { 
+  getTeamInviteTemplate, 
+  getTeamInviteSubject 
+} from '@/lib/email/templates/team-invite';
 
 /**
  * GET /api/team/members
