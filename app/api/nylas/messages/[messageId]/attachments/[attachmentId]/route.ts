@@ -76,8 +76,8 @@ export async function GET(
         const filename = attachmentMeta?.filename || 'download';
         const contentType = attachmentMeta?.contentType || 'application/octet-stream';
 
-        // Return the file
-        return new NextResponse(attachment.body, {
+        // Return the file (attachment is a ReadableStream)
+        return new NextResponse(attachment, {
           status: 200,
           headers: {
             'Content-Type': contentType,
