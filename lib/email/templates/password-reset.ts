@@ -1,7 +1,7 @@
 interface PasswordResetData {
-  userName: string;
-  userEmail: string;
-  resetUrl: string;
+  recipientName: string;
+  resetLink: string;
+  expiryHours: number;
 }
 
 export function getPasswordResetTemplate(data: PasswordResetData): string {
@@ -33,6 +33,7 @@ export function getPasswordResetTemplate(data: PasswordResetData): string {
               <h2 style="margin: 0 0 16px; color: #1A1D23; font-size: 24px; font-weight: 700;">Reset Your Password 🔑</h2>
               
               <p style="margin: 0 0 24px; color: #5C616B; font-size: 16px; line-height: 1.6;">
+                Hello ${data.recipientName},<br><br>
                 We received a request to reset your password. Click the button below to create a new password:
               </p>
 
@@ -40,7 +41,7 @@ export function getPasswordResetTemplate(data: PasswordResetData): string {
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                 <tr>
                   <td align="center">
-                    <a href="${data.resetUrl}" 
+                    <a href="${data.resetLink}" 
                        style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #4C6B9A 0%, #3A5276 100%); color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(76, 107, 154, 0.25);">
                       Reset Password
                     </a>
@@ -53,11 +54,11 @@ export function getPasswordResetTemplate(data: PasswordResetData): string {
               </p>
               
               <div style="margin: 12px 0 0; padding: 16px; background-color: #F5F6F8; border-radius: 6px; border: 1px solid #E1E4E8;">
-                <a href="${data.resetUrl}" style="color: #4C6B9A; text-decoration: none; word-break: break-all; font-size: 13px;">${data.resetUrl}</a>
+                <a href="${data.resetLink}" style="color: #4C6B9A; text-decoration: none; word-break: break-all; font-size: 13px;">${data.resetLink}</a>
               </div>
 
               <p style="margin: 32px 0 0; color: #5C616B; font-size: 14px; line-height: 1.6;">
-                ⏱️ This link expires in 1 hour
+                ⏱️ This link expires in ${data.expiryHours} hour${data.expiryHours !== 1 ? 's' : ''}
               </p>
             </td>
           </tr>
@@ -95,7 +96,7 @@ export function getPasswordResetTemplate(data: PasswordResetData): string {
   `.trim();
 }
 
-export function getPasswordResetSubject(): string {
+export function getPasswordResetSubject(data: PasswordResetData): string {
   return 'Reset your EaseMail password';
 }
 
