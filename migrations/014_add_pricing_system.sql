@@ -21,6 +21,18 @@ CREATE TABLE IF NOT EXISTS pricing_plans (
 CREATE INDEX IF NOT EXISTS idx_pricing_plans_active ON pricing_plans(is_active);
 CREATE INDEX IF NOT EXISTS idx_pricing_plans_name ON pricing_plans(name);
 
+-- Ensure UNIQUE constraint exists on name
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conrelid = 'pricing_plans'::regclass 
+    AND conname = 'pricing_plans_name_key'
+  ) THEN
+    ALTER TABLE pricing_plans ADD CONSTRAINT pricing_plans_name_key UNIQUE (name);
+  END IF;
+END $$;
+
 -- Insert default plans
 -- Free: $0 (no SMS, 10 AI requests/month)
 -- Individual: $45/month, $36/year (20% annual discount)
@@ -51,6 +63,18 @@ CREATE TABLE IF NOT EXISTS usage_pricing (
 
 CREATE INDEX IF NOT EXISTS idx_usage_pricing_type ON usage_pricing(service_type);
 CREATE INDEX IF NOT EXISTS idx_usage_pricing_active ON usage_pricing(is_active);
+
+-- Ensure UNIQUE constraint exists on service_type
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conrelid = 'usage_pricing'::regclass 
+    AND conname = 'usage_pricing_service_type_key'
+  ) THEN
+    ALTER TABLE usage_pricing ADD CONSTRAINT usage_pricing_service_type_key UNIQUE (service_type);
+  END IF;
+END $$;
 
 -- Insert default usage pricing
 INSERT INTO usage_pricing (service_type, pricing_model, base_rate, unit, description) VALUES
@@ -147,6 +171,18 @@ CREATE TABLE IF NOT EXISTS billing_settings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_billing_settings_key ON billing_settings(setting_key);
+
+-- Ensure UNIQUE constraint exists on setting_key
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conrelid = 'billing_settings'::regclass 
+    AND conname = 'billing_settings_setting_key_key'
+  ) THEN
+    ALTER TABLE billing_settings ADD CONSTRAINT billing_settings_setting_key_key UNIQUE (setting_key);
+  END IF;
+END $$;
 
 -- Insert default billing settings (skip if already exist)
 INSERT INTO billing_settings (setting_key, setting_value, data_type, description) VALUES
