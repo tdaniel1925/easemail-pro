@@ -4,10 +4,18 @@ import { useEffect, useState } from 'react';
 import InboxLayout from '@/components/layout/InboxLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Mail, Shield, Trash2, ArrowLeft, Search } from 'lucide-react';
+import { Users, Mail, Shield, Trash2, ArrowLeft, Search, MoreVertical, Ban, Key, UserX, CheckCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface User {
   id: string;
@@ -16,6 +24,7 @@ interface User {
   role: string;
   createdAt: Date;
   updatedAt: Date;
+  suspended?: boolean; // New field for user suspension
   _count?: {
     emailAccounts: number;
   };
@@ -57,6 +66,67 @@ export default function UsersManagement() {
       }
     } catch (error) {
       console.error('Failed to update role:', error);
+    }
+  };
+
+  const handleSuspendUser = async (userId: string, suspend: boolean) => {
+    if (!confirm(`Are you sure you want to ${suspend ? 'suspend' : 'activate'} this user?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ suspended: suspend }),
+      });
+
+      if (response.ok) {
+        await fetchUsers();
+      }
+    } catch (error) {
+      console.error('Failed to suspend user:', error);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to DELETE this user? This action cannot be undone!')) {
+      return;
+    }
+
+    const confirmation = prompt('Type "DELETE" to confirm:');
+    if (confirmation !== 'DELETE') {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await fetchUsers();
+      }
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+    }
+  };
+
+  const handleResetPassword = async (userId: string, userEmail: string) => {
+    if (!confirm(`Send password reset email to ${userEmail}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        alert('Password reset email sent!');
+      }
+    } catch (error) {
+      console.error('Failed to send reset email:', error);
     }
   };
 
@@ -167,7 +237,14 @@ export default function UsersManagement() {
                             {(user.fullName || user.email)[0].toUpperCase()}
                           </div>
                           <div>
-                            <div className="font-medium">{user.fullName || 'No name'}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium">{user.fullName || 'No name'}</div>
+                              {user.suspended && (
+                                <span className="text-xs bg-red-500/20 text-red-500 px-2 py-0.5 rounded">
+                                  Suspended
+                                </span>
+                              )}
+                            </div>
                             <div className="text-sm text-muted-foreground">{user.email}</div>
                           </div>
                         </div>
@@ -202,6 +279,46 @@ export default function UsersManagement() {
                               {user.role === 'org_admin' ? 'Org Admin' : user.role === 'org_user' ? 'Org User' : 'Individual'}
                             </Button>
                           )}
+
+                          {/* Action Menu */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                              <DropdownMenuLabel>User Actions</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              
+                              <DropdownMenuItem onClick={() => handleResetPassword(user.id, user.email)}>
+                                <Key className="h-4 w-4 mr-2" />
+                                Reset Password
+                              </DropdownMenuItem>
+
+                              {user.suspended ? (
+                                <DropdownMenuItem onClick={() => handleSuspendUser(user.id, false)}>
+                                  <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                                  <span className="text-green-500">Activate User</span>
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => handleSuspendUser(user.id, true)}>
+                                  <Ban className="h-4 w-4 mr-2 text-orange-500" />
+                                  <span className="text-orange-500">Suspend User</span>
+                                </DropdownMenuItem>
+                              )}
+
+                              <DropdownMenuSeparator />
+                              
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete User
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     </div>

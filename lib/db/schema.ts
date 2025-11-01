@@ -23,6 +23,7 @@ export const users = pgTable('users', {
   avatarUrl: varchar('avatar_url', { length: 500 }),
   organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
   role: varchar('role', { length: 50 }).default('individual').notNull(), // 'platform_admin', 'org_admin', 'org_user', 'individual'
+  suspended: boolean('suspended').default(false), // Admin can suspend users
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
