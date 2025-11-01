@@ -96,8 +96,8 @@ export default function SettingsMenu({ onLogout, onNavigate }: SettingsMenuProps
                 </div>
               ) : (
                 <>
-                  {/* Admin Link - Only show for admin users */}
-                  {userRole === 'admin' && (
+                  {/* Admin Link - Only show for platform admin users */}
+                  {userRole === 'platform_admin' && (
                     <>
                       <button
                         onClick={() => {

@@ -19,8 +19,8 @@ export async function GET() {
       where: eq(users.id, user.id),
     });
 
-    if (!dbUser || dbUser.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
     }
 
     // Fetch all users with email account counts

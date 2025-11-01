@@ -24,16 +24,23 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       where: eq(users.id, user.id),
     });
 
-    if (!dbUser || dbUser.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
     }
 
     const body = await request.json();
+    const { role } = body;
+
+    // Validate role
+    const validRoles = ['platform_admin', 'org_admin', 'org_user', 'individual'];
+    if (!role || !validRoles.includes(role)) {
+      return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+    }
 
     // Update user
     await db.update(users)
       .set({
-        role: body.role,
+        role: role,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId));

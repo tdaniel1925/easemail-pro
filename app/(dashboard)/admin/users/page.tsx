@@ -116,9 +116,9 @@ export default function UsersManagement() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Admins</p>
+                    <p className="text-sm text-muted-foreground">Platform Admins</p>
                     <p className="text-2xl font-bold">
-                      {users.filter(u => u.role === 'admin').length}
+                      {users.filter(u => u.role === 'platform_admin').length}
                     </p>
                   </div>
                   <Shield className="h-8 w-8 text-primary" />
@@ -130,9 +130,9 @@ export default function UsersManagement() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Regular Users</p>
+                    <p className="text-sm text-muted-foreground">Individual Users</p>
                     <p className="text-2xl font-bold">
-                      {users.filter(u => u.role === 'user').length}
+                      {users.filter(u => u.role === 'individual').length}
                     </p>
                   </div>
                   <Mail className="h-8 w-8 text-muted-foreground" />
@@ -182,24 +182,24 @@ export default function UsersManagement() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {user.role === 'admin' ? (
+                          {user.role === 'platform_admin' ? (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleRoleChange(user.id, 'user')}
+                              onClick={() => handleRoleChange(user.id, 'individual')}
                               className="bg-primary/10 text-primary hover:bg-primary/20"
                             >
                               <Shield className="h-3.5 w-3.5 mr-1.5" />
-                              Admin
+                              Platform Admin
                             </Button>
                           ) : (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleRoleChange(user.id, 'admin')}
+                              onClick={() => handleRoleChange(user.id, 'platform_admin')}
                             >
                               <Shield className="h-3.5 w-3.5 mr-1.5" />
-                              User
+                              {user.role === 'org_admin' ? 'Org Admin' : user.role === 'org_user' ? 'Org User' : 'Individual'}
                             </Button>
                           )}
                         </div>

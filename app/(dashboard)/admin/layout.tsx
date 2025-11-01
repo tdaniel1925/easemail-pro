@@ -22,8 +22,8 @@ export default async function AdminLayout({
     where: eq(users.id, user.id),
   });
 
-  if (!dbUser || dbUser.role !== 'admin') {
-    // Not an admin - redirect to regular inbox
+  if (!dbUser || dbUser.role !== 'platform_admin') {
+    // Not a platform admin - redirect to regular inbox
     redirect('/inbox?error=unauthorized');
   }
 
