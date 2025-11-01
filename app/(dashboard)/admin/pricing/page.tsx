@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import InboxLayout from '@/components/layout/InboxLayout';
+import AdminLayout from '@/components/layout/AdminLayout';
 import Link from 'next/link';
 import { 
   DollarSign, 
@@ -158,7 +158,7 @@ export default function AdminPricingPage() {
 
   if (loading) {
     return (
-      <InboxLayout>
+      <AdminLayout>
         <div className="h-full overflow-y-auto">
           <div className="p-8 max-w-7xl mx-auto">
             <div className="animate-pulse">
@@ -170,21 +170,15 @@ export default function AdminPricingPage() {
             </div>
           </div>
         </div>
-      </InboxLayout>
+      </AdminLayout>
     );
   }
 
   return (
-    <InboxLayout>
+    <AdminLayout>
       <div className="h-full overflow-y-auto">
         <div className="p-8 max-w-7xl mx-auto space-y-8">
-          {/* Back Button */}
-          <Link href="/admin">
-            <button className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Admin Dashboard
-            </button>
-          </Link>
+          {/* Back Button - Remove since AdminLayout has navigation */}
 
           {/* Header */}
           <div>
@@ -477,7 +471,7 @@ export default function AdminPricingPage() {
       {/* Modals will be added next */}
         </div>
       </div>
-    </InboxLayout>
+    </AdminLayout>
   );
 }
 

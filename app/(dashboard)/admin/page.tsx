@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import InboxLayout from '@/components/layout/InboxLayout';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Settings, Database, Activity, Mail, Zap, Key, Building2, DollarSign } from 'lucide-react';
 import Link from 'next/link';
@@ -41,7 +41,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <InboxLayout>
+    <AdminLayout>
       <div className="h-full overflow-y-auto">
         <div className="p-8 max-w-7xl mx-auto">
           <div className="mb-8">
@@ -210,7 +210,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
-    </InboxLayout>
+    </AdminLayout>
   );
 }
 

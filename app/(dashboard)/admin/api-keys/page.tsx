@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import InboxLayout from '@/components/layout/InboxLayout';
+import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -143,23 +143,15 @@ export default function ApiKeysManagement() {
   };
 
   return (
-    <InboxLayout>
+    <AdminLayout>
       <div className="h-full overflow-y-auto">
         <div className="p-8 max-w-4xl mx-auto">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-6">
-            <Link href="/admin">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Admin
-              </Button>
-            </Link>
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold">API Keys Management</h1>
-              <p className="text-muted-foreground mt-2">
-                Configure API keys for third-party services
-              </p>
-            </div>
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold">API Keys Management</h1>
+            <p className="text-muted-foreground mt-2">
+              Configure API keys for third-party services
+            </p>
           </div>
 
           {/* Toast Notification */}
@@ -299,7 +291,7 @@ export default function ApiKeysManagement() {
           </Card>
         </div>
       </div>
-    </InboxLayout>
+    </AdminLayout>
   );
 }
 
