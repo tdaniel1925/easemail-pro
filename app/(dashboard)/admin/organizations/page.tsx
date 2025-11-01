@@ -478,11 +478,14 @@ export default function OrganizationsManagement() {
                   <SelectValue placeholder="Select plan" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="individual">Individual</SelectItem>
-                  <SelectItem value="team">Team</SelectItem>
-                  <SelectItem value="enterprise">Enterprise</SelectItem>
+                  <SelectItem value="team">Team (Up to 20 users)</SelectItem>
+                  <SelectItem value="business">Business (Up to 50 users)</SelectItem>
+                  <SelectItem value="enterprise">Enterprise (Unlimited)</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Select the plan tier for this organization
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -556,11 +559,14 @@ export default function OrganizationsManagement() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="individual">Individual</SelectItem>
-                  <SelectItem value="team">Team</SelectItem>
-                  <SelectItem value="enterprise">Enterprise</SelectItem>
+                  <SelectItem value="team">Team (Up to 20 users)</SelectItem>
+                  <SelectItem value="business">Business (Up to 50 users)</SelectItem>
+                  <SelectItem value="enterprise">Enterprise (Unlimited)</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                Organization tier and user limits
+              </p>
             </div>
 
             <div className="space-y-2">
