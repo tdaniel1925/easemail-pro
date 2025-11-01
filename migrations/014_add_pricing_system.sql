@@ -63,13 +63,23 @@ INSERT INTO usage_pricing (service_type, pricing_model, base_rate, unit, descrip
 CREATE TABLE IF NOT EXISTS pricing_tiers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   usage_pricing_id UUID NOT NULL REFERENCES usage_pricing(id) ON DELETE CASCADE,
-  tier_name VARCHAR(100),
   min_quantity INTEGER NOT NULL,
   max_quantity INTEGER, -- NULL for unlimited
   rate_per_unit DECIMAL(10,4) NOT NULL,
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   UNIQUE(usage_pricing_id, min_quantity)
 );
+
+-- Add tier_name column if it doesn't exist (for existing tables)
+DO $$ 
+BEGIN 
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'pricing_tiers' AND column_name = 'tier_name'
+  ) THEN
+    ALTER TABLE pricing_tiers ADD COLUMN tier_name VARCHAR(100);
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_pricing_tiers_usage ON pricing_tiers(usage_pricing_id);
 
