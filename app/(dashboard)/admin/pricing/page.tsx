@@ -15,7 +15,10 @@ import {
   TrendingUp,
   Users,
   Calendar,
-  ArrowLeft
+  ArrowLeft,
+  CheckCircle,
+  XCircle,
+  X
 } from 'lucide-react';
 
 interface PricingPlan {
@@ -189,14 +192,25 @@ export default function AdminPricingPage() {
             <p className="text-gray-600">Configure subscription plans, usage-based pricing, and billing settings</p>
           </div>
 
-          {/* Toast Notification */}
+          {/* Inline Toast Notification */}
           {toast && (
-            <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
-              toast.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            <div className={`p-4 rounded-lg border flex items-start gap-3 animate-in slide-in-from-top-2 ${
+              toast.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' :
+              'bg-red-500/10 border-red-500 text-red-500'
             }`}>
-              <p className={toast.type === 'success' ? 'text-green-800' : 'text-red-800'}>
-                {toast.message}
-              </p>
+              <div className="flex-shrink-0 mt-0.5">
+                {toast.type === 'success' && <CheckCircle className="h-5 w-5" />}
+                {toast.type === 'error' && <XCircle className="h-5 w-5" />}
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">{toast.message}</p>
+              </div>
+              <button
+                onClick={() => setToast(null)}
+                className="flex-shrink-0 hover:opacity-70 transition-opacity"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
           )}
 
