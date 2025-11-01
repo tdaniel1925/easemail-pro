@@ -9,12 +9,13 @@ export async function GET() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
-    // For testing without auth, use default test user ID
-    const userId = user?.id || '00000000-0000-0000-0000-000000000000';
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
     // Get all accounts for user
     const accounts = await db.query.emailAccounts.findMany({
-      where: eq(emailAccounts.userId, userId),
+      where: eq(emailAccounts.userId, user.id),
       orderBy: (accounts, { desc }) => [desc(accounts.isDefault), desc(accounts.createdAt)],
     });
     

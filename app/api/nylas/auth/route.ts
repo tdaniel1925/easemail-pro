@@ -6,17 +6,18 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createClient();
     
-    // Get authenticated user (or use test user if auth disabled)
+    // Get authenticated user
     const { data: { user } } = await supabase.auth.getUser();
     
-    // For testing without auth, use a default test user ID
-    const userId = user?.id || '00000000-0000-0000-0000-000000000000';
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
     // Get provider from query params (default: google)
     const provider = request.nextUrl.searchParams.get('provider') || 'google';
     
     // Generate OAuth URL with state containing user ID
-    const authUrl = await initNylasAuth(userId, provider);
+    const authUrl = await initNylasAuth(user.id, provider);
     
     return NextResponse.redirect(authUrl);
   } catch (error) {
