@@ -153,142 +153,141 @@ export default function ApiKeysManagement() {
           </p>
         </div>
 
-          {/* Toast Notification */}
-          {toast && (
-            <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 animate-in slide-in-from-top-2 ${
-              toast.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' :
-              'bg-red-500/10 border-red-500 text-red-500'
-            }`}>
-              <div className="flex-shrink-0 mt-0.5">
-                {toast.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <Ban className="h-5 w-5" />}
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">{toast.message}</p>
-              </div>
-              <button
-                onClick={() => setToast(null)}
-                className="flex-shrink-0 hover:opacity-70 transition-opacity"
-              >
-                <X className="h-5 w-5" />
-              </button>
+        {/* Toast Notification */}
+        {toast && (
+          <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 animate-in slide-in-from-top-2 ${
+            toast.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' :
+            'bg-red-500/10 border-red-500 text-red-500'
+          }`}>
+            <div className="flex-shrink-0 mt-0.5">
+              {toast.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <Ban className="h-5 w-5" />}
             </div>
-          )}
+            <div className="flex-1">
+              <p className="font-medium">{toast.message}</p>
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              className="flex-shrink-0 hover:opacity-70 transition-opacity"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        )}
 
-          {/* Warning Banner */}
-          <div className="bg-orange-500/10 border border-orange-500 text-orange-500 p-4 rounded-lg mb-6">
-            <div className="flex items-start gap-3">
-              <Ban className="h-5 w-5 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold mb-1">Security Warning</p>
-                <p className="text-sm">
-                  These API keys are sensitive. Never share them publicly. They are stored securely and encrypted in the database.
-                </p>
-              </div>
+        {/* Warning Banner */}
+        <div className="bg-orange-500/10 border border-orange-500 text-orange-500 p-4 rounded-lg mb-6">
+          <div className="flex items-start gap-3">
+            <Ban className="h-5 w-5 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold mb-1">Security Warning</p>
+              <p className="text-sm">
+                These API keys are sensitive. Never share them publicly. They are stored securely and encrypted in the database.
+              </p>
             </div>
           </div>
-
-          {/* API Keys Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle>System API Keys</CardTitle>
-              <CardDescription>
-                Configure the API keys required for various integrations
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading...</div>
-              ) : (
-                <div className="space-y-6">
-                  {API_KEYS_CONFIG.map((config) => (
-                    <div key={config.id} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor={config.id} className="flex items-center gap-2">
-                          {config.name}
-                          {config.required && (
-                            <span className="text-xs text-red-500">*</span>
-                          )}
-                        </Label>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleVisibility(config.id)}
-                          className="h-8 w-8 p-0"
-                        >
-                          {visibleKeys.has(config.id) ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      <Input
-                        id={config.id}
-                        type={visibleKeys.has(config.id) ? 'text' : 'password'}
-                        value={apiKeys[config.id] || ''}
-                        onChange={(e) =>
-                          setApiKeys({ ...apiKeys, [config.id]: e.target.value })
-                        }
-                        placeholder={`Enter ${config.name.toLowerCase()}`}
-                        className="font-mono text-sm"
-                      />
-                      <p className="text-xs text-muted-foreground">{config.description}</p>
-                    </div>
-                  ))}
-
-                  <div className="pt-6 border-t flex justify-end gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        fetchApiKeys();
-                        showToast('success', 'Changes discarded');
-                      }}
-                    >
-                      Discard Changes
-                    </Button>
-                    <Button onClick={handleSaveKeys} disabled={saving}>
-                      <Save className="h-4 w-4 mr-2" />
-                      {saving ? 'Saving...' : 'Save API Keys'}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Help Section */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-lg">How to Get API Keys</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="font-semibold mb-2">🔹 Twilio (SMS)</h3>
-                <p className="text-sm text-muted-foreground">
-                  Sign up at <a href="https://www.twilio.com/try-twilio" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">twilio.com</a> and get your Account SID, Auth Token, and phone number from the console.
-                </p>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">🔹 Resend (Email)</h3>
-                <p className="text-sm text-muted-foreground">
-                  Sign up at <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">resend.com</a> and create an API key in your dashboard.
-                </p>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">🔹 Nylas (Email Integration)</h3>
-                <p className="text-sm text-muted-foreground">
-                  Sign up at <a href="https://www.nylas.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">nylas.com</a> and get your API key and OAuth credentials from the developer dashboard.
-                </p>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">🔹 OpenAI (AI Features - Optional)</h3>
-                <p className="text-sm text-muted-foreground">
-                  Sign up at <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">platform.openai.com</a> and create an API key in your account settings.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
         </div>
+
+        {/* API Keys Form */}
+        <Card>
+          <CardHeader>
+            <CardTitle>System API Keys</CardTitle>
+            <CardDescription>
+              Configure the API keys required for various integrations
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="space-y-6">
+                {API_KEYS_CONFIG.map((config) => (
+                  <div key={config.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor={config.id} className="flex items-center gap-2">
+                        {config.name}
+                        {config.required && (
+                          <span className="text-xs text-red-500">*</span>
+                        )}
+                      </Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleVisibility(config.id)}
+                        className="h-8 w-8 p-0"
+                      >
+                        {visibleKeys.has(config.id) ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    <Input
+                      id={config.id}
+                      type={visibleKeys.has(config.id) ? 'text' : 'password'}
+                      value={apiKeys[config.id] || ''}
+                      onChange={(e) =>
+                        setApiKeys({ ...apiKeys, [config.id]: e.target.value })
+                      }
+                      placeholder={`Enter ${config.name.toLowerCase()}`}
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">{config.description}</p>
+                  </div>
+                ))}
+
+                <div className="pt-6 border-t flex justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      fetchApiKeys();
+                      showToast('success', 'Changes discarded');
+                    }}
+                  >
+                    Discard Changes
+                  </Button>
+                  <Button onClick={handleSaveKeys} disabled={saving}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? 'Saving...' : 'Save API Keys'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Help Section */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-lg">How to Get API Keys</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h3 className="font-semibold mb-2">🔹 Twilio (SMS)</h3>
+              <p className="text-sm text-muted-foreground">
+                Sign up at <a href="https://www.twilio.com/try-twilio" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">twilio.com</a> and get your Account SID, Auth Token, and phone number from the console.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-2">🔹 Resend (Email)</h3>
+              <p className="text-sm text-muted-foreground">
+                Sign up at <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">resend.com</a> and create an API key in your dashboard.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-2">🔹 Nylas (Email Integration)</h3>
+              <p className="text-sm text-muted-foreground">
+                Sign up at <a href="https://www.nylas.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">nylas.com</a> and get your API key and OAuth credentials from the developer dashboard.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-2">🔹 OpenAI (AI Features - Optional)</h3>
+              <p className="text-sm text-muted-foreground">
+                Sign up at <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">platform.openai.com</a> and create an API key in your account settings.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );
