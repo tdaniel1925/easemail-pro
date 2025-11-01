@@ -82,9 +82,9 @@ export async function GET(request: NextRequest) {
       // Calculate totals
       const totals = history.reduce(
         (acc, period) => ({
-          messages: acc.messages + period.totalMessagesSent,
-          cost: acc.cost + parseFloat(period.totalCostUsd),
-          charged: acc.charged + parseFloat(period.totalChargedUsd),
+          messages: acc.messages + (period.totalMessagesSent || 0),
+          cost: acc.cost + parseFloat(period.totalCostUsd || '0'),
+          charged: acc.charged + parseFloat(period.totalChargedUsd || '0'),
         }),
         { messages: 0, cost: 0, charged: 0 }
       );
