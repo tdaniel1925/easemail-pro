@@ -178,21 +178,7 @@ CREATE TABLE IF NOT EXISTS plan_feature_limits (
 CREATE INDEX IF NOT EXISTS idx_plan_feature_limits_plan ON plan_feature_limits(plan_id);
 CREATE INDEX IF NOT EXISTS idx_plan_feature_limits_feature ON plan_feature_limits(feature_key);
 
--- Ensure UNIQUE constraint exists (for existing tables)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'plan_feature_limits_plan_id_feature_key_key'
-  ) THEN
-    ALTER TABLE plan_feature_limits 
-    ADD CONSTRAINT plan_feature_limits_plan_id_feature_key_key 
-    UNIQUE (plan_id, feature_key);
-  END IF;
-END $$;
-
--- Insert feature limits for each plan
--- Use a function to avoid ON CONFLICT issues with INSERT...SELECT
+-- Insert feature limits for each plan (only if they don't already exist)
 DO $$
 DECLARE
   free_plan_id UUID;
@@ -208,42 +194,66 @@ BEGIN
 
   -- Free Plan limits
   IF free_plan_id IS NOT NULL THEN
-    INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-    VALUES 
-      (free_plan_id, 'sms_enabled', 'false', 'SMS messaging disabled on free plan'),
-      (free_plan_id, 'ai_requests_monthly', '10', 'AI email generation limited to 10 per month'),
-      (free_plan_id, 'email_accounts', 'unlimited', 'Unlimited email accounts')
-    ON CONFLICT (plan_id, feature_key) DO NOTHING;
+    IF NOT EXISTS (SELECT 1 FROM plan_feature_limits WHERE plan_id = free_plan_id AND feature_key = 'sms_enabled') THEN
+      INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+      VALUES (free_plan_id, 'sms_enabled', 'false', 'SMS messaging disabled on free plan');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM plan_feature_limits WHERE plan_id = free_plan_id AND feature_key = 'ai_requests_monthly') THEN
+      INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+      VALUES (free_plan_id, 'ai_requests_monthly', '10', 'AI email generation limited to 10 per month');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM plan_feature_limits WHERE plan_id = free_plan_id AND feature_key = 'email_accounts') THEN
+      INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+      VALUES (free_plan_id, 'email_accounts', 'unlimited', 'Unlimited email accounts');
+    END IF;
   END IF;
 
   -- Individual Plan limits
   IF individual_plan_id IS NOT NULL THEN
-    INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-    VALUES 
-      (individual_plan_id, 'sms_enabled', 'true', 'SMS messaging enabled'),
-      (individual_plan_id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests'),
-      (individual_plan_id, 'email_accounts', 'unlimited', 'Unlimited email accounts')
-    ON CONFLICT (plan_id, feature_key) DO NOTHING;
+    IF NOT EXISTS (SELECT 1 FROM plan_feature_limits WHERE plan_id = individual_plan_id AND feature_key = 'sms_enabled') THEN
+      INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+      VALUES (individual_plan_id, 'sms_enabled', 'true', 'SMS messaging enabled');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM plan_feature_limits WHERE plan_id = individual_plan_id AND feature_key = 'ai_requests_monthly') THEN
+      INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+      VALUES (individual_plan_id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM plan_feature_limits WHERE plan_id = individual_plan_id AND feature_key = 'email_accounts') THEN
+      INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+      VALUES (individual_plan_id, 'email_accounts', 'unlimited', 'Unlimited email accounts');
+    END IF;
   END IF;
 
   -- Team Plan limits
   IF team_plan_id IS NOT NULL THEN
-    INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-    VALUES 
-      (team_plan_id, 'sms_enabled', 'true', 'SMS messaging enabled'),
-      (team_plan_id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests'),
-      (team_plan_id, 'email_accounts', 'unlimited', 'Unlimited email accounts')
-    ON CONFLICT (plan_id, feature_key) DO NOTHING;
+    IF NOT EXISTS (SELECT 1 FROM plan_feature_limits WHERE plan_id = team_plan_id AND feature_key = 'sms_enabled') THEN
+      INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+      VALUES (team_plan_id, 'sms_enabled', 'true', 'SMS messaging enabled');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM plan_feature_limits WHERE plan_id = team_plan_id AND feature_key = 'ai_requests_monthly') THEN
+      INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+      VALUES (team_plan_id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM plan_feature_limits WHERE plan_id = team_plan_id AND feature_key = 'email_accounts') THEN
+      INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+      VALUES (team_plan_id, 'email_accounts', 'unlimited', 'Unlimited email accounts');
+    END IF;
   END IF;
 
   -- Enterprise Plan limits
   IF enterprise_plan_id IS NOT NULL THEN
-    INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-    VALUES 
-      (enterprise_plan_id, 'sms_enabled', 'true', 'SMS messaging enabled'),
-      (enterprise_plan_id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests'),
-      (enterprise_plan_id, 'email_accounts', 'unlimited', 'Unlimited email accounts')
-    ON CONFLICT (plan_id, feature_key) DO NOTHING;
+    IF NOT EXISTS (SELECT 1 FROM plan_feature_limits WHERE plan_id = enterprise_plan_id AND feature_key = 'sms_enabled') THEN
+      INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+      VALUES (enterprise_plan_id, 'sms_enabled', 'true', 'SMS messaging enabled');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM plan_feature_limits WHERE plan_id = enterprise_plan_id AND feature_key = 'ai_requests_monthly') THEN
+      INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+      VALUES (enterprise_plan_id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM plan_feature_limits WHERE plan_id = enterprise_plan_id AND feature_key = 'email_accounts') THEN
+      INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+      VALUES (enterprise_plan_id, 'email_accounts', 'unlimited', 'Unlimited email accounts');
+    END IF;
   END IF;
 END $$;
 
