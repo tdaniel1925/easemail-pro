@@ -23,6 +23,16 @@ export default function EmailClient({ searchQuery = '', onSearchChange }: EmailC
     setRefreshKey(prev => prev + 1);
   };
 
+  // Listen for refresh events from individual email actions
+  useEffect(() => {
+    const handleRefreshEvent = () => {
+      refreshEmails();
+    };
+
+    window.addEventListener('refreshEmails' as any, handleRefreshEvent);
+    return () => window.removeEventListener('refreshEmails' as any, handleRefreshEvent);
+  }, []);
+
   // Fetch emails when search query changes (with debouncing)
   useEffect(() => {
     // Debounce search query changes

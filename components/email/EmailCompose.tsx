@@ -40,6 +40,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [subject, setSubject] = useState(replyTo?.subject || '');
   const [body, setBody] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   // Text formatting state
   const [isBold, setIsBold] = useState(false);
@@ -52,16 +55,110 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [useSignature, setUseSignature] = useState(true);
   const [showSignatureDropdown, setShowSignatureDropdown] = useState(false);
 
-  // Auto-insert signature when compose opens
+  // Auto-insert signature when compose opens (for new compose only)
   useEffect(() => {
-    if (isOpen && useSignature && !body) {
+    if (isOpen && useSignature && !body && type === 'compose' && !replyTo) {
       const applicableSignature = getApplicableSignature(type, accountId);
       if (applicableSignature) {
         setSelectedSignatureId(applicableSignature.id);
-        insertSignature(applicableSignature);
+        
+        // Render signature with template variables
+        const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to });
+        
+        // Add 2 blank lines at the top for typing space, then signature
+        setBody('\n\n' + renderedSignature);
+        setIsInitialized(true);
       }
     }
   }, [isOpen, type, accountId, useSignature]);
+
+  // Initialize body with quoted content for reply/forward
+  useEffect(() => {
+    if (isOpen && !isInitialized && replyTo && type !== 'compose') {
+      let quotedBody = '\n\n'; // Start with 2 blank lines for typing
+      
+      // Helper function to strip HTML and convert to plain text
+      const stripHtml = (html: string) => {
+        if (!html) return '';
+        
+        // Create a temporary div to parse HTML
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        
+        // Remove script and style tags completely (including their content)
+        const scripts = tmp.querySelectorAll('script, style');
+        scripts.forEach(script => script.remove());
+        
+        // Get text content and preserve line breaks
+        let text = tmp.textContent || tmp.innerText || '';
+        
+        // Clean up excessive whitespace
+        text = text.replace(/\n\s*\n\s*\n/g, '\n\n'); // Max 2 consecutive newlines
+        text = text.trim();
+        
+        return text;
+      };
+      
+      // Get plain text version of the original message
+      let originalMessageText = '';
+      if (replyTo.body) {
+        // Check if it's HTML or plain text
+        if (replyTo.body.includes('<html') || replyTo.body.includes('<body') || replyTo.body.includes('<div')) {
+          originalMessageText = stripHtml(replyTo.body);
+        } else {
+          originalMessageText = replyTo.body;
+        }
+      }
+      
+      if (type === 'reply' || type === 'replyAll') {
+        // Add signature before quoted content for replies
+        if (useSignature) {
+          const applicableSignature = getApplicableSignature(type, accountId);
+          if (applicableSignature) {
+            setSelectedSignatureId(applicableSignature.id);
+            const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to });
+            quotedBody += renderedSignature + '\n\n';
+          }
+        }
+        
+        // Format as quoted reply
+        quotedBody += '------- Original Message -------\n';
+        quotedBody += `From: ${replyTo.to}\n`;
+        quotedBody += `Subject: ${replyTo.subject}\n\n`;
+        
+        if (originalMessageText) {
+          // Add '>' before each line for traditional email quoting
+          const quotedLines = originalMessageText
+            .split('\n')
+            .map(line => `> ${line}`)
+            .join('\n');
+          quotedBody += quotedLines;
+        }
+      } else if (type === 'forward') {
+        // Format as forwarded message
+        quotedBody += '---------- Forwarded message ---------\n';
+        quotedBody += `From: ${replyTo.to}\n`;
+        quotedBody += `Subject: ${replyTo.subject}\n\n`;
+        
+        if (originalMessageText) {
+          quotedBody += originalMessageText;
+        }
+        
+        // Add signature at bottom for forwards
+        if (useSignature) {
+          const applicableSignature = getApplicableSignature(type, accountId);
+          if (applicableSignature) {
+            setSelectedSignatureId(applicableSignature.id);
+            const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to });
+            quotedBody += '\n\n' + renderedSignature;
+          }
+        }
+      }
+      
+      setBody(quotedBody);
+      setIsInitialized(true);
+    }
+  }, [isOpen, replyTo, type, isInitialized, useSignature]);
 
   const insertSignature = (signature: any) => {
     if (!signature) return;
@@ -131,16 +228,129 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
   if (!isOpen) return null;
 
-  const handleSend = () => {
-    // TODO: Implement send logic with API call
-    console.log('Sending email:', { to, cc, bcc, subject, body, attachments });
-    // Here you would call your email API
-    onClose();
+  const handleSend = async () => {
+    // Validation
+    if (!to || to.trim() === '') {
+      alert('Please enter at least one recipient');
+      return;
+    }
+
+    if (!accountId) {
+      alert('No email account selected. Please select an account first.');
+      return;
+    }
+
+    if (!subject || subject.trim() === '') {
+      if (!confirm('Send email without a subject?')) {
+        return;
+      }
+    }
+
+    setIsSending(true);
+
+    try {
+      console.log('📤 Sending email...');
+
+      const response = await fetch('/api/nylas/messages/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accountId,
+          to,
+          cc: cc || undefined,
+          bcc: bcc || undefined,
+          subject,
+          body,
+          attachments: [], // TODO: Implement attachment upload
+          replyToEmailId: replyTo?.messageId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('✅ Email sent successfully:', data.emailId);
+        
+        // Show success message
+        const successMessage = document.createElement('div');
+        successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-[100] animate-in slide-in-from-top';
+        successMessage.textContent = '✓ Email sent successfully!';
+        document.body.appendChild(successMessage);
+        setTimeout(() => successMessage.remove(), 3000);
+        
+        onClose();
+        
+        // Trigger refresh of email list
+        window.dispatchEvent(new CustomEvent('refreshEmails'));
+      } else {
+        console.error('❌ Failed to send email:', data.error);
+        alert(`Failed to send email: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('❌ Send error:', error);
+      alert('Failed to send email. Please check your connection and try again.');
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const handleSaveDraft = () => {
-    // TODO: Implement save draft logic with API call
-    console.log('Saving draft:', { to, cc, bcc, subject, body });
+  const handleSaveDraft = async () => {
+    if (!accountId) {
+      alert('No email account selected. Please select an account first.');
+      return;
+    }
+
+    if (!to || to.trim() === '') {
+      alert('Please enter at least one recipient before saving draft');
+      return;
+    }
+
+    setIsSavingDraft(true);
+
+    try {
+      console.log('💾 Saving draft...');
+      
+      const response = await fetch('/api/nylas/drafts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accountId,
+          to,
+          cc,
+          bcc,
+          subject,
+          bodyText: body,
+          bodyHtml: body, // Could be enhanced with HTML conversion
+          attachments: [],
+          replyToEmailId: replyTo?.messageId,
+          replyType: type,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('✅ Draft saved:', data.draftId);
+        
+        // Show success message
+        const successMessage = document.createElement('div');
+        successMessage.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg z-[100] animate-in slide-in-from-top';
+        successMessage.textContent = '✓ Draft saved successfully!';
+        document.body.appendChild(successMessage);
+        setTimeout(() => successMessage.remove(), 3000);
+      } else {
+        alert(`Failed to save draft: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('❌ Draft save error:', error);
+      alert('Failed to save draft. Please try again.');
+    } finally {
+      setIsSavingDraft(false);
+    }
   };
 
   const handleAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,15 +413,6 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
             )}
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setIsMinimized(!isMinimized)}
-              title={isMinimized ? "Restore" : "Minimize"}
-            >
-              <Minimize2 className="h-4 w-4" />
-            </Button>
             {!isMinimized && (
               <Button
                 variant="ghost"
@@ -519,9 +720,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
             {/* Footer */}
             <div className="flex items-center justify-between p-3 border-t border-border">
               <div className="flex items-center gap-2">
-                <Button onClick={handleSend} className="gap-2">
+                <Button onClick={handleSend} className="gap-2" disabled={isSending || !accountId}>
                   <Send className="h-4 w-4" />
-                  Send
+                  {isSending ? 'Sending...' : 'Send'}
                 </Button>
                 <label>
                   <input
@@ -538,8 +739,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 </label>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={handleSaveDraft}>
-                  Save Draft
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleSaveDraft}
+                  disabled={isSavingDraft || !accountId}
+                >
+                  {isSavingDraft ? 'Saving...' : 'Save Draft'}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={onClose}>
                   Discard

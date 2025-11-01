@@ -459,6 +459,147 @@ export const webhookEvents = pgTable('webhook_events', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// ============================================================================
+// SMS SYSTEM
+// ============================================================================
+
+// SMS Messages
+export const smsMessages = pgTable('sms_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
+  
+  // Message details
+  toPhone: varchar('to_phone', { length: 50 }).notNull(),
+  fromPhone: varchar('from_phone', { length: 50 }).notNull(),
+  messageBody: text('message_body').notNull(),
+  
+  // Twilio info
+  twilioSid: varchar('twilio_sid', { length: 255 }),
+  twilioStatus: varchar('twilio_status', { length: 50 }),
+  twilioErrorCode: varchar('twilio_error_code', { length: 50 }),
+  twilioErrorMessage: text('twilio_error_message'),
+  
+  // Billing
+  costUsd: varchar('cost_usd', { length: 20 }),
+  priceChargedUsd: varchar('price_charged_usd', { length: 20 }),
+  currency: varchar('currency', { length: 3 }).default('USD'),
+  
+  // Metadata
+  direction: varchar('direction', { length: 20 }).default('outbound'),
+  sentAt: timestamp('sent_at'),
+  deliveredAt: timestamp('delivered_at'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('sms_messages_user_id_idx').on(table.userId),
+  contactIdIdx: index('sms_messages_contact_id_idx').on(table.contactId),
+  twilioSidIdx: index('sms_messages_twilio_sid_idx').on(table.twilioSid),
+  createdAtIdx: index('sms_messages_created_at_idx').on(table.createdAt),
+}));
+
+// SMS Usage Tracking
+export const smsUsage = pgTable('sms_usage', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  
+  periodStart: timestamp('period_start').notNull(),
+  periodEnd: timestamp('period_end').notNull(),
+  
+  totalMessagesSent: integer('total_messages_sent').default(0),
+  totalCostUsd: varchar('total_cost_usd', { length: 20 }).default('0'),
+  totalChargedUsd: varchar('total_charged_usd', { length: 20 }).default('0'),
+  
+  billingStatus: varchar('billing_status', { length: 50 }).default('pending'),
+  invoiceId: varchar('invoice_id', { length: 255 }),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('sms_usage_user_id_idx').on(table.userId),
+  periodIdx: index('sms_usage_period_idx').on(table.periodStart, table.periodEnd),
+}));
+
+// Contact Communications Timeline
+export const contactCommunications = pgTable('contact_communications', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'cascade' }).notNull(),
+  
+  // Communication type (NO EMAILS - only SMS, calls, notes)
+  type: varchar('type', { length: 50 }).notNull(), // 'sms_sent', 'sms_received', 'call_inbound', 'call_outbound', 'note'
+  direction: varchar('direction', { length: 20 }), // 'inbound', 'outbound', 'internal'
+  
+  // Content
+  subject: text('subject'),
+  body: text('body'),
+  snippet: text('snippet'),
+  
+  // References
+  smsId: uuid('sms_id').references(() => smsMessages.id, { onDelete: 'set null' }),
+  
+  // Metadata
+  metadata: jsonb('metadata').$type<{
+    cost?: number;
+    segments?: number;
+    encoding?: string;
+    country?: string;
+    provider?: string;
+    [key: string]: any;
+  }>(),
+  
+  // Status
+  status: varchar('status', { length: 50 }),
+  
+  // Timestamps
+  occurredAt: timestamp('occurred_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  contactIdIdx: index('contact_comms_contact_id_idx').on(table.contactId),
+  userIdIdx: index('contact_comms_user_id_idx').on(table.userId),
+  typeIdx: index('contact_comms_type_idx').on(table.type),
+  occurredAtIdx: index('contact_comms_occurred_at_idx').on(table.occurredAt),
+}));
+
+// Contact Notes
+export const contactNotes = pgTable('contact_notes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'cascade' }).notNull(),
+  
+  noteText: text('note_text').notNull(), // Fixed: was 'content', but API uses 'note_text'
+  category: varchar('category', { length: 50 }),
+  isPinned: boolean('is_pinned').default(false),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  contactIdIdx: index('contact_notes_contact_id_idx').on(table.contactId),
+  userIdIdx: index('contact_notes_user_id_idx').on(table.userId),
+  createdAtIdx: index('contact_notes_created_at_idx').on(table.createdAt),
+}));
+
+// SMS Audit Log (for billing & compliance)
+export const smsAuditLog = pgTable('sms_audit_log', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  smsId: uuid('sms_id').references(() => smsMessages.id, { onDelete: 'set null' }),
+  
+  action: varchar('action', { length: 50 }).notNull(), // 'sent', 'failed', 'delivered', 'refunded', 'billed'
+  amountCharged: varchar('amount_charged', { length: 20 }),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+  ipAddress: varchar('ip_address', { length: 50 }),
+  userAgent: text('user_agent'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('audit_user_id_idx').on(table.userId),
+  smsIdIdx: index('audit_sms_id_idx').on(table.smsId),
+  createdAtIdx: index('audit_created_at_idx').on(table.createdAt),
+}));
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   emailAccounts: many(emailAccounts),
@@ -468,6 +609,8 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   preferences: one(userPreferences),
   aiChats: many(aiChatMessages),
   drafts: many(emailDrafts),
+  smsMessages: many(smsMessages),
+  smsUsage: many(smsUsage),
 }));
 
 export const emailAccountsRelations = relations(emailAccounts, ({ one, many }) => ({
@@ -499,6 +642,9 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
     references: [users.id],
   }),
   aiChats: many(aiChatMessages),
+  communications: many(contactCommunications),
+  notes: many(contactNotes),
+  smsMessages: many(smsMessages),
 }));
 
 export const labelsRelations = relations(labels, ({ one, many }) => ({

@@ -19,6 +19,7 @@ interface InboxLayoutProps {
 export default function InboxLayout({ children }: InboxLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [composeData, setComposeData] = useState<any>(null);
   const [isProviderSelectorOpen, setIsProviderSelectorOpen] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -31,6 +32,18 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
+
+  // Listen for compose events from email cards
+  useEffect(() => {
+    const handleComposeEvent = (event: any) => {
+      const { type, email } = event.detail;
+      setComposeData({ type, email });
+      setIsComposeOpen(true);
+    };
+
+    window.addEventListener('openCompose' as any, handleComposeEvent);
+    return () => window.removeEventListener('openCompose' as any, handleComposeEvent);
+  }, []);
 
   // Check for success/error messages from OAuth callback
   useEffect(() => {
@@ -428,7 +441,29 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       </div>
       
       {/* Email Compose Window */}
-      <EmailCompose isOpen={isComposeOpen} onClose={() => setIsComposeOpen(false)} />
+      <EmailCompose 
+        isOpen={isComposeOpen} 
+        onClose={() => {
+          setIsComposeOpen(false);
+          setComposeData(null);
+        }}
+        type={composeData?.type || 'compose'}
+        accountId={selectedAccountId || undefined}
+        replyTo={composeData?.type && composeData?.email ? {
+          to: composeData.type === 'replyAll' 
+            ? [
+                composeData.email.fromEmail,
+                ...(composeData.email.toEmails?.map((t: any) => t.email) || []),
+                ...(composeData.email.ccEmails?.map((c: any) => c.email) || [])
+              ].filter(Boolean).join(', ')
+            : composeData.email.fromEmail,
+          subject: composeData.type === 'forward' 
+            ? `Fwd: ${composeData.email.subject}` 
+            : `Re: ${composeData.email.subject}`,
+          messageId: composeData.email.id,
+          body: composeData.email.bodyText || composeData.email.bodyHtml || composeData.email.snippet || ''
+        } : undefined}
+      />
       
       {/* Provider Selector Dialog */}
       <ProviderSelector isOpen={isProviderSelectorOpen} onClose={() => setIsProviderSelectorOpen(false)} />

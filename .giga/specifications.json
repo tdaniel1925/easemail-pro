@@ -1,0 +1,22 @@
+[
+  {
+    "fileName": "main-overview.mdc",
+    "description": "Complete system overview covering the email management system architecture, key components, and integration points with email providers"
+  },
+  {
+    "fileName": "email-sync-algorithm.mdc",
+    "description": "Detailed documentation of the multi-provider email synchronization algorithm, including delta-based sync, cursor pagination, and provider-specific optimizations"
+  },
+  {
+    "fileName": "threading-system.mdc",
+    "description": "Comprehensive documentation of the email threading algorithm, including the multi-method detection system, confidence scoring, and cross-account thread linking"
+  },
+  {
+    "fileName": "provider-abstraction.mdc",
+    "description": "Documentation of the provider abstraction layer, including folder/label management, provider-specific handling, and unified data models across different email providers"
+  },
+  {
+    "fileName": "data-flow.mdc",
+    "description": "End-to-end data flow documentation covering message processing, caching strategies, real-time updates, and cross-account data handling"
+  }
+]

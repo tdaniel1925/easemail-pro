@@ -1,19 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { contacts } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
+    // Authenticate user
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    // Default test user ID (replace with actual auth)
-    const userId = '00000000-0000-0000-0000-000000000000';
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const data = await request.json();
 
     console.log('📝 Creating contact:', data.email);
 
     const newContact = await db.insert(contacts).values({
-      userId,
+      userId: user.id,
       email: data.email,
       firstName: data.firstName,
       lastName: data.lastName,
@@ -53,10 +59,36 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = '00000000-0000-0000-0000-000000000000';
+    // Authenticate user
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
     
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check for email query parameter (for ContactPanel lookup)
+    const { searchParams } = new URL(request.url);
+    const emailQuery = searchParams.get('email');
+
+    if (emailQuery) {
+      // Query by specific email
+      const contact = await db.query.contacts.findMany({
+        where: and(
+          eq(contacts.userId, user.id),
+          eq(contacts.email, emailQuery)
+        ),
+      });
+
+      return NextResponse.json({
+        success: true,
+        contacts: contact,
+      });
+    }
+
+    // Get all contacts
     const allContacts = await db.query.contacts.findMany({
-      where: eq(contacts.userId, userId),
+      where: eq(contacts.userId, user.id),
       orderBy: (contacts, { desc }) => [desc(contacts.createdAt)],
     });
 
