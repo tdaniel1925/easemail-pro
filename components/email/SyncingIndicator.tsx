@@ -1,7 +1,8 @@
 'use client';
 
-import { Loader2, Sparkles, Mail, Brain } from 'lucide-react';
+import { Loader2, Sparkles, Mail, Brain, StopCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 interface SyncingIndicatorProps {
   accountId?: string;
@@ -11,6 +12,7 @@ interface SyncingIndicatorProps {
 export default function SyncingIndicator({ accountId, emailCount = 0 }: SyncingIndicatorProps) {
   const [syncStatus, setSyncStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [stopping, setStopping] = useState(false);
 
   useEffect(() => {
     if (!accountId) {
@@ -43,6 +45,29 @@ export default function SyncingIndicator({ accountId, emailCount = 0 }: SyncingI
     
     return () => clearInterval(interval);
   }, [accountId]);
+
+  const handleStopSync = async () => {
+    if (!accountId) return;
+    
+    setStopping(true);
+    try {
+      const response = await fetch('/api/nylas/sync/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSyncStatus(null); // Hide the syncing indicator
+      }
+    } catch (error) {
+      console.error('Stop sync failed:', error);
+    } finally {
+      setStopping(false);
+    }
+  };
 
   // Don't show if there are already emails OR if not syncing
   if (loading || !syncStatus || emailCount > 0) {
@@ -103,6 +128,20 @@ export default function SyncingIndicator({ accountId, emailCount = 0 }: SyncingI
           {syncStatus.progress || 0}% Complete
         </p>
 
+        {/* Stop Sync Button */}
+        <div className="pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleStopSync}
+            disabled={stopping}
+            className="text-orange-600 border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950 dark:border-orange-700"
+          >
+            <StopCircle className="h-4 w-4 mr-2" />
+            {stopping ? 'Stopping...' : 'Stop Sync'}
+          </Button>
+        </div>
+
         <p className="text-sm text-muted-foreground italic mt-4">
           Please be patient. Emails will start appearing as they sync.
         </p>
@@ -110,4 +149,5 @@ export default function SyncingIndicator({ accountId, emailCount = 0 }: SyncingI
     </div>
   );
 }
+
 
