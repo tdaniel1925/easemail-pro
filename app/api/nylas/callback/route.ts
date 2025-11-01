@@ -39,23 +39,48 @@ export async function GET(request: NextRequest) {
     
     console.log('✅ Grant received:', { grantId, email, provider });
     
-    // Create account in database
-    console.log('💾 Creating account in database...');
-    const [account] = await db.insert(emailAccounts).values({
-      userId: userId,
-      provider: 'nylas',
-      providerAccountId: grantId,
-      emailAddress: email,
-      emailProvider: provider,
-      nylasGrantId: grantId,
-      nylasEmail: email,
-      nylasProvider: provider,
-      syncStatus: 'initializing',
-      isActive: true,
-      autoSync: true,
-    }).returning();
+    // Check if account already exists (reconnection scenario)
+    console.log('🔍 Checking for existing account...');
+    const existingAccount = await db.query.emailAccounts.findFirst({
+      where: eq(emailAccounts.emailAddress, email),
+    });
     
-    console.log('✅ Account created:', account.id);
+    let account;
+    
+    if (existingAccount) {
+      // UPDATE existing account with new grant (preserves syncCursor and existing data!)
+      console.log('🔄 Updating existing account:', existingAccount.id);
+      [account] = await db.update(emailAccounts)
+        .set({
+          nylasGrantId: grantId,
+          providerAccountId: grantId,
+          syncStatus: 'active',
+          lastError: null, // Clear any previous errors
+          isActive: true,
+          autoSync: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(emailAccounts.id, existingAccount.id))
+        .returning();
+      console.log('✅ Account updated, preserved sync state');
+    } else {
+      // Create NEW account
+      console.log('💾 Creating new account in database...');
+      [account] = await db.insert(emailAccounts).values({
+        userId: userId,
+        provider: 'nylas',
+        providerAccountId: grantId,
+        emailAddress: email,
+        emailProvider: provider,
+        nylasGrantId: grantId,
+        nylasEmail: email,
+        nylasProvider: provider,
+        syncStatus: 'initializing',
+        isActive: true,
+        autoSync: true,
+      }).returning();
+      console.log('✅ New account created:', account.id);
+    }
     
     // Setup webhook for this account
     try {
@@ -75,40 +100,49 @@ export async function GET(request: NextRequest) {
       // Continue anyway - webhooks can be setup later
     }
     
-    // Sync folders and initial emails in PARALLEL for speed
-    console.log('🚀 Starting parallel folder and email sync...');
-    const [folderResult, emailResult] = await Promise.allSettled([
-      // Sync folders (async)
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${account.id}`, {
-        method: 'POST',
-      }),
-      // Sync initial emails (200)
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/messages`, {
+    // Sync folders and initial emails ONLY for NEW accounts
+    if (!existingAccount) {
+      console.log('🚀 New account - starting parallel folder and email sync...');
+      const [folderResult, emailResult] = await Promise.allSettled([
+        // Sync folders (async)
+        fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${account.id}`, {
+          method: 'POST',
+        }),
+        // Sync initial emails (200)
+        fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountId: account.id, limit: 200, fullSync: true }),
+        }),
+      ]);
+      
+      if (folderResult.status === 'fulfilled') {
+        console.log('✅ Folders synced');
+      } else {
+        console.error('⚠️ Folder sync error:', folderResult.reason);
+      }
+      
+      if (emailResult.status === 'fulfilled') {
+        console.log('✅ Initial emails synced');
+      } else {
+        console.error('⚠️ Email sync error:', emailResult.reason);
+      }
+      
+      // Trigger background sync for remaining emails (async - don't wait)
+      console.log('🔄 Triggering background sync for remaining emails...');
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: account.id, limit: 200, fullSync: true }),
-      }),
-    ]);
-    
-    if (folderResult.status === 'fulfilled') {
-      console.log('✅ Folders synced');
+        body: JSON.stringify({ accountId: account.id }),
+      }).catch(err => console.error('⚠️ Background sync trigger error:', err));
     } else {
-      console.error('⚠️ Folder sync error:', folderResult.reason);
+      console.log('✅ Reconnected - skipping initial sync, cursor preserved');
+      console.log('📊 Existing sync state:', {
+        cursor: existingAccount.syncCursor?.substring(0, 20) + '...',
+        syncedCount: existingAccount.syncedEmailCount,
+        initialComplete: existingAccount.initialSyncCompleted,
+      });
     }
-    
-    if (emailResult.status === 'fulfilled') {
-      console.log('✅ Initial emails synced');
-    } else {
-      console.error('⚠️ Email sync error:', emailResult.reason);
-    }
-    
-    // Trigger background sync for remaining emails (async - don't wait)
-    console.log('🔄 Triggering background sync for remaining emails...');
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accountId: account.id }),
-    }).catch(err => console.error('⚠️ Background sync trigger error:', err));
     
     console.log('🎉 Redirecting to inbox with success message');
     return NextResponse.redirect(new URL('/inbox?success=account_added&syncing=true', request.url));
