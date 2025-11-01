@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { ThreadingService } from '@/lib/email/threading-service';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ export async function POST(
   { params }: { params: { threadId: string } }
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {

@@ -3,7 +3,7 @@ import { nylas } from '@/lib/email/nylas-client';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 
 type RouteContext = {
   params: Promise<{ messageId: string; attachmentId: string }>;
@@ -15,7 +15,7 @@ export async function GET(
 ) {
   try {
     // Authenticate user
-    const supabase = await createServerSupabaseClient();
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {

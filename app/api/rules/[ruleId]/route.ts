@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { emailRules, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -21,7 +21,7 @@ export async function GET(
 ) {
   try {
     const { ruleId } = await context.params;
-    const supabase = await createServerSupabaseClient();
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -70,7 +70,7 @@ export async function PUT(
 ) {
   try {
     const { ruleId } = await context.params;
-    const supabase = await createServerSupabaseClient();
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -143,7 +143,7 @@ export async function DELETE(
 ) {
   try {
     const { ruleId } = await context.params;
-    const supabase = await createServerSupabaseClient();
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

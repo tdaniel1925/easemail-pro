@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { emailSignatures, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -23,7 +23,7 @@ export async function GET(
 ) {
   try {
     const { signatureId } = await context.params;
-    const supabase = await createServerSupabaseClient();
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -70,7 +70,7 @@ export async function PUT(
 ) {
   try {
     const { signatureId } = await context.params;
-    const supabase = await createServerSupabaseClient();
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -148,7 +148,7 @@ export async function DELETE(
 ) {
   try {
     const { signatureId } = await context.params;
-    const supabase = await createServerSupabaseClient();
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
