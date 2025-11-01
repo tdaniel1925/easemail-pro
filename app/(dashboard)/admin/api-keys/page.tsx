@@ -169,7 +169,7 @@ export default function ApiKeysManagement() {
                 onClick={() => setToast(null)}
                 className="flex-shrink-0 hover:opacity-70 transition-opacity"
               >
-                <span className="text-xl">×</span>
+                <X className="h-5 w-5" />
               </button>
             </div>
           )}
