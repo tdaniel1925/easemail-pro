@@ -18,7 +18,8 @@ import {
   Search,
   MoreVertical,
   UserPlus,
-  Settings
+  Settings,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
@@ -254,172 +255,171 @@ export default function OrganizationsManagement() {
           </Button>
         </div>
 
-          {/* Toast Notification */}
-          {toast && (
-            <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 animate-in slide-in-from-top-2 ${
-              toast.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' :
-              'bg-red-500/10 border-red-500 text-red-500'
-            }`}>
-              <div className="flex-shrink-0 mt-0.5">
-                {toast.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <Ban className="h-5 w-5" />}
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">{toast.message}</p>
-              </div>
-              <button
-                onClick={() => setToast(null)}
-                className="flex-shrink-0 hover:opacity-70 transition-opacity"
-              >
-                <span className="text-xl">×</span>
-              </button>
+        {/* Toast Notification */}
+        {toast && (
+          <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 animate-in slide-in-from-top-2 ${
+            toast.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' :
+            'bg-red-500/10 border-red-500 text-red-500'
+          }`}>
+            <div className="flex-shrink-0 mt-0.5">
+              {toast.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <Ban className="h-5 w-5" />}
             </div>
-          )}
-
-          {/* Search */}
-          <div className="mb-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search organizations by name or slug..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex-1">
+              <p className="font-medium">{toast.message}</p>
             </div>
+            <button
+              onClick={() => setToast(null)}
+              className="flex-shrink-0 hover:opacity-70 transition-opacity"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
+        )}
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Organizations</p>
-                    <p className="text-2xl font-bold">{organizations.length}</p>
-                  </div>
-                  <Building2 className="h-8 w-8 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Active Organizations</p>
-                    <p className="text-2xl font-bold">
-                      {organizations.filter(o => o.isActive).length}
-                    </p>
-                  </div>
-                  <CheckCircle className="h-8 w-8 text-green-500" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Members</p>
-                    <p className="text-2xl font-bold">
-                      {organizations.reduce((sum, org) => sum + org.currentSeats, 0)}
-                    </p>
-                  </div>
-                  <Users className="h-8 w-8 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
+        {/* Search */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search organizations by name or slug..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
+        </div>
 
-          {/* Organizations List */}
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card>
-            <CardHeader>
-              <CardTitle>All Organizations</CardTitle>
-              <CardDescription>
-                {filteredOrgs.length} organization{filteredOrgs.length !== 1 ? 's' : ''} found
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading...</div>
-              ) : filteredOrgs.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">No organizations found</div>
-              ) : (
-                <div className="space-y-4">
-                  {filteredOrgs.map((org) => (
-                    <div
-                      key={org.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold">
-                            <Building2 className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <div className="font-medium">{org.name}</div>
-                              {!org.isActive && (
-                                <span className="text-xs bg-red-500/20 text-red-500 px-2 py-0.5 rounded">
-                                  Inactive
-                                </span>
-                              )}
-                              <span className="text-xs bg-blue-500/20 text-blue-500 px-2 py-0.5 rounded">
-                                {org.planType}
-                              </span>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {org.slug} • {org.currentSeats}/{org.maxSeats} seats
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="text-sm text-muted-foreground">
-                          <div>Created: {formatDate(org.createdAt.toString())}</div>
-                          <div>{org._count?.members || org.currentSeats} member(s)</div>
-                        </div>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>Organization Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            
-                            <DropdownMenuItem onClick={() => openEditModal(org)}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit Details
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem onClick={() => handleViewMembers(org)}>
-                              <UserPlus className="h-4 w-4 mr-2" />
-                              View Members
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator />
-                            
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteOrg(org.id)}
-                              className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete Organization
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  ))}
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Organizations</p>
+                  <p className="text-2xl font-bold">{organizations.length}</p>
                 </div>
-              )}
+                <Building2 className="h-8 w-8 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Active Organizations</p>
+                  <p className="text-2xl font-bold">
+                    {organizations.filter(o => o.isActive).length}
+                  </p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Members</p>
+                  <p className="text-2xl font-bold">
+                    {organizations.reduce((sum, org) => sum + org.currentSeats, 0)}
+                  </p>
+                </div>
+                <Users className="h-8 w-8 text-muted-foreground" />
+              </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Organizations List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>All Organizations</CardTitle>
+            <CardDescription>
+              {filteredOrgs.length} organization{filteredOrgs.length !== 1 ? 's' : ''} found
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            ) : filteredOrgs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No organizations found</div>
+            ) : (
+              <div className="space-y-4">
+                {filteredOrgs.map((org) => (
+                  <div
+                    key={org.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold">
+                          <Building2 className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium">{org.name}</div>
+                            {!org.isActive && (
+                              <span className="text-xs bg-red-500/20 text-red-500 px-2 py-0.5 rounded">
+                                Inactive
+                              </span>
+                            )}
+                            <span className="text-xs bg-blue-500/20 text-blue-500 px-2 py-0.5 rounded">
+                              {org.planType}
+                            </span>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {org.slug} • {org.currentSeats}/{org.maxSeats} seats
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div className="text-sm text-muted-foreground">
+                        <div>Created: {formatDate(org.createdAt.toString())}</div>
+                        <div>{org._count?.members || org.currentSeats} member(s)</div>
+                      </div>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuLabel>Organization Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          
+                          <DropdownMenuItem onClick={() => openEditModal(org)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Details
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem onClick={() => handleViewMembers(org)}>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            View Members
+                          </DropdownMenuItem>
+
+                          <DropdownMenuSeparator />
+                          
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteOrg(org.id)}
+                            className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Organization
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Create Organization Modal */}

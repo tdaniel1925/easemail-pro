@@ -176,37 +176,34 @@ export default function AdminPricingPage() {
 
   return (
     <AdminLayout>
-      <div className="h-full overflow-y-auto">
-        <div className="p-8 max-w-7xl mx-auto space-y-8">
-          {/* Back Button - Remove since AdminLayout has navigation */}
+      <div className="p-8 space-y-8">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Pricing & Billing Management</h1>
+          <p className="text-gray-600">Configure subscription plans, usage-based pricing, and billing settings</p>
+        </div>
 
-          {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Pricing & Billing Management</h1>
-            <p className="text-gray-600">Configure subscription plans, usage-based pricing, and billing settings</p>
-          </div>
-
-          {/* Inline Toast Notification */}
-          {toast && (
-            <div className={`p-4 rounded-lg border flex items-start gap-3 animate-in slide-in-from-top-2 ${
-              toast.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' :
-              'bg-red-500/10 border-red-500 text-red-500'
-            }`}>
-              <div className="flex-shrink-0 mt-0.5">
-                {toast.type === 'success' && <CheckCircle className="h-5 w-5" />}
-                {toast.type === 'error' && <XCircle className="h-5 w-5" />}
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">{toast.message}</p>
-              </div>
-              <button
-                onClick={() => setToast(null)}
-                className="flex-shrink-0 hover:opacity-70 transition-opacity"
-              >
-                <X className="h-5 w-5" />
-              </button>
+        {/* Inline Toast Notification */}
+        {toast && (
+          <div className={`p-4 rounded-lg border flex items-start gap-3 animate-in slide-in-from-top-2 ${
+            toast.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' :
+            'bg-red-500/10 border-red-500 text-red-500'
+          }`}>
+            <div className="flex-shrink-0 mt-0.5">
+              {toast.type === 'success' && <CheckCircle className="h-5 w-5" />}
+              {toast.type === 'error' && <XCircle className="h-5 w-5" />}
             </div>
-          )}
+            <div className="flex-1">
+              <p className="font-medium">{toast.message}</p>
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              className="flex-shrink-0 hover:opacity-70 transition-opacity"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        )}
 
       {/* Subscription Plans */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -469,7 +466,6 @@ export default function AdminPricingPage() {
       </div>
 
       {/* Modals will be added next */}
-        </div>
       </div>
     </AdminLayout>
   );
