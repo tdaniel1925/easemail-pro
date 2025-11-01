@@ -130,10 +130,14 @@ function AccountsContent() {
 
   const fetchAccounts = async () => {
     try {
+      console.log('🔍 Fetching accounts...');
       const response = await fetch('/api/nylas/accounts');
       const data = await response.json();
       
+      console.log('📦 Accounts response:', data);
+      
       if (data.success) {
+        console.log('✅ Found accounts:', data.accounts.length);
         // Fetch stats for each account
         const accountsWithStats = await Promise.all(
           data.accounts.map(async (account: EmailAccount) => {
@@ -150,6 +154,7 @@ function AccountsContent() {
             }
           })
         );
+        console.log('✅ Accounts with stats:', accountsWithStats);
         setAccounts(accountsWithStats);
       }
     } catch (error) {
