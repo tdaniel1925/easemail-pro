@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     // ✅ Fetch messages with automatic retry (works for ALL providers: Google, Microsoft, IMAP)
     const response = await retryWithBackoff(
       async () => await nylas.messages.list({
-        identifier: account.nylasGrantId,
+        identifier: account.nylasGrantId!,  // Already checked above
         queryParams,
       }),
       {
