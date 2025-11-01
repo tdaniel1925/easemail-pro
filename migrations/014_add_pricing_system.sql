@@ -179,69 +179,60 @@ CREATE INDEX IF NOT EXISTS idx_plan_feature_limits_plan ON plan_feature_limits(p
 CREATE INDEX IF NOT EXISTS idx_plan_feature_limits_feature ON plan_feature_limits(feature_key);
 
 -- Insert feature limits for each plan
--- Free Plan limits
-INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-SELECT id, 'sms_enabled', 'false', 'SMS messaging disabled on free plan'
-FROM pricing_plans WHERE name = 'free'
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
+-- Use a function to avoid ON CONFLICT issues with INSERT...SELECT
+DO $$
+DECLARE
+  free_plan_id UUID;
+  individual_plan_id UUID;
+  team_plan_id UUID;
+  enterprise_plan_id UUID;
+BEGIN
+  -- Get plan IDs
+  SELECT id INTO free_plan_id FROM pricing_plans WHERE name = 'free';
+  SELECT id INTO individual_plan_id FROM pricing_plans WHERE name = 'individual';
+  SELECT id INTO team_plan_id FROM pricing_plans WHERE name = 'team';
+  SELECT id INTO enterprise_plan_id FROM pricing_plans WHERE name = 'enterprise';
 
-INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-SELECT id, 'ai_requests_monthly', '10', 'AI email generation limited to 10 per month'
-FROM pricing_plans WHERE name = 'free'
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
+  -- Free Plan limits
+  IF free_plan_id IS NOT NULL THEN
+    INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+    VALUES 
+      (free_plan_id, 'sms_enabled', 'false', 'SMS messaging disabled on free plan'),
+      (free_plan_id, 'ai_requests_monthly', '10', 'AI email generation limited to 10 per month'),
+      (free_plan_id, 'email_accounts', 'unlimited', 'Unlimited email accounts')
+    ON CONFLICT (plan_id, feature_key) DO NOTHING;
+  END IF;
 
-INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-SELECT id, 'email_accounts', 'unlimited', 'Unlimited email accounts'
-FROM pricing_plans WHERE name = 'free'
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
+  -- Individual Plan limits
+  IF individual_plan_id IS NOT NULL THEN
+    INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+    VALUES 
+      (individual_plan_id, 'sms_enabled', 'true', 'SMS messaging enabled'),
+      (individual_plan_id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests'),
+      (individual_plan_id, 'email_accounts', 'unlimited', 'Unlimited email accounts')
+    ON CONFLICT (plan_id, feature_key) DO NOTHING;
+  END IF;
 
--- Individual Plan limits
-INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-SELECT id, 'sms_enabled', 'true', 'SMS messaging enabled'
-FROM pricing_plans WHERE name = 'individual'
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
+  -- Team Plan limits
+  IF team_plan_id IS NOT NULL THEN
+    INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+    VALUES 
+      (team_plan_id, 'sms_enabled', 'true', 'SMS messaging enabled'),
+      (team_plan_id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests'),
+      (team_plan_id, 'email_accounts', 'unlimited', 'Unlimited email accounts')
+    ON CONFLICT (plan_id, feature_key) DO NOTHING;
+  END IF;
 
-INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-SELECT id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests'
-FROM pricing_plans WHERE name = 'individual'
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
-
-INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-SELECT id, 'email_accounts', 'unlimited', 'Unlimited email accounts'
-FROM pricing_plans WHERE name = 'individual'
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
-
--- Team Plan limits
-INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-SELECT id, 'sms_enabled', 'true', 'SMS messaging enabled'
-FROM pricing_plans WHERE name = 'team'
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
-
-INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-SELECT id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests'
-FROM pricing_plans WHERE name = 'team'
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
-
-INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-SELECT id, 'email_accounts', 'unlimited', 'Unlimited email accounts'
-FROM pricing_plans WHERE name = 'team'
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
-
--- Enterprise Plan limits
-INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-SELECT id, 'sms_enabled', 'true', 'SMS messaging enabled'
-FROM pricing_plans WHERE name = 'enterprise'
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
-
-INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-SELECT id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests'
-FROM pricing_plans WHERE name = 'enterprise'
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
-
-INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
-SELECT id, 'email_accounts', 'unlimited', 'Unlimited email accounts'
-FROM pricing_plans WHERE name = 'enterprise'
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
+  -- Enterprise Plan limits
+  IF enterprise_plan_id IS NOT NULL THEN
+    INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
+    VALUES 
+      (enterprise_plan_id, 'sms_enabled', 'true', 'SMS messaging enabled'),
+      (enterprise_plan_id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests'),
+      (enterprise_plan_id, 'email_accounts', 'unlimited', 'Unlimited email accounts')
+    ON CONFLICT (plan_id, feature_key) DO NOTHING;
+  END IF;
+END $$;
 
 -- ============================================================================
 -- COMMENTS
