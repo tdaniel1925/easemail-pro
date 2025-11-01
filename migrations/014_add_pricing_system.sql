@@ -31,7 +31,8 @@ INSERT INTO pricing_plans (name, display_name, description, base_price_monthly, 
 ('individual', 'Individual Plan', 'Perfect for solo professionals with unlimited features', 45.00, 36.00, 1, 1),
 ('team', 'Team Plan', 'For small teams of 2-10 users (10% discount per user)', 40.50, 32.40, 2, 10),
 ('enterprise', 'Enterprise Plan', 'For large organizations with 10+ users (additional 10% discount)', 36.45, 29.16, 10, NULL),
-('custom', 'Custom Plan', 'Custom pricing for specific organizations', 0.00, 0.00, 1, NULL);
+('custom', 'Custom Plan', 'Custom pricing for specific organizations', 0.00, 0.00, 1, NULL)
+ON CONFLICT (name) DO NOTHING;
 
 -- ============================================================================
 -- USAGE-BASED PRICING TABLE
@@ -55,7 +56,8 @@ CREATE INDEX IF NOT EXISTS idx_usage_pricing_active ON usage_pricing(is_active);
 INSERT INTO usage_pricing (service_type, pricing_model, base_rate, unit, description) VALUES
 ('sms', 'tiered', 0.0300, 'message', 'SMS messaging cost per message'),
 ('ai', 'overage', 0.0010, 'request', 'AI request cost after free tier'),
-('storage', 'overage', 0.1000, 'gb', 'Storage cost per GB over included amount');
+('storage', 'overage', 0.1000, 'gb', 'Storage cost per GB over included amount')
+ON CONFLICT (service_type) DO NOTHING;
 
 -- ============================================================================
 -- PRICING TIERS TABLE (for volume discounts)
@@ -146,7 +148,7 @@ CREATE TABLE IF NOT EXISTS billing_settings (
 
 CREATE INDEX IF NOT EXISTS idx_billing_settings_key ON billing_settings(setting_key);
 
--- Insert default billing settings
+-- Insert default billing settings (skip if already exist)
 INSERT INTO billing_settings (setting_key, setting_value, data_type, description) VALUES
 ('trial_period_days', '30', 'number', 'Default free trial period in days'),
 ('annual_discount_percent', '20', 'number', 'Discount percentage for annual billing'),
@@ -157,7 +159,8 @@ INSERT INTO billing_settings (setting_key, setting_value, data_type, description
 ('storage_included_gb', '50', 'number', 'GB of storage included per user'),
 ('storage_overage_rate', '0.10', 'number', 'Cost per GB over included storage in USD'),
 ('auto_suspend_on_failure', 'true', 'boolean', 'Automatically suspend account after grace period'),
-('allow_overage_charges', 'true', 'boolean', 'Allow overage charges for SMS, AI, and storage');
+('allow_overage_charges', 'true', 'boolean', 'Allow overage charges for SMS, AI, and storage')
+ON CONFLICT (setting_key) DO NOTHING;
 
 -- ============================================================================
 -- PLAN FEATURE LIMITS TABLE
@@ -179,54 +182,66 @@ CREATE INDEX IF NOT EXISTS idx_plan_feature_limits_feature ON plan_feature_limit
 -- Free Plan limits
 INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
 SELECT id, 'sms_enabled', 'false', 'SMS messaging disabled on free plan'
-FROM pricing_plans WHERE name = 'free';
+FROM pricing_plans WHERE name = 'free'
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
 
 INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
 SELECT id, 'ai_requests_monthly', '10', 'AI email generation limited to 10 per month'
-FROM pricing_plans WHERE name = 'free';
+FROM pricing_plans WHERE name = 'free'
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
 
 INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
 SELECT id, 'email_accounts', 'unlimited', 'Unlimited email accounts'
-FROM pricing_plans WHERE name = 'free';
+FROM pricing_plans WHERE name = 'free'
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
 
 -- Individual Plan limits
 INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
 SELECT id, 'sms_enabled', 'true', 'SMS messaging enabled'
-FROM pricing_plans WHERE name = 'individual';
+FROM pricing_plans WHERE name = 'individual'
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
 
 INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
 SELECT id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests'
-FROM pricing_plans WHERE name = 'individual';
+FROM pricing_plans WHERE name = 'individual'
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
 
 INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
 SELECT id, 'email_accounts', 'unlimited', 'Unlimited email accounts'
-FROM pricing_plans WHERE name = 'individual';
+FROM pricing_plans WHERE name = 'individual'
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
 
 -- Team Plan limits
 INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
 SELECT id, 'sms_enabled', 'true', 'SMS messaging enabled'
-FROM pricing_plans WHERE name = 'team';
+FROM pricing_plans WHERE name = 'team'
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
 
 INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
 SELECT id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests'
-FROM pricing_plans WHERE name = 'team';
+FROM pricing_plans WHERE name = 'team'
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
 
 INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
 SELECT id, 'email_accounts', 'unlimited', 'Unlimited email accounts'
-FROM pricing_plans WHERE name = 'team';
+FROM pricing_plans WHERE name = 'team'
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
 
 -- Enterprise Plan limits
 INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
 SELECT id, 'sms_enabled', 'true', 'SMS messaging enabled'
-FROM pricing_plans WHERE name = 'enterprise';
+FROM pricing_plans WHERE name = 'enterprise'
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
 
 INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
 SELECT id, 'ai_requests_monthly', 'unlimited', 'Unlimited AI requests'
-FROM pricing_plans WHERE name = 'enterprise';
+FROM pricing_plans WHERE name = 'enterprise'
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
 
 INSERT INTO plan_feature_limits (plan_id, feature_key, limit_value, description)
 SELECT id, 'email_accounts', 'unlimited', 'Unlimited email accounts'
-FROM pricing_plans WHERE name = 'enterprise';
+FROM pricing_plans WHERE name = 'enterprise'
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
 
 -- ============================================================================
 -- COMMENTS
