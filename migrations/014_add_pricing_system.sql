@@ -178,6 +178,19 @@ CREATE TABLE IF NOT EXISTS plan_feature_limits (
 CREATE INDEX IF NOT EXISTS idx_plan_feature_limits_plan ON plan_feature_limits(plan_id);
 CREATE INDEX IF NOT EXISTS idx_plan_feature_limits_feature ON plan_feature_limits(feature_key);
 
+-- Ensure UNIQUE constraint exists (for existing tables)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'plan_feature_limits_plan_id_feature_key_key'
+  ) THEN
+    ALTER TABLE plan_feature_limits 
+    ADD CONSTRAINT plan_feature_limits_plan_id_feature_key_key 
+    UNIQUE (plan_id, feature_key);
+  END IF;
+END $$;
+
 -- Insert feature limits for each plan
 -- Use a function to avoid ON CONFLICT issues with INSERT...SELECT
 DO $$
