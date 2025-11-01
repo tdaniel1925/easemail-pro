@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       successRate,
       topRules,
       recentExecutions,
-      executionsByDay: (executionsByDay.rows as any[]).map(row => ({
+      executionsByDay: (executionsByDay as any[]).map(row => ({
         date: row.date,
         count: row.count,
       })),
