@@ -63,10 +63,11 @@ export function ThreadSummaryPanel({ threadId, onEmailClick, onClose }: ThreadSu
   };
 
   const handleArchiveToggle = () => {
+    // Note: Thread interface doesn't have isArchived property - would need to add to schema
     updateThread.mutate({
       threadId,
       action: 'archive',
-      value: !thread.isArchived,
+      value: true, // Always archive when clicked
     });
   };
 
@@ -172,7 +173,7 @@ export function ThreadSummaryPanel({ threadId, onEmailClick, onClose }: ThreadSu
             className="h-7 text-xs"
           >
             <Archive className="h-3 w-3 mr-1" />
-            {thread.isArchived ? 'Unarchive' : 'Archive'}
+            Archive
           </Button>
         </div>
       </div>

@@ -54,8 +54,8 @@ export function parseInternationalPhone(
         isValid: false,
         e164: phoneNumber.number,
         display: phoneNumber.formatInternational(),
-        country: phoneNumber.country,
-        type: phoneNumber.getType(),
+        country: phoneNumber.country || null,
+        type: phoneNumber.getType() || null,
         error: 'Phone number is not valid',
       };
     }
@@ -67,8 +67,8 @@ export function parseInternationalPhone(
         isValid: false,
         e164: phoneNumber.number,
         display: phoneNumber.formatInternational(),
-        country: phoneNumber.country,
-        type,
+        country: phoneNumber.country || null,
+        type: type || null,
         error: 'Phone number must be mobile for SMS',
       };
     }
@@ -77,8 +77,8 @@ export function parseInternationalPhone(
       isValid: true,
       e164: phoneNumber.number,
       display: phoneNumber.formatInternational(),
-      country: phoneNumber.country,
-      type,
+      country: phoneNumber.country || null,
+      type: type || null,
     };
   } catch (error: any) {
     return {

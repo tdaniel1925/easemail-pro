@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
           segments: segments.messageCount,
           encoding: segments.encoding,
           country: phoneValidation.country,
-        },
+        } as any,
         occurredAt: new Date(),
       });
     }
@@ -214,9 +214,9 @@ async function updateUsageTracking(userId: string, cost: number, charged: number
   if (existingUsage) {
     await db.update(smsUsage)
       .set({
-        totalMessagesSent: existingUsage.totalMessagesSent + 1,
-        totalCostUsd: (parseFloat(existingUsage.totalCostUsd) + cost).toFixed(2),
-        totalChargedUsd: (parseFloat(existingUsage.totalChargedUsd) + charged).toFixed(2),
+        totalMessagesSent: (existingUsage.totalMessagesSent || 0) + 1,
+        totalCostUsd: (parseFloat(existingUsage.totalCostUsd || '0') + cost).toFixed(2),
+        totalChargedUsd: (parseFloat(existingUsage.totalChargedUsd || '0') + charged).toFixed(2),
         updatedAt: new Date(),
       })
       .where(eq(smsUsage.id, existingUsage.id));

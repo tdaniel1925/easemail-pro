@@ -144,13 +144,13 @@ export function SMSModal({ isOpen, onClose, contact, onSuccess }: SMSModalProps)
             <div className="flex items-center justify-between mt-2 text-xs">
               <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
                 <span>
-                  {segments.characterCount} / {segments.perSegment * segments.messageCount} chars
+                  {segments.characterCount} / {segments.charsPerSegment * segments.messageCount} chars
                 </span>
                 <span className={isOverLimit ? 'text-red-600 dark:text-red-400 font-medium' : ''}>
                   {segments.messageCount} segment{segments.messageCount !== 1 ? 's' : ''}
                 </span>
                 <span className="text-gray-400">
-                  {segments.encoding === 'gsm7' ? 'GSM-7' : 'Unicode'}
+                  {segments.encoding === 'GSM-7' ? 'GSM-7' : 'Unicode'}
                 </span>
               </div>
               <div className="font-medium text-gray-900 dark:text-white">

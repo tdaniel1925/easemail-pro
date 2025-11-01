@@ -33,6 +33,7 @@ interface Email {
   labels: string[];
   threadId?: string | null;
   threadEmailCount?: number | null;
+  accountId?: string; // Added for attachment downloads
 }
 
 interface EmailListProps {

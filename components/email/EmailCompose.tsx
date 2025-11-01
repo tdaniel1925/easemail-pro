@@ -110,7 +110,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         }
       }
       
-      if (type === 'reply' || type === 'replyAll') {
+      if (type === 'reply' || type === 'reply-all') {
         // Add signature before quoted content for replies
         if (useSignature) {
           const applicableSignature = getApplicableSignature(type, accountId);
