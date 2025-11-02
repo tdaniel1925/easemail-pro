@@ -31,6 +31,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [expandedSections, setExpandedSections] = useState({
     custom: false,
   });
+  const [activeFolder, setActiveFolder] = useState<string>('inbox'); // ✅ FIX #6: Track active folder
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -147,9 +148,11 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     }
   };
 
-  // Fetch folders when account is selected OR when page gains focus (after sync)
+  // ✅ FIX #3: Clear folders when account changes, then fetch new ones
   useEffect(() => {
     if (selectedAccountId) {
+      console.log('🔄 Account changed, clearing folders and fetching new ones...');
+      setFolders([]); // Clear old folders immediately
       fetchFolders(selectedAccountId);
     }
   }, [selectedAccountId]);
@@ -178,9 +181,13 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       if (data.success) {
         console.log('📁 All folders from API:', data.folders);
         setFolders(data.folders || []);
+      } else {
+        console.error('❌ Failed to fetch folders:', data.error);
+        setFolders([]); // Clear on error
       }
     } catch (error) {
       console.error('Failed to fetch folders:', error);
+      setFolders([]); // Clear on error
     }
   };
 
@@ -215,14 +222,15 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const visibleCustomFolders = customFolders.slice(0, 5);
   const hasMoreFolders = customFolders.length > 5;
 
+  // ✅ FIX #2: Use lowercase folder names to match database values
   const defaultFolders = [
-    { name: 'Inbox', icon: Mail, count: 0, href: '/inbox', active: true },
-    { name: 'Starred', icon: Star, count: 0, href: '/inbox' },
-    { name: 'Snoozed', icon: Clock, count: 0, href: '/inbox' },
-    { name: 'Sent', icon: Send, count: 0, href: '/inbox' },
-    { name: 'Drafts', icon: FileText, count: 0, href: '/inbox' },
-    { name: 'Archive', icon: Archive, count: 0, href: '/inbox' },
-    { name: 'Trash', icon: Trash2, count: 0, href: '/inbox' },
+    { name: 'inbox', icon: Mail, count: 0, href: '/inbox', active: true, displayName: 'Inbox' },
+    { name: 'starred', icon: Star, count: 0, href: '/inbox', displayName: 'Starred' },
+    { name: 'snoozed', icon: Clock, count: 0, href: '/inbox', displayName: 'Snoozed' },
+    { name: 'sent', icon: Send, count: 0, href: '/inbox', displayName: 'Sent' },
+    { name: 'drafts', icon: FileText, count: 0, href: '/inbox', displayName: 'Drafts' },
+    { name: 'archive', icon: Archive, count: 0, href: '/inbox', displayName: 'Archive' },
+    { name: 'trash', icon: Trash2, count: 0, href: '/inbox', displayName: 'Trash' },
   ];
 
   // Only show folders if we have accounts, otherwise show empty state
@@ -262,16 +270,20 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
           <div className="space-y-0.5 px-2">
             {foldersToDisplay.map((folder: any) => {
               const Icon = folder.icon || getFolderIcon(folder.folderType);
+              // ✅ FIX #2: Use displayName for UI, but internal name for queries
               const displayName = folder.displayName || folder.name;
+              const folderName = folder.name || folder.folderType?.toLowerCase() || 'inbox';
               const count = folder.unreadCount || folder.count || 0;
-              const isActive = folder.active || false;
+              // ✅ FIX #6: Check against activeFolder state
+              const isActive = activeFolder === folderName;
               
               return (
                 <button
                   key={folder.id || folder.name}
                   onClick={() => {
-                    // Navigate to inbox with folder parameter
-                    const folderName = displayName;
+                    // ✅ FIX #6: Update active folder state
+                    setActiveFolder(folderName);
+                    // ✅ FIX #2: Use internal folder name (lowercase) for query
                     router.push(`/inbox?folder=${encodeURIComponent(folderName)}`);
                   }}
                   className={cn(
@@ -465,7 +477,16 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             </div>
           )}
           <div className="flex-1 overflow-hidden">
-            {children}
+            {/* ✅ FIX #1: Pass selectedAccountId to children */}
+            {React.Children.map(children, child => {
+              if (React.isValidElement(child)) {
+                return React.cloneElement(child as any, { 
+                  accountId: selectedAccountId,
+                  activeFolder: activeFolder 
+                });
+              }
+              return child;
+            })}
           </div>
         </main>
       </div>

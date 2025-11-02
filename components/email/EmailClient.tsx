@@ -9,14 +9,21 @@ interface EmailClientProps {
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   folder?: string | null;
+  accountId?: string | null; // ✅ FIX #1: Accept accountId as prop
+  activeFolder?: string; // ✅ FIX #6: Accept activeFolder from parent
 }
 
-export default function EmailClient({ searchQuery = '', onSearchChange, folder = null }: EmailClientProps) {
+export default function EmailClient({ 
+  searchQuery = '', 
+  onSearchChange, 
+  folder = null,
+  accountId: propAccountId = null, // ✅ FIX #4: Use accountId from props
+  activeFolder = 'inbox'
+}: EmailClientProps) {
   const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [accountId, setAccountId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0); // Force refresh trigger
 
   // Function to refresh email list
@@ -34,33 +41,22 @@ export default function EmailClient({ searchQuery = '', onSearchChange, folder =
     return () => window.removeEventListener('refreshEmails' as any, handleRefreshEvent);
   }, []);
 
-  // Fetch emails when search query changes (with debouncing)
+  // Fetch emails when search query, folder, or accountId changes (with debouncing)
   useEffect(() => {
+    // ✅ FIX #4: Don't fetch if we don't have an accountId yet
+    if (!propAccountId) {
+      console.log('⏸️ No accountId provided yet, waiting...');
+      setEmails([]);
+      setLoading(false);
+      return;
+    }
+
     // Debounce search query changes
     const timeoutId = setTimeout(() => {
       const fetchEmails = async () => {
         setLoading(true);
         try {
-          // First get the first available account if we don't have one
-          if (!accountId) {
-            const accountsResponse = await fetch('/api/nylas/accounts');
-            const accountsData = await accountsResponse.json();
-            
-            if (!accountsData.success || !accountsData.accounts || accountsData.accounts.length === 0) {
-              console.log('⚠️ No accounts found');
-              setLoading(false);
-              return;
-            }
-
-            const firstAccountId = accountsData.accounts[0].id;
-            setAccountId(firstAccountId);
-            
-            // Fetch emails for this account
-            await fetchEmailsForAccount(firstAccountId, searchQuery, folder);
-          } else {
-            // We already have an account, just fetch
-            await fetchEmailsForAccount(accountId, searchQuery, folder);
-          }
+          await fetchEmailsForAccount(propAccountId, searchQuery, activeFolder);
         } catch (error) {
           console.error('Failed to fetch emails:', error);
         } finally {
@@ -68,7 +64,7 @@ export default function EmailClient({ searchQuery = '', onSearchChange, folder =
         }
       };
 
-      const fetchEmailsForAccount = async (accId: string, query: string, folderName: string | null) => {
+      const fetchEmailsForAccount = async (accId: string, query: string, folderName: string) => {
         console.log('📬 Fetching emails for account:', accId, 'Query:', query, 'Folder:', folderName);
         
         // Build URL with folder parameter if provided
@@ -76,8 +72,8 @@ export default function EmailClient({ searchQuery = '', onSearchChange, folder =
         if (query.trim()) {
           // Search query takes precedence
           url = `/api/nylas/messages/search?accountId=${accId}&query=${encodeURIComponent(query)}&limit=100`;
-        } else if (folderName) {
-          // Filter by folder
+        } else if (folderName && folderName !== 'inbox') {
+          // Filter by specific folder (inbox is default, so no need to pass it)
           url = `/api/nylas/messages?accountId=${accId}&folder=${encodeURIComponent(folderName)}&limit=100`;
         } else {
           // Default inbox view
@@ -88,17 +84,20 @@ export default function EmailClient({ searchQuery = '', onSearchChange, folder =
         const data = await response.json();
         
         if (data.success) {
-          console.log('📧 Fetched emails:', data.messages?.length || 0);
+          console.log('📧 Fetched emails:', data.messages?.length || 0, 'for folder:', folderName);
           setEmails(data.messages || []);
+        } else {
+          console.error('❌ Failed to fetch emails:', data.error);
+          setEmails([]);
         }
       };
 
       fetchEmails();
     }, 300); // 300ms debounce
 
-    // Cleanup timeout on unmount or when searchQuery changes
+    // Cleanup timeout on unmount or when dependencies change
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, refreshKey, folder]); // Re-fetch when search query, refreshKey, OR folder changes
+  }, [searchQuery, refreshKey, activeFolder, propAccountId]); // ✅ FIX #4: Re-fetch when accountId changes
 
   const selectedEmail = emails.find(email => email.id === selectedEmailId);
 
@@ -121,7 +120,7 @@ export default function EmailClient({ searchQuery = '', onSearchChange, folder =
   if (emails.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
-        <SyncingIndicator accountId={accountId || undefined} emailCount={emails.length} />
+        <SyncingIndicator accountId={propAccountId || undefined} emailCount={emails.length} />
       </div>
     );
   }
@@ -138,7 +137,7 @@ export default function EmailClient({ searchQuery = '', onSearchChange, folder =
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
           onRefresh={refreshEmails}
-          currentFolder={folder}
+          currentFolder={activeFolder}
         />
       </div>
 

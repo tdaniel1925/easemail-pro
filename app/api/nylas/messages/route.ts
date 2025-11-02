@@ -8,6 +8,7 @@ import { retryWithBackoff } from '@/lib/email/retry-utils';
 import { checkConnectionHealth } from '@/lib/email/health-check';
 import { extractAndSaveAttachments } from '@/lib/attachments/extract-from-email';
 import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
+import { createClient } from '@/lib/supabase/server'; // ✅ FIX #5: Import Supabase for auth
 
 // Enable Node.js runtime for better performance
 export const runtime = 'nodejs';
@@ -26,6 +27,34 @@ export async function GET(request: NextRequest) {
   }
   
   try {
+    // ✅ FIX #5: Validate account ownership for security
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.error('❌ Unauthorized: No user session');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Check that the account belongs to this user
+    const account = await db.query.emailAccounts.findFirst({
+      where: eq(emailAccounts.id, accountId),
+    });
+    
+    if (!account) {
+      console.error('❌ Account not found:', accountId);
+      return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+    }
+    
+    if (account.userId !== user.id) {
+      console.error('❌ Unauthorized: Account does not belong to user', {
+        accountUserId: account.userId,
+        requestUserId: user.id,
+      });
+      return NextResponse.json({ error: 'Unauthorized access to account' }, { status: 403 });
+    }
+    
+    console.log('✅ Security validation passed for user:', user.id, 'account:', accountId);
     // Determine which date field to sort by based on folder
     const isSentFolder = folder?.toLowerCase().includes('sent');
     const sortByDate = isSentFolder ? emails.sentAt : emails.receivedAt;
