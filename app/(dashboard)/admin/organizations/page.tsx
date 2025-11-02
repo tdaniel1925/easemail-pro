@@ -46,6 +46,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { AddUserModal } from '@/components/admin/AddUserModal';
 
 interface Organization {
   id: string;
@@ -80,6 +81,7 @@ export default function OrganizationsManagement() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [membersModalOpen, setMembersModalOpen] = useState(false);
+  const [addUserModalOpen, setAddUserModalOpen] = useState(false);
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [orgMembers, setOrgMembers] = useState<OrganizationMember[]>([]);
   const [saving, setSaving] = useState(false);
@@ -606,10 +608,25 @@ export default function OrganizationsManagement() {
       <Dialog open={membersModalOpen} onOpenChange={setMembersModalOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>{selectedOrg?.name} - Members</DialogTitle>
-            <DialogDescription>
-              {orgMembers.length} member{orgMembers.length !== 1 ? 's' : ''} in this organization
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle>{selectedOrg?.name} - Members</DialogTitle>
+                <DialogDescription>
+                  {orgMembers.length} member{orgMembers.length !== 1 ? 's' : ''} in this organization
+                </DialogDescription>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setMembersModalOpen(false);
+                  setAddUserModalOpen(true);
+                }}
+                className="gap-2"
+              >
+                <UserPlus className="h-4 w-4" />
+                Add User
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="space-y-4 py-4 max-h-[400px] overflow-y-auto">
@@ -649,6 +666,22 @@ export default function OrganizationsManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add User Modal */}
+      {selectedOrg && (
+        <AddUserModal
+          open={addUserModalOpen}
+          onClose={() => setAddUserModalOpen(false)}
+          organizationId={selectedOrg.id}
+          organizationName={selectedOrg.name}
+          onSuccess={() => {
+            showToast('success', 'User created and invitation email sent');
+            if (selectedOrg) {
+              handleViewMembers(selectedOrg);
+            }
+          }}
+        />
+      )}
     </AdminLayout>
   );
 }
