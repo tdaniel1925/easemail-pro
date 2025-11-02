@@ -52,6 +52,7 @@ export default function UsersContent() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [addUserModalOpen, setAddUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
   
@@ -63,6 +64,13 @@ export default function UsersContent() {
     fullName: '',
     email: '',
     role: '',
+  });
+
+  // Form state for adding new user
+  const [addUserForm, setAddUserForm] = useState({
+    email: '',
+    fullName: '',
+    role: 'org_user',
   });
 
   // Show inline message
@@ -217,6 +225,41 @@ export default function UsersContent() {
     }
   };
 
+  const handleAddUser = async () => {
+    try {
+      setSaving(true);
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(addUserForm),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        await fetchUsers();
+        handleCloseAddUserModal();
+        showMessage('success', `User created! Temporary password sent to ${addUserForm.email}`);
+      } else {
+        showMessage('error', data.error || 'Failed to create user');
+      }
+    } catch (error) {
+      console.error('Failed to create user:', error);
+      showMessage('error', 'Failed to create user');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCloseAddUserModal = () => {
+    setAddUserModalOpen(false);
+    setAddUserForm({
+      email: '',
+      fullName: '',
+      role: 'org_user',
+    });
+  };
+
   const filteredUsers = users.filter(user =>
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (user.fullName?.toLowerCase() || '').includes(searchQuery.toLowerCase())
@@ -233,6 +276,10 @@ export default function UsersContent() {
               Manage user accounts, roles, and permissions
             </p>
           </div>
+          <Button onClick={() => setAddUserModalOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add User
+          </Button>
         </div>
 
         {/* Search Bar */}
@@ -510,6 +557,91 @@ export default function UsersContent() {
               disabled={saving}
             >
               {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add User Modal */}
+      <Dialog open={addUserModalOpen} onOpenChange={setAddUserModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+            <DialogDescription>
+              Create a new user account. A temporary password will be sent to their email.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Email */}
+            <div className="space-y-2">
+              <Label htmlFor="newEmail">Email Address *</Label>
+              <Input
+                id="newEmail"
+                type="email"
+                value={addUserForm.email}
+                onChange={(e) => setAddUserForm({ ...addUserForm, email: e.target.value })}
+                placeholder="user@example.com"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                User will receive login credentials at this email
+              </p>
+            </div>
+
+            {/* Full Name */}
+            <div className="space-y-2">
+              <Label htmlFor="newFullName">Full Name</Label>
+              <Input
+                id="newFullName"
+                value={addUserForm.fullName}
+                onChange={(e) => setAddUserForm({ ...addUserForm, fullName: e.target.value })}
+                placeholder="Enter full name (optional)"
+              />
+            </div>
+
+            {/* Role */}
+            <div className="space-y-2">
+              <Label htmlFor="newRole">User Role *</Label>
+              <Select
+                value={addUserForm.role}
+                onValueChange={(value) => setAddUserForm({ ...addUserForm, role: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="platform_admin">Platform Admin</SelectItem>
+                  <SelectItem value="org_admin">Organization Admin</SelectItem>
+                  <SelectItem value="org_user">Organization User</SelectItem>
+                  <SelectItem value="individual">Individual User</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Defines user permissions and access level
+              </p>
+            </div>
+
+            <div className="border-t pt-4">
+              <p className="text-sm text-muted-foreground">
+                <strong>Note:</strong> A temporary password will be generated and emailed to the user. They must change it on first login.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCloseAddUserModal}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddUser}
+              disabled={saving || !addUserForm.email}
+            >
+              {saving ? 'Creating...' : 'Create User'}
             </Button>
           </DialogFooter>
         </DialogContent>
