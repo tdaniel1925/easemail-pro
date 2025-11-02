@@ -4,7 +4,7 @@
  */
 
 import { db } from '@/lib/db/drizzle';
-import { storageUsage, emails, attachments, users } from '@/lib/db/schema';
+import { storageUsage, emails, attachments, users, emailAccounts } from '@/lib/db/schema';
 import { eq, and, gte, lte, sql, sum } from 'drizzle-orm';
 
 interface StorageBreakdown {
@@ -21,13 +21,14 @@ interface StorageBreakdown {
  * Calculate storage usage for a user
  */
 export async function calculateUserStorage(userId: string): Promise<StorageBreakdown> {
-  // Calculate email storage
+  // Calculate email storage - join through emailAccounts
   const emailsResult = await db
     .select({
-      totalSize: sql<number>`COALESCE(SUM(LENGTH(body_text) + LENGTH(body_html)), 0)::bigint`,
+      totalSize: sql<number>`COALESCE(SUM(LENGTH(COALESCE(${emails.bodyText}, '')) + LENGTH(COALESCE(${emails.bodyHtml}, ''))), 0)::bigint`,
     })
     .from(emails)
-    .where(eq(emails.userId, userId));
+    .innerJoin(emailAccounts, eq(emails.accountId, emailAccounts.id))
+    .where(eq(emailAccounts.userId, userId));
   
   const emailsBytes = Number(emailsResult[0]?.totalSize || 0);
   
@@ -137,10 +138,10 @@ export async function getStorageUsage(
   }
   
   return {
-    totalBytes: record.totalBytes,
-    totalGb: Number(record.totalBytes) / (1024 ** 3),
-    emailsBytes: record.emailsBytes,
-    attachmentsBytes: record.attachmentsBytes,
+    totalBytes: record.totalBytes || 0,
+    totalGb: Number(record.totalBytes || 0) / (1024 ** 3),
+    emailsBytes: record.emailsBytes || 0,
+    attachmentsBytes: record.attachmentsBytes || 0,
     includedGb: parseFloat(record.includedGb || '50'),
     overageGb: parseFloat(record.overageGb || '0'),
     overageCost: parseFloat(record.overageCostUsd || '0'),
@@ -183,12 +184,12 @@ export async function getOrganizationStorage(
   }> = [];
   
   userStorage.forEach((storage, index) => {
-    total.totalBytes += storage.totalBytes;
-    total.totalGb += storage.totalGb;
-    total.emailsBytes += storage.emailsBytes;
-    total.attachmentsBytes += storage.attachmentsBytes;
-    total.overageGb += storage.overageGb;
-    total.overageCost += storage.overageCost;
+    total.totalBytes += storage.totalBytes || 0;
+    total.totalGb += storage.totalGb || 0;
+    total.emailsBytes += storage.emailsBytes || 0;
+    total.attachmentsBytes += storage.attachmentsBytes || 0;
+    total.overageGb += storage.overageGb || 0;
+    total.overageCost += storage.overageCost || 0;
     
     byUser.push({
       userId: orgUsers[index].id,

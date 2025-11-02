@@ -12,6 +12,14 @@ import { generateInvoice, getInvoices } from '@/lib/billing/invoice-generator';
 export async function GET(request: NextRequest) {
   try {
     const context = await requireOrgAdmin();
+    
+    if (!context.organizationId) {
+      return NextResponse.json(
+        { success: false, error: 'Organization ID is required' },
+        { status: 400 }
+      );
+    }
+    
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
     
@@ -33,6 +41,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const context = await requireOrgAdmin();
+    
+    if (!context.organizationId) {
+      return NextResponse.json(
+        { success: false, error: 'Organization ID is required' },
+        { status: 400 }
+      );
+    }
+    
     const body = await request.json();
     
     const { periodStart, periodEnd, dueDate, notes } = body;

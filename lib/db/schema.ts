@@ -833,7 +833,7 @@ export const invoices = pgTable('invoices', {
   periodStart: timestamp('period_start').notNull(),
   periodEnd: timestamp('period_end').notNull(),
   
-  lineItems: json('line_items').$type<Array<{description: string; quantity: number; unitPrice: number; total: number}>>(),
+  lineItems: jsonb('line_items').$type<Array<{description: string; quantity: number; unitPrice: number; total: number}>>(),
   paymentMethod: varchar('payment_method', { length: 255 }),
   
   stripeInvoiceId: varchar('stripe_invoice_id', { length: 255 }).unique(),
@@ -841,7 +841,7 @@ export const invoices = pgTable('invoices', {
   
   pdfUrl: varchar('pdf_url', { length: 500 }),
   notes: text('notes'),
-  metadata: json('metadata').$type<Record<string, any>>(),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
   
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -868,7 +868,7 @@ export const paymentMethods = pgTable('payment_methods', {
   
   billingName: varchar('billing_name', { length: 255 }),
   billingEmail: varchar('billing_email', { length: 255 }),
-  billingAddress: json('billing_address').$type<{street?: string; city?: string; state?: string; zip?: string; country?: string}>(),
+  billingAddress: jsonb('billing_address').$type<{street?: string; city?: string; state?: string; zip?: string; country?: string}>(),
   
   stripePaymentMethodId: varchar('stripe_payment_method_id', { length: 255 }).unique(),
   stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
@@ -899,7 +899,7 @@ export const aiUsage = pgTable('ai_usage', {
   includedRequests: integer('included_requests').default(0),
   overageRequests: integer('overage_requests').default(0),
   
-  metadata: json('metadata').$type<Record<string, any>>(),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
   
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -982,13 +982,13 @@ export const auditLogs = pgTable('audit_logs', {
   resourceType: varchar('resource_type', { length: 50 }),
   resourceId: uuid('resource_id'),
   
-  oldValue: json('old_value').$type<Record<string, any>>(),
-  newValue: json('new_value').$type<Record<string, any>>(),
+  oldValue: jsonb('old_value').$type<Record<string, any>>(),
+  newValue: jsonb('new_value').$type<Record<string, any>>(),
   
   ipAddress: varchar('ip_address', { length: 45 }),
   userAgent: text('user_agent'),
   
-  metadata: json('metadata').$type<Record<string, any>>(),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
   
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({

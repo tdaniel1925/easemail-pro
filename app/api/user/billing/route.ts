@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     
     // Recent invoices (last 12)
     const invoices = await getInvoices(
-      context.organizationId,
+      context.organizationId || undefined,
       context.organizationId ? undefined : context.userId,
       12
     );

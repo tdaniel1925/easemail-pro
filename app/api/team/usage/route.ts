@@ -14,6 +14,14 @@ import { eq, and, gte, lte } from 'drizzle-orm';
 export async function GET(request: NextRequest) {
   try {
     const context = await requireOrgAdmin();
+    
+    if (!context.organizationId) {
+      return NextResponse.json(
+        { success: false, error: 'Organization ID is required' },
+        { status: 400 }
+      );
+    }
+    
     const { searchParams } = new URL(request.url);
     
     // Get date range (default: current month)
@@ -27,7 +35,7 @@ export async function GET(request: NextRequest) {
     
     // Get all users in organization
     const orgUsers = await db.query.users.findMany({
-      where: eq(users.organizationId, context.organizationId!),
+      where: eq(users.organizationId, context.organizationId),
     });
     
     const userIds = orgUsers.map(u => u.id);
@@ -45,10 +53,10 @@ export async function GET(request: NextRequest) {
     const smsCost = smsFiltered.reduce((sum, r) => sum + parseFloat(r.totalChargedUsd || '0'), 0);
     
     // 2. AI Usage
-    const aiUsage = await getOrganizationAIUsage(context.organizationId!, periodStart, periodEnd);
+    const aiUsage = await getOrganizationAIUsage(context.organizationId, periodStart, periodEnd);
     
     // 3. Storage Usage
-    const storageUsage = await getOrganizationStorage(context.organizationId!, periodStart, periodEnd);
+    const storageUsage = await getOrganizationStorage(context.organizationId, periodStart, periodEnd);
     
     // 4. Calculate totals
     const totalCost = smsCost + aiUsage.totalCost + storageUsage.total.overageCost;
