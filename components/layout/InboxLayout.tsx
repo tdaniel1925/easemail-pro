@@ -135,11 +135,21 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     fetchAccounts();
     fetchUserContext(); // NEW: Fetch user role and org status
     
+    // ✅ FIX: Check initial online status
+    setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
+    
     // ✅ PHASE 4: Register service worker for offline support
     if (typeof window !== 'undefined') {
-      registerServiceWorker().catch(err => 
-        console.error('Failed to register service worker:', err)
-      );
+      registerServiceWorker()
+        .then(registration => {
+          if (registration) {
+            console.log('✅ Service worker registered successfully');
+          }
+        })
+        .catch(err => {
+          console.error('❌ Service worker registration failed:', err);
+          // Don't block app if SW fails
+        });
     }
     
     // ✅ PHASE 4: Setup online/offline listeners
@@ -297,34 +307,38 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     }
   };
 
-      // ✅ PHASE 2: Fetch real-time folder counts from local database
-      const fetchFolderCounts = async (accountId: string) => {
-        try {
-          const response = await fetch(`/api/nylas/folders/counts?accountId=${accountId}`);
-          const data = await response.json();
-          
-          if (data.success && data.counts) {
-            // Convert array to map for easy lookup
-            const countsMap: Record<string, { totalCount: number; unreadCount: number }> = {};
-            data.counts.forEach((count: any) => {
-              countsMap[count.folder.toLowerCase()] = {
-                totalCount: count.totalCount,
-                unreadCount: count.unreadCount,
-              };
-            });
-            
-            console.log('📊 Real-time folder counts:', countsMap);
-            setFolderCounts(countsMap);
-            
-            // ✅ PHASE 4: Update cache with fresh data
-            folderCache.setFolders(accountId, folders, countsMap);
-          }
-        } catch (error) {
-          console.error('Failed to fetch folder counts:', error);
+  // ✅ FIX: Move fetchFolderCounts to component level (not nested)
+  const fetchFolderCounts = async (accountId: string) => {
+    try {
+      const response = await fetch(`/api/nylas/folders/counts?accountId=${accountId}`);
+      const data = await response.json();
+      
+      if (data.success && data.counts) {
+        // Convert array to map for easy lookup
+        const countsMap: Record<string, { totalCount: number; unreadCount: number }> = {};
+        data.counts.forEach((count: any) => {
+          countsMap[count.folder.toLowerCase()] = {
+            totalCount: count.totalCount,
+            unreadCount: count.unreadCount,
+          };
+        });
+        
+        console.log('📊 Real-time folder counts:', countsMap);
+        setFolderCounts(countsMap);
+        
+        // ✅ PHASE 4: Update cache with fresh data
+        if (folders.length > 0) {
+          folderCache.setFolders(accountId, folders, countsMap);
         }
-      };
+      }
+    } catch (error) {
+      console.error('Failed to fetch folder counts:', error);
+    }
+  };
 
   const handleLogout = async () => {
+    // ✅ FIX: Clear cache on logout to prevent memory leaks
+    folderCache.clearAll();
     await supabase.auth.signOut();
     router.push('/login');
   };
@@ -513,7 +527,8 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
                   }}
                   onMouseEnter={() => {
                     // ✅ PHASE 4: Prefetch emails on hover for instant navigation
-                    if (selectedAccountId) {
+                    // ✅ FIX: Check accountId exists before prefetching
+                    if (selectedAccountId && folderName) {
                       prefetchEmails(selectedAccountId, folderName);
                     }
                   }}

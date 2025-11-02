@@ -95,10 +95,20 @@ class FolderCacheManager {
     this.refreshing.add(accountId);
 
     try {
-      // Fetch fresh data
+      // ✅ FIX: Add timeout to prevent hanging requests
+      const fetchWithTimeout = (url: string, timeout = 10000) => {
+        return Promise.race([
+          fetch(url),
+          new Promise<Response>((_, reject) =>
+            setTimeout(() => reject(new Error('Request timeout')), timeout)
+          ),
+        ]);
+      };
+
+      // Fetch fresh data with timeout
       const [foldersRes, countsRes] = await Promise.all([
-        fetch(`/api/nylas/folders/sync?accountId=${accountId}`),
-        fetch(`/api/nylas/folders/counts?accountId=${accountId}`),
+        fetchWithTimeout(`/api/nylas/folders/sync?accountId=${accountId}`),
+        fetchWithTimeout(`/api/nylas/folders/counts?accountId=${accountId}`),
       ]);
 
       if (foldersRes.ok && countsRes.ok) {
@@ -120,13 +130,16 @@ class FolderCacheManager {
           console.log('✅ Background refresh complete:', accountId);
 
           // Notify listeners
-          window.dispatchEvent(new CustomEvent('folderCacheRefreshed', {
-            detail: { accountId }
-          }));
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('folderCacheRefreshed', {
+              detail: { accountId }
+            }));
+          }
         }
       }
     } catch (error) {
       console.error('❌ Background refresh failed:', error);
+      // ✅ FIX: Don't invalidate cache on error - keep stale data
     } finally {
       this.refreshing.delete(accountId);
     }

@@ -53,14 +53,14 @@ CREATE OR REPLACE FUNCTION queue_folder_counts_refresh()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  last_refresh TIMESTAMP WITH TIME ZONE;
 BEGIN
-  -- Only refresh if more than 5 seconds since last refresh
-  -- This prevents refresh spam on bulk operations
-  IF (
-    SELECT refreshed_at 
-    FROM folder_counts 
-    LIMIT 1
-  ) < NOW() - INTERVAL '5 seconds' THEN
+  -- ✅ FIX: Handle case where materialized view is empty (first run)
+  SELECT MAX(refreshed_at) INTO last_refresh FROM folder_counts;
+  
+  -- Only refresh if more than 5 seconds since last refresh OR if view is empty
+  IF last_refresh IS NULL OR last_refresh < NOW() - INTERVAL '5 seconds' THEN
     PERFORM refresh_folder_counts();
   END IF;
   
