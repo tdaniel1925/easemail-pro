@@ -7,6 +7,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { aiWriteService, type AIWriteInput } from '@/lib/ai/ai-write-service';
+import { createClient } from '@/lib/supabase/server';
+import { db } from '@/lib/db/drizzle';
+import { emailSignatures, users } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,14 +25,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Check authentication (TODO: integrate with your auth)
-    const userId = req.headers.get('x-user-id');
-    if (!userId) {
+    // 3. Authenticate user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
+
+    const userId = user.id;
 
     // 4. Check usage limits (TODO: integrate with your usage tracking)
     const canUse = await checkAIWriteUsage(userId);
@@ -50,15 +58,41 @@ export async function POST(req: NextRequest) {
       userId,
     });
 
-    // 6. Track usage
+    // 6. Fetch user's default signature
+    let signature = null;
+    try {
+      const defaultSignature = await db.query.emailSignatures.findFirst({
+        where: and(
+          eq(emailSignatures.userId, userId),
+          eq(emailSignatures.isDefault, true)
+        ),
+      });
+      
+      if (defaultSignature) {
+        signature = defaultSignature.htmlContent || defaultSignature.textContent;
+      }
+    } catch (sigError) {
+      console.warn('⚠️ Could not fetch signature:', sigError);
+      // Continue without signature
+    }
+
+    // 7. Append signature to body
+    let finalBody = result.body;
+    if (signature) {
+      // Add signature with proper spacing
+      finalBody = `${result.body}\n\n${signature}`;
+      console.log('✅ Appended signature to AI-generated email');
+    }
+
+    // 8. Track usage
     await trackAIWriteUsage(userId, result.metadata.tokensUsed);
 
-    // 7. Return result
+    // 9. Return result
     return NextResponse.json({
       success: true,
       email: {
         subject: result.subject,
-        body: result.body,
+        body: finalBody,
       },
       metadata: result.metadata,
     });

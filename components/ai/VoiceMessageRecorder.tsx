@@ -431,7 +431,11 @@ export function VoiceMessageRecorderModal({
                 <Button variant="outline" onClick={onClose} className="flex-1">
                   Cancel
                 </Button>
-                <Button onClick={handleStart} disabled={!!error} className="flex-1">
+                <Button 
+                  onClick={handleStart} 
+                  disabled={!!error} 
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                >
                   <Mic className="w-4 h-4 mr-2" />
                   Start Recording
                 </Button>
@@ -439,7 +443,11 @@ export function VoiceMessageRecorderModal({
             )}
 
             {status === 'recording' && (
-              <Button onClick={handleStop} className="w-full" disabled={false}>
+              <Button 
+                onClick={handleStop} 
+                className="w-full bg-red-500 hover:bg-red-600 text-white" 
+                disabled={false}
+              >
                 <Square className="w-4 h-4 mr-2" />
                 Stop Recording
               </Button>

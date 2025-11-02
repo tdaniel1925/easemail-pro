@@ -66,7 +66,6 @@ export function AIWriteModal({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': 'temp-user', // TODO: Replace with actual user ID
         },
         body: JSON.stringify({
           method,

@@ -890,6 +890,91 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   communications: many(contactCommunications),
   notes: many(contactNotes),
   smsMessages: many(smsMessages),
+  tagAssignments: many(contactTagAssignments),
+  groupMemberships: many(contactGroupMemberships),
+}));
+
+// ============================================================================
+// CONTACT TAGS AND GROUPS SYSTEM
+// ============================================================================
+
+// Contact Tags
+export const contactTags = pgTable('contact_tags', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar('name', { length: 100 }).notNull(),
+  color: varchar('color', { length: 7 }).default('#4ecdc4'),
+  icon: varchar('icon', { length: 50 }),
+  description: text('description'),
+  contactCount: integer('contact_count').default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Contact Groups
+export const contactGroups = pgTable('contact_groups', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar('name', { length: 100 }).notNull(),
+  description: text('description'),
+  color: varchar('color', { length: 7 }).default('#6366f1'),
+  icon: varchar('icon', { length: 50 }),
+  contactCount: integer('contact_count').default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Contact-Tag Assignments (Many-to-Many)
+export const contactTagAssignments = pgTable('contact_tag_assignments', {
+  contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'cascade' }).notNull(),
+  tagId: uuid('tag_id').references(() => contactTags.id, { onDelete: 'cascade' }).notNull(),
+  assignedAt: timestamp('assigned_at').defaultNow().notNull(),
+});
+
+// Contact-Group Memberships (Many-to-Many)
+export const contactGroupMemberships = pgTable('contact_group_memberships', {
+  contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'cascade' }).notNull(),
+  groupId: uuid('group_id').references(() => contactGroups.id, { onDelete: 'cascade' }).notNull(),
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+});
+
+// Relations
+export const contactTagsRelations = relations(contactTags, ({ one, many }) => ({
+  user: one(users, {
+    fields: [contactTags.userId],
+    references: [users.id],
+  }),
+  assignments: many(contactTagAssignments),
+}));
+
+export const contactGroupsRelations = relations(contactGroups, ({ one, many }) => ({
+  user: one(users, {
+    fields: [contactGroups.userId],
+    references: [users.id],
+  }),
+  memberships: many(contactGroupMemberships),
+}));
+
+export const contactTagAssignmentsRelations = relations(contactTagAssignments, ({ one }) => ({
+  contact: one(contacts, {
+    fields: [contactTagAssignments.contactId],
+    references: [contacts.id],
+  }),
+  tag: one(contactTags, {
+    fields: [contactTagAssignments.tagId],
+    references: [contactTags.id],
+  }),
+}));
+
+export const contactGroupMembershipsRelations = relations(contactGroupMemberships, ({ one }) => ({
+  contact: one(contacts, {
+    fields: [contactGroupMemberships.contactId],
+    references: [contacts.id],
+  }),
+  group: one(contactGroups, {
+    fields: [contactGroupMemberships.groupId],
+    references: [contactGroups.id],
+  }),
 }));
 
 export const labelsRelations = relations(labels, ({ one, many }) => ({

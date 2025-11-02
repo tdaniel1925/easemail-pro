@@ -276,12 +276,7 @@ export function DictateButton({
         </div>
       )}
 
-      {/* Interim Text Preview */}
-      {interimText && (
-        <div className="absolute top-full mt-2 left-0 right-0 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-gray-600 italic">
-          {interimText}...
-        </div>
-      )}
+      {/* Interim text is now shown directly in the compose body */}
     </div>
   );
 }

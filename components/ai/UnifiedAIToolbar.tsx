@@ -67,9 +67,8 @@ export function UnifiedAIToolbar({
   };
 
   const handleDictateTranscript = (text: string, isFinal: boolean) => {
-    if (isFinal) {
-      onBodyChange(body + text);
-    }
+    // Always update body - if interim, it will be replaced; if final, it's appended
+    onBodyChange(body + text);
   };
 
   const handleVoiceAttach = (file: File, duration: number) => {
