@@ -40,6 +40,27 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
   );
   const [stopProcessing, setStopProcessing] = useState(rule?.stopProcessing ?? false);
   const [saving, setSaving] = useState(false);
+  const [folders, setFolders] = useState<Array<{ name: string; type: string }>>([]);
+  const [loadingFolders, setLoadingFolders] = useState(false);
+
+  // Fetch user's folders from the API
+  useEffect(() => {
+    const fetchFolders = async () => {
+      setLoadingFolders(true);
+      try {
+        const response = await fetch('/api/nylas/folders');
+        const data = await response.json();
+        if (data.success && data.folders) {
+          setFolders(data.folders);
+        }
+      } catch (error) {
+        console.error('Error fetching folders:', error);
+      } finally {
+        setLoadingFolders(false);
+      }
+    };
+    fetchFolders();
+  }, []);
 
   // Field options
   const fieldOptions: { value: ConditionField; label: string }[] = [
@@ -374,25 +395,46 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
 
                         {/* Action Value (if needed) */}
                         {actionOption?.needsValue && (
-                          <Input
-                            value={(action as any).folder || (action as any).label || (action as any).email || ''}
-                            onChange={(e) => {
-                              if (action.type === 'move_to_folder') {
-                                updateAction(index, { folder: e.target.value } as any);
-                              } else if (action.type === 'add_label') {
-                                updateAction(index, { label: e.target.value } as any);
-                              } else if (action.type === 'forward_to') {
-                                updateAction(index, { email: e.target.value, includeOriginal: true } as any);
-                              }
-                            }}
-                            placeholder={
-                              action.type === 'move_to_folder'
-                                ? 'Folder name...'
-                                : action.type === 'add_label'
-                                ? 'Label name...'
-                                : 'Email address...'
-                            }
-                          />
+                          <>
+                            {action.type === 'move_to_folder' ? (
+                              <Select
+                                value={(action as any).folder || ''}
+                                onValueChange={(v) => updateAction(index, { folder: v } as any)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder={loadingFolders ? "Loading folders..." : "Select folder..."} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {folders.map((folder) => (
+                                    <SelectItem key={folder.name} value={folder.name}>
+                                      {folder.name.replace(/\s*\([^)]*\)/, '')} {/* Remove type suffix for display */}
+                                    </SelectItem>
+                                  ))}
+                                  {folders.length === 0 && !loadingFolders && (
+                                    <SelectItem value="" disabled>
+                                      No folders available
+                                    </SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <Input
+                                value={(action as any).label || (action as any).email || ''}
+                                onChange={(e) => {
+                                  if (action.type === 'add_label') {
+                                    updateAction(index, { label: e.target.value } as any);
+                                  } else if (action.type === 'forward_to') {
+                                    updateAction(index, { email: e.target.value, includeOriginal: true } as any);
+                                  }
+                                }}
+                                placeholder={
+                                  action.type === 'add_label'
+                                    ? 'Label name...'
+                                    : 'Email address...'
+                                }
+                              />
+                            )}
+                          </>
                         )}
                       </div>
 
