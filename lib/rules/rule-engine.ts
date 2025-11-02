@@ -5,8 +5,9 @@
  */
 
 import { db } from '../db/drizzle';
-import { emails, emailRules, ruleExecutions, scheduledActions } from '../db/schema';
+import { emails, emailRules, ruleExecutions, scheduledActions, emailAccounts, emailFolders } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
+import { nylas } from '../email/nylas-client';
 import type {
   EmailRule,
   RuleCondition,
@@ -266,9 +267,50 @@ export class RuleEngine {
 
     switch (action.type) {
       case 'move_to_folder':
+        const targetFolderName = (action as any).folder;
+        
+        // Update database immediately
         await db.update(emails)
-          .set({ folder: (action as any).folder, updatedAt: new Date() })
+          .set({ folder: targetFolderName, updatedAt: new Date() })
           .where(eq(emails.id, email.id));
+        
+        // Sync with Nylas (move on email provider's server)
+        try {
+          // Get account to retrieve grantId
+          const account = await db.query.emailAccounts.findFirst({
+            where: eq(emailAccounts.id, email.accountId),
+          });
+          
+          if (account && account.nylasGrantId && email.providerMessageId) {
+            // Find the Nylas folder ID by displayName
+            const targetFolder = await db.query.emailFolders.findFirst({
+              where: and(
+                eq(emailFolders.accountId, account.id),
+                eq(emailFolders.displayName, targetFolderName)
+              ),
+            });
+            
+            if (targetFolder && targetFolder.nylasFolderId) {
+              console.log(`📁 Moving email to folder in Nylas: ${targetFolderName} (ID: ${targetFolder.nylasFolderId})`);
+              
+              // Call Nylas API to move the message
+              await nylas.messages.update({
+                identifier: account.nylasGrantId,
+                messageId: email.providerMessageId,
+                requestBody: {
+                  folders: [targetFolder.nylasFolderId],
+                },
+              });
+              
+              console.log(`✅ Email moved in Nylas successfully`);
+            } else {
+              console.warn(`⚠️ Folder "${targetFolderName}" not found in Nylas folders for this account`);
+            }
+          }
+        } catch (nylasError) {
+          console.error('❌ Nylas folder move error:', nylasError);
+          // Don't throw - database update already succeeded, Nylas sync is best-effort
+        }
         break;
 
       case 'add_label':
@@ -294,24 +336,88 @@ export class RuleEngine {
         await db.update(emails)
           .set({ isRead: true, updatedAt: new Date() })
           .where(eq(emails.id, email.id));
+        
+        // Sync with Nylas
+        try {
+          const account = await db.query.emailAccounts.findFirst({
+            where: eq(emailAccounts.id, email.accountId),
+          });
+          if (account && account.nylasGrantId && email.providerMessageId) {
+            await nylas.messages.update({
+              identifier: account.nylasGrantId,
+              messageId: email.providerMessageId,
+              requestBody: { unread: false },
+            });
+          }
+        } catch (nylasError) {
+          console.error('❌ Nylas mark_as_read error:', nylasError);
+        }
         break;
 
       case 'mark_as_unread':
         await db.update(emails)
           .set({ isRead: false, updatedAt: new Date() })
           .where(eq(emails.id, email.id));
+        
+        // Sync with Nylas
+        try {
+          const account = await db.query.emailAccounts.findFirst({
+            where: eq(emailAccounts.id, email.accountId),
+          });
+          if (account && account.nylasGrantId && email.providerMessageId) {
+            await nylas.messages.update({
+              identifier: account.nylasGrantId,
+              messageId: email.providerMessageId,
+              requestBody: { unread: true },
+            });
+          }
+        } catch (nylasError) {
+          console.error('❌ Nylas mark_as_unread error:', nylasError);
+        }
         break;
 
       case 'star':
         await db.update(emails)
           .set({ isStarred: true, updatedAt: new Date() })
           .where(eq(emails.id, email.id));
+        
+        // Sync with Nylas
+        try {
+          const account = await db.query.emailAccounts.findFirst({
+            where: eq(emailAccounts.id, email.accountId),
+          });
+          if (account && account.nylasGrantId && email.providerMessageId) {
+            await nylas.messages.update({
+              identifier: account.nylasGrantId,
+              messageId: email.providerMessageId,
+              requestBody: { starred: true },
+            });
+          }
+        } catch (nylasError) {
+          console.error('❌ Nylas star error:', nylasError);
+        }
         break;
 
       case 'unstar':
         await db.update(emails)
           .set({ isStarred: false, updatedAt: new Date() })
           .where(eq(emails.id, email.id));
+        
+        // Sync with Nylas
+        try {
+          const account = await db.query.emailAccounts.findFirst({
+            where: eq(emailAccounts.id, email.accountId),
+          });
+          if (account && account.nylasGrantId && email.providerMessageId) {
+            await nylas.messages.update({
+              identifier: account.nylasGrantId,
+              messageId: email.providerMessageId,
+              requestBody: { starred: false },
+            });
+          }
+        } catch (nylasError) {
+          console.error('❌ Nylas unstar error:', nylasError);
+        }
         break;
 
       case 'flag':
