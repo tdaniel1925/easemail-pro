@@ -8,6 +8,10 @@ import { db } from '@/lib/db/drizzle';
 import { attachments } from '@/lib/db/schema';
 import { eq, and, desc, asc, gte, lte, inArray, sql, or, like } from 'drizzle-orm';
 
+// Force dynamic rendering - this route uses searchParams
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET(request: NextRequest) {
   try {
     // Default test user ID (same as contacts)

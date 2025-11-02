@@ -4,6 +4,10 @@ import { db } from '@/lib/db/drizzle';
 import { users, emailAccounts, emails, contacts } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
 
+// Force dynamic rendering - this route uses cookies
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET() {
   try {
     const supabase = createClient();

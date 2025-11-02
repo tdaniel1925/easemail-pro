@@ -11,6 +11,10 @@ import { eq } from 'drizzle-orm';
 import { assignEmailFolder } from '@/lib/email/folder-utils';
 import { createClient } from '@/lib/supabase/server';
 
+// Force dynamic rendering - this route uses cookies
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     // Authenticate
