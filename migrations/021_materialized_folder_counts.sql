@@ -95,7 +95,7 @@ REFRESH MATERIALIZED VIEW folder_counts;
 -- ================================================
 
 -- Get counts for a specific account
--- ✅ FIX: Cast VARCHAR to TEXT to match return type
+-- ✅ FIX: Cast all types to match return signature
 CREATE OR REPLACE FUNCTION get_account_folder_counts(p_account_id UUID)
 RETURNS TABLE (
   folder TEXT,
@@ -111,7 +111,7 @@ BEGIN
     fc.folder::TEXT,  -- Cast VARCHAR(255) to TEXT
     fc.total_count,
     fc.unread_count,
-    fc.last_email_at
+    fc.last_email_at AT TIME ZONE 'UTC'  -- Cast TIMESTAMP to TIMESTAMPTZ
   FROM folder_counts fc
   WHERE fc.account_id = p_account_id
   ORDER BY fc.folder;
