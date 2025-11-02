@@ -78,16 +78,16 @@ export function UnifiedAIToolbar({
 
   return (
     <>
-      <div className={cn('flex items-center gap-2 p-3 border-t border-gray-200 bg-white', className)}>
+      <div className={cn('flex items-center gap-2 p-3 border-t border-border bg-card', className)}>
         {/* AI Write */}
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setShowAIWrite(true)}
-          className="hover:bg-blue-50"
+          className="hover:bg-accent"
           title="Generate email with AI (Ctrl+Shift+W)"
         >
-          <Sparkles className="w-4 h-4 mr-2 text-blue-600" />
+          <Sparkles className="w-4 h-4 mr-2 text-primary" />
           <span className="hidden sm:inline">AI Write</span>
         </Button>
 
@@ -97,10 +97,10 @@ export function UnifiedAIToolbar({
           size="sm"
           onClick={() => setShowAIRemix(true)}
           disabled={!hasContent}
-          className="hover:bg-purple-50"
+          className="hover:bg-accent"
           title="Transform your draft (Ctrl+Shift+R)"
         >
-          <Wand2 className="w-4 h-4 mr-2 text-purple-600" />
+          <Wand2 className="w-4 h-4 mr-2 text-primary" />
           <span className="hidden sm:inline">AI Remix</span>
         </Button>
 
@@ -108,7 +108,7 @@ export function UnifiedAIToolbar({
         <DictateButton
           onTranscript={handleDictateTranscript}
           userTier={userTier}
-          className="hover:bg-green-50"
+          className="hover:bg-accent"
         />
 
         {/* Voice Message */}
@@ -116,10 +116,10 @@ export function UnifiedAIToolbar({
           variant="ghost"
           size="sm"
           onClick={() => setShowVoiceMessage(true)}
-          className="hover:bg-orange-50"
+          className="hover:bg-accent"
           title="Record voice message (Ctrl+Shift+M)"
         >
-          <VoicemailIcon className="w-4 h-4 mr-2 text-orange-600" />
+          <VoicemailIcon className="w-4 h-4 mr-2 text-primary" />
           <span className="hidden sm:inline">Voice Message</span>
         </Button>
 
@@ -127,9 +127,9 @@ export function UnifiedAIToolbar({
         <div className="flex-1" />
 
         {/* Feature Labels (Desktop) */}
-        <div className="hidden lg:flex items-center gap-2 text-xs text-gray-500">
+        <div className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            <span className="w-2 h-2 rounded-full bg-primary" />
             AI-Powered
           </span>
         </div>
