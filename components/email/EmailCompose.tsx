@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useSignatures } from '@/lib/hooks/useSignatures';
 import { SignatureService } from '@/lib/signatures/signature-service';
+import EmailAutocomplete from '@/components/email/EmailAutocomplete';
 
 // Lazy load the AI toolbar to prevent SSR issues
 const UnifiedAIToolbar = lazy(() => 
@@ -34,9 +35,11 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [showBcc, setShowBcc] = useState(false);
   
   // Form state
-  const [to, setTo] = useState(replyTo?.to || '');
-  const [cc, setCc] = useState('');
-  const [bcc, setBcc] = useState('');
+  const [to, setTo] = useState<Array<{ email: string; name?: string }>>(
+    replyTo?.to ? [{ email: replyTo.to }] : []
+  );
+  const [cc, setCc] = useState<Array<{ email: string; name?: string }>>([]);
+  const [bcc, setBcc] = useState<Array<{ email: string; name?: string }>>([]);
   const [subject, setSubject] = useState(replyTo?.subject || '');
   const [body, setBody] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -63,7 +66,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         setSelectedSignatureId(applicableSignature.id);
         
         // Render signature with template variables
-        const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to });
+        const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to[0]?.email || '' });
         
         // Add 2 blank lines at the top for typing space, then signature
         setBody('\n\n' + renderedSignature);
@@ -230,7 +233,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
   const handleSend = async () => {
     // Validation
-    if (!to || to.trim() === '') {
+    if (to.length === 0) {
       alert('Please enter at least one recipient');
       return;
     }
@@ -296,9 +299,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         },
         body: JSON.stringify({
           accountId,
-          to,
-          cc: cc || undefined,
-          bcc: bcc || undefined,
+          to: to.map(r => r.email).join(', '),
+          cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
+          bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
           subject,
           body,
           attachments: uploadedAttachments,
@@ -340,7 +343,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       return;
     }
 
-    if (!to || to.trim() === '') {
+    if (to.length === 0) {
       alert('Please enter at least one recipient before saving draft');
       return;
     }
@@ -357,9 +360,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         },
         body: JSON.stringify({
           accountId,
-          to,
-          cc,
-          bcc,
+          to: to.map(r => r.email).join(', '),
+          cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
+          bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
           subject,
           bodyText: body,
           bodyHtml: body, // Could be enhanced with HTML conversion
@@ -479,16 +482,16 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           <>
             {/* Recipients */}
             <div className="p-4 space-y-2 border-b border-border">
-              <div className="flex items-center gap-2">
-                <Label className="w-12 text-sm text-muted-foreground">To</Label>
-                <Input
-                  type="email"
-                  placeholder="Recipients"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                />
-                <div className="flex gap-2">
+              <div className="flex items-start gap-2">
+                <Label className="w-12 text-sm text-muted-foreground pt-2">To</Label>
+                <div className="flex-1">
+                  <EmailAutocomplete
+                    value={to}
+                    onChange={setTo}
+                    placeholder="Recipients"
+                  />
+                </div>
+                <div className="flex gap-2 pt-2">
                   {!showCc && (
                     <button
                       onClick={() => setShowCc(true)}
@@ -509,22 +512,22 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               </div>
 
               {showCc && (
-                <div className="flex items-center gap-2">
-                  <Label className="w-12 text-sm text-muted-foreground">Cc</Label>
-                  <Input
-                    type="email"
-                    placeholder="Carbon copy"
-                    value={cc}
-                    onChange={(e) => setCc(e.target.value)}
-                    className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
+                <div className="flex items-start gap-2">
+                  <Label className="w-12 text-sm text-muted-foreground pt-2">Cc</Label>
+                  <div className="flex-1">
+                    <EmailAutocomplete
+                      value={cc}
+                      onChange={setCc}
+                      placeholder="Carbon copy"
+                    />
+                  </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6"
+                    className="h-6 w-6 mt-2"
                     onClick={() => {
                       setShowCc(false);
-                      setCc('');
+                      setCc([]);
                     }}
                   >
                     <X className="h-3 w-3" />
@@ -533,22 +536,22 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               )}
 
               {showBcc && (
-                <div className="flex items-center gap-2">
-                  <Label className="w-12 text-sm text-muted-foreground">Bcc</Label>
-                  <Input
-                    type="email"
-                    placeholder="Blind carbon copy"
-                    value={bcc}
-                    onChange={(e) => setBcc(e.target.value)}
-                    className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                  />
+                <div className="flex items-start gap-2">
+                  <Label className="w-12 text-sm text-muted-foreground pt-2">Bcc</Label>
+                  <div className="flex-1">
+                    <EmailAutocomplete
+                      value={bcc}
+                      onChange={setBcc}
+                      placeholder="Blind carbon copy"
+                    />
+                  </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6"
+                    className="h-6 w-6 mt-2"
                     onClick={() => {
                       setShowBcc(false);
-                      setBcc('');
+                      setBcc([]);
                     }}
                   >
                     <X className="h-3 w-3" />
