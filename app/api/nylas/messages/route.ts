@@ -6,6 +6,7 @@ import { eq, desc, sql } from 'drizzle-orm';
 import { RuleEngine } from '@/lib/rules/rule-engine';
 import { retryWithBackoff } from '@/lib/email/retry-utils';
 import { checkConnectionHealth } from '@/lib/email/health-check';
+import { extractAndSaveAttachments } from '@/lib/attachments/extract-from-email';
 
 // Enable Node.js runtime for better performance
 export const runtime = 'nodejs';
@@ -243,6 +244,14 @@ export async function POST(request: NextRequest) {
             providerFileId: att.id,
           })) || [];
 
+          // ✅ FIX: Check if this is a sent message (from account owner)
+          const isFromAccountOwner = message.from?.[0]?.email?.toLowerCase() === account.emailAddress?.toLowerCase();
+          const messageFolder = isFromAccountOwner && message.folders?.some((f: string) => f.toLowerCase().includes('sent'))
+            ? 'sent' // If from account owner and in Sent folder, keep it as sent
+            : message.folders?.[0] || 'inbox';
+
+          console.log(`📧 Message from: ${message.from?.[0]?.email}, Account: ${account.emailAddress}, Is sent: ${isFromAccountOwner}, Folder: ${messageFolder}`);
+
           await db.insert(emails).values({
             accountId: account.id,
             provider: 'nylas',
@@ -261,11 +270,31 @@ export async function POST(request: NextRequest) {
             attachments: mappedAttachments,
             isRead: message.unread === false,
             isStarred: message.starred === true,
-            folder: message.folders?.[0] || 'inbox',
+            folder: messageFolder, // ✅ Use determined folder
             folders: message.folders || [],
             receivedAt: new Date(message.date * 1000),
             providerData: message as any,
           }).onConflictDoNothing(); // Ignore duplicates silently
+
+          // ✅ FIX: Extract attachments to attachments table
+          if (message.attachments && message.attachments.length > 0) {
+            // Get the just-inserted email
+            const insertedEmail = await db.query.emails.findFirst({
+              where: eq(emails.providerMessageId, message.id),
+            });
+
+            if (insertedEmail) {
+              // Extract attachments asynchronously (don't block sync)
+              extractAndSaveAttachments({
+                message: message as any,
+                emailRecord: insertedEmail as any,
+                accountId: account.id,
+                userId: account.userId,
+                grantId: account.nylasGrantId!,
+                nylas,
+              }).catch(err => console.error('Attachment extraction error:', err));
+            }
+          }
 
           // Process rules for this email (async, don't block sync)
           // Get userId from account

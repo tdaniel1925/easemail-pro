@@ -25,8 +25,8 @@ export async function extractAndSaveAttachments({
   grantId,
   nylas,
 }: ExtractAttachmentsParams) {
-  // Check if message has attachments
-  if (!message.files || message.files.length === 0) {
+  // Check if message has attachments (Nylas API uses 'attachments' not 'files')
+  if (!message.attachments || message.attachments.length === 0) {
     return { saved: 0, skipped: 0, failed: 0 };
   }
 
@@ -35,10 +35,10 @@ export async function extractAndSaveAttachments({
   let skipped = 0;
   let failed = 0;
 
-  for (const file of message.files) {
+  for (const file of message.attachments) {
     try {
       // Skip inline images and very large files
-      if (file.content_disposition === 'inline') {
+      if (file.contentDisposition === 'inline' || file.isInline) {
         skipped++;
         console.log(`⏭️  Skipping inline: ${file.filename}`);
         continue;
@@ -65,7 +65,7 @@ export async function extractAndSaveAttachments({
       const { error: uploadError } = await supabase.storage
         .from('attachments')
         .upload(storagePath, attachmentResponse, {
-          contentType: file.content_type,
+          contentType: file.contentType,
           cacheControl: '3600',
           upsert: false, // Don't overwrite existing files
         });
@@ -90,7 +90,7 @@ export async function extractAndSaveAttachments({
         accountId,
         filename: file.filename || 'unnamed',
         fileExtension: extension,
-        mimeType: file.content_type,
+        mimeType: file.contentType,
         fileSizeBytes: file.size,
         storagePath,
         emailSubject: message.subject,
