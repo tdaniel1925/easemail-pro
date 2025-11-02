@@ -37,6 +37,10 @@ export function createClient() {
  * NEVER expose this to the client side
  */
 export function createAdminClient() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set in environment variables. This is required for admin operations like creating users.');
+  }
+
   const cookieStore = cookies();
 
   return createServerClient(
