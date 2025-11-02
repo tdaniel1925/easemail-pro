@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -8,7 +9,8 @@ import {
   CreditCard,
   Download,
   Calendar,
-  Zap
+  Zap,
+  ArrowLeft
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -115,6 +117,15 @@ export default function UserBillingPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
+      {/* Back Link */}
+      <Link
+        href="/settings"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Settings
+      </Link>
+
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">

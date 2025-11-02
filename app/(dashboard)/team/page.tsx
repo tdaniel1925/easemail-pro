@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,8 @@ import {
   MoreVertical, 
   Copy,
   Check,
-  Crown
+  Crown,
+  ArrowLeft
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -187,6 +189,15 @@ export default function TeamPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
+      {/* Back Link */}
+      <Link
+        href="/team/admin"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Team Admin
+      </Link>
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">

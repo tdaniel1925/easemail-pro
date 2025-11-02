@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   Users, 
   DollarSign, 
@@ -11,7 +12,10 @@ import {
   FileText,
   BarChart3,
   Settings,
-  Download
+  Download,
+  ArrowLeft,
+  Shield,
+  Crown
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,6 +51,8 @@ export default function TeamAdminPage() {
   const [usageHistory, setUsageHistory] = useState<any[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
+  const [members, setMembers] = useState<any[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -57,8 +63,25 @@ export default function TeamAdminPage() {
     if (activeTab === 'billing') {
       fetchInvoices();
       fetchPaymentMethods();
+    } else if (activeTab === 'members') {
+      fetchMembers();
     }
   }, [activeTab]);
+
+  const fetchMembers = async () => {
+    setLoadingMembers(true);
+    try {
+      const res = await fetch('/api/team/members');
+      const data = await res.json();
+      if (data.members) {
+        setMembers(data.members);
+      }
+    } catch (error) {
+      console.error('Failed to fetch members:', error);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
 
   const fetchInvoices = async () => {
     setLoadingInvoices(true);
@@ -134,6 +157,15 @@ export default function TeamAdminPage() {
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
+      {/* Back Link */}
+      <Link
+        href="/inbox"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Inbox
+      </Link>
+
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -483,18 +515,128 @@ export default function TeamAdminPage() {
         </TabsContent>
 
         {/* Members Tab */}
-        <TabsContent value="members">
+        <TabsContent value="members" className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Team Members</CardTitle>
-              <CardDescription>Manage roles and permissions</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Team Members</CardTitle>
+                <CardDescription>Manage roles and permissions for your team</CardDescription>
+              </div>
+              <Button onClick={() => router.push('/team')}>
+                <Users className="h-4 w-4 mr-2" />
+                Full Team Management
+              </Button>
             </CardHeader>
             <CardContent>
-              <Button onClick={() => router.push('/team')}>
-                Go to Team Management
-              </Button>
+              {loadingMembers ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : members.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground mb-4">No team members yet</p>
+                  <Button onClick={() => router.push('/team')}>
+                    Invite Team Members
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {members.map((member: any) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between p-4 rounded-lg border bg-card"
+                    >
+                      <div className="flex items-center gap-3">
+                        {member.user?.avatarUrl ? (
+                          <img
+                            src={member.user.avatarUrl}
+                            alt={member.user.fullName || member.user.email}
+                            className="w-10 h-10 rounded-full"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+                            {(member.user?.email || 'U').slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">
+                              {member.user?.fullName || member.user?.email}
+                            </p>
+                            {member.role === 'owner' && (
+                              <Crown className="h-4 w-4 text-yellow-600" />
+                            )}
+                            {member.role === 'admin' && (
+                              <Shield className="h-4 w-4 text-blue-600" />
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {member.user?.email}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                            member.role === 'owner'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : member.role === 'admin'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {members.length > 3 && (
+                    <div className="text-center pt-4">
+                      <Button variant="outline" onClick={() => router.push('/team')}>
+                        View All {members.length} Members
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{members.length}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Admins</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {members.filter((m: any) => m.role === 'admin' || m.role === 'owner').length}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Active Members</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {members.filter((m: any) => m.isActive).length}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Settings Tab */}
