@@ -2,18 +2,12 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  // AUTH DISABLED FOR TESTING
-  // Uncomment the code below to enable authentication
-  
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   });
 
-  return response;
-
-  /* AUTHENTICATION CODE - UNCOMMENT TO ENABLE
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -77,13 +71,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
+  if (!user && request.nextUrl.pathname.startsWith('/team')) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  if (!user && request.nextUrl.pathname.startsWith('/calendar')) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  if (!user && request.nextUrl.pathname.startsWith('/attachments')) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
   // Redirect logged-in users away from auth pages
   if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
     return NextResponse.redirect(new URL('/inbox', request.url));
   }
 
   return response;
-  */
 }
 
 export const config = {
