@@ -5,7 +5,7 @@ import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Sea
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import EmailCompose from '@/components/email/EmailCompose';
 import ProviderSelector from '@/components/email/ProviderSelector';
@@ -49,6 +49,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const supabase = createClient();
 
   // âœ… PHASE 2: Keyboard shortcuts (g+i, g+s, g+d, c, etc)
@@ -236,6 +237,14 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     }
   }, [selectedAccountId]);
 
+  // âœ… Refetch accounts when navigating back to inbox (e.g., from /accounts page)
+  useEffect(() => {
+    if (pathname === '/inbox') {
+      console.log('ðŸ"„ Navigated to inbox, refetching accounts...');
+      fetchAccounts();
+    }
+  }, [pathname]);
+
   // Refetch folders when window regains focus (after navigating back from accounts page)
   useEffect(() => {
     const handleFocus = () => {
@@ -243,8 +252,12 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       fetch('/api/nylas/token-refresh', { method: 'POST' })
         .catch(() => {}); // Silent
       
+      // âœ… Refetch accounts list (in case user deleted/added accounts)
+      console.log('ðŸ"„ Window focused, refetching accounts...');
+      fetchAccounts();
+      
       if (selectedAccountId) {
-        console.log('ðŸ”„ Window focused, refetching folders and counts...');
+        console.log('ðŸ"„ Window focused, refetching folders and counts...');
         fetchFolders(selectedAccountId);
         // Counts will be fetched automatically by fetchFolders
       }
