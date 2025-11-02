@@ -43,7 +43,19 @@ export default function ChangePasswordPage() {
       const { data: { user } } = await supabase.auth.getUser();
       
       // Check for reset token in URL (from password reset email)
-      const hasResetToken = searchParams.get('token') || searchParams.get('type') === 'recovery';
+      // Supabase uses hash fragments, not query params
+      const hash = window.location.hash;
+      const hasResetToken = 
+        hash.includes('type=recovery') || 
+        hash.includes('access_token') ||
+        searchParams.get('token') || 
+        searchParams.get('type') === 'recovery';
+      
+      console.log('🔍 Checking password reset token...');
+      console.log('Hash:', hash);
+      console.log('Search params:', searchParams.toString());
+      console.log('Has reset token:', hasResetToken);
+      console.log('User:', user ? 'Logged in' : 'Not logged in');
       
       if (hasResetToken) {
         setIsPasswordReset(true);
@@ -53,6 +65,7 @@ export default function ChangePasswordPage() {
         console.log('🔐 Logged-in user changing password');
       } else {
         // Not logged in and no reset token - redirect to login
+        console.log('⚠️ No reset token and not logged in - redirecting to login');
         router.push('/login');
       }
     };
