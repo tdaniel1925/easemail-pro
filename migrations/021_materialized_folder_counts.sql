@@ -21,10 +21,16 @@ WHERE
 GROUP BY account_id, folder;
 
 -- Add indexes for fast lookups
-CREATE UNIQUE INDEX IF NOT EXISTS idx_folder_counts_account_folder 
+-- ✅ Note: UNIQUE INDEX requires CONCURRENTLY for existing data
+-- Drop old indexes if they exist
+DROP INDEX IF EXISTS idx_folder_counts_account_folder;
+DROP INDEX IF EXISTS idx_folder_counts_account;
+
+-- Create new indexes
+CREATE UNIQUE INDEX idx_folder_counts_account_folder 
   ON folder_counts(account_id, folder);
 
-CREATE INDEX IF NOT EXISTS idx_folder_counts_account 
+CREATE INDEX idx_folder_counts_account 
   ON folder_counts(account_id);
 
 -- ================================================
@@ -69,6 +75,9 @@ END;
 $$;
 
 -- Trigger on email insert/update/delete
+-- ✅ FIX: Drop existing trigger first to make migration idempotent
+DROP TRIGGER IF EXISTS trigger_refresh_folder_counts ON emails;
+
 CREATE TRIGGER trigger_refresh_folder_counts
 AFTER INSERT OR UPDATE OR DELETE ON emails
 FOR EACH STATEMENT
@@ -86,7 +95,8 @@ REFRESH MATERIALIZED VIEW folder_counts;
 -- ================================================
 
 -- Get counts for a specific account
-CREATE OR REPLACE FUNCTION get_account_folder_counts(p_account_id TEXT)
+-- ✅ FIX: Use UUID type instead of TEXT for account_id
+CREATE OR REPLACE FUNCTION get_account_folder_counts(p_account_id UUID)
 RETURNS TABLE (
   folder TEXT,
   total_count BIGINT,
@@ -109,8 +119,9 @@ END;
 $$;
 
 -- Get count for specific folder
+-- ✅ FIX: Use UUID type instead of TEXT for account_id
 CREATE OR REPLACE FUNCTION get_folder_count(
-  p_account_id TEXT,
+  p_account_id UUID,
   p_folder TEXT
 )
 RETURNS TABLE (
