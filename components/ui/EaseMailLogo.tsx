@@ -5,7 +5,7 @@ export default function EaseMailLogo({ className = "h-8 w-8" }: { className?: st
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
-      style={{ transform: 'rotate(-90deg)' }}
+      style={{ transform: 'rotate(-45deg)' }}
     >
       {/* Email envelope background */}
       <rect
