@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+  const [resetCooldown, setResetCooldown] = useState(0); // Cooldown timer in seconds
   const router = useRouter();
   const supabase = createClient();
 
@@ -87,6 +88,13 @@ export default function LoginPage() {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check cooldown
+    if (resetCooldown > 0) {
+      setError(`Please wait ${resetCooldown} seconds before requesting another reset email.`);
+      return;
+    }
+    
     setResetLoading(true);
     setError('');
     setSuccess('');
@@ -96,15 +104,37 @@ export default function LoginPage() {
         redirectTo: `${window.location.origin}/change-password`,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check for rate limit errors
+        if (error.message.includes('rate limit') || 
+            error.message.includes('Rate limit') ||
+            error.message.includes('too many requests')) {
+          throw new Error('Too many password reset attempts. Please wait a few minutes and try again.');
+        }
+        throw error;
+      }
 
-      setSuccess('Password reset link sent! Check your email.');
+      setSuccess('Password reset link sent! Check your email. (Check spam folder if you don\'t see it)');
+      
+      // Start 60 second cooldown
+      setResetCooldown(60);
+      const cooldownInterval = setInterval(() => {
+        setResetCooldown((prev) => {
+          if (prev <= 1) {
+            clearInterval(cooldownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
       setTimeout(() => {
         setShowForgotPassword(false);
         setResetEmail('');
         setSuccess('');
-      }, 3000);
+      }, 5000);
     } catch (err: any) {
+      console.error('Password reset error:', err);
       setError(err.message || 'Failed to send reset email');
     } finally {
       setResetLoading(false);
@@ -173,10 +203,15 @@ export default function LoginPage() {
               >
                 Back to Login
               </Button>
-              <Button type="submit" className="flex-1" disabled={resetLoading}>
-                {resetLoading ? 'Sending...' : 'Send Reset Link'}
+              <Button type="submit" className="flex-1" disabled={resetLoading || resetCooldown > 0}>
+                {resetLoading ? 'Sending...' : resetCooldown > 0 ? `Wait ${resetCooldown}s` : 'Send Reset Link'}
               </Button>
             </div>
+            
+            {/* Rate limit notice */}
+            <p className="text-xs text-center text-muted-foreground">
+              To prevent abuse, you can only request one reset email per minute.
+            </p>
           </form>
         ) : (
           // Login Form
