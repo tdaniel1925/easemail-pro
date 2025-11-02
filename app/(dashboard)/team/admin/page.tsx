@@ -113,6 +113,44 @@ export default function TeamAdminPage() {
     }
   };
 
+  const handleExportReport = async () => {
+    try {
+      // Get date range for current month
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+      const res = await fetch('/api/team/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reportType: 'usage',
+          format: 'csv',
+          startDate,
+          endDate,
+          includeMembers: true,
+        }),
+      });
+
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `team-usage-report-${Date.now()}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Failed to generate report');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export report');
+    }
+  };
+
   const fetchTeamStats = async () => {
     try {
       // Fetch team members
@@ -176,7 +214,7 @@ export default function TeamAdminPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleExportReport}>
               <Download className="h-4 w-4 mr-2" />
               Export Report
             </Button>
@@ -316,7 +354,7 @@ export default function TeamAdminPage() {
                   You're using {stats.activeSeats} of {stats.totalSeats} seats. 
                   Consider upgrading your plan to add more team members.
                 </p>
-                <Button variant="default" className="mt-4">
+                <Button variant="default" className="mt-4" onClick={() => alert('Upgrade plan feature coming soon!')}>
                   Upgrade Plan
                 </Button>
               </CardContent>
@@ -340,7 +378,9 @@ export default function TeamAdminPage() {
                     Billed {stats?.subscription.billingCycle || 'monthly'}
                   </p>
                 </div>
-                <Button variant="outline">Upgrade Plan</Button>
+                <Button variant="outline" onClick={() => alert('Upgrade plan feature coming soon!')}>
+                  Upgrade Plan
+                </Button>
               </div>
             </CardContent>
           </Card>

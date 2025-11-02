@@ -99,6 +99,42 @@ export default function UserBillingPage() {
     }
   };
 
+  const handleDownloadStatement = async () => {
+    try {
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+      const res = await fetch('/api/team/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reportType: 'billing',
+          format: 'csv',
+          startDate,
+          endDate,
+        }),
+      });
+
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `billing-statement-${Date.now()}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Failed to download statement');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download statement');
+    }
+  };
+
   const formatDate = (date: Date | string) => {
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -135,7 +171,7 @@ export default function UserBillingPage() {
               Manage your subscription, payments, and view usage details
             </p>
           </div>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleDownloadStatement}>
             <Download className="h-4 w-4 mr-2" />
             Download Statement
           </Button>
@@ -357,10 +393,10 @@ export default function UserBillingPage() {
                   <div className="h-px bg-border"></div>
                   
                   <div className="flex gap-2">
-                    <Button variant="default" className="flex-1">
+                    <Button variant="default" className="flex-1" onClick={() => alert('Plan upgrades coming soon!')}>
                       Upgrade Plan
                     </Button>
-                    <Button variant="outline" className="flex-1">
+                    <Button variant="outline" className="flex-1" onClick={() => alert('Subscription management coming soon!')}>
                       Manage Subscription
                     </Button>
                   </div>
@@ -374,7 +410,7 @@ export default function UserBillingPage() {
                 <CardDescription>Choose a plan to get started</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button>Browse Plans</Button>
+                <Button onClick={() => alert('Plan selection coming soon!')}>Browse Plans</Button>
               </CardContent>
             </Card>
           )}
