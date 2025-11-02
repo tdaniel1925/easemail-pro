@@ -76,9 +76,32 @@ export default function UserBillingPage() {
       const data = await res.json();
       if (data.success) {
         setBilling(data.billing);
+      } else {
+        // Set default billing data if API fails
+        setBilling({
+          subscription: null,
+          currentMonth: {
+            sms: { messages: 0, cost: 0 },
+            ai: { requests: 0, cost: 0, byFeature: {} },
+            storage: { totalGb: 0, overageGb: 0, cost: 0 },
+            total: 0,
+          },
+          recentInvoices: [],
+        });
       }
     } catch (error) {
       console.error('Failed to fetch billing data:', error);
+      // Set default billing data on error so page isn't stuck loading
+      setBilling({
+        subscription: null,
+        currentMonth: {
+          sms: { messages: 0, cost: 0 },
+          ai: { requests: 0, cost: 0, byFeature: {} },
+          storage: { totalGb: 0, overageGb: 0, cost: 0 },
+          total: 0,
+        },
+        recentInvoices: [],
+      });
     } finally {
       setLoading(false);
     }

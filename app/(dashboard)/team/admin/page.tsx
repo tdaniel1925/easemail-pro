@@ -164,7 +164,7 @@ export default function TeamAdminPage() {
       // Combine data
       setStats({
         memberCount: membersData.members?.length || 0,
-        activeSeats: membersData.members?.filter((m: any) => m.isActive).length || 0,
+        activeSeats: membersData.members?.filter((m: any) => !m.suspended).length || 0,
         totalSeats: 10, // TODO: Get from subscription
         currentMonthCost: usageData.usage?.totalCost || 0,
         subscription: {
@@ -180,6 +180,23 @@ export default function TeamAdminPage() {
       });
     } catch (error) {
       console.error('Failed to fetch team stats:', error);
+      // Set default stats even on error so page isn't stuck loading
+      setStats({
+        memberCount: 0,
+        activeSeats: 0,
+        totalSeats: 10,
+        currentMonthCost: 0,
+        subscription: {
+          planName: 'Team',
+          billingCycle: 'monthly',
+          nextBillingDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        usage: {
+          sms: { messages: 0, cost: 0 },
+          ai: { requests: 0, cost: 0 },
+          storage: { totalGb: 0, cost: 0 },
+        },
+      });
     } finally {
       setLoading(false);
     }
@@ -670,11 +687,11 @@ export default function TeamAdminPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">Active Members</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {members.filter((m: any) => m.isActive).length}
-                </div>
-              </CardContent>
+                      <CardContent>
+                        <div className="text-2xl font-bold">
+                          {members.filter((m: any) => !m.suspended).length}
+                        </div>
+                      </CardContent>
             </Card>
           </div>
         </TabsContent>
