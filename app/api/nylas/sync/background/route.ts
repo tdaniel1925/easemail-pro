@@ -197,7 +197,9 @@ async function performBackgroundSync(
                 nylasDate: message.date,
                 receivedAt: receivedDate.toISOString(),
                 sentAt: sentDate.toISOString(),
-                subject: message.subject?.substring(0, 50)
+                subject: message.subject?.substring(0, 50),
+                folders: message.folders,
+                selectedFolder: message.folders?.[0],
               });
             }
 
@@ -210,7 +212,7 @@ async function performBackgroundSync(
               messageId: message.object === 'message' ? sanitizeText(message.id) : undefined,
               threadId: sanitizeText(message.threadId),
               providerThreadId: sanitizeText(message.threadId),
-              folder: sanitizeText(message.folders?.[0]) || 'inbox',
+              folder: message.folders?.[0] ? sanitizeText(message.folders[0]) : 'inbox',
               folders: message.folders || [],
               fromEmail: sanitizeText(message.from?.[0]?.email),
               fromName: sanitizeText(message.from?.[0]?.name),
