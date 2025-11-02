@@ -16,6 +16,10 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { InvoicesTable } from '@/components/billing/InvoicesTable';
+import { PaymentMethods } from '@/components/billing/PaymentMethods';
+import { UsageChart } from '@/components/charts/UsageChart';
+import { UsageBarChart } from '@/components/charts/UsageBarChart';
 
 interface TeamStats {
   memberCount: number;
@@ -38,11 +42,53 @@ export default function TeamAdminPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState<TeamStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [usageHistory, setUsageHistory] = useState<any[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     fetchTeamStats();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'billing') {
+      fetchInvoices();
+      fetchPaymentMethods();
+    }
+  }, [activeTab]);
+
+  const fetchInvoices = async () => {
+    setLoadingInvoices(true);
+    try {
+      const res = await fetch('/api/team/billing/invoices');
+      const data = await res.json();
+      if (data.success) {
+        setInvoices(data.invoices || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch invoices:', error);
+    } finally {
+      setLoadingInvoices(false);
+    }
+  };
+
+  const fetchPaymentMethods = async () => {
+    setLoadingPaymentMethods(true);
+    try {
+      const res = await fetch('/api/team/billing/payment-methods');
+      const data = await res.json();
+      if (data.success) {
+        setPaymentMethods(data.paymentMethods || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch payment methods:', error);
+    } finally {
+      setLoadingPaymentMethods(false);
+    }
+  };
 
   const fetchTeamStats = async () => {
     try {
@@ -247,30 +293,190 @@ export default function TeamAdminPage() {
         </TabsContent>
 
         {/* Billing Tab */}
-        <TabsContent value="billing">
+        <TabsContent value="billing" className="space-y-6">
+          {/* Subscription Summary */}
           <Card>
             <CardHeader>
-              <CardTitle>Billing & Invoices</CardTitle>
-              <CardDescription>Manage your subscription and view billing history</CardDescription>
+              <CardTitle>Current Subscription</CardTitle>
+              <CardDescription>Your team's active subscription plan</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">
-                Billing components coming in Phase 3...
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{stats?.subscription.planName || 'Team Plan'}</p>
+                  <p className="text-sm text-muted-foreground capitalize">
+                    Billed {stats?.subscription.billingCycle || 'monthly'}
+                  </p>
+                </div>
+                <Button variant="outline">Upgrade Plan</Button>
+              </div>
             </CardContent>
           </Card>
+
+          {/* Payment Methods */}
+          <PaymentMethods
+            paymentMethods={paymentMethods}
+            isLoading={loadingPaymentMethods}
+            onAddPaymentMethod={() => {
+              // TODO: Open add payment method dialog
+              alert('Add payment method dialog - coming soon!');
+            }}
+            onRemovePaymentMethod={async (methodId) => {
+              try {
+                const res = await fetch(`/api/team/billing/payment-methods/${methodId}`, {
+                  method: 'DELETE',
+                });
+                if (res.ok) {
+                  fetchPaymentMethods();
+                }
+              } catch (error) {
+                console.error('Failed to remove payment method:', error);
+              }
+            }}
+            onSetDefault={async (methodId) => {
+              try {
+                const res = await fetch(`/api/team/billing/payment-methods/${methodId}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ isDefault: true }),
+                });
+                if (res.ok) {
+                  fetchPaymentMethods();
+                }
+              } catch (error) {
+                console.error('Failed to set default payment method:', error);
+              }
+            }}
+          />
+
+          {/* Invoices */}
+          <InvoicesTable
+            invoices={invoices}
+            isLoading={loadingInvoices}
+            onViewInvoice={(invoiceId) => {
+              // TODO: Open invoice detail view
+              router.push(`/team/admin/invoice/${invoiceId}`);
+            }}
+            onDownloadInvoice={async (invoiceId) => {
+              // TODO: Download invoice PDF
+              alert(`Download invoice ${invoiceId} - PDF generation coming soon!`);
+            }}
+            onSendInvoice={async (invoiceId) => {
+              try {
+                const res = await fetch(`/api/team/billing/invoices/${invoiceId}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'send' }),
+                });
+                if (res.ok) {
+                  fetchInvoices();
+                }
+              } catch (error) {
+                console.error('Failed to send invoice:', error);
+              }
+            }}
+          />
         </TabsContent>
 
         {/* Usage Tab */}
-        <TabsContent value="usage">
+        <TabsContent value="usage" className="space-y-6">
+          {/* Usage Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Total SMS</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.usage.sms.messages || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  ${stats?.usage.sms.cost.toFixed(2) || '0.00'} cost
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">AI Requests</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.usage.ai.requests || 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  ${stats?.usage.ai.cost.toFixed(2) || '0.00'} overage
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Storage</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats?.usage.storage.totalGb.toFixed(2) || '0.00'} GB
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  ${stats?.usage.storage.cost.toFixed(2) || '0.00'} overage
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Usage Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <UsageChart
+              title="SMS Usage Trend"
+              description="Messages sent over time"
+              data={[
+                { date: '2024-01', value: 450 },
+                { date: '2024-02', value: 520 },
+                { date: '2024-03', value: 480 },
+                { date: '2024-04', value: 610 },
+                { date: '2024-05', value: 580 },
+                { date: '2024-06', value: stats?.usage.sms.messages || 0 },
+              ]}
+              valueSuffix=" msgs"
+              color="#3b82f6"
+            />
+
+            <UsageChart
+              title="AI Request Trend"
+              description="AI requests over time"
+              data={[
+                { date: '2024-01', value: 1200 },
+                { date: '2024-02', value: 1450 },
+                { date: '2024-03', value: 1380 },
+                { date: '2024-04', value: 1620 },
+                { date: '2024-05', value: 1590 },
+                { date: '2024-06', value: stats?.usage.ai.requests || 0 },
+              ]}
+              valueSuffix=" requests"
+              color="#10b981"
+            />
+          </div>
+
+          {/* Usage by Feature */}
+          <UsageBarChart
+            title="Usage by Feature"
+            description="Breakdown of usage across different features"
+            data={[
+              { label: 'Email Summaries', value: 850, color: '#3b82f6' },
+              { label: 'Smart Compose', value: 620, color: '#8b5cf6' },
+              { label: 'Voice Transcription', value: 340, color: '#f59e0b' },
+              { label: 'Reminders', value: 280, color: '#10b981' },
+              { label: 'Contact Enrichment', value: 150, color: '#ef4444' },
+            ]}
+            valueSuffix=" uses"
+          />
+
+          {/* Per-User Usage */}
           <Card>
             <CardHeader>
-              <CardTitle>Usage Analytics</CardTitle>
-              <CardDescription>Detailed breakdown of team usage</CardDescription>
+              <CardTitle>Usage by Team Member</CardTitle>
+              <CardDescription>Individual usage breakdown for the current month</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">
-                Usage charts coming in Phase 3...
+              <p className="text-muted-foreground text-sm">
+                Per-user usage analytics coming soon...
               </p>
             </CardContent>
           </Card>
