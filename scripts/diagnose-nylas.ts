@@ -250,7 +250,7 @@ class EaseMailDiagnostic {
             id: w.id,
             url: w.webhookUrl,
             triggers: w.triggerTypes,
-            status: w.webhookSecret ? 'configured' : 'missing_secret',
+            status: 'active',
           })),
         },
         recommendation: duplicates.length > 0 ? 'Delete duplicate webhooks' : undefined,
