@@ -90,7 +90,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       ),
     });
 
-    if (orgMembers.length >= organization.maxSeats) {
+    if (organization.maxSeats && orgMembers.length >= organization.maxSeats) {
       return NextResponse.json({ 
         error: `Organization is at maximum capacity (${orgMembers.length}/${organization.maxSeats} seats). Please upgrade plan or remove inactive users.`
       }, { status: 400 });

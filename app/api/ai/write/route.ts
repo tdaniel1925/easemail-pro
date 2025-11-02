@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       });
       
       if (defaultSignature) {
-        signature = defaultSignature.htmlContent || defaultSignature.textContent;
+        signature = defaultSignature.contentHtml || defaultSignature.contentText;
       }
     } catch (sigError) {
       console.warn('⚠️ Could not fetch signature:', sigError);

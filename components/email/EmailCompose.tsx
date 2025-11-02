@@ -457,9 +457,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
             <h3 className="font-semibold text-sm">
               {replyTo ? `Reply to ${replyTo.to}` : 'New Message'}
             </h3>
-            {isMinimized && to && (
+            {isMinimized && to.length > 0 && (
               <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                To: {to}
+                To: {to.map(r => r.email).join(', ')}
               </span>
             )}
           </div>
@@ -829,7 +829,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 body={body}
                 onSubjectChange={setSubject}
                 onBodyChange={setBody}
-                recipientEmail={to}
+                recipientEmail={to.length > 0 ? to[0].email : undefined}
+                recipientName={to.length > 0 ? to[0].name : undefined}
                 userTier="free"
                 onAttachVoiceMessage={handleVoiceMessageAttachment}
               />

@@ -124,7 +124,6 @@ export default function TagPicker({ selectedTags, onChange, disabled }: TagPicke
                     return (
                       <CommandItem
                         key={tag.id}
-                        value={tag.name}
                         onSelect={() => handleToggleTag(tag.id)}
                         className="flex items-center gap-2 cursor-pointer"
                       >

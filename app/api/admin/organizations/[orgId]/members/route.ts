@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const members = await db.query.organizationMembers.findMany({
       where: eq(organizationMembers.organizationId, orgId),
       with: {
-        user: {
+        member: {
           columns: {
             id: true,
             email: true,

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         eq(organizationMembers.isActive, true)
       ),
       with: {
-        user: {
+        member: {
           columns: {
             id: true,
             email: true,

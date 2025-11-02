@@ -124,7 +124,6 @@ export default function GroupPicker({ selectedGroups, onChange, disabled }: Grou
                     return (
                       <CommandItem
                         key={group.id}
-                        value={group.name}
                         onSelect={() => handleToggleGroup(group.id)}
                         className="flex items-center gap-2 cursor-pointer"
                       >

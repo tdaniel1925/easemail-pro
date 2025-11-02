@@ -281,7 +281,9 @@ export class RuleEngine {
             where: eq(emailAccounts.id, email.accountId),
           });
           
-          if (account && account.nylasGrantId && email.providerMessageId) {
+          const emailProviderMessageId = (email as any).providerMessageId as string | undefined;
+          
+          if (account && account.nylasGrantId && emailProviderMessageId) {
             // Find the Nylas folder ID by displayName
             const targetFolder = await db.query.emailFolders.findFirst({
               where: and(
@@ -296,7 +298,7 @@ export class RuleEngine {
               // Call Nylas API to move the message
               await nylas.messages.update({
                 identifier: account.nylasGrantId,
-                messageId: email.providerMessageId,
+                messageId: (email as any).providerMessageId,
                 requestBody: {
                   folders: [targetFolder.nylasFolderId],
                 },
@@ -342,10 +344,10 @@ export class RuleEngine {
           const account = await db.query.emailAccounts.findFirst({
             where: eq(emailAccounts.id, email.accountId),
           });
-          if (account && account.nylasGrantId && email.providerMessageId) {
+          if (account && account.nylasGrantId && (email as any).providerMessageId) {
             await nylas.messages.update({
               identifier: account.nylasGrantId,
-              messageId: email.providerMessageId,
+              messageId: (email as any).providerMessageId,
               requestBody: { unread: false },
             });
           }
@@ -364,10 +366,10 @@ export class RuleEngine {
           const account = await db.query.emailAccounts.findFirst({
             where: eq(emailAccounts.id, email.accountId),
           });
-          if (account && account.nylasGrantId && email.providerMessageId) {
+          if (account && account.nylasGrantId && (email as any).providerMessageId) {
             await nylas.messages.update({
               identifier: account.nylasGrantId,
-              messageId: email.providerMessageId,
+              messageId: (email as any).providerMessageId,
               requestBody: { unread: true },
             });
           }
@@ -386,10 +388,10 @@ export class RuleEngine {
           const account = await db.query.emailAccounts.findFirst({
             where: eq(emailAccounts.id, email.accountId),
           });
-          if (account && account.nylasGrantId && email.providerMessageId) {
+          if (account && account.nylasGrantId && (email as any).providerMessageId) {
             await nylas.messages.update({
               identifier: account.nylasGrantId,
-              messageId: email.providerMessageId,
+              messageId: (email as any).providerMessageId,
               requestBody: { starred: true },
             });
           }
@@ -408,10 +410,10 @@ export class RuleEngine {
           const account = await db.query.emailAccounts.findFirst({
             where: eq(emailAccounts.id, email.accountId),
           });
-          if (account && account.nylasGrantId && email.providerMessageId) {
+          if (account && account.nylasGrantId && (email as any).providerMessageId) {
             await nylas.messages.update({
               identifier: account.nylasGrantId,
-              messageId: email.providerMessageId,
+              messageId: (email as any).providerMessageId,
               requestBody: { starred: false },
             });
           }
