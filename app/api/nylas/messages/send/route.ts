@@ -89,7 +89,8 @@ export async function POST(request: NextRequest) {
       nylasGrantId: account.nylasGrantId?.substring(0, 10) + '...',
     });
     
-    if (account.emailProvider === 'nylas' && account.nylasGrantId) {
+    // Google and Microsoft accounts use Nylas SDK
+    if ((account.emailProvider === 'nylas' || account.emailProvider === 'google' || account.emailProvider === 'microsoft') && account.nylasGrantId) {
       sentMessage = await sendNylasEmail(account.nylasGrantId, {
         to: parsedTo,
         cc: parsedCc,
