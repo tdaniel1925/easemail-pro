@@ -12,11 +12,11 @@ export async function GET(request: NextRequest) {
 
     const settings = await db.select().from(billingSettings).orderBy(billingSettings.settingKey);
 
-    return NextResponse.json(settings);
+    return NextResponse.json({ success: true, settings });
   } catch (error: any) {
     console.error('Error fetching billing settings:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch billing settings' },
+      { success: false, error: error.message || 'Failed to fetch billing settings' },
       { status: error.message?.includes('Unauthorized') ? 403 : 500 }
     );
   }

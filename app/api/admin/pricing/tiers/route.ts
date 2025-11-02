@@ -12,11 +12,11 @@ export async function GET(request: NextRequest) {
 
     const tiers = await db.select().from(pricingTiers).orderBy(pricingTiers.minQuantity);
 
-    return NextResponse.json(tiers);
+    return NextResponse.json({ success: true, tiers });
   } catch (error: any) {
     console.error('Error fetching pricing tiers:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch pricing tiers' },
+      { success: false, error: error.message || 'Failed to fetch pricing tiers' },
       { status: error.message?.includes('Unauthorized') ? 403 : 500 }
     );
   }

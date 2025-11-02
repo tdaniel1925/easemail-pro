@@ -12,11 +12,11 @@ export async function GET(request: NextRequest) {
 
     const usage = await db.select().from(usagePricing).orderBy(usagePricing.serviceType);
 
-    return NextResponse.json(usage);
+    return NextResponse.json({ success: true, usage });
   } catch (error: any) {
     console.error('Error fetching usage pricing:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch usage pricing' },
+      { success: false, error: error.message || 'Failed to fetch usage pricing' },
       { status: error.message?.includes('Unauthorized') ? 403 : 500 }
     );
   }

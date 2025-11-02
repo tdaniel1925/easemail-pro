@@ -12,11 +12,11 @@ export async function GET(request: NextRequest) {
 
     const plans = await db.select().from(pricingPlans).orderBy(pricingPlans.name);
 
-    return NextResponse.json(plans);
+    return NextResponse.json({ success: true, plans });
   } catch (error: any) {
     console.error('Error fetching pricing plans:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch pricing plans' },
+      { success: false, error: error.message || 'Failed to fetch pricing plans' },
       { status: error.message?.includes('Unauthorized') ? 403 : 500 }
     );
   }
