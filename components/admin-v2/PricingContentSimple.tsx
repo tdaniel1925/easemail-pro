@@ -125,189 +125,242 @@ export default function PricingContentSimple() {
   }
 
   return (
-    <div className="p-6 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold mb-1">Pricing & Plans</h1>
-        <p className="text-muted-foreground">Manage subscription plans and usage-based pricing</p>
-      </div>
-
-      {/* Subscription Plans */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Subscription Plans</h2>
+    <div className="h-full overflow-y-auto">
+      <div className="p-6 space-y-8 max-w-5xl">
+        <div>
+          <h1 className="text-2xl font-bold mb-1">Pricing & Plans</h1>
+          <p className="text-muted-foreground">Manage subscription plans and usage-based pricing</p>
         </div>
 
-        <div className="border border-border rounded-lg divide-y divide-border">
-          {plans.map((plan) => (
-            <div key={plan.id} className="p-4 hover:bg-accent/50">
-              {editingPlan === plan.id ? (
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    value={plan.display_name}
-                    onChange={(e) =>
-                      setPlans(plans.map((p) => (p.id === plan.id ? { ...p, display_name: e.target.value } : p)))
-                    }
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg"
-                    placeholder="Display Name"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={plan.base_price_monthly}
-                      onChange={(e) =>
-                        setPlans(plans.map((p) => (p.id === plan.id ? { ...p, base_price_monthly: e.target.value } : p)))
-                      }
-                      className="px-3 py-2 bg-background border border-border rounded-lg"
-                      placeholder="Monthly Price"
-                    />
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={plan.base_price_annual}
-                      onChange={(e) =>
-                        setPlans(plans.map((p) => (p.id === plan.id ? { ...p, base_price_annual: e.target.value } : p)))
-                      }
-                      className="px-3 py-2 bg-background border border-border rounded-lg"
-                      placeholder="Annual Price"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => updatePlan(plan)}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm"
-                    >
-                      <Save className="h-4 w-4" />
-                      Save
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingPlan(null);
-                        fetchData();
-                      }}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg text-sm"
-                    >
-                      <X className="h-4 w-4" />
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold">{plan.display_name}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      ${plan.base_price_monthly}/mo · ${plan.base_price_annual}/yr
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {plan.min_seats}-{plan.max_seats || '∞'} seats
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setEditingPlan(plan.id)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-accent rounded-lg text-sm hover:bg-accent/80"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                    Edit
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+        {/* Subscription Plans */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Subscription Plans</h2>
+          </div>
 
-      {/* Usage-Based Pricing */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Usage-Based Pricing</h2>
+          <div className="border border-border rounded-lg divide-y divide-border">
+            {plans.map((plan) => (
+              <div key={plan.id} className="p-4 hover:bg-accent/50">
+                {editingPlan === plan.id ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                        Plan Name
+                      </label>
+                      <input
+                        type="text"
+                        value={plan.display_name}
+                        onChange={(e) =>
+                          setPlans(plans.map((p) => (p.id === plan.id ? { ...p, display_name: e.target.value } : p)))
+                        }
+                        className="w-full px-3 py-2 bg-background border border-border rounded-lg"
+                        placeholder="Display Name"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                          Monthly Price ($)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={plan.base_price_monthly}
+                          onChange={(e) =>
+                            setPlans(plans.map((p) => (p.id === plan.id ? { ...p, base_price_monthly: e.target.value } : p)))
+                          }
+                          className="w-full px-3 py-2 bg-background border border-border rounded-lg"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                          Annual Price ($)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={plan.base_price_annual}
+                          onChange={(e) =>
+                            setPlans(plans.map((p) => (p.id === plan.id ? { ...p, base_price_annual: e.target.value } : p)))
+                          }
+                          className="w-full px-3 py-2 bg-background border border-border rounded-lg"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => updatePlan(plan)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm"
+                      >
+                        <Save className="h-4 w-4" />
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingPlan(null);
+                          fetchData();
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg text-sm"
+                      >
+                        <X className="h-4 w-4" />
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold">{plan.display_name}</h3>
+                      <div className="flex items-center gap-3 mt-2">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Monthly</p>
+                          <p className="text-sm font-semibold mt-0.5">${plan.base_price_monthly}</p>
+                        </div>
+                        <div className="h-8 w-px bg-border"></div>
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Yearly</p>
+                          <p className="text-sm font-semibold mt-0.5">${plan.base_price_annual}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {plan.min_seats}-{plan.max_seats || '∞'} seats
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setEditingPlan(plan.id)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-accent rounded-lg text-sm hover:bg-accent/80"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="border border-border rounded-lg divide-y divide-border">
-          {usage.map((item) => (
-            <div key={item.id} className="p-4 hover:bg-accent/50">
-              {editingUsage === item.id ? (
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    value={item.service_type}
-                    disabled
-                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg"
-                    placeholder="Service Type"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="number"
-                      step="0.0001"
-                      value={item.base_rate}
-                      onChange={(e) =>
-                        setUsage(usage.map((u) => (u.id === item.id ? { ...u, base_rate: e.target.value } : u)))
-                      }
-                      className="px-3 py-2 bg-background border border-border rounded-lg"
-                      placeholder="Base Rate"
-                    />
-                    <input
-                      type="text"
-                      value={item.unit}
-                      onChange={(e) =>
-                        setUsage(usage.map((u) => (u.id === item.id ? { ...u, unit: e.target.value } : u)))
-                      }
-                      className="px-3 py-2 bg-background border border-border rounded-lg"
-                      placeholder="Unit (e.g., SMS, token)"
-                    />
+        {/* Usage-Based Pricing */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Usage-Based Pricing</h2>
+          </div>
+
+          <div className="border border-border rounded-lg divide-y divide-border">
+            {usage.map((item) => (
+              <div key={item.id} className="p-4 hover:bg-accent/50">
+                {editingUsage === item.id ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                        Service Type
+                      </label>
+                      <input
+                        type="text"
+                        value={item.service_type}
+                        disabled
+                        className="w-full px-3 py-2 bg-muted border border-border rounded-lg"
+                        placeholder="Service Type"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                          Base Rate ($)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          value={item.base_rate}
+                          onChange={(e) =>
+                            setUsage(usage.map((u) => (u.id === item.id ? { ...u, base_rate: e.target.value } : u)))
+                          }
+                          className="w-full px-3 py-2 bg-background border border-border rounded-lg"
+                          placeholder="0.0000"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                          Unit
+                        </label>
+                        <input
+                          type="text"
+                          value={item.unit}
+                          onChange={(e) =>
+                            setUsage(usage.map((u) => (u.id === item.id ? { ...u, unit: e.target.value } : u)))
+                          }
+                          className="w-full px-3 py-2 bg-background border border-border rounded-lg"
+                          placeholder="e.g., SMS, token"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                        Description
+                      </label>
+                      <input
+                        type="text"
+                        value={item.description || ''}
+                        onChange={(e) =>
+                          setUsage(usage.map((u) => (u.id === item.id ? { ...u, description: e.target.value } : u)))
+                        }
+                        className="w-full px-3 py-2 bg-background border border-border rounded-lg"
+                        placeholder="Description"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => updateUsage(item)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm"
+                      >
+                        <Save className="h-4 w-4" />
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingUsage(null);
+                          fetchData();
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg text-sm"
+                      >
+                        <X className="h-4 w-4" />
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                  <input
-                    type="text"
-                    value={item.description || ''}
-                    onChange={(e) =>
-                      setUsage(usage.map((u) => (u.id === item.id ? { ...u, description: e.target.value } : u)))
-                    }
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg"
-                    placeholder="Description"
-                  />
-                  <div className="flex gap-2">
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold capitalize">{item.service_type.replace('_', ' ')}</h3>
+                      <div className="flex items-center gap-3 mt-2">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Rate</p>
+                          <p className="text-sm font-semibold mt-0.5">${item.base_rate}</p>
+                        </div>
+                        <div className="h-8 w-px bg-border"></div>
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Per</p>
+                          <p className="text-sm font-semibold mt-0.5">{item.unit}</p>
+                        </div>
+                      </div>
+                      {item.description && (
+                        <p className="text-xs text-muted-foreground mt-2">{item.description}</p>
+                      )}
+                    </div>
                     <button
-                      onClick={() => updateUsage(item)}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm"
+                      onClick={() => setEditingUsage(item.id)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-accent rounded-lg text-sm hover:bg-accent/80"
                     >
-                      <Save className="h-4 w-4" />
-                      Save
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingUsage(null);
-                        fetchData();
-                      }}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg text-sm"
-                    >
-                      <X className="h-4 w-4" />
-                      Cancel
+                      <Edit2 className="h-4 w-4" />
+                      Edit
                     </button>
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold capitalize">{item.service_type.replace('_', ' ')}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      ${item.base_rate} per {item.unit}
-                    </p>
-                    {item.description && (
-                      <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setEditingUsage(item.id)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-accent rounded-lg text-sm hover:bg-accent/80"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                    Edit
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
