@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         // Parse tags
         let tags: string[] = [];
         if (row.Tags) {
-          tags = row.Tags.split(',').map(t => t.trim()).filter(Boolean);
+          tags = row.Tags.split(',').map((t: string) => t.trim()).filter(Boolean);
         }
 
         // Create contact

@@ -44,9 +44,10 @@ interface EmailListProps {
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   onRefresh?: () => void;
+  currentFolder?: string | null;
 }
 
-export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailClick, searchQuery = '', onSearchChange, onRefresh }: EmailListProps) {
+export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailClick, searchQuery = '', onSearchChange, onRefresh, currentFolder = null }: EmailListProps) {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const { toasts, closeToast, success, error, info } = useToast();
@@ -230,9 +231,9 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
         ) : (
           /* Normal Toolbar */
           <div className="flex items-center gap-4 w-full">
-            {/* Folder name only */}
+            {/* Folder name - dynamic */}
             <div className="flex-shrink-0">
-              <h2 className="text-sm font-medium">Primary</h2>
+              <h2 className="text-sm font-medium">{currentFolder || 'Inbox'}</h2>
             </div>
 
             {/* Search bar - takes remaining space */}

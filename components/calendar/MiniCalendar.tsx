@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { usePathname } from 'next/navigation';
 
 interface Event {
   id: string;
@@ -18,9 +19,26 @@ export function MiniCalendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
+  const pathname = usePathname();
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
+
+  // Function to open new event modal
+  const handleNewEvent = () => {
+    const isOnCalendarPage = pathname === '/calendar';
+    
+    if (isOnCalendarPage) {
+      // If on calendar page, dispatch event to open modal
+      const event = new CustomEvent('openEventModal', {
+        detail: { date: new Date() }
+      });
+      window.dispatchEvent(event);
+    } else {
+      // If not on calendar page, navigate there
+      window.location.href = '/calendar?openNew=true';
+    }
+  };
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -114,7 +132,7 @@ export function MiniCalendar() {
           size="icon"
           className="h-7 w-7"
           title="New Event"
-          onClick={() => router.push('/calendar')}
+          onClick={handleNewEvent}
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -267,13 +285,7 @@ export function MiniCalendar() {
             variant="outline"
             size="sm"
             className="w-full h-8 text-xs"
-            onClick={() => {
-              // Dispatch event to open the new event modal
-              const event = new CustomEvent('openEventModal', {
-                detail: { date: new Date() }
-              });
-              window.dispatchEvent(event);
-            }}
+            onClick={handleNewEvent}
           >
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             New Event

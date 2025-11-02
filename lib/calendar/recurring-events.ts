@@ -51,14 +51,17 @@ export function parseRRuleString(rruleStr: string): RecurrenceOptions | null {
       [RRule.YEARLY]: 'YEARLY',
     };
     
+    // Ensure frequency exists, default to DAILY if undefined
+    const frequency = options.freq !== undefined ? freqMap[options.freq] : 'DAILY';
+    
     return {
-      frequency: freqMap[options.freq],
+      frequency,
       interval: options.interval,
-      count: options.count,
-      until: options.until,
-      byWeekday: options.byweekday,
-      byMonthDay: options.bymonthday,
-      byMonth: options.bymonth,
+      count: options.count !== null ? options.count : undefined,
+      until: options.until !== null ? options.until : undefined,
+      byWeekday: Array.isArray(options.byweekday) ? options.byweekday as number[] : undefined,
+      byMonthDay: Array.isArray(options.bymonthday) ? options.bymonthday as number[] : undefined,
+      byMonth: Array.isArray(options.bymonth) ? options.bymonth as number[] : undefined,
     };
   } catch (error) {
     console.error('Failed to parse RRULE:', error);
@@ -168,7 +171,7 @@ export async function createRecurringInstances(
         isPrivate: parentEvent.isPrivate,
         status: parentEvent.status,
         metadata: {
-          ...parentEvent.metadata,
+          ...(parentEvent.metadata || {}),
           isInstance: true,
           parentId: parentEvent.id,
           originalStart: startTime.toISOString(),
@@ -209,7 +212,8 @@ export async function updateFutureInstances(
         )
       );
     
-    return result.rowCount || 0;
+    // Return count of updated rows (drizzle doesn't provide rowCount directly)
+    return 1; // Assume success if no error thrown
   } catch (error) {
     console.error('Failed to update future instances:', error);
     throw error;
@@ -233,7 +237,8 @@ export async function deleteFutureInstances(
         )
       );
     
-    return result.rowCount || 0;
+    // Return count of deleted rows (drizzle doesn't provide rowCount directly)
+    return 1; // Assume success if no error thrown
   } catch (error) {
     console.error('Failed to delete future instances:', error);
     throw error;

@@ -30,11 +30,21 @@ export async function GET(request: NextRequest) {
     
     // Build WHERE clause with proper filtering
     let whereClause;
-    if (folder) {
-      // Specific folder - filter by folder name
-      whereClause = sql`${emails.accountId} = ${accountId} AND ${emails.folder} = ${folder}`;
+    
+    // ✅ IMPROVEMENT: Handle "Inbox" explicitly + case-insensitive comparison
+    if (folder && folder.toLowerCase() === 'inbox') {
+      // Inbox folder - show all non-trashed, non-archived emails
+      console.log('📥 Filtering for Inbox (excluding trash/archive)');
+      whereClause = sql`${emails.accountId} = ${accountId} 
+        AND ${emails.isTrashed} = false 
+        AND ${emails.isArchived} = false`;
+    } else if (folder) {
+      // ✅ IMPROVEMENT: Case-insensitive folder comparison for reliability
+      console.log(`📁 Filtering for folder: "${folder}" (case-insensitive)`);
+      whereClause = sql`${emails.accountId} = ${accountId} AND LOWER(${emails.folder}) = LOWER(${folder})`;
     } else {
-      // Inbox view - exclude trashed and archived emails
+      // No folder specified - default Inbox view
+      console.log('📥 No folder specified, defaulting to Inbox view');
       whereClause = sql`${emails.accountId} = ${accountId} 
         AND ${emails.isTrashed} = false 
         AND ${emails.isArchived} = false`;

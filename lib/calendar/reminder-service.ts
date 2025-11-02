@@ -5,7 +5,7 @@
 
 import { db } from '@/lib/db/drizzle';
 import { calendarEvents } from '@/lib/db/schema';
-import { gte, lte, eq } from 'drizzle-orm';
+import { gte, lte, eq, and } from 'drizzle-orm';
 
 interface ReminderToSend {
   eventId: string;
@@ -31,9 +31,11 @@ export async function findEventsNeedingReminders(): Promise<ReminderToSend[]> {
       .select()
       .from(calendarEvents)
       .where(
-        gte(calendarEvents.startTime, now),
-        lte(calendarEvents.startTime, twoHoursFromNow),
-        eq(calendarEvents.status, 'confirmed' as any)
+        and(
+          gte(calendarEvents.startTime, now),
+          lte(calendarEvents.startTime, twoHoursFromNow),
+          eq(calendarEvents.status, 'confirmed' as any)
+        )
       );
     
     const remindersToSend: ReminderToSend[] = [];

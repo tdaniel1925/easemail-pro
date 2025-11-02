@@ -274,7 +274,11 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
               return (
                 <button
                   key={folder.id || folder.name}
-                  onClick={() => router.push(folder.href || '/inbox')}
+                  onClick={() => {
+                    // Navigate to inbox with folder parameter
+                    const folderName = displayName;
+                    router.push(`/inbox?folder=${encodeURIComponent(folderName)}`);
+                  }}
                   className={cn(
                     'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all',
                     isActive
@@ -317,7 +321,11 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
               return (
                 <button
                   key={folder.id}
-                  onClick={() => router.push('/inbox')}
+                  onClick={() => {
+                    // Navigate to inbox with folder parameter
+                    const folderName = folder.displayName;
+                    router.push(`/inbox?folder=${encodeURIComponent(folderName)}`);
+                  }}
                   className="w-full flex items-center justify-between px-2.5 py-2 pl-8 rounded-md text-sm hover:bg-accent text-muted-foreground transition-colors"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -487,12 +495,13 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
           subject: composeData.type === 'forward' 
             ? `Fwd: ${composeData.email.subject}` 
             : `Re: ${composeData.email.subject}`,
-          messageId: composeData.email.id,
+          messageId: composeData.email.id || '',
           body: composeData.email.bodyText || composeData.email.bodyHtml || composeData.email.snippet || ''
         } : {
           // New compose with pre-filled "to" (from contacts)
           to: composeData.email?.to || '',
           subject: composeData.email?.subject || '',
+          messageId: '',
         }) : undefined}
       />
       

@@ -1,16 +1,23 @@
 'use client';
 
 import { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import InboxLayout from '@/components/layout/InboxLayout';
 import EmailClient from '@/components/email/EmailClient';
 
 function InboxContent() {
   const [searchQuery, setSearchQuery] = useState('');
+  const searchParams = useSearchParams();
+  const folder = searchParams.get('folder') || null;
 
   return (
     <InboxLayout>
-      <EmailClient searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+      <EmailClient 
+        searchQuery={searchQuery} 
+        onSearchChange={setSearchQuery}
+        folder={folder}
+      />
     </InboxLayout>
   );
 }

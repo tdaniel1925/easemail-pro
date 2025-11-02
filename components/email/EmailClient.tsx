@@ -8,9 +8,10 @@ import SyncingIndicator from './SyncingIndicator';
 interface EmailClientProps {
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
+  folder?: string | null;
 }
 
-export default function EmailClient({ searchQuery = '', onSearchChange }: EmailClientProps) {
+export default function EmailClient({ searchQuery = '', onSearchChange, folder = null }: EmailClientProps) {
   const [expandedEmailId, setExpandedEmailId] = useState<string | null>(null);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [emails, setEmails] = useState<any[]>([]);
@@ -55,10 +56,10 @@ export default function EmailClient({ searchQuery = '', onSearchChange }: EmailC
             setAccountId(firstAccountId);
             
             // Fetch emails for this account
-            await fetchEmailsForAccount(firstAccountId, searchQuery);
+            await fetchEmailsForAccount(firstAccountId, searchQuery, folder);
           } else {
             // We already have an account, just fetch
-            await fetchEmailsForAccount(accountId, searchQuery);
+            await fetchEmailsForAccount(accountId, searchQuery, folder);
           }
         } catch (error) {
           console.error('Failed to fetch emails:', error);
@@ -67,14 +68,21 @@ export default function EmailClient({ searchQuery = '', onSearchChange }: EmailC
         }
       };
 
-      const fetchEmailsForAccount = async (accId: string, query: string) => {
-        console.log('📬 Fetching emails for account:', accId, 'Query:', query);
+      const fetchEmailsForAccount = async (accId: string, query: string, folderName: string | null) => {
+        console.log('📬 Fetching emails for account:', accId, 'Query:', query, 'Folder:', folderName);
         
-        // If there's a search query, use search endpoint, otherwise use regular endpoint
-        // PERFORMANCE: Reduced from 1000 to 100 for faster loading
-        const url = query.trim()
-          ? `/api/nylas/messages/search?accountId=${accId}&query=${encodeURIComponent(query)}&limit=100`
-          : `/api/nylas/messages?accountId=${accId}&limit=100`;
+        // Build URL with folder parameter if provided
+        let url = '';
+        if (query.trim()) {
+          // Search query takes precedence
+          url = `/api/nylas/messages/search?accountId=${accId}&query=${encodeURIComponent(query)}&limit=100`;
+        } else if (folderName) {
+          // Filter by folder
+          url = `/api/nylas/messages?accountId=${accId}&folder=${encodeURIComponent(folderName)}&limit=100`;
+        } else {
+          // Default inbox view
+          url = `/api/nylas/messages?accountId=${accId}&limit=100`;
+        }
         
         const response = await fetch(url);
         const data = await response.json();
@@ -90,7 +98,7 @@ export default function EmailClient({ searchQuery = '', onSearchChange }: EmailC
 
     // Cleanup timeout on unmount or when searchQuery changes
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, refreshKey]); // Re-fetch when search query OR refreshKey changes
+  }, [searchQuery, refreshKey, folder]); // Re-fetch when search query, refreshKey, OR folder changes
 
   const selectedEmail = emails.find(email => email.id === selectedEmailId);
 
@@ -130,6 +138,7 @@ export default function EmailClient({ searchQuery = '', onSearchChange }: EmailC
           searchQuery={searchQuery}
           onSearchChange={onSearchChange}
           onRefresh={refreshEmails}
+          currentFolder={folder}
         />
       </div>
 

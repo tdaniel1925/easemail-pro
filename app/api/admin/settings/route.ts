@@ -41,6 +41,13 @@ export async function GET(request: NextRequest) {
 
     settings.forEach((setting) => {
       const value = setting.value;
+      
+      // Skip null values
+      if (value === null) {
+        settingsObject[setting.key] = null;
+        return;
+      }
+      
       // Try to parse JSON values
       try {
         settingsObject[setting.key] = JSON.parse(value);
@@ -94,13 +101,11 @@ export async function POST(request: NextRequest) {
         .values({
           key,
           value: stringValue,
-          updatedBy: user.id,
         })
         .onConflictDoUpdate({
           target: systemSettings.key,
           set: {
             value: stringValue,
-            updatedBy: user.id,
             updatedAt: new Date(),
           },
         });

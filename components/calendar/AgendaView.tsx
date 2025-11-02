@@ -47,7 +47,7 @@ export default function AgendaView({ events, onEventClick }: AgendaViewProps) {
       <div className="p-6 space-y-6">
         {sortedDates.map(dateKey => {
           const date = new Date(dateKey);
-          const dateEvents = eventsByDate[dateKey].sort((a, b) => 
+          const dateEvents = eventsByDate[dateKey].sort((a: any, b: any) => 
             parseISO(a.startTime).getTime() - parseISO(b.startTime).getTime()
           );
           const isToday = isSameDay(date, new Date());
@@ -76,7 +76,7 @@ export default function AgendaView({ events, onEventClick }: AgendaViewProps) {
 
               {/* Events for this date */}
               <div className="space-y-2">
-                {dateEvents.map(event => {
+                {dateEvents.map((event: any) => {
                   const start = parseISO(event.startTime);
                   const end = parseISO(event.endTime);
 

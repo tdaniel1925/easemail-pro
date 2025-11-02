@@ -3,6 +3,7 @@
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, Suspense, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import InboxLayout from '@/components/layout/InboxLayout';
 import EventModal from '@/components/calendar/EventModal';
 import WeekView from '@/components/calendar/WeekView';
@@ -25,6 +26,7 @@ function CalendarContent() {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [syncing, setSyncing] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const searchParams = useSearchParams();
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
@@ -73,6 +75,18 @@ function CalendarContent() {
   useEffect(() => {
     fetchEvents();
   }, [currentMonth]);
+
+  // Check for openNew query parameter
+  useEffect(() => {
+    const openNew = searchParams.get('openNew');
+    if (openNew === 'true') {
+      setSelectedDate(new Date());
+      setSelectedEvent(null);
+      setIsEventModalOpen(true);
+      // Clear the query parameter
+      window.history.replaceState({}, '', '/calendar');
+    }
+  }, [searchParams]);
 
   // Listen for event modal open requests from MiniCalendar
   useEffect(() => {
