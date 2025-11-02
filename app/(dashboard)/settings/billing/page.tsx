@@ -287,7 +287,7 @@ export default function UserBillingPage() {
                   {billing?.currentMonth.storage.totalGb.toFixed(2) || '0.00'} GB
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {billing?.currentMonth.storage.overageGb > 0
+                  {billing?.currentMonth.storage.overageGb && billing.currentMonth.storage.overageGb > 0
                     ? `${billing.currentMonth.storage.overageGb.toFixed(2)} GB over limit`
                     : 'Within limit'
                   }

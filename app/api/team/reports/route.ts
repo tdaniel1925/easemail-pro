@@ -112,8 +112,8 @@ async function generateUsageReport(context: any, start: Date, end: Date, include
   // AI Usage
   const aiRecords = await db.query.aiUsage.findMany({
     where: and(
-      gte(aiUsage.timestamp, start),
-      lte(aiUsage.timestamp, end)
+      gte(aiUsage.periodStart, start),
+      lte(aiUsage.periodEnd, end)
     ),
   });
   const aiFiltered = aiRecords.filter(r => userIds.includes(r.userId));
@@ -130,8 +130,8 @@ async function generateUsageReport(context: any, start: Date, end: Date, include
   const summary = {
     totalSMS: smsFiltered.reduce((sum, r) => sum + (r.totalMessagesSent || 0), 0),
     totalSMSCost: smsFiltered.reduce((sum, r) => sum + parseFloat(r.totalChargedUsd || '0'), 0),
-    totalAIRequests: aiFiltered.length,
-    totalAICost: aiFiltered.reduce((sum, r) => sum + parseFloat(r.cost || '0'), 0),
+    totalAIRequests: aiFiltered.reduce((sum, r) => sum + (r.requestCount || 0), 0),
+    totalAICost: aiFiltered.reduce((sum, r) => sum + parseFloat(r.totalCostUsd || '0'), 0),
     totalStorage: storageFiltered.reduce((sum, r) => sum + Number(r.totalBytes || 0), 0),
     totalStorageCost: storageFiltered.reduce((sum, r) => sum + parseFloat(r.overageCostUsd || '0'), 0),
   };
@@ -146,14 +146,14 @@ async function generateUsageReport(context: any, start: Date, end: Date, include
       return {
         userId: user.id,
         email: user.email,
-        name: user.name,
+        name: user.fullName,
         sms: {
           messages: userSMS.reduce((sum, r) => sum + (r.totalMessagesSent || 0), 0),
           cost: userSMS.reduce((sum, r) => sum + parseFloat(r.totalChargedUsd || '0'), 0),
         },
         ai: {
-          requests: userAI.length,
-          cost: userAI.reduce((sum, r) => sum + parseFloat(r.cost || '0'), 0),
+          requests: userAI.reduce((sum, r) => sum + (r.requestCount || 0), 0),
+          cost: userAI.reduce((sum, r) => sum + parseFloat(r.totalCostUsd || '0'), 0),
         },
         storage: {
           bytes: userStorage.reduce((sum, r) => sum + Number(r.totalBytes || 0), 0),
@@ -223,10 +223,10 @@ async function generateMembersReport(context: any) {
     members: members.map(m => ({
       id: m.id,
       email: m.email,
-      name: m.name,
+      name: m.fullName,
       role: m.role,
       createdAt: m.createdAt,
-      isActive: m.isActive,
+      suspended: m.suspended,
     })),
   };
 }
@@ -265,10 +265,10 @@ function convertToCSV(data: any, reportType: string): string {
       break;
 
     case 'members':
-      rows.push('Email,Name,Role,Created At,Active');
+      rows.push('Email,Name,Role,Created At,Suspended');
       data.members.forEach((member: any) => {
         rows.push(
-          `${member.email},${member.name || ''},${member.role},${member.createdAt},${member.isActive}`
+          `${member.email},${member.name || ''},${member.role},${member.createdAt},${member.suspended || false}`
         );
       });
       break;

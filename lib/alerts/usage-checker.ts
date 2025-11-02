@@ -29,7 +29,7 @@ export async function checkUsageAlerts(userId: string, organizationId?: string):
 
   for (const alert of alerts) {
     let currentValue = 0;
-    const threshold = parseFloat(alert.threshold || '0');
+    const threshold = parseFloat(alert.thresholdValue || '0');
 
     // Get current month boundaries
     const now = new Date();
@@ -60,20 +60,20 @@ export async function checkUsageAlerts(userId: string, organizationId?: string):
         const aiRecords = await db.query.aiUsage.findMany({
           where: and(
             eq(aiUsage.userId, userId),
-            gte(aiUsage.timestamp, periodStart)
+            gte(aiUsage.periodStart, periodStart)
           ),
         });
-        currentValue = aiRecords.length;
+        currentValue = aiRecords.reduce((sum, r) => sum + (r.requestCount || 0), 0);
         break;
 
       case 'ai_cost':
         const aiC = await db.query.aiUsage.findMany({
           where: and(
             eq(aiUsage.userId, userId),
-            gte(aiUsage.timestamp, periodStart)
+            gte(aiUsage.periodStart, periodStart)
           ),
         });
-        currentValue = aiC.reduce((sum, r) => sum + parseFloat(r.cost || '0'), 0);
+        currentValue = aiC.reduce((sum, r) => sum + parseFloat(r.totalCostUsd || '0'), 0);
         break;
 
       case 'storage_gb':
@@ -96,7 +96,7 @@ export async function checkUsageAlerts(userId: string, organizationId?: string):
           where: and(eq(smsUsage.userId, userId), gte(smsUsage.periodStart, periodStart)),
         });
         const aiT = await db.query.aiUsage.findMany({
-          where: and(eq(aiUsage.userId, userId), gte(aiUsage.timestamp, periodStart)),
+          where: and(eq(aiUsage.userId, userId), gte(aiUsage.periodStart, periodStart)),
         });
         const storageT = await db.query.storageUsage.findMany({
           where: and(eq(storageUsage.userId, userId), gte(storageUsage.periodStart, periodStart)),
@@ -106,7 +106,7 @@ export async function checkUsageAlerts(userId: string, organizationId?: string):
 
         currentValue =
           smsT.reduce((sum, r) => sum + parseFloat(r.totalChargedUsd || '0'), 0) +
-          aiT.reduce((sum, r) => sum + parseFloat(r.cost || '0'), 0) +
+          aiT.reduce((sum, r) => sum + parseFloat(r.totalCostUsd || '0'), 0) +
           (storageT.length > 0 ? parseFloat(storageT[0].overageCostUsd || '0') : 0);
         break;
     }
@@ -122,7 +122,7 @@ export async function checkUsageAlerts(userId: string, organizationId?: string):
 
     // If triggered and hasn't been triggered recently, send notification
     if (triggered && alert.notifyEmail) {
-      const lastTriggered = alert.lastTriggered ? new Date(alert.lastTriggered) : null;
+      const lastTriggered = alert.triggeredAt ? new Date(alert.triggeredAt) : null;
       const hoursSinceLastTrigger = lastTriggered
         ? (Date.now() - lastTriggered.getTime()) / (1000 * 60 * 60)
         : Infinity;
@@ -135,7 +135,7 @@ export async function checkUsageAlerts(userId: string, organizationId?: string):
         await db
           .update(usageAlerts)
           .set({ 
-            lastTriggered: new Date(),
+            triggeredAt: new Date(),
             updatedAt: new Date(),
           })
           .where(eq(usageAlerts.id, alert.id));
@@ -165,7 +165,7 @@ async function sendAlertNotification(alert: any, currentValue: number, threshold
 
   const subject = `Usage Alert: ${alertTypeLabels[alert.alertType] || alert.alertType} threshold reached`;
   const body = `
-    Hello ${user.name || user.email},
+    Hello ${user.fullName || user.email},
 
     Your ${alertTypeLabels[alert.alertType] || alert.alertType} usage has reached the alert threshold.
 

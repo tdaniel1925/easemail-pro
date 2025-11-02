@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       context.organizationId
         ? eq(auditLogs.organizationId, context.organizationId)
         : eq(auditLogs.userId, context.userId),
-      gte(auditLogs.timestamp, sinceDate),
+      gte(auditLogs.createdAt, sinceDate),
     ];
 
     if (action) {
@@ -38,25 +38,13 @@ export async function GET(request: NextRequest) {
 
     const logs = await db.query.auditLogs.findMany({
       where: and(...conditions),
-      orderBy: [desc(auditLogs.timestamp)],
+      orderBy: [desc(auditLogs.createdAt)],
       limit,
-      with: {
-        user: {
-          columns: {
-            email: true,
-            name: true,
-          },
-        },
-      },
     });
 
     return NextResponse.json({
       success: true,
-      logs: logs.map(log => ({
-        ...log,
-        userEmail: log.user?.email,
-        userName: log.user?.name,
-      })),
+      logs,
       total: logs.length,
     });
   } catch (error: any) {

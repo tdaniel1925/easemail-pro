@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
       organizationId: context.organizationId || null,
       userId: context.organizationId ? null : context.userId,
       alertType,
-      threshold: threshold.toString(),
-      notifyEmail,
+      thresholdValue: threshold.toString(),
+      notifyEmail: notifyEmail || false,
       notifyInApp,
       isActive: true,
     }).returning();

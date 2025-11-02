@@ -62,7 +62,6 @@ export async function logAudit(data: AuditLogData) {
       ipAddress: data.ipAddress || null,
       userAgent: data.userAgent || null,
       metadata: data.metadata as any,
-      timestamp: new Date(),
     });
 
     console.log('✅ Audit log created:', data.action, data.resourceType);
