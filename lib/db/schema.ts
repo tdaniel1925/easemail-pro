@@ -34,8 +34,30 @@ export const users = pgTable('users', {
   organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
   role: varchar('role', { length: 50 }).default('individual').notNull(), // 'platform_admin', 'org_admin', 'org_user', 'individual'
   suspended: boolean('suspended').default(false), // Admin can suspend users
+  
+  // User management fields for admin-created users
+  tempPassword: varchar('temp_password', { length: 255 }), // Encrypted temporary password
+  requirePasswordChange: boolean('require_password_change').default(false), // Force password change on next login
+  tempPasswordExpiresAt: timestamp('temp_password_expires_at'), // Temp password expiry (7 days)
+  accountStatus: varchar('account_status', { length: 50 }).default('active'), // pending, active, suspended, deactivated
+  lastLoginAt: timestamp('last_login_at'), // Track last login time
+  deactivatedAt: timestamp('deactivated_at'), // When account was deactivated (for 60-day deletion)
+  createdBy: uuid('created_by').references((): any => users.id, { onDelete: 'set null' }), // Admin who created this user
+  
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// User Audit Logs Table
+export const userAuditLogs = pgTable('user_audit_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  action: varchar('action', { length: 100 }).notNull(), // 'created', 'password_changed', 'suspended', 'deactivated', 'deleted', 'credentials_resent'
+  performedBy: uuid('performed_by').references((): any => users.id, { onDelete: 'set null' }), // Admin who performed the action
+  details: jsonb('details').$type<Record<string, any>>(), // Additional context
+  ipAddress: varchar('ip_address', { length: 45 }), // IP address
+  userAgent: text('user_agent'), // Browser/client info
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Email Accounts with Nylas/Aurinko support
