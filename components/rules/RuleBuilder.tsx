@@ -40,15 +40,34 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
   );
   const [stopProcessing, setStopProcessing] = useState(rule?.stopProcessing ?? false);
   const [saving, setSaving] = useState(false);
-  const [folders, setFolders] = useState<Array<{ name: string; type: string }>>([]);
+  const [folders, setFolders] = useState<Array<{ displayName: string; folderType: string }>>([]);
   const [loadingFolders, setLoadingFolders] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
-  // Fetch user's folders from the API
+  // Fetch user's current account on mount
+  useEffect(() => {
+    const fetchAccount = async () => {
+      try {
+        const response = await fetch('/api/nylas/accounts');
+        const data = await response.json();
+        if (data.success && data.accounts.length > 0) {
+          setSelectedAccountId(data.accounts[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching account:', error);
+      }
+    };
+    fetchAccount();
+  }, []);
+
+  // Fetch user's folders from the API (same endpoint as sidebar)
   useEffect(() => {
     const fetchFolders = async () => {
+      if (!selectedAccountId) return; // Wait for account to be loaded
+      
       setLoadingFolders(true);
       try {
-        const response = await fetch('/api/nylas/folders');
+        const response = await fetch(`/api/nylas/folders/sync?accountId=${selectedAccountId}`);
         const data = await response.json();
         if (data.success && data.folders) {
           setFolders(data.folders);
@@ -59,8 +78,9 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
         setLoadingFolders(false);
       }
     };
+    
     fetchFolders();
-  }, []);
+  }, [selectedAccountId]);
 
   // Field options
   const fieldOptions: { value: ConditionField; label: string }[] = [
@@ -407,8 +427,8 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
                                 <SelectContent>
                                   {folders.length > 0 ? (
                                     folders.map((folder) => (
-                                      <SelectItem key={folder.name} value={folder.name}>
-                                        {folder.name.replace(/\s*\([^)]*\)/, '')} {/* Remove type suffix for display */}
+                                      <SelectItem key={folder.displayName} value={folder.displayName}>
+                                        {folder.displayName}
                                       </SelectItem>
                                     ))
                                   ) : (
