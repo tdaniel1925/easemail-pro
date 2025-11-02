@@ -241,7 +241,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       >
         {/* Brand Header - Centered with Logo */}
         <div className="h-16 px-5 flex items-center justify-center border-b border-border/50">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
             <EaseMailLogo className="h-9 w-9" />
             <span className="text-xl font-semibold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
               EaseMail
