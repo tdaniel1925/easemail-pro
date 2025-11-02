@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const router = useRouter();
   const supabase = createClient();
 
@@ -21,6 +22,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -31,6 +33,9 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.user) {
+        // Show success message
+        setSuccess('Login successful! Redirecting...');
+        
         // Check if user needs to change password
         const response = await fetch(`/api/user/${data.user.id}`);
         if (response.ok) {
@@ -43,15 +48,16 @@ export default function LoginPage() {
           
           if (userData.requirePasswordChange) {
             // Redirect to password change page
-            router.push('/change-password');
+            setTimeout(() => router.push('/change-password'), 1000);
             return;
           }
         }
         
-        router.push('/inbox');
+        setTimeout(() => router.push('/inbox'), 1000);
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred during login');
+      setSuccess('');
     } finally {
       setLoading(false);
     }
@@ -118,8 +124,17 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/20 rounded-md">
+            <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
               {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="p-3 text-sm text-green-600 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {success}
             </div>
           )}
 
