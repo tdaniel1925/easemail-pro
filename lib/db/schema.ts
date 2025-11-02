@@ -815,12 +815,201 @@ export const teamInvitations = pgTable('team_invitations', {
   emailIdx: index('invitations_email_idx').on(table.email),
 }));
 
+// Invoices
+export const invoices = pgTable('invoices', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  
+  invoiceNumber: varchar('invoice_number', { length: 50 }).unique().notNull(),
+  amountUsd: decimal('amount_usd', { precision: 10, scale: 2 }).notNull(),
+  taxAmountUsd: decimal('tax_amount_usd', { precision: 10, scale: 2 }).default('0'),
+  totalUsd: decimal('total_usd', { precision: 10, scale: 2 }).notNull(),
+  currency: varchar('currency', { length: 3 }).default('USD'),
+  
+  status: varchar('status', { length: 50 }).default('draft'),
+  dueDate: timestamp('due_date'),
+  paidAt: timestamp('paid_at'),
+  periodStart: timestamp('period_start').notNull(),
+  periodEnd: timestamp('period_end').notNull(),
+  
+  lineItems: json('line_items').$type<Array<{description: string; quantity: number; unitPrice: number; total: number}>>(),
+  paymentMethod: varchar('payment_method', { length: 255 }),
+  
+  stripeInvoiceId: varchar('stripe_invoice_id', { length: 255 }).unique(),
+  stripePaymentIntentId: varchar('stripe_payment_intent_id', { length: 255 }),
+  
+  pdfUrl: varchar('pdf_url', { length: 500 }),
+  notes: text('notes'),
+  metadata: json('metadata').$type<Record<string, any>>(),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  orgIdIdx: index('invoices_org_id_idx').on(table.organizationId),
+  userIdIdx: index('invoices_user_id_idx').on(table.userId),
+  statusIdx: index('invoices_status_idx').on(table.status),
+  periodIdx: index('invoices_period_idx').on(table.periodStart, table.periodEnd),
+}));
+
+// Payment Methods
+export const paymentMethods = pgTable('payment_methods', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  
+  type: varchar('type', { length: 50 }).notNull(),
+  isDefault: boolean('is_default').default(false),
+  
+  lastFour: varchar('last_four', { length: 4 }),
+  brand: varchar('brand', { length: 50 }),
+  expiryMonth: integer('expiry_month'),
+  expiryYear: integer('expiry_year'),
+  
+  billingName: varchar('billing_name', { length: 255 }),
+  billingEmail: varchar('billing_email', { length: 255 }),
+  billingAddress: json('billing_address').$type<{street?: string; city?: string; state?: string; zip?: string; country?: string}>(),
+  
+  stripePaymentMethodId: varchar('stripe_payment_method_id', { length: 255 }).unique(),
+  stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
+  
+  status: varchar('status', { length: 50 }).default('active'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('payment_methods_user_id_idx').on(table.userId),
+  orgIdIdx: index('payment_methods_org_id_idx').on(table.organizationId),
+  defaultIdx: index('payment_methods_default_idx').on(table.isDefault),
+}));
+
+// AI Usage
+export const aiUsage = pgTable('ai_usage', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  
+  feature: varchar('feature', { length: 50 }).notNull(),
+  requestCount: integer('request_count').default(0),
+  
+  periodStart: timestamp('period_start').notNull(),
+  periodEnd: timestamp('period_end').notNull(),
+  
+  totalCostUsd: decimal('total_cost_usd', { precision: 10, scale: 2 }).default('0'),
+  includedRequests: integer('included_requests').default(0),
+  overageRequests: integer('overage_requests').default(0),
+  
+  metadata: json('metadata').$type<Record<string, any>>(),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('ai_usage_user_id_idx').on(table.userId),
+  orgIdIdx: index('ai_usage_org_id_idx').on(table.organizationId),
+  featureIdx: index('ai_usage_feature_idx').on(table.feature),
+  periodIdx: index('ai_usage_period_idx').on(table.periodStart, table.periodEnd),
+}));
+
+// Storage Usage
+export const storageUsage = pgTable('storage_usage', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  
+  totalBytes: bigint('total_bytes', { mode: 'number' }).default(0),
+  attachmentsBytes: bigint('attachments_bytes', { mode: 'number' }).default(0),
+  emailsBytes: bigint('emails_bytes', { mode: 'number' }).default(0),
+  otherBytes: bigint('other_bytes', { mode: 'number' }).default(0),
+  
+  periodStart: timestamp('period_start').notNull(),
+  periodEnd: timestamp('period_end').notNull(),
+  
+  includedGb: decimal('included_gb', { precision: 10, scale: 2 }).default('50'),
+  overageGb: decimal('overage_gb', { precision: 10, scale: 2 }).default('0'),
+  overageCostUsd: decimal('overage_cost_usd', { precision: 10, scale: 2 }).default('0'),
+  
+  snapshotDate: timestamp('snapshot_date').defaultNow(),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('storage_usage_user_id_idx').on(table.userId),
+  orgIdIdx: index('storage_usage_org_id_idx').on(table.organizationId),
+  periodIdx: index('storage_usage_period_idx').on(table.periodStart, table.periodEnd),
+}));
+
+// Usage Alerts
+export const usageAlerts = pgTable('usage_alerts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  
+  alertType: varchar('alert_type', { length: 50 }).notNull(),
+  thresholdValue: decimal('threshold_value', { precision: 10, scale: 2 }).notNull(),
+  thresholdUnit: varchar('threshold_unit', { length: 50 }),
+  
+  currentValue: decimal('current_value', { precision: 10, scale: 2 }).default('0'),
+  percentageUsed: decimal('percentage_used', { precision: 5, scale: 2 }).default('0'),
+  
+  isActive: boolean('is_active').default(true),
+  triggeredAt: timestamp('triggered_at'),
+  acknowledgedAt: timestamp('acknowledged_at'),
+  acknowledgedBy: uuid('acknowledged_by').references(() => users.id),
+  
+  notifyEmail: boolean('notify_email').default(true),
+  notifyInApp: boolean('notify_in_app').default(true),
+  notificationSentAt: timestamp('notification_sent_at'),
+  
+  periodStart: timestamp('period_start'),
+  periodEnd: timestamp('period_end'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('usage_alerts_user_id_idx').on(table.userId),
+  orgIdIdx: index('usage_alerts_org_id_idx').on(table.organizationId),
+  typeIdx: index('usage_alerts_type_idx').on(table.alertType),
+  activeIdx: index('usage_alerts_active_idx').on(table.isActive),
+}));
+
+// Audit Logs
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  
+  action: varchar('action', { length: 100 }).notNull(),
+  resourceType: varchar('resource_type', { length: 50 }),
+  resourceId: uuid('resource_id'),
+  
+  oldValue: json('old_value').$type<Record<string, any>>(),
+  newValue: json('new_value').$type<Record<string, any>>(),
+  
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  
+  metadata: json('metadata').$type<Record<string, any>>(),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('audit_logs_user_id_idx').on(table.userId),
+  orgIdIdx: index('audit_logs_org_id_idx').on(table.organizationId),
+  actionIdx: index('audit_logs_action_idx').on(table.action),
+  resourceIdx: index('audit_logs_resource_idx').on(table.resourceType, table.resourceId),
+}));
+
 // Relations
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),
   members: many(organizationMembers),
   subscriptions: many(subscriptions),
   invitations: many(teamInvitations),
+  invoices: many(invoices),
+  paymentMethods: many(paymentMethods),
+  aiUsage: many(aiUsage),
+  storageUsage: many(storageUsage),
+  usageAlerts: many(usageAlerts),
+  auditLogs: many(auditLogs),
 }));
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -856,6 +1045,12 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   }),
   organizationMemberships: many(organizationMembers),
   subscriptions: many(subscriptions),
+  invoices: many(invoices),
+  paymentMethods: many(paymentMethods),
+  aiUsageRecords: many(aiUsage),
+  storageUsageRecords: many(storageUsage),
+  usageAlertsOwned: many(usageAlerts),
+  auditLogsCreated: many(auditLogs),
 }));
 
 export const emailAccountsRelations = relations(emailAccounts, ({ one, many }) => ({
