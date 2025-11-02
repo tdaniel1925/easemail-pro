@@ -4,6 +4,7 @@ import { emailAccounts, emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import Nylas from 'nylas';
 import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
+import { assignEmailFolder, validateFolderAssignment } from '@/lib/email/folder-utils';
 
 const nylas = new Nylas({
   apiKey: process.env.NYLAS_API_KEY!,
@@ -205,6 +206,19 @@ async function performBackgroundSync(
 
             // Use INSERT ... ON CONFLICT DO NOTHING to handle duplicates gracefully
             // Use returning() to check if the insert actually happened (not a duplicate)
+            
+            // SAFE folder assignment - prevents the bug where everything goes to inbox
+            const assignedFolder = assignEmailFolder(message.folders);
+            
+            // VALIDATION: Ensure folder assignment is working correctly
+            try {
+              validateFolderAssignment(message.folders, assignedFolder);
+            } catch (validationError: any) {
+              console.error(`⚠️ Folder validation failed for ${message.id}:`, validationError.message);
+              console.error(`Folders from API:`, message.folders);
+              console.error(`Assigned folder:`, assignedFolder);
+            }
+            
             const result = await db.insert(emails).values({
               accountId: accountId,
               provider: 'nylas',
@@ -212,7 +226,7 @@ async function performBackgroundSync(
               messageId: message.object === 'message' ? sanitizeText(message.id) : undefined,
               threadId: sanitizeText(message.threadId),
               providerThreadId: sanitizeText(message.threadId),
-              folder: message.folders?.[0] ? sanitizeText(message.folders[0]) : 'inbox',
+              folder: assignedFolder,
               folders: message.folders || [],
               fromEmail: sanitizeText(message.from?.[0]?.email),
               fromName: sanitizeText(message.from?.[0]?.name),
