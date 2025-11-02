@@ -405,15 +405,18 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
                                   <SelectValue placeholder={loadingFolders ? "Loading folders..." : "Select folder..."} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {folders.map((folder) => (
-                                    <SelectItem key={folder.name} value={folder.name}>
-                                      {folder.name.replace(/\s*\([^)]*\)/, '')} {/* Remove type suffix for display */}
-                                    </SelectItem>
-                                  ))}
-                                  {folders.length === 0 && !loadingFolders && (
-                                    <SelectItem value="" disabled>
-                                      No folders available
-                                    </SelectItem>
+                                  {folders.length > 0 ? (
+                                    folders.map((folder) => (
+                                      <SelectItem key={folder.name} value={folder.name}>
+                                        {folder.name.replace(/\s*\([^)]*\)/, '')} {/* Remove type suffix for display */}
+                                      </SelectItem>
+                                    ))
+                                  ) : (
+                                    !loadingFolders && (
+                                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                        No folders available
+                                      </div>
+                                    )
                                   )}
                                 </SelectContent>
                               </Select>
