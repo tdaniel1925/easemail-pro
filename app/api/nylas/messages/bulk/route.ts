@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
         try {
           switch (action) {
             case 'delete':
+              console.log(`🗑️  Deleting email: ${message.id} (provider: ${message.providerMessageId})`);
+              
               // Move to trash in database AND Nylas
               await db.update(emails)
                 .set({
@@ -63,6 +65,8 @@ export async function POST(request: NextRequest) {
                   updatedAt: new Date(),
                 })
                 .where(eq(emails.id, message.id));
+              
+              console.log(`✅ Updated database: ${message.id} → isTrashed=true, folder=trash`);
               
               // CRITICAL: Also move to trash in Nylas
               try {
@@ -75,7 +79,7 @@ export async function POST(request: NextRequest) {
                 });
                 console.log(`✅ Moved email ${message.id} to trash in Nylas`);
               } catch (nylasError: any) {
-                console.error('❌ Nylas trash error:', nylasError);
+                console.error('❌ Nylas trash error:', nylasError.message);
                 // If Nylas fails, try to permanently delete instead
                 try {
                   await nylas.messages.destroy({
@@ -83,9 +87,10 @@ export async function POST(request: NextRequest) {
                     messageId: message.providerMessageId,
                   });
                   console.log(`✅ Permanently deleted email ${message.id} from Nylas`);
-                } catch (deleteError) {
-                  console.error('❌ Nylas delete also failed:', deleteError);
-                  throw new Error('Failed to delete from provider');
+                } catch (deleteError: any) {
+                  console.error('❌ Nylas delete also failed:', deleteError.message);
+                  // Don't throw - database is already updated
+                  console.log(`⚠️  Database marked as trashed, but Nylas sync failed`);
                 }
               }
               break;
