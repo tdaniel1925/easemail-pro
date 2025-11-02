@@ -16,7 +16,7 @@ import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import UsersContent from './UsersContent';
 import OrganizationsContent from './OrganizationsContent';
-import PricingContent from './PricingContent';
+import PricingContentSimple from './PricingContentSimple';
 import ApiKeysContent from './ApiKeysContent';
 import SettingsContent from './SettingsContent';
 
@@ -117,7 +117,7 @@ export default function AdminContent() {
       <main className="flex-1 overflow-hidden">
         {activeSection === 'users' && <UsersContent />}
         {activeSection === 'organizations' && <OrganizationsContent />}
-        {activeSection === 'pricing' && <PricingContent />}
+              {activeSection === 'pricing' && <PricingContentSimple />}
         {activeSection === 'api-keys' && <ApiKeysContent />}
         {activeSection === 'settings' && <SettingsContent />}
       </main>

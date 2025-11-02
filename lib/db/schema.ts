@@ -828,13 +828,15 @@ export const organizationMembersRelations = relations(organizationMembers, ({ on
     fields: [organizationMembers.organizationId],
     references: [organizations.id],
   }),
-  user: one(users, {
+  member: one(users, {
     fields: [organizationMembers.userId],
     references: [users.id],
+    relationName: 'memberUser', // ✅ Fix: explicit relation name
   }),
   inviter: one(users, {
     fields: [organizationMembers.invitedBy],
     references: [users.id],
+    relationName: 'inviterUser', // ✅ Fix: explicit relation name
   }),
 }));
 

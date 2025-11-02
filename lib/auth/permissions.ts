@@ -33,25 +33,22 @@ export async function getUserContext(): Promise<UserContext | null> {
       return null;
     }
 
-    // Get user from database with organization info
+    // Get user from database (no relational query to avoid ambiguous relation error)
     const dbUser = await db.query.users.findFirst({
       where: eq(users.id, user.id),
-      with: {
-        organizationMemberships: {
-          where: (members, { eq }) => eq(members.isActive, true),
-          with: {
-            organization: true,
-          },
-        },
-      },
     });
 
     if (!dbUser) {
       return null;
     }
 
-    // Get the active organization membership
-    const orgMembership = dbUser.organizationMemberships?.[0];
+    // Get the active organization membership separately
+    const orgMembership = await db.query.organizationMembers.findFirst({
+      where: and(
+        eq(organizationMembers.userId, user.id),
+        eq(organizationMembers.isActive, true)
+      ),
+    });
 
     return {
       userId: dbUser.id,
@@ -134,26 +131,9 @@ export async function getUserOrganization() {
 
   const organization = await db.query.organizations.findFirst({
     where: eq(organizations.id, context.organizationId),
-    with: {
-      members: {
-        where: (members, { eq }) => eq(members.isActive, true),
-        with: {
-          user: {
-            columns: {
-              id: true,
-              email: true,
-              fullName: true,
-              avatarUrl: true,
-            },
-          },
-        },
-      },
-      subscriptions: {
-        where: (subs, { eq }) => eq(subs.status, 'active'),
-      },
-    },
   });
 
+  // Don't use relational queries to avoid ambiguous relation errors
   return organization;
 }
 

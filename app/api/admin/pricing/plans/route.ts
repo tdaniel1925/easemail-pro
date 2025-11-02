@@ -8,16 +8,19 @@ import { requirePlatformAdmin } from '@/lib/auth/permissions';
 // GET /api/admin/pricing/plans - List all pricing plans
 export async function GET(request: NextRequest) {
   try {
-    await requirePlatformAdmin();
+    console.log('🔍 Pricing Plans API - Starting auth check...');
+    const context = await requirePlatformAdmin();
+    console.log('✅ Auth passed:', { userId: context.userId, email: context.email, role: context.userRole, isPlatformAdmin: context.isPlatformAdmin });
 
     const plans = await db.select().from(pricingPlans).orderBy(pricingPlans.name);
+    console.log('📊 Fetched plans:', plans.length);
 
     return NextResponse.json({ success: true, plans });
   } catch (error: any) {
-    console.error('Error fetching pricing plans:', error);
+    console.error('❌ Error fetching pricing plans:', error.message);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to fetch pricing plans' },
-      { status: error.message?.includes('Unauthorized') ? 403 : 500 }
+      { status: error.message?.includes('Unauthorized') || error.message?.includes('Forbidden') ? 403 : 500 }
     );
   }
 }
