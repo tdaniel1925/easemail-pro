@@ -250,6 +250,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
     try {
       console.log('📤 Sending email...');
+      console.log('📎 Current attachments array:', attachments);
+      console.log('📎 Attachments length:', attachments.length);
 
       // Upload attachments first if any
       const uploadedAttachments = [];
@@ -257,16 +259,21 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         console.log(`📎 Uploading ${attachments.length} attachment(s)...`);
         
         for (const file of attachments) {
+          console.log('📎 Processing file:', file.name, file.size, 'bytes');
           const formData = new FormData();
           formData.append('file', file);
           
+          console.log('📎 About to call /api/attachments/upload for:', file.name);
           const uploadResponse = await fetch('/api/attachments/upload', {
             method: 'POST',
             body: formData,
           });
           
+          console.log('📎 Upload response status:', uploadResponse.status);
+          
           if (uploadResponse.ok) {
             const uploadData = await uploadResponse.json();
+            console.log('📎 Upload successful:', uploadData);
             uploadedAttachments.push({
               filename: file.name,
               url: uploadData.attachment.storageUrl,
@@ -274,7 +281,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               size: file.size,
             });
           } else {
-            console.error('Failed to upload attachment:', file.name);
+            const errorText = await uploadResponse.text();
+            console.error('Failed to upload attachment:', file.name, errorText);
           }
         }
         
