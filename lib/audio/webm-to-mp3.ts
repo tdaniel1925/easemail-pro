@@ -3,7 +3,7 @@
  * Converts WebM audio blobs to MP3 format for better email compatibility
  */
 
-import lamejs from 'lamejs';
+import * as lamejs from '@breezystack/lamejs';
 
 export async function convertWebMToMP3(webmBlob: Blob): Promise<Blob> {
   console.log('🎵 Converting WebM to MP3...');
