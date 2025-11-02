@@ -7,7 +7,8 @@
     "dev:safe": "node scripts/dev-safe.js",
     "build": "next build",
     "start": "next start -p 3001",
-    "lint": "next lint"
+    "lint": "next lint",
+    "diagnose": "tsx scripts/diagnose-nylas.ts"
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",
@@ -82,6 +83,7 @@
     "eslint-config-next": "14.1.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.20.6",
     "typescript": "^5.3.3"
   }
 }
