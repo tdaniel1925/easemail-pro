@@ -82,6 +82,13 @@ export async function POST(request: NextRequest) {
     let sentMessage;
     let providerMessageId;
     
+    console.log('🔍 Account details:', {
+      provider: account.emailProvider,
+      hasNylasGrantId: !!account.nylasGrantId,
+      hasAccessToken: !!account.accessToken,
+      nylasGrantId: account.nylasGrantId?.substring(0, 10) + '...',
+    });
+    
     if (account.emailProvider === 'nylas' && account.nylasGrantId) {
       sentMessage = await sendNylasEmail(account.nylasGrantId, {
         to: parsedTo,
@@ -103,6 +110,11 @@ export async function POST(request: NextRequest) {
       });
       providerMessageId = sentMessage.id;
     } else {
+      console.error('❌ Provider not configured:', {
+        provider: account.emailProvider,
+        hasNylasGrantId: !!account.nylasGrantId,
+        hasAccessToken: !!account.accessToken,
+      });
       return NextResponse.json(
         { error: 'Email provider not configured' }, 
         { status: 400 }

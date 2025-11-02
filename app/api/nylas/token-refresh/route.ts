@@ -4,8 +4,16 @@ import { checkAndRefreshTokens, refreshAccountTokenManually } from '@/lib/email/
 // POST: Manually trigger token refresh for all accounts or specific account
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { accountId } = body;
+    let accountId;
+    
+    // Try to parse body, but don't fail if it's empty
+    try {
+      const body = await request.json();
+      accountId = body?.accountId;
+    } catch {
+      // No body or invalid JSON - that's ok, we'll refresh all accounts
+      accountId = undefined;
+    }
 
     if (accountId) {
       // Refresh specific account
