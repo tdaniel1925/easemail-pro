@@ -95,7 +95,7 @@ REFRESH MATERIALIZED VIEW folder_counts;
 -- ================================================
 
 -- Get counts for a specific account
--- ✅ FIX: Use UUID type instead of TEXT for account_id
+-- ✅ FIX: Cast VARCHAR to TEXT to match return type
 CREATE OR REPLACE FUNCTION get_account_folder_counts(p_account_id UUID)
 RETURNS TABLE (
   folder TEXT,
@@ -108,7 +108,7 @@ AS $$
 BEGIN
   RETURN QUERY
   SELECT 
-    fc.folder,
+    fc.folder::TEXT,  -- Cast VARCHAR(255) to TEXT
     fc.total_count,
     fc.unread_count,
     fc.last_email_at
@@ -119,7 +119,7 @@ END;
 $$;
 
 -- Get count for specific folder
--- ✅ FIX: Use UUID type instead of TEXT for account_id
+-- ✅ FIX: Cast VARCHAR to TEXT to match return type
 CREATE OR REPLACE FUNCTION get_folder_count(
   p_account_id UUID,
   p_folder TEXT
@@ -138,7 +138,7 @@ BEGIN
   FROM folder_counts fc
   WHERE 
     fc.account_id = p_account_id 
-    AND LOWER(fc.folder) = LOWER(p_folder);
+    AND LOWER(fc.folder::TEXT) = LOWER(p_folder);  -- Cast for comparison
 END;
 $$;
 
