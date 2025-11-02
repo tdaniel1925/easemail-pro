@@ -14,6 +14,9 @@ import SettingsMenu from '@/components/layout/SettingsMenu';
 import EaseMailLogo from '@/components/ui/EaseMailLogo';
 import { FolderSkeleton } from '@/components/ui/skeleton'; // ✅ PHASE 2: Loading states
 import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts'; // ✅ PHASE 2: Keyboard shortcuts
+import { buildFolderTree, flattenFolderTree } from '@/lib/email/folder-tree'; // ✅ PHASE 3: Folder hierarchy
+import { FolderSearch } from '@/components/email/FolderSearch'; // ✅ PHASE 3: Folder search
+import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop'; // ✅ PHASE 3: Drag and drop
 
 interface InboxLayoutProps {
   children: React.ReactNode;
@@ -36,6 +39,9 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   });
   const [activeFolder, setActiveFolder] = useState<string>('inbox'); // ✅ FIX #6: Track active folder
   const [foldersLoading, setFoldersLoading] = useState(false); // ✅ PHASE 2: Loading state
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set()); // ✅ PHASE 3: Track expanded folders
+  const [isFolderSearchOpen, setIsFolderSearchOpen] = useState(false); // ✅ PHASE 3: Folder search
+  const [recentFolders, setRecentFolders] = useState<string[]>([]); // ✅ PHASE 3: Recently used folders
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,11 +51,20 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const { waitingForSecondKey } = useKeyboardShortcuts({
     onCompose: () => setIsComposeOpen(true),
     onSearch: () => {
-      // Focus search input (implement in EmailClient)
-      console.log('⌨️ Focus search - to be implemented');
+      // ✅ PHASE 3: Open folder search
+      setIsFolderSearchOpen(true);
     },
-    enabled: true,
+    enabled: !isFolderSearchOpen, // Disable when search is open
   });
+
+  // ✅ PHASE 3: Drag and drop for moving emails
+  const {
+    dropTarget,
+    isDragging,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+  } = useDragAndDrop();
 
   // Listen for compose events from email cards
   useEffect(() => {
@@ -255,6 +270,31 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     router.push('/login');
   };
 
+  // ✅ PHASE 3: Handle folder selection with recent folders tracking
+  const handleFolderSelect = (folderName: string) => {
+    setActiveFolder(folderName);
+    router.push(`/inbox?folder=${encodeURIComponent(folderName)}`);
+    
+    // Add to recent folders (max 5)
+    setRecentFolders(prev => {
+      const updated = [folderName, ...prev.filter(f => f !== folderName)];
+      return updated.slice(0, 5);
+    });
+  };
+
+  // ✅ PHASE 3: Toggle folder expansion
+  const toggleFolderExpansion = (folderId: string) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(folderId)) {
+        newSet.delete(folderId);
+      } else {
+        newSet.add(folderId);
+      }
+      return newSet;
+    });
+  };
+
   // Get icon for folder type
   const getFolderIcon = (folderType: string) => {
     const icons: Record<string, any> = {
@@ -276,6 +316,10 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
 
   console.log('🗂️ System folders:', systemFolders.map(f => `${f.displayName} (${f.folderType})`));
   console.log('📂 Custom folders:', customFolders.map(f => `${f.displayName} (${f.folderType})`));
+
+  // ✅ PHASE 3: Build folder tree for hierarchical display
+  const folderTree = buildFolderTree(customFolders);
+  const flatFolders = flattenFolderTree(folderTree);
 
   // Show top system folders + limited custom folders
   const visibleCustomFolders = customFolders.slice(0, 5);
@@ -331,6 +375,49 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
               Compose
             </Button>
           </div>
+
+          {/* ✅ PHASE 3: Recently Used Folders */}
+          {recentFolders.length > 0 && (
+            <div className="px-2 mb-2">
+              <h3 className="px-3 text-xs font-semibold text-muted-foreground mb-2">RECENT</h3>
+              <div className="space-y-0.5">
+                {recentFolders.map(folderName => {
+                  const folder = folders.find(f => 
+                    (f.name || f.folderType?.toLowerCase()) === folderName
+                  );
+                  if (!folder) return null;
+                  
+                  const Icon = getFolderIcon(folder.folderType);
+                  const realTimeCount = folderCounts[folderName.toLowerCase()];
+                  const count = realTimeCount?.unreadCount || folder.unreadCount || 0;
+                  const isActive = activeFolder === folderName;
+
+                  return (
+                    <button
+                      key={folderName}
+                      onClick={() => handleFolderSelect(folderName)}
+                      className={cn(
+                        'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all',
+                        isActive
+                          ? 'bg-primary text-primary-foreground font-medium'
+                          : 'hover:bg-accent text-muted-foreground'
+                      )}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="truncate text-xs">{folder.displayName}</span>
+                      </div>
+                      {count > 0 && (
+                        <span className="px-1.5 py-0.5 text-xs rounded-full bg-muted text-muted-foreground">
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           
           <div className="space-y-0.5 px-2">
             {/* ✅ PHASE 2: Show skeleton while loading */}
@@ -349,20 +436,28 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
               
               // ✅ FIX #6: Check against activeFolder state
               const isActive = activeFolder === folderName;
+              // ✅ PHASE 3: Check if this is the drop target
+              const isDropTarget = dropTarget === folder.id;
               
               return (
                 <button
                   key={folder.id || folder.name}
                   onClick={() => {
-                    // ✅ FIX #6: Update active folder state
-                    setActiveFolder(folderName);
-                    // ✅ FIX #2: Use internal folder name (lowercase) for query
-                    router.push(`/inbox?folder=${encodeURIComponent(folderName)}`);
+                    // ✅ PHASE 3: Use handleFolderSelect for tracking
+                    handleFolderSelect(folderName);
                   }}
+                  onDragOver={(e) => handleDragOver(e, folder.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, folderName, () => {
+                    // Refresh emails after move
+                    window.dispatchEvent(new Event('refreshEmails'));
+                  })}
                   className={cn(
                     'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all',
                     isActive
                       ? 'bg-primary text-primary-foreground font-medium shadow-sm'
+                      : isDropTarget
+                      ? 'bg-accent border-2 border-primary'
                       : 'hover:bg-accent hover:shadow-sm text-muted-foreground'
                   )}
                 >
@@ -402,9 +497,9 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
                 <button
                   key={folder.id}
                   onClick={() => {
-                    // Navigate to inbox with folder parameter
+                    // ✅ PHASE 3: Use handleFolderSelect for tracking
                     const folderName = folder.displayName;
-                    router.push(`/inbox?folder=${encodeURIComponent(folderName)}`);
+                    handleFolderSelect(folderName);
                   }}
                   className="w-full flex items-center justify-between px-2.5 py-2 pl-8 rounded-md text-sm hover:bg-accent text-muted-foreground transition-colors"
                 >
@@ -596,6 +691,15 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       
       {/* Provider Selector Dialog */}
       <ProviderSelector isOpen={isProviderSelectorOpen} onClose={() => setIsProviderSelectorOpen(false)} />
+      
+      {/* ✅ PHASE 3: Folder Search Command Menu */}
+      <FolderSearch
+        isOpen={isFolderSearchOpen}
+        onClose={() => setIsFolderSearchOpen(false)}
+        folders={folders}
+        onSelectFolder={handleFolderSelect}
+        getFolderIcon={getFolderIcon}
+      />
     </div>
   );
 }
