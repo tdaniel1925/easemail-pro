@@ -151,23 +151,13 @@ export default function SettingsMenu({ onLogout, onNavigate, userRole: propUserR
                       </div>
                       <button
                         onClick={() => {
-                          onNavigate?.('/admin');
+                          onNavigate?.('/admin-v2');
                           setIsOpen(false);
                         }}
                         className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent text-muted-foreground transition-colors"
                       >
                         <Shield className="h-4 w-4" />
                         <span>Admin Dashboard</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          onNavigate?.('/admin/users');
-                          setIsOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent text-muted-foreground transition-colors"
-                      >
-                        <Users className="h-4 w-4" />
-                        <span>User Management</span>
                       </button>
                       <div className="border-t border-border my-1"></div>
                     </>
