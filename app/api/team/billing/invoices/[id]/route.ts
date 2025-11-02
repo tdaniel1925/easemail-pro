@@ -25,7 +25,7 @@ export async function GET(
     }
     
     // Verify access
-    if (invoice.organizationId !== context.organizationId && context.role !== 'platform_admin') {
+    if (invoice.organizationId !== context.organizationId && !context.isPlatformAdmin) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 403 }
@@ -57,7 +57,7 @@ export async function PATCH(
     
     // Verify invoice belongs to this org
     const invoice = await getInvoiceDetails(invoiceId);
-    if (!invoice || (invoice.organizationId !== context.organizationId && context.role !== 'platform_admin')) {
+    if (!invoice || (invoice.organizationId !== context.organizationId && !context.isPlatformAdmin)) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 403 }
