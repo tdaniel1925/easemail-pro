@@ -55,6 +55,8 @@ export const emailAccounts = pgTable('email_accounts', {
   accessToken: text('access_token'),
   refreshToken: text('refresh_token'),
   tokenExpiry: timestamp('token_expiry'),
+  tokenExpiresAt: timestamp('token_expires_at'), // ✅ For proactive refresh
+  refreshFailures: integer('refresh_failures').default(0), // ✅ Graceful degradation counter
   
   // Nylas specific
   nylasGrantId: varchar('nylas_grant_id', { length: 255 }),
@@ -609,6 +611,104 @@ export const contactNotes = pgTable('contact_notes', {
   contactIdIdx: index('contact_notes_contact_id_idx').on(table.contactId),
   userIdIdx: index('contact_notes_user_id_idx').on(table.userId),
   createdAtIdx: index('contact_notes_created_at_idx').on(table.createdAt),
+}));
+
+// ============================================================================
+// CALENDAR SYSTEM
+// ============================================================================
+
+// Calendar Events
+export const calendarEvents = pgTable('calendar_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  
+  // Event Details
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  location: text('location'),
+  
+  // Time
+  startTime: timestamp('start_time').notNull(),
+  endTime: timestamp('end_time').notNull(),
+  allDay: boolean('all_day').default(false),
+  timezone: varchar('timezone', { length: 50 }).default('UTC'),
+  
+  // Recurrence
+  isRecurring: boolean('is_recurring').default(false),
+  recurrenceRule: text('recurrence_rule'),
+  recurrenceEndDate: timestamp('recurrence_end_date'),
+  parentEventId: uuid('parent_event_id'),
+  
+  // Organization
+  calendarType: varchar('calendar_type', { length: 50 }).default('personal'),
+  color: varchar('color', { length: 20 }).default('blue'),
+  category: varchar('category', { length: 50 }),
+  
+  // Participants
+  organizerEmail: varchar('organizer_email', { length: 255 }),
+  attendees: jsonb('attendees').$type<Array<{
+    email: string;
+    name?: string;
+    status: 'accepted' | 'declined' | 'maybe' | 'pending';
+  }>>(),
+  
+  // Reminders
+  reminders: jsonb('reminders').$type<Array<{
+    type: 'email' | 'sms' | 'popup';
+    minutesBefore: number;
+  }>>(),
+  
+  // Google Calendar Sync
+  googleEventId: varchar('google_event_id', { length: 255 }),
+  googleCalendarId: varchar('google_calendar_id', { length: 255 }),
+  googleSyncStatus: varchar('google_sync_status', { length: 50 }),
+  googleLastSyncedAt: timestamp('google_last_synced_at'),
+  
+  // Microsoft Calendar Sync
+  microsoftEventId: varchar('microsoft_event_id', { length: 255 }),
+  microsoftCalendarId: varchar('microsoft_calendar_id', { length: 255 }),
+  microsoftSyncStatus: varchar('microsoft_sync_status', { length: 50 }),
+  microsoftLastSyncedAt: timestamp('microsoft_last_synced_at'),
+  
+  // Metadata
+  isPrivate: boolean('is_private').default(false),
+  status: varchar('status', { length: 50 }).default('confirmed'),
+  metadata: jsonb('metadata'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('calendar_events_user_id_idx').on(table.userId),
+  startTimeIdx: index('calendar_events_start_time_idx').on(table.startTime),
+  endTimeIdx: index('calendar_events_end_time_idx').on(table.endTime),
+  googleIdIdx: index('calendar_events_google_id_idx').on(table.googleEventId),
+  microsoftIdIdx: index('calendar_events_microsoft_id_idx').on(table.microsoftEventId),
+  statusIdx: index('calendar_events_status_idx').on(table.status),
+  parentIdIdx: index('calendar_events_parent_id_idx').on(table.parentEventId),
+}));
+
+// Calendar Sync State
+export const calendarSyncState = pgTable('calendar_sync_state', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  emailAccountId: uuid('email_account_id').references(() => emailAccounts.id, { onDelete: 'cascade' }),
+  
+  provider: varchar('provider', { length: 50 }).notNull(),
+  calendarId: varchar('calendar_id', { length: 255 }),
+  
+  lastSyncAt: timestamp('last_sync_at'),
+  syncToken: text('sync_token'),
+  pageToken: text('page_token'),
+  
+  syncStatus: varchar('sync_status', { length: 50 }).default('idle'),
+  lastError: text('last_error'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('calendar_sync_user_id_idx').on(table.userId),
+  accountIdIdx: index('calendar_sync_account_id_idx').on(table.emailAccountId),
+  providerIdx: index('calendar_sync_provider_idx').on(table.provider),
 }));
 
 // SMS Audit Log (for billing & compliance)

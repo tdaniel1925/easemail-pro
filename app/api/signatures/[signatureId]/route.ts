@@ -23,7 +23,7 @@ export async function GET(
 ) {
   try {
     const { signatureId } = await context.params;
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -45,9 +45,6 @@ export async function GET(
         eq(emailSignatures.id, signatureId),
         eq(emailSignatures.userId, dbUser.id)
       ),
-      with: {
-        account: true,
-      },
     });
 
     if (!signature) {
@@ -70,7 +67,7 @@ export async function PUT(
 ) {
   try {
     const { signatureId } = await context.params;
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -148,7 +145,7 @@ export async function DELETE(
 ) {
   try {
     const { signatureId } = await context.params;
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

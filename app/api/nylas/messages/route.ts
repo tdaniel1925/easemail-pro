@@ -84,6 +84,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 });
     }
     
+    // ✅ LAYER 3: Pre-sync token validation (refresh if expires within 48 hours)
+    const tokenExpiresAt = account.tokenExpiresAt 
+      ? new Date(account.tokenExpiresAt) 
+      : null;
+    
+    if (tokenExpiresAt) {
+      const hoursUntilExpiry = 
+        (tokenExpiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
+      
+      if (hoursUntilExpiry < 48) {
+        console.log(`🔑 Token expires in ${Math.round(hoursUntilExpiry)}h - refreshing before sync`);
+        
+        // Silently attempt refresh (don't block sync if it fails)
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/token-refresh`, { 
+            method: 'POST' 
+          });
+        } catch (refreshError) {
+          // Only fail sync if token is ACTUALLY expired
+          if (hoursUntilExpiry < 0) {
+            console.error('❌ Token expired and refresh failed');
+            return NextResponse.json({
+              error: 'Please reconnect your account',
+              requiresReconnect: true
+            }, { status: 401 });
+          }
+          // Otherwise continue - token still valid
+          console.log('⚠️ Token refresh failed but token still valid, continuing sync');
+        }
+      }
+    }
+    
     console.log('📧 Starting email sync for account:', {
       accountId,
       email: account.emailAddress,

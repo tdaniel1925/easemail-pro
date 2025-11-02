@@ -32,11 +32,22 @@ export function formatFileSize(bytes: number): string {
 }
 
 export function getInitials(name: string): string {
-  const names = name.split(' ');
+  if (!name || name.trim() === '') {
+    return '?';
+  }
+  
+  const trimmedName = name.trim();
+  const names = trimmedName.split(' ').filter(n => n.length > 0);
+  
   if (names.length >= 2) {
     return (names[0][0] + names[1][0]).toUpperCase();
   }
-  return name.slice(0, 2).toUpperCase();
+  
+  if (trimmedName.length >= 2) {
+    return trimmedName.slice(0, 2).toUpperCase();
+  }
+  
+  return trimmedName[0].toUpperCase();
 }
 
 export function generateAvatarColor(email: string): string {
@@ -44,6 +55,11 @@ export function generateAvatarColor(email: string): string {
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
     '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788'
   ];
+  
+  if (!email || email.trim() === '') {
+    return colors[0]; // Default color
+  }
+  
   let hash = 0;
   for (let i = 0; i < email.length; i++) {
     hash = email.charCodeAt(i) + ((hash << 5) - hash);

@@ -20,14 +20,22 @@ export async function initNylasAuth(userId: string, provider: string) {
   if (provider === 'microsoft') {
     // Microsoft (Outlook) requires Graph API scopes
     // Nylas will translate these to the appropriate Microsoft Graph permissions
-    scopes = ['Mail.ReadWrite', 'Mail.Send', 'Contacts.Read', 'offline_access'];
+    scopes = [
+      'Mail.ReadWrite', 
+      'Mail.Send', 
+      'Contacts.Read', 
+      'Calendars.ReadWrite', // Calendar access
+      'offline_access'
+    ];
   } else if (provider === 'google') {
-    // Google specific scopes - use Gmail API scopes
+    // Google specific scopes - use Gmail API scopes + Calendar
     scopes = [
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/gmail.send',
       'https://www.googleapis.com/auth/gmail.modify',
       'https://www.googleapis.com/auth/contacts.readonly',
+      'https://www.googleapis.com/auth/calendar', // Calendar full access
+      'https://www.googleapis.com/auth/calendar.events', // Calendar events
     ];
   } else {
     // Default scopes for other providers (IMAP, etc.)

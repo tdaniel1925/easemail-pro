@@ -35,6 +35,11 @@ function getErrorTitle(error: string): string {
 function getErrorMessage(error: string): string {
   const lowerError = error.toLowerCase();
   
+  // ✅ SILENT TOKEN MANAGEMENT: Only show reconnect message after ALL retries failed
+  if (lowerError.includes('needs reconnection') || lowerError.includes('account needs reconnection')) {
+    return "Your email account needs to be reconnected. This takes just 30 seconds and keeps your emails secure.";
+  }
+  
   if (lowerError.includes('service unavailable') || lowerError.includes('503')) {
     return "We're having trouble reaching the email service. This is usually temporary and resolves in a few minutes. Your emails are safe.";
   }

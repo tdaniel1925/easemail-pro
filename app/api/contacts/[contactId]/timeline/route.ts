@@ -42,24 +42,25 @@ export async function GET(
       filters.push(eq(contactCommunications.type, type as any));
     }
 
-    // Fetch communications
-    const communications = await db.query.contactCommunications.findMany({
-      where: and(...filters),
-      orderBy: [desc(contactCommunications.occurredAt)],
-      limit,
-      with: {
-        sms: true, // Include SMS details if available
-      },
-    });
+    // Fetch communications (without relations for now)
+    const communications = await db
+      .select()
+      .from(contactCommunications)
+      .where(and(...filters))
+      .orderBy(desc(contactCommunications.occurredAt))
+      .limit(limit);
 
     // Optionally include notes in timeline (marked separately)
-    const notes = await db.query.contactNotes.findMany({
-      where: and(
-        eq(contactNotes.userId, user.id),
-        eq(contactNotes.contactId, contactId)
-      ),
-      orderBy: [desc(contactNotes.createdAt)],
-    });
+    const notes = await db
+      .select()
+      .from(contactNotes)
+      .where(
+        and(
+          eq(contactNotes.userId, user.id),
+          eq(contactNotes.contactId, contactId)
+        )
+      )
+      .orderBy(desc(contactNotes.createdAt));
 
     // Combine and sort by timestamp
     const timeline = [
@@ -72,7 +73,7 @@ export async function GET(
         status: comm.status,
         metadata: comm.metadata,
         occurredAt: comm.occurredAt,
-        sms: comm.sms || null,
+        smsId: comm.smsId,
         itemType: 'communication',
       })),
       ...notes.map(note => ({

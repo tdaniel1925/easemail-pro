@@ -27,6 +27,12 @@ export function SMSModal({ isOpen, onClose, contact, onSuccess }: SMSModalProps)
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [twilioDetails, setTwilioDetails] = useState<{
+    sid?: string;
+    status?: string;
+    cost?: number;
+    segments?: number;
+  } | null>(null);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -34,6 +40,7 @@ export function SMSModal({ isOpen, onClose, contact, onSuccess }: SMSModalProps)
       setMessage('');
       setError(null);
       setSuccess(false);
+      setTwilioDetails(null);
     }
   }, [isOpen]);
 
@@ -58,8 +65,16 @@ export function SMSModal({ isOpen, onClose, contact, onSuccess }: SMSModalProps)
 
     setIsSending(true);
     setError(null);
+    setTwilioDetails(null);
 
     try {
+      console.log('🚀 Sending SMS to:', contact.phoneNumber);
+      console.log('📤 Request payload:', {
+        contactId: contact.id,
+        toPhone: contact.phoneNumber,
+        messageLength: message.trim().length,
+      });
+      
       const response = await fetch('/api/sms/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -70,19 +85,70 @@ export function SMSModal({ isOpen, onClose, contact, onSuccess }: SMSModalProps)
         }),
       });
 
-      const data = await response.json();
+      console.log('📡 Response status:', response.status, response.statusText);
+      console.log('📡 Response OK?', response.ok);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      // Try to get response text first to see raw response
+      const responseText = await response.text();
+      console.log('📄 Raw response text:', responseText);
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log('📦 Parsed response data:', data);
+        console.log('📦 data.success value:', data.success);
+        console.log('📦 typeof data.success:', typeof data.success);
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError);
+        setError('Failed to parse server response');
+        return;
+      }
 
-      if (data.success) {
+      // More lenient success check - check multiple conditions
+      const isSuccess = (
+        response.ok && 
+        (data.success === true || data.success === 'true') &&
+        (data.twilioSid || data.smsId)
+      );
+      
+      console.log('🔍 Success check:', {
+        responseOk: response.ok,
+        dataSuccess: data.success,
+        hasTwilioSid: !!data.twilioSid,
+        hasSmsId: !!data.smsId,
+        finalResult: isSuccess,
+      });
+
+      if (isSuccess) {
+        console.log('✅ SMS sent successfully!');
+        
+        // Save Twilio details
+        setTwilioDetails({
+          sid: data.twilioSid,
+          status: data.status || 'queued',
+          cost: data.cost,
+          segments: data.segments,
+        });
+        
         setSuccess(true);
         setTimeout(() => {
           onSuccess?.();
           onClose();
-        }, 2000);
+        }, 3000);
       } else {
-        setError(data.error || 'Failed to send SMS');
+        console.error('❌ SMS send failed - Response details:', {
+          status: response.status,
+          ok: response.ok,
+          dataSuccess: data.success,
+          data: data,
+        });
+        setError(data.error || data.details || data.message || `Failed: ${response.status} ${response.statusText}`);
       }
     } catch (err: any) {
-      setError(err.message || 'Network error');
+      console.error('❌ Network/Runtime error:', err);
+      console.error('Error stack:', err.stack);
+      setError(err.message || 'Network error - please check your connection');
     } finally {
       setIsSending(false);
     }
@@ -168,12 +234,35 @@ export function SMSModal({ isOpen, onClose, contact, onSuccess }: SMSModalProps)
           )}
 
           {/* Success Message */}
-          {success && (
-            <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-              <p className="text-sm text-green-700 dark:text-green-300">
-                SMS sent successfully!
-              </p>
+          {success && twilioDetails && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                    SMS sent successfully!
+                  </p>
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    Status: {twilioDetails.status} • SID: {twilioDetails.sid?.slice(-8)}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Twilio Details */}
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-1">Delivery Details:</p>
+                <div className="grid grid-cols-2 gap-2 text-xs text-blue-700 dark:text-blue-300">
+                  <div>
+                    <span className="font-medium">Segments:</span> {twilioDetails.segments || 1}
+                  </div>
+                  <div>
+                    <span className="font-medium">Cost:</span> ${twilioDetails.cost?.toFixed(4) || '0.05'}
+                  </div>
+                  <div className="col-span-2">
+                    <span className="font-medium">Twilio SID:</span> {twilioDetails.sid}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

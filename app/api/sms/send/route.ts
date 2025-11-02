@@ -141,23 +141,40 @@ export async function POST(request: NextRequest) {
 
     // 9. Communication timeline
     if (contactId) {
-      await db.insert(contactCommunications).values({
-        userId: user.id,
-        contactId: contactId,
-        type: 'sms_sent',
-        direction: 'outbound',
-        body: message,
-        snippet: message.substring(0, 200),
-        smsId: smsRecord.id,
-        status: result.status || 'queued',
-        metadata: {
-          cost: totalCost,
-          segments: segments.messageCount,
-          encoding: segments.encoding,
-          country: phoneValidation.country,
-        } as any,
-        occurredAt: new Date(),
-      });
+      try {
+        console.log('📝 Adding SMS to communication timeline for contact:', contactId);
+        
+        const timelineEntry = await db.insert(contactCommunications).values({
+          userId: user.id,
+          contactId: contactId,
+          type: 'sms_sent',
+          direction: 'outbound',
+          body: message,
+          snippet: message.substring(0, 200),
+          smsId: smsRecord.id,
+          status: result.status || 'queued',
+          metadata: {
+            cost: totalCost,
+            segments: segments.messageCount,
+            encoding: segments.encoding,
+            country: phoneValidation.country,
+          } as any,
+          occurredAt: new Date(),
+        }).returning();
+        
+        console.log('✅ SMS added to timeline successfully:', timelineEntry[0]?.id);
+      } catch (timelineError: any) {
+        // Don't fail the whole SMS send if timeline insert fails
+        console.error('⚠️ Failed to add to communication timeline:', timelineError);
+        console.error('⚠️ Timeline error details:', {
+          message: timelineError.message,
+          code: timelineError.code,
+          detail: timelineError.detail,
+        });
+        console.warn('SMS was still sent successfully. Timeline feature may need migration.');
+      }
+    } else {
+      console.warn('⚠️ No contactId provided, skipping timeline entry');
     }
 
     // 10. Audit Log
@@ -179,11 +196,14 @@ export async function POST(request: NextRequest) {
     await updateUsageTracking(user.id, result.cost || SMS_COST, totalCost);
 
     // 12. Success response
+    console.log('✅ SMS API Success - returning response with twilioSid:', result.sid);
+    
     return NextResponse.json({
       success: true,
       message: 'SMS sent successfully',
       smsId: smsRecord.id,
       twilioSid: result.sid,
+      status: result.status,
       cost: totalCost,
       segments: segments.messageCount,
       encoding: segments.encoding,
@@ -191,44 +211,61 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('❌ SMS send error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    
     return NextResponse.json(
-      { error: 'Failed to send SMS', details: error.message },
+      { 
+        success: false,
+        error: 'Failed to send SMS', 
+        details: error.message,
+        message: error.message,
+      },
       { status: 500 }
     );
   }
 }
 
 async function updateUsageTracking(userId: string, cost: number, charged: number) {
-  const now = new Date();
-  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  try {
+    const now = new Date();
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-  const existingUsage = await db.query.smsUsage.findFirst({
-    where: and(
-      eq(smsUsage.userId, userId),
-      gte(smsUsage.periodStart, periodStart),
-      lte(smsUsage.periodEnd, periodEnd)
-    ),
-  });
-
-  if (existingUsage) {
-    await db.update(smsUsage)
-      .set({
-        totalMessagesSent: (existingUsage.totalMessagesSent || 0) + 1,
-        totalCostUsd: (parseFloat(existingUsage.totalCostUsd || '0') + cost).toFixed(2),
-        totalChargedUsd: (parseFloat(existingUsage.totalChargedUsd || '0') + charged).toFixed(2),
-        updatedAt: new Date(),
-      })
-      .where(eq(smsUsage.id, existingUsage.id));
-  } else {
-    await db.insert(smsUsage).values({
-      userId,
-      periodStart,
-      periodEnd,
-      totalMessagesSent: 1,
-      totalCostUsd: cost.toFixed(2),
-      totalChargedUsd: charged.toFixed(2),
+    const existingUsage = await db.query.smsUsage.findFirst({
+      where: and(
+        eq(smsUsage.userId, userId),
+        gte(smsUsage.periodStart, periodStart),
+        lte(smsUsage.periodEnd, periodEnd)
+      ),
     });
+
+    if (existingUsage) {
+      await db.update(smsUsage)
+        .set({
+          totalMessagesSent: (existingUsage.totalMessagesSent || 0) + 1,
+          totalCostUsd: (parseFloat(existingUsage.totalCostUsd || '0') + cost).toFixed(2),
+          totalChargedUsd: (parseFloat(existingUsage.totalChargedUsd || '0') + charged).toFixed(2),
+          updatedAt: new Date(),
+        })
+        .where(eq(smsUsage.id, existingUsage.id));
+    } else {
+      await db.insert(smsUsage).values({
+        userId,
+        periodStart,
+        periodEnd,
+        totalMessagesSent: 1,
+        totalCostUsd: cost.toFixed(2),
+        totalChargedUsd: charged.toFixed(2),
+      });
+    }
+  } catch (usageError: any) {
+    // Don't fail SMS send if usage tracking fails
+    console.warn('⚠️ Failed to update SMS usage tracking:', usageError.message);
+    console.warn('SMS was still sent successfully. Usage tracking may need migration.');
   }
 }
 

@@ -90,14 +90,19 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     fetchAccounts();
     fetchUserContext(); // NEW: Fetch user role and org status
     
-    // Auto-refresh tokens every 30 minutes
+    // ✅ LAYER 1: Frontend token refresh (every 5 minutes + on focus)
+    const silentTokenRefresh = () => {
+      fetch('/api/nylas/token-refresh', { method: 'POST' })
+        .catch(() => {}); // Silent - no error handling needed
+    };
+    
+    // Run immediately on mount
+    silentTokenRefresh();
+    
+    // Run every 5 minutes (was 30 minutes)
     const tokenRefreshInterval = setInterval(() => {
-      console.log('🔑 Auto-refreshing tokens...');
-      fetch('/api/nylas/token-refresh', { method: 'POST', body: JSON.stringify({}) })
-        .then(res => res.json())
-        .then(data => console.log('✅ Token refresh result:', data))
-        .catch(err => console.error('❌ Token refresh failed:', err));
-    }, 30 * 60 * 1000); // Every 30 minutes
+      silentTokenRefresh();
+    }, 5 * 60 * 1000); // Every 5 minutes
 
     return () => clearInterval(tokenRefreshInterval);
   }, []);
@@ -151,6 +156,10 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   // Refetch folders when window regains focus (after navigating back from accounts page)
   useEffect(() => {
     const handleFocus = () => {
+      // ✅ Silently refresh tokens when user returns to app
+      fetch('/api/nylas/token-refresh', { method: 'POST' })
+        .catch(() => {}); // Silent
+      
       if (selectedAccountId) {
         console.log('🔄 Window focused, refetching folders...');
         fetchFolders(selectedAccountId);
@@ -467,7 +476,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         }}
         type={composeData?.type || 'compose'}
         accountId={selectedAccountId || undefined}
-        replyTo={composeData?.type && composeData?.email ? {
+        replyTo={composeData ? (composeData.type && composeData.email?.fromEmail ? {
           to: composeData.type === 'replyAll' 
             ? [
                 composeData.email.fromEmail,
@@ -480,7 +489,11 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             : `Re: ${composeData.email.subject}`,
           messageId: composeData.email.id,
           body: composeData.email.bodyText || composeData.email.bodyHtml || composeData.email.snippet || ''
-        } : undefined}
+        } : {
+          // New compose with pre-filled "to" (from contacts)
+          to: composeData.email?.to || '',
+          subject: composeData.email?.subject || '',
+        }) : undefined}
       />
       
       {/* Provider Selector Dialog */}

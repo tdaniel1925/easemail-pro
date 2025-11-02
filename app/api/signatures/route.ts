@@ -34,9 +34,6 @@ export async function GET(request: NextRequest) {
     const signatures = await db.query.emailSignatures.findMany({
       where: eq(emailSignatures.userId, dbUser.id),
       orderBy: (signatures, { desc }) => [desc(signatures.isDefault), desc(signatures.createdAt)],
-      with: {
-        account: true,
-      },
     });
 
     return NextResponse.json({ signatures });
