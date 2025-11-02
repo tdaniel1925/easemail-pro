@@ -43,42 +43,40 @@ export default function ThemeSelector() {
       <button
         onClick={toggleTheme}
         className={cn(
-          "relative w-full h-10 rounded-lg transition-colors",
-          "flex items-center justify-between px-3",
+          "relative w-full h-12 rounded-lg transition-colors",
+          "flex items-center justify-around px-4",
           "border border-border hover:bg-accent/50"
         )}
       >
-        {/* Light Mode Side */}
+        {/* Light Mode Icon */}
         <div className={cn(
-          "flex items-center gap-2 transition-colors",
-          isLight ? "text-foreground font-medium" : "text-muted-foreground"
+          "flex items-center justify-center transition-all z-10",
+          isLight ? "text-foreground scale-110" : "text-muted-foreground scale-90"
         )}>
-          <Sun className="h-4 w-4" />
-          <span className="text-sm">Corporate Grey</span>
+          <Sun className="h-5 w-5" />
         </div>
 
-        {/* Dark Mode Side */}
+        {/* Dark Mode Icon */}
         <div className={cn(
-          "flex items-center gap-2 transition-colors",
-          isDark ? "text-foreground font-medium" : "text-muted-foreground"
+          "flex items-center justify-center transition-all z-10",
+          isDark ? "text-foreground scale-110" : "text-muted-foreground scale-90"
         )}>
-          <span className="text-sm">Charcoal Dark</span>
-          <Moon className="h-4 w-4" />
+          <Moon className="h-5 w-5" />
         </div>
 
         {/* Active Indicator */}
         <div 
           className={cn(
-            "absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-md",
+            "absolute top-1.5 bottom-1.5 w-[calc(50%-8px)] rounded-md",
             "bg-primary/10 border border-primary/20 transition-all duration-200",
-            isLight ? "left-1" : "right-1"
+            isLight ? "left-1.5" : "right-1.5"
           )}
         />
       </button>
 
       {/* Current Theme Description */}
-      <div className="text-xs text-muted-foreground">
-        {currentTheme.description}
+      <div className="text-xs text-muted-foreground text-center">
+        {currentTheme.name}
       </div>
     </div>
   );
