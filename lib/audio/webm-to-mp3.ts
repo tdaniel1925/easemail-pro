@@ -37,27 +37,27 @@ export async function convertWebMToMP3(webmBlob: Blob): Promise<Blob> {
 
   // Encode to MP3
   const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128); // 1 channel (mono), sample rate, 128kbps bitrate
-  const mp3Data: Int8Array[] = [];
+  const mp3Data: Uint8Array[] = [];
   const sampleBlockSize = 1152; // Must be multiple of 576 for MP3 encoder
 
   for (let i = 0; i < int16Data.length; i += sampleBlockSize) {
     const sampleChunk = int16Data.subarray(i, i + sampleBlockSize);
     const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
-    if (mp3buf.length > 0) {
-      mp3Data.push(mp3buf);
+    if (mp3buf && mp3buf.length > 0) {
+      mp3Data.push(new Uint8Array(mp3buf));
     }
   }
 
   // Flush remaining data
   const mp3buf = mp3encoder.flush();
-  if (mp3buf.length > 0) {
-    mp3Data.push(mp3buf);
+  if (mp3buf && mp3buf.length > 0) {
+    mp3Data.push(new Uint8Array(mp3buf));
   }
 
   console.log('✅ MP3 encoding complete:', mp3Data.length, 'chunks');
 
   // Create MP3 blob
-  const mp3Blob = new Blob(mp3Data, { type: 'audio/mp3' });
+  const mp3Blob = new Blob(mp3Data as BlobPart[], { type: 'audio/mp3' });
   console.log('📦 Output size:', mp3Blob.size, 'bytes');
   console.log('💾 Size reduction:', Math.round((1 - mp3Blob.size / webmBlob.size) * 100) + '%');
 

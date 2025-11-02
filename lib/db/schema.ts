@@ -145,6 +145,8 @@ export const emails = pgTable('emails', {
   isArchived: boolean('is_archived').default(false),
   isTrashed: boolean('is_trashed').default(false),
   isDraft: boolean('is_draft').default(false),
+  isSnoozed: boolean('is_snoozed').default(false),
+  snoozeUntil: timestamp('snooze_until'),
   
   // Attachments
   hasAttachments: boolean('has_attachments').default(false),
@@ -1003,4 +1005,5 @@ export const planFeatureLimitsRelations = relations(planFeatureLimits, ({ one })
     references: [pricingPlans.id],
   }),
 }));
+
 

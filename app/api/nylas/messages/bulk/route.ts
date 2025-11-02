@@ -190,6 +190,89 @@ export async function POST(request: NextRequest) {
               }
               break;
 
+            case 'star':
+              // Star message
+              await db.update(emails)
+                .set({
+                  isStarred: true,
+                  updatedAt: new Date(),
+                })
+                .where(eq(emails.id, message.id));
+
+              // Update in Nylas
+              try {
+                await nylas.messages.update({
+                  identifier: grantId,
+                  messageId: message.providerMessageId,
+                  requestBody: {
+                    starred: true,
+                  },
+                });
+              } catch (nylasError) {
+                console.error('Nylas star error:', nylasError);
+              }
+              break;
+
+            case 'unstar':
+              // Unstar message
+              await db.update(emails)
+                .set({
+                  isStarred: false,
+                  updatedAt: new Date(),
+                })
+                .where(eq(emails.id, message.id));
+
+              // Update in Nylas
+              try {
+                await nylas.messages.update({
+                  identifier: grantId,
+                  messageId: message.providerMessageId,
+                  requestBody: {
+                    starred: false,
+                  },
+                });
+              } catch (nylasError) {
+                console.error('Nylas unstar error:', nylasError);
+              }
+              break;
+
+            case 'snooze':
+              // Snooze message until specified time
+              if (value) {
+                await db.update(emails)
+                  .set({
+                    isSnoozed: true,
+                    snoozeUntil: new Date(value),
+                    folder: 'snoozed',
+                    updatedAt: new Date(),
+                  })
+                  .where(eq(emails.id, message.id));
+              }
+              break;
+
+            case 'spam':
+              // Mark as spam
+              await db.update(emails)
+                .set({
+                  folder: 'spam',
+                  updatedAt: new Date(),
+                })
+                .where(eq(emails.id, message.id));
+
+              // Move to spam in Nylas
+              try {
+                await nylas.messages.update({
+                  identifier: grantId,
+                  messageId: message.providerMessageId,
+                  requestBody: {
+                    folders: ['spam'],
+                  },
+                });
+              } catch (nylasError) {
+                console.error('Nylas spam error:', nylasError);
+              }
+              break;
+
             default:
               return NextResponse.json(
                 { error: `Unknown action: ${action}` },

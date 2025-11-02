@@ -3,13 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { formatDate, getInitials, generateAvatarColor, formatFileSize } from '@/lib/utils';
-import { Star, Paperclip, Reply, ReplyAll, Forward, Download, ChevronDown, ChevronUp, Search, Sparkles, Loader2, Trash2, Archive, Mail, MailOpen, FolderInput, CheckSquare, Square, MessageSquare } from 'lucide-react';
+import { Star, Paperclip, Reply, ReplyAll, Forward, Download, ChevronDown, ChevronUp, Search, Sparkles, Loader2, Trash2, Archive, Mail, MailOpen, FolderInput, CheckSquare, Square, MessageSquare, Tag, Clock, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useEmailSummary } from '@/lib/hooks/useEmailSummary';
 import { ToastContainer, useToast } from '@/components/ui/toast';
 import { ThreadSummaryPanel } from '@/components/email/ThreadSummaryPanel';
+import { LabelManager } from '@/components/email/LabelManager';
+import { LabelPicker } from '@/components/email/LabelPicker';
+import { SnoozePicker } from '@/components/email/SnoozePicker';
 
 interface Email {
   id: string;
@@ -51,6 +54,138 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const { toasts, closeToast, success, error, info } = useToast();
+  
+  // Optimistic updates: track locally removed emails
+  const [locallyRemovedEmails, setLocallyRemovedEmails] = useState<Set<string>>(new Set());
+  
+  // Undo functionality: track last action for undo
+  const [undoStack, setUndoStack] = useState<{
+    action: string;
+    emailIds: string[];
+    timestamp: number;
+  } | null>(null);
+
+  // Filter out locally removed emails
+  const visibleEmails = emails.filter(email => !locallyRemovedEmails.has(email.id));
+
+  // ✅ Auto-clear undo stack after 5 seconds
+  useEffect(() => {
+    if (!undoStack) return;
+    
+    const timeElapsed = Date.now() - undoStack.timestamp;
+    const timeRemaining = 5000 - timeElapsed;
+    
+    if (timeRemaining > 0) {
+      const timer = setTimeout(() => {
+        setUndoStack(null);
+      }, timeRemaining);
+      
+      return () => clearTimeout(timer);
+    } else {
+      setUndoStack(null);
+    }
+  }, [undoStack]);
+  
+  // ✅ Undo handler
+  const handleUndo = () => {
+    if (!undoStack) return;
+    
+    // Restore emails from locallyRemovedEmails
+    setLocallyRemovedEmails(prev => {
+      const next = new Set(prev);
+      undoStack.emailIds.forEach(id => next.delete(id));
+      return next;
+    });
+    
+    // Clear undo stack
+    setUndoStack(null);
+  };
+  
+  // ✅ Label management
+  const [showLabelManager, setShowLabelManager] = useState(false);
+  const [showLabelPicker, setShowLabelPicker] = useState(false);
+  const [labelTargetEmails, setLabelTargetEmails] = useState<string[]>([]);
+  const [currentLabels, setCurrentLabels] = useState<string[]>([]);
+  
+  const handleApplyLabels = async (labelIds: string[]) => {
+    try {
+      const response = await fetch('/api/labels/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailIds: labelTargetEmails,
+          labelIds,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh email list to show updated labels
+        if (onRefresh) {
+          onRefresh();
+        }
+      } else {
+        error(data.error || 'Failed to apply labels');
+      }
+    } catch (err: any) {
+      console.error('Apply labels error:', err);
+      error('Failed to apply labels');
+    }
+  };
+  
+  const openLabelPickerForBulk = () => {
+    const selectedIds = Array.from(selectedEmails);
+    setLabelTargetEmails(selectedIds);
+    setCurrentLabels([]); // For bulk, we don't pre-select
+    setShowLabelPicker(true);
+  };
+  
+  // ✅ Snooze management
+  const [showSnoozePicker, setShowSnoozePicker] = useState(false);
+  const [snoozeTargetEmails, setSnoozeTargetEmails] = useState<string[]>([]);
+  
+  const handleSnooze = async (until: Date) => {
+    try {
+      const response = await fetch('/api/nylas/messages/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageIds: snoozeTargetEmails,
+          action: 'snooze',
+          value: until.toISOString(),
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Optimistically remove snoozed emails
+        setLocallyRemovedEmails(prev => {
+          const next = new Set(prev);
+          snoozeTargetEmails.forEach(id => next.add(id));
+          return next;
+        });
+        setSelectedEmails(new Set());
+        setSelectMode(false);
+        
+        if (onRefresh) {
+          setTimeout(() => onRefresh(), 500);
+        }
+      } else {
+        error(data.error || 'Failed to snooze emails');
+      }
+    } catch (err: any) {
+      console.error('Snooze error:', err);
+      error('Failed to snooze emails');
+    }
+  };
+  
+  const openSnoozePickerForBulk = () => {
+    const selectedIds = Array.from(selectedEmails);
+    setSnoozeTargetEmails(selectedIds);
+    setShowSnoozePicker(true);
+  };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (onSearchChange) {
@@ -59,10 +194,10 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
   };
 
   const handleSelectAll = () => {
-    if (selectedEmails.size === emails.length) {
+    if (selectedEmails.size === visibleEmails.length) {
       setSelectedEmails(new Set());
     } else {
-      setSelectedEmails(new Set(emails.map(e => e.id)));
+      setSelectedEmails(new Set(visibleEmails.map(e => e.id)));
     }
   };
 
@@ -90,7 +225,24 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
     }
 
     console.log(`📦 Performing bulk action: ${action} on ${selectedIds.length} emails`);
-    info(`Processing ${selectedIds.length} emails...`);
+
+    // ✅ OPTIMISTIC UPDATE: Remove from UI immediately for delete/archive
+    if (action === 'delete' || action === 'archive') {
+      setLocallyRemovedEmails(prev => {
+        const next = new Set(prev);
+        selectedIds.forEach(id => next.add(id));
+        return next;
+      });
+      setSelectedEmails(new Set());
+      setSelectMode(false);
+      
+      // Set undo stack
+      setUndoStack({
+        action,
+        emailIds: selectedIds,
+        timestamp: Date.now(),
+      });
+    }
 
     try {
       const response = await fetch('/api/nylas/messages/bulk', {
@@ -108,25 +260,43 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
 
       if (data.success) {
         console.log(`✅ Bulk action successful: ${data.message}`);
-        success(data.message);
         
-        // Clear selection
-        setSelectedEmails(new Set());
-        setSelectMode(false);
-        
-        // Refresh the email list without full page reload
-        if (onRefresh) {
-          setTimeout(() => {
-            onRefresh();
-          }, 500);
+        // Only show success and refresh for actions that didn't remove items
+        if (action !== 'delete' && action !== 'archive') {
+          setSelectedEmails(new Set());
+          setSelectMode(false);
+          
+          if (onRefresh) {
+            setTimeout(() => {
+              onRefresh();
+            }, 500);
+          }
         }
       } else {
         console.error('Bulk action failed:', data.error);
         error(`Failed: ${data.error || 'Unknown error'}`);
+        
+        // ❌ REVERT optimistic update on failure
+        if (action === 'delete' || action === 'archive') {
+          setLocallyRemovedEmails(prev => {
+            const next = new Set(prev);
+            selectedIds.forEach(id => next.delete(id));
+            return next;
+          });
+        }
       }
     } catch (err) {
       console.error('Bulk action error:', err);
       error('Failed to perform bulk action. Please try again.');
+      
+      // ❌ REVERT optimistic update on failure
+      if (action === 'delete' || action === 'archive') {
+        setLocallyRemovedEmails(prev => {
+          const next = new Set(prev);
+          selectedIds.forEach(id => next.delete(id));
+          return next;
+        });
+      }
     }
   };
 
@@ -212,6 +382,39 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
                 <FolderInput className="h-4 w-4 mr-2" />
                 Move
               </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={openLabelPickerForBulk}
+                title="Apply labels"
+                className="h-8"
+              >
+                <Tag className="h-4 w-4 mr-2" />
+                Labels
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={openSnoozePickerForBulk}
+                title="Snooze"
+                className="h-8"
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                Snooze
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleBulkAction('spam')}
+                title="Report spam"
+                className="h-8"
+              >
+                <Ban className="h-4 w-4 mr-2" />
+                Spam
+              </Button>
             </div>
 
             <div className="flex-1" />
@@ -264,7 +467,7 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
       {/* Email List */}
       <div className="flex-1 overflow-y-auto px-3 py-2">
         <div className="space-y-2">
-        {emails.map((email) => (
+        {visibleEmails.map((email) => (
           <EmailCard
             key={email.id}
             email={email}
@@ -279,10 +482,61 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
               else if (type === 'error') error(message);
               else if (type === 'info') info(message);
             }}
+            onRemove={(emailId, action) => {
+              // Optimistically remove from UI
+              setLocallyRemovedEmails(prev => {
+                const next = new Set(prev);
+                next.add(emailId);
+                return next;
+              });
+              
+              // Set undo stack
+              setUndoStack({
+                action,
+                emailIds: [emailId],
+                timestamp: Date.now(),
+              });
+            }}
           />
         ))}
         </div>
       </div>
+      
+      {/* ✅ Undo Bar */}
+      {undoStack && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5">
+          <div className="bg-foreground text-background px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
+            <span className="text-sm font-medium">
+              {undoStack.emailIds.length} email{undoStack.emailIds.length > 1 ? 's' : ''} {undoStack.action === 'delete' ? 'deleted' : 'archived'}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleUndo}
+              className="bg-background/10 hover:bg-background/20 text-background h-8"
+            >
+              Undo
+            </Button>
+          </div>
+        </div>
+      )}
+      
+      {/* ✅ Label Dialogs */}
+      <LabelManager
+        open={showLabelManager}
+        onClose={() => setShowLabelManager(false)}
+      />
+      <LabelPicker
+        open={showLabelPicker}
+        onClose={() => setShowLabelPicker(false)}
+        currentLabels={currentLabels}
+        onApply={handleApplyLabels}
+      />
+      <SnoozePicker
+        open={showSnoozePicker}
+        onClose={() => setShowSnoozePicker(false)}
+        onSnooze={handleSnooze}
+      />
     </div>
   );
 }
@@ -296,9 +550,10 @@ interface EmailCardProps {
   onSelect: (e: React.MouseEvent) => void;
   onClick: () => void;
   showToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
+  onRemove: (emailId: string, action: 'delete' | 'archive') => void;
 }
 
-function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSelect, onClick, showToast }: EmailCardProps) {
+function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSelect, onClick, showToast, onRemove }: EmailCardProps) {
   const avatarColor = generateAvatarColor(email.fromEmail || 'unknown@example.com');
   const [mounted, setMounted] = useState(false);
   const [fullEmail, setFullEmail] = useState<Email | null>(null);
@@ -370,6 +625,10 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
   
   const handleArchive = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // ✅ OPTIMISTIC UPDATE: Remove immediately
+    onRemove(email.id, 'archive');
+    
     try {
       const response = await fetch('/api/nylas/messages/bulk', {
         method: 'POST',
@@ -382,11 +641,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
 
       const data = await response.json();
       
-      if (data.success) {
-        showToast('success', 'Email archived');
-        // Trigger refresh if parent provided onRefresh
-        window.dispatchEvent(new CustomEvent('refreshEmails'));
-      } else {
+      if (!data.success) {
         showToast('error', 'Failed to archive email');
       }
     } catch (error) {
@@ -397,6 +652,10 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // ✅ OPTIMISTIC UPDATE: Remove immediately
+    onRemove(email.id, 'delete');
+    
     try {
       const response = await fetch('/api/nylas/messages/bulk', {
         method: 'POST',
@@ -409,15 +668,41 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
 
       const data = await response.json();
       
-      if (data.success) {
-        // Trigger refresh - NO TOAST notification
-        window.dispatchEvent(new CustomEvent('refreshEmails'));
-      } else {
+      if (!data.success) {
         showToast('error', 'Failed to delete email');
       }
     } catch (error) {
       console.error('Delete error:', error);
       showToast('error', 'Failed to delete email');
+    }
+  };
+  
+  const handleStar = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    const action = email.isStarred ? 'unstar' : 'star';
+    
+    try {
+      const response = await fetch('/api/nylas/messages/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageIds: [email.id],
+          action,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Trigger refresh to update star status
+        window.dispatchEvent(new CustomEvent('refreshEmails'));
+      } else {
+        showToast('error', `Failed to ${action} email`);
+      }
+    } catch (error) {
+      console.error(`${action} error:`, error);
+      showToast('error', `Failed to ${action} email`);
     }
   };
   
@@ -545,11 +830,8 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
                   {mounted ? formatDate(email.receivedAt) : ''}
                 </span>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Handle star toggle
-                  }}
-                  className="text-muted-foreground hover:text-yellow-500"
+                  onClick={handleStar}
+                  className="text-muted-foreground hover:text-yellow-500 transition-colors"
                 >
                   <Star
                     className={cn('h-4 w-4', email.isStarred && 'fill-yellow-500 text-yellow-500')}
@@ -589,6 +871,25 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
                   <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
                     <Paperclip className="h-3.5 w-3.5" />
                     <span>{email.attachments.length} attachment{email.attachments.length > 1 ? 's' : ''}</span>
+                  </div>
+                )}
+                
+                {/* Labels */}
+                {email.labels && email.labels.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {email.labels.slice(0, 3).map((label, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                    {email.labels.length > 3 && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs text-muted-foreground">
+                        +{email.labels.length - 3} more
+                      </span>
+                    )}
                   </div>
                 )}
               </>
