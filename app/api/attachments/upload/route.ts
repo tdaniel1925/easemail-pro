@@ -11,21 +11,45 @@ import { createClient } from '@/lib/supabase/server';
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
 export async function POST(request: NextRequest) {
+  console.log('🚀 Upload route hit');
+  
   try {
-    const userId = '00000000-0000-0000-0000-000000000000'; // Test user
+    console.log('📎 Upload API called');
+    
+    // Get authenticated user
+    const supabase = createClient();
+    console.log('✅ Supabase client created');
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('Auth check:', { hasUser: !!user, authError });
+    
+    if (authError || !user) {
+      console.error('❌ Auth error:', authError);
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
+    const userId = user.id;
+    console.log('✅ Authenticated user:', userId);
     
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
     if (!file) {
+      console.error('❌ No file provided');
       return NextResponse.json(
         { error: 'No file provided' },
         { status: 400 }
       );
     }
 
+    console.log('📁 File received:', file.name, file.size, 'bytes');
+
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
+      console.error('❌ File too large:', file.size);
       return NextResponse.json(
         { error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` },
         { status: 400 }
@@ -36,8 +60,9 @@ export async function POST(request: NextRequest) {
     const extension = file.name.split('.').pop()?.toLowerCase();
     
     // Upload to Supabase Storage
-    const supabase = createClient();
     const storagePath = `${userId}/manual/${Date.now()}_${file.name}`;
+    
+    console.log('☁️ Uploading to storage:', storagePath);
     
     const { error: uploadError, data: uploadData } = await supabase.storage
       .from('attachments')
@@ -47,17 +72,21 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadError) {
-      console.error('Storage upload error:', uploadError);
+      console.error('❌ Storage upload error:', uploadError);
       return NextResponse.json(
-        { error: 'Failed to upload file to storage' },
+        { error: 'Failed to upload file to storage', details: uploadError.message },
         { status: 500 }
       );
     }
+
+    console.log('✅ Storage upload successful');
 
     // Get public URL
     const { data: urlData } = supabase.storage
       .from('attachments')
       .getPublicUrl(storagePath);
+
+    console.log('🔗 Public URL:', urlData.publicUrl);
 
     // Create attachment record
     const [newAttachment] = await db.insert(attachments).values({
@@ -76,7 +105,7 @@ export async function POST(request: NextRequest) {
       aiProcessed: false,
     }).returning();
 
-    console.log(`📎 Manual upload: ${file.name} (${file.size} bytes)`);
+    console.log('✅ Database record created:', newAttachment.id);
 
     return NextResponse.json({
       success: true,
@@ -84,7 +113,8 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Upload error:', error);
+    console.error('❌ Upload error:', error);
+    console.error('❌ Error stack:', error.stack);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }
