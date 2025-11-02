@@ -1,5 +1,5 @@
 /**
- * AI Remix Panel Component
+ * AI Remix Panel Component - PROFESSIONAL REDESIGN
  * 
  * Transform existing email drafts with AI
  * Supports: tone, length, style, fixes, and variations
@@ -56,7 +56,6 @@ export function AIRemixPanel({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': 'temp-user', // TODO: Replace with actual user ID
         },
         body: JSON.stringify({
           content: currentContent,
@@ -102,7 +101,7 @@ export function AIRemixPanel({
   if (variations.length > 0) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto p-0">
           <VariationSelector
             variations={variations}
             selectedIndex={selectedVariation || 0}
@@ -118,48 +117,55 @@ export function AIRemixPanel({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden">
+      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto p-0">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6">
+        <div className="bg-card border-b border-border p-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Wand2 className="w-6 h-6" />
+            <div className="flex items-center gap-2">
+              <Wand2 className="w-5 h-5 text-primary" />
               <div>
-                <h2 className="text-2xl font-bold">AI Remix</h2>
-                <p className="text-sm opacity-90">Transform your email draft</p>
+                <h2 className="text-lg font-semibold">AI Remix</h2>
+                <p className="text-xs text-muted-foreground">Transform your draft</p>
               </div>
             </div>
             <Button
               onClick={onClose}
               variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/20"
+              size="icon"
+              className="h-8 w-8"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </Button>
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 space-y-4">
           {/* Tone Adjustment */}
           <div>
-            <label className="block text-sm font-semibold mb-3">TONE ADJUSTMENT</label>
-            <div className="grid grid-cols-5 gap-2">
+            <label className="block text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">
+              Tone
+            </label>
+            <div className="grid grid-cols-5 gap-1.5">
               {(['professional', 'friendly', 'casual', 'assertive', 'empathetic'] as ToneType[]).map((t) => (
-                <ToneButton
+                <Button
                   key={t}
-                  tone={t}
-                  active={tone === t}
+                  variant={tone === t ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-8 text-xs capitalize"
                   onClick={() => setTone(t)}
-                />
+                >
+                  {t.slice(0, 4)}
+                </Button>
               ))}
             </div>
           </div>
 
           {/* Length */}
           <div>
-            <label className="block text-sm font-semibold mb-3">LENGTH</label>
-            <div className="flex items-center gap-4">
+            <label className="block text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">
+              Length
+            </label>
+            <div className="flex items-center gap-3">
               <input
                 type="range"
                 min="0"
@@ -169,9 +175,9 @@ export function AIRemixPanel({
                   const val = parseInt(e.target.value);
                   setLength(val === 0 ? 'shorter' : val === 1 ? 'same' : 'longer');
                 }}
-                className="flex-1"
+                className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer"
               />
-              <span className="text-sm font-medium w-20 text-right">
+              <span className="text-xs font-medium w-16 text-right">
                 {length === 'shorter' && 'Shorter'}
                 {length === 'same' && 'Same'}
                 {length === 'longer' && 'Longer'}
@@ -181,34 +187,36 @@ export function AIRemixPanel({
 
           {/* Quick Fixes */}
           <div>
-            <label className="block text-sm font-semibold mb-3">QUICK FIXES</label>
-            <div className="grid grid-cols-2 gap-2">
+            <label className="block text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">
+              Quick Fixes
+            </label>
+            <div className="grid grid-cols-2 gap-1.5">
               {[
-                { value: 'grammar', label: 'Fix grammar & spelling' },
-                { value: 'clarity', label: 'Improve clarity' },
-                { value: 'conciseness', label: 'Make more concise' },
-                { value: 'flow', label: 'Better flow' },
+                { value: 'grammar', label: 'Grammar' },
+                { value: 'clarity', label: 'Clarity' },
+                { value: 'conciseness', label: 'Concise' },
+                { value: 'flow', label: 'Flow' },
               ].map((fix) => (
                 <button
                   key={fix.value}
                   onClick={() => toggleFix(fix.value)}
                   className={cn(
-                    'px-4 py-2 border rounded-lg text-sm transition-all text-left',
+                    'px-3 py-2 border rounded-md text-xs transition-all text-left',
                     fixes.includes(fix.value)
-                      ? 'border-purple-500 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border hover:border-primary/50 bg-card'
                   )}
                 >
                   <div className="flex items-center gap-2">
                     <div
                       className={cn(
-                        'w-4 h-4 border rounded flex items-center justify-center',
+                        'w-3.5 h-3.5 border rounded flex items-center justify-center',
                         fixes.includes(fix.value)
-                          ? 'border-purple-500 bg-purple-500'
-                          : 'border-gray-300'
+                          ? 'border-primary bg-primary'
+                          : 'border-muted-foreground/30'
                       )}
                     >
-                      {fixes.includes(fix.value) && <Check className="w-3 h-3 text-white" />}
+                      {fixes.includes(fix.value) && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
                     </div>
                     {fix.label}
                   </div>
@@ -219,31 +227,33 @@ export function AIRemixPanel({
 
           {/* Style Transform */}
           <div>
-            <label className="block text-sm font-semibold mb-3">STYLE TRANSFORM</label>
-            <div className="space-y-2">
+            <label className="block text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">
+              Style
+            </label>
+            <div className="space-y-1.5">
               {[
-                { value: 'same', label: 'Keep current style' },
-                { value: 'bullets', label: 'Convert to bullet points' },
-                { value: 'paragraph', label: 'Convert to paragraphs' },
-                { value: 'executive', label: 'Executive summary style' },
+                { value: 'same', label: 'Keep current' },
+                { value: 'bullets', label: 'Bullet points' },
+                { value: 'paragraph', label: 'Paragraphs' },
+                { value: 'executive', label: 'Executive summary' },
               ].map((s) => (
                 <button
                   key={s.value}
                   onClick={() => setStyle(s.value as StyleType)}
                   className={cn(
-                    'w-full px-4 py-2 border rounded-lg text-sm transition-all text-left',
+                    'w-full px-3 py-2 border rounded-md text-xs transition-all text-left',
                     style === s.value
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50 bg-card'
                   )}
                 >
                   <div className="flex items-center gap-2">
                     <div
                       className={cn(
-                        'w-4 h-4 border rounded-full',
+                        'w-3 h-3 border rounded-full',
                         style === s.value
-                          ? 'border-purple-500 bg-purple-500'
-                          : 'border-gray-300'
+                          ? 'border-primary bg-primary'
+                          : 'border-muted-foreground/30'
                       )}
                     />
                     {s.label}
@@ -255,14 +265,14 @@ export function AIRemixPanel({
 
           {/* Error Display */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-xs text-destructive">
               {error}
             </div>
           )}
 
           {/* Actions */}
-          <div className="flex justify-between pt-4 border-t border-gray-200">
-            <Button variant="ghost" onClick={onClose}>
+          <div className="flex justify-between pt-3 border-t border-border">
+            <Button variant="ghost" size="sm" onClick={onClose}>
               Cancel
             </Button>
             <div className="flex gap-2">
@@ -270,23 +280,24 @@ export function AIRemixPanel({
                 onClick={() => handleRemix(true)}
                 disabled={isRemixing}
                 variant="outline"
+                size="sm"
               >
-                Generate 3 Variations
+                3 Variations
               </Button>
               <Button
                 onClick={() => handleRemix(false)}
                 disabled={isRemixing}
-                className="bg-gradient-to-r from-purple-600 to-pink-600"
+                size="sm"
               >
                 {isRemixing ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Remixing...
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    Remixing
                   </>
                 ) : (
                   <>
-                    <Wand2 className="w-4 h-4 mr-2" />
-                    Apply Remix
+                    <Wand2 className="w-3.5 h-3.5 mr-1.5" />
+                    Apply
                   </>
                 )}
               </Button>
@@ -295,50 +306,6 @@ export function AIRemixPanel({
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/**
- * Tone Button Component
- */
-function ToneButton({
-  tone,
-  active,
-  onClick,
-}: {
-  tone: ToneType;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const icons = {
-    professional: '💼',
-    friendly: '😊',
-    casual: '💬',
-    assertive: '⚡',
-    empathetic: '❤️',
-  };
-
-  const labels = {
-    professional: 'Pro',
-    friendly: 'Friend',
-    casual: 'Casual',
-    assertive: 'Assert',
-    empathetic: 'Care',
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'p-3 border-2 rounded-lg transition-all',
-        active
-          ? 'border-purple-500 bg-purple-50'
-          : 'border-gray-200 hover:border-gray-300'
-      )}
-    >
-      <div className="text-2xl mb-1">{icons[tone]}</div>
-      <div className="text-xs font-medium">{labels[tone]}</div>
-    </button>
   );
 }
 
@@ -362,61 +329,61 @@ function VariationSelector({
 }) {
   return (
     <>
-      <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6">
+      <div className="bg-card border-b border-border p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Choose Your Version</h2>
+          <h2 className="text-lg font-semibold">Choose Version</h2>
           <Button
             onClick={onClose}
             variant="ghost"
-            size="sm"
-            className="text-white hover:bg-white/20"
+            size="icon"
+            className="h-8 w-8"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      <div className="p-6 space-y-4">
+      <div className="p-4 space-y-3">
         {variations.map((variation, index) => (
           <button
             key={index}
             onClick={() => onSelect(index)}
             className={cn(
-              'w-full p-4 border-2 rounded-lg text-left transition-all',
+              'w-full p-3 border rounded-md text-left transition-all',
               selectedIndex === index
-                ? 'border-purple-500 bg-purple-50'
-                : 'border-gray-200 hover:border-gray-300'
+                ? 'border-primary bg-primary/10'
+                : 'border-border hover:border-primary/50 bg-card'
             )}
           >
             <div className="flex items-start justify-between mb-2">
-              <div className="font-semibold">
+              <div className="text-sm font-semibold">
                 Version {index + 1}
                 {index === 1 && (
-                  <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                    ⭐ Recommended
+                  <span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
+                    Recommended
                   </span>
                 )}
               </div>
-              {selectedIndex === index && <Check className="w-5 h-5 text-purple-600" />}
+              {selectedIndex === index && <Check className="w-4 h-4 text-primary" />}
             </div>
-            <div className="text-sm text-gray-700 mb-2 line-clamp-3">
+            <div className="text-xs text-muted-foreground mb-2 line-clamp-3">
               {variation.body}
             </div>
             {variation.changes.length > 0 && (
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-muted-foreground">
                 Changes: {variation.changes.join(', ')}
               </div>
             )}
           </button>
         ))}
 
-        <div className="flex justify-between pt-4 border-t border-gray-200">
-          <Button variant="ghost" onClick={onBack}>
+        <div className="flex justify-between pt-3 border-t border-border">
+          <Button variant="ghost" size="sm" onClick={onBack}>
             ← Back
           </Button>
           <Button
             onClick={onApply}
-            className="bg-gradient-to-r from-purple-600 to-pink-600"
+            size="sm"
           >
             Use Version {selectedIndex + 1}
           </Button>
@@ -425,4 +392,3 @@ function VariationSelector({
     </>
   );
 }
-

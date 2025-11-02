@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, lazy } from 'react';
-import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, Bold, Italic, Underline, List, PenTool, Check } from 'lucide-react';
+import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, Bold, Italic, Underline, List, PenTool, Check, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,6 +51,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
+  const [isHtmlMode, setIsHtmlMode] = useState(true); // HTML vs Plain text mode
 
   // Signature state
   const { signatures, getApplicableSignature, renderSignature } = useSignatures();
@@ -417,6 +418,15 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     }
   };
 
+  const handleInsertHeading = (level: 1 | 2 | 3) => {
+    const hashes = '#'.repeat(level);
+    setBody(body + `\n${hashes} Heading\n`);
+  };
+
+  const handleInsertCodeBlock = () => {
+    setBody(body + '\n```\nCode here\n```\n');
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -572,13 +582,27 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
             </div>
 
             {/* Toolbar */}
-            <div className="flex items-center gap-1 p-2 border-b border-border bg-muted/30">
+            <div className="flex items-center gap-1 p-2 border-b border-border bg-muted/30 overflow-x-auto">
+              {/* HTML/Plain Toggle */}
+              <Button
+                variant={isHtmlMode ? 'default' : 'outline'}
+                size="sm"
+                className="h-7 text-xs px-2"
+                onClick={() => setIsHtmlMode(!isHtmlMode)}
+                title="Toggle HTML/Plain Text"
+              >
+                {isHtmlMode ? 'HTML' : 'Plain'}
+              </Button>
+              <div className="w-px h-6 bg-border mx-1" />
+
+              {/* Basic Formatting */}
               <Button
                 variant="ghost"
                 size="icon"
                 className={cn('h-8 w-8', isBold && 'bg-accent')}
                 onClick={() => setIsBold(!isBold)}
                 title="Bold (Ctrl+B)"
+                disabled={!isHtmlMode}
               >
                 <Bold className="h-4 w-4" />
               </Button>
@@ -588,6 +612,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 className={cn('h-8 w-8', isItalic && 'bg-accent')}
                 onClick={() => setIsItalic(!isItalic)}
                 title="Italic (Ctrl+I)"
+                disabled={!isHtmlMode}
               >
                 <Italic className="h-4 w-4" />
               </Button>
@@ -597,20 +622,72 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 className={cn('h-8 w-8', isUnderline && 'bg-accent')}
                 onClick={() => setIsUnderline(!isUnderline)}
                 title="Underline (Ctrl+U)"
+                disabled={!isHtmlMode}
               >
                 <Underline className="h-4 w-4" />
               </Button>
+
               <div className="w-px h-6 bg-border mx-1" />
+
+              {/* Headings */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                title="Heading 1"
+                onClick={() => handleInsertHeading(1)}
+                disabled={!isHtmlMode}
+              >
+                <Heading1 className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                title="Heading 2"
+                onClick={() => handleInsertHeading(2)}
+                disabled={!isHtmlMode}
+              >
+                <Heading2 className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                title="Heading 3"
+                onClick={() => handleInsertHeading(3)}
+                disabled={!isHtmlMode}
+              >
+                <Heading3 className="h-4 w-4" />
+              </Button>
+
+              <div className="w-px h-6 bg-border mx-1" />
+
+              {/* List & Code */}
               <Button 
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8" 
                 title="Bullet list"
                 onClick={() => setBody(body + '\n• ')}
+                disabled={!isHtmlMode}
               >
                 <List className="h-4 w-4" />
               </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                title="Code block"
+                onClick={handleInsertCodeBlock}
+                disabled={!isHtmlMode}
+              >
+                <Code className="h-4 w-4" />
+              </Button>
+
               <div className="w-px h-6 bg-border mx-1" />
+
+              {/* Link & Image */}
               <Button 
                 variant="ghost" 
                 size="icon" 
