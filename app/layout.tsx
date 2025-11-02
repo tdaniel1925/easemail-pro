@@ -11,8 +11,12 @@ export const metadata: Metadata = {
   keywords: ["email client", "email management", "AI email", "team collaboration", "productivity"],
   authors: [{ name: "EaseMail" }],
   icons: {
-    icon: '/icon',
-    apple: '/apple-icon',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.svg', type: 'image/svg+xml', sizes: '180x180' },
+    ],
   },
   manifest: '/manifest.json',
   themeColor: '#667eea',
