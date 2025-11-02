@@ -12,16 +12,28 @@ export default function ThemeSelector() {
   // Apply theme immediately on mount from localStorage (prevents flash)
   useEffect(() => {
     const savedThemeId = localStorage.getItem('easemail-theme');
-    if (savedThemeId) {
-      const savedTheme = themes.find(t => t.id === savedThemeId);
-      if (savedTheme) {
-        // Apply immediately before React renders
-        Object.entries(savedTheme.colors).forEach(([key, value]) => {
-          const cssVar = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
-          document.documentElement.style.setProperty(cssVar, value);
-        });
-      }
-      setTheme(savedThemeId);
+    const validThemeIds = themes.map(t => t.id); // ['light-grey', 'charcoal']
+    
+    // Validate saved theme is one of the valid themes
+    let themeToApply = savedThemeId && validThemeIds.includes(savedThemeId) 
+      ? savedThemeId 
+      : 'light-grey'; // Default to Corporate Grey
+    
+    const themeToUse = themes.find(t => t.id === themeToApply);
+    
+    if (themeToUse) {
+      // Apply immediately before React renders
+      Object.entries(themeToUse.colors).forEach(([key, value]) => {
+        const cssVar = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
+        document.documentElement.style.setProperty(cssVar, value);
+      });
+      
+      // Update store and localStorage with valid theme
+      setTheme(themeToApply);
+    } else {
+      // Fallback: force Corporate Grey and clear bad localStorage
+      localStorage.removeItem('easemail-theme');
+      setTheme('light-grey');
     }
   }, []);
 
