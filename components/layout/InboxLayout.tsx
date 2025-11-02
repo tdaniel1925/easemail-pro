@@ -17,6 +17,9 @@ import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts'; // ✅ 
 import { buildFolderTree, flattenFolderTree } from '@/lib/email/folder-tree'; // ✅ PHASE 3: Folder hierarchy
 import { FolderSearch } from '@/components/email/FolderSearch'; // ✅ PHASE 3: Folder search
 import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop'; // ✅ PHASE 3: Drag and drop
+import { usePrefetch } from '@/lib/hooks/usePrefetch'; // ✅ PHASE 4: Prefetching
+import { folderCache } from '@/lib/cache/folder-cache'; // ✅ PHASE 4: Folder caching
+import { registerServiceWorker, setupOnlineListeners } from '@/lib/utils/service-worker'; // ✅ PHASE 4: Offline support
 
 interface InboxLayoutProps {
   children: React.ReactNode;
@@ -42,6 +45,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set()); // ✅ PHASE 3: Track expanded folders
   const [isFolderSearchOpen, setIsFolderSearchOpen] = useState(false); // ✅ PHASE 3: Folder search
   const [recentFolders, setRecentFolders] = useState<string[]>([]); // ✅ PHASE 3: Recently used folders
+  const [isOnline, setIsOnline] = useState(true); // ✅ PHASE 4: Online status
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -65,6 +69,16 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     handleDragLeave,
     handleDrop,
   } = useDragAndDrop();
+
+  // ✅ PHASE 4: Prefetching for instant navigation
+  const {
+    prefetchFolders,
+    prefetchEmails,
+    cancelPrefetch,
+  } = usePrefetch({
+    delay: 200, // Prefetch after 200ms hover
+    enabled: true,
+  });
 
   // Listen for compose events from email cards
   useEffect(() => {
@@ -121,6 +135,29 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     fetchAccounts();
     fetchUserContext(); // NEW: Fetch user role and org status
     
+    // ✅ PHASE 4: Register service worker for offline support
+    if (typeof window !== 'undefined') {
+      registerServiceWorker().catch(err => 
+        console.error('Failed to register service worker:', err)
+      );
+    }
+    
+    // ✅ PHASE 4: Setup online/offline listeners
+    const cleanup = setupOnlineListeners(
+      () => {
+        setIsOnline(true);
+        setMessage({ type: 'success', text: 'Back online! Syncing...' });
+        // Refresh data when back online
+        if (selectedAccountId) {
+          fetchFolders(selectedAccountId);
+        }
+      },
+      () => {
+        setIsOnline(false);
+        setMessage({ type: 'info', text: 'Offline mode - showing cached data' });
+      }
+    );
+    
     // ✅ LAYER 1: Frontend token refresh (every 5 minutes + on focus)
     const silentTokenRefresh = () => {
       fetch('/api/nylas/token-refresh', { method: 'POST' })
@@ -135,7 +172,10 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       silentTokenRefresh();
     }, 5 * 60 * 1000); // Every 5 minutes
 
-    return () => clearInterval(tokenRefreshInterval);
+    return () => {
+      clearInterval(tokenRefreshInterval);
+      cleanup();
+    };
   }, []);
 
   // NEW: Fetch user's role and organization membership
@@ -220,7 +260,23 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
 
   const fetchFolders = async (accountId: string) => {
     setFoldersLoading(true); // ✅ PHASE 2: Show loading state
+    
     try {
+      // ✅ PHASE 4: Try cache first
+      const cached = await folderCache.getFolders(accountId);
+      
+      if (cached) {
+        console.log('📦 Using cached folders');
+        setFolders(cached.folders || []);
+        setFolderCounts(cached.counts);
+        setFoldersLoading(false);
+        
+        // Still fetch in background to update cache
+        // (handled by cache manager's background refresh)
+        return;
+      }
+      
+      // Cache miss - fetch from API
       const response = await fetch(`/api/nylas/folders/sync?accountId=${accountId}`);
       const data = await response.json();
       if (data.success) {
@@ -228,7 +284,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         setFolders(data.folders || []);
         
         // ✅ PHASE 2: Fetch real-time counts immediately after folders load
-        fetchFolderCounts(accountId);
+        await fetchFolderCounts(accountId);
       } else {
         console.error('❌ Failed to fetch folders:', data.error);
         setFolders([]); // Clear on error
@@ -241,29 +297,32 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     }
   };
 
-  // ✅ PHASE 2: Fetch real-time folder counts from local database
-  const fetchFolderCounts = async (accountId: string) => {
-    try {
-      const response = await fetch(`/api/nylas/folders/counts?accountId=${accountId}`);
-      const data = await response.json();
-      
-      if (data.success && data.counts) {
-        // Convert array to map for easy lookup
-        const countsMap: Record<string, { totalCount: number; unreadCount: number }> = {};
-        data.counts.forEach((count: any) => {
-          countsMap[count.folder.toLowerCase()] = {
-            totalCount: count.totalCount,
-            unreadCount: count.unreadCount,
-          };
-        });
-        
-        console.log('📊 Real-time folder counts:', countsMap);
-        setFolderCounts(countsMap);
-      }
-    } catch (error) {
-      console.error('Failed to fetch folder counts:', error);
-    }
-  };
+      // ✅ PHASE 2: Fetch real-time folder counts from local database
+      const fetchFolderCounts = async (accountId: string) => {
+        try {
+          const response = await fetch(`/api/nylas/folders/counts?accountId=${accountId}`);
+          const data = await response.json();
+          
+          if (data.success && data.counts) {
+            // Convert array to map for easy lookup
+            const countsMap: Record<string, { totalCount: number; unreadCount: number }> = {};
+            data.counts.forEach((count: any) => {
+              countsMap[count.folder.toLowerCase()] = {
+                totalCount: count.totalCount,
+                unreadCount: count.unreadCount,
+              };
+            });
+            
+            console.log('📊 Real-time folder counts:', countsMap);
+            setFolderCounts(countsMap);
+            
+            // ✅ PHASE 4: Update cache with fresh data
+            folderCache.setFolders(accountId, folders, countsMap);
+          }
+        } catch (error) {
+          console.error('Failed to fetch folder counts:', error);
+        }
+      };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -351,7 +410,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         )}
       >
         {/* Brand Header - Centered with Logo */}
-        <div className="h-16 px-5 flex items-center justify-center border-b border-border/50">
+        <div className="h-16 px-5 flex items-center justify-center border-b border-border/50 relative">
           <div className="flex items-center gap-1">
             <EaseMailLogo className="h-9 w-9" />
             <span className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
@@ -362,6 +421,12 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
           {waitingForSecondKey && (
             <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-md text-xs font-medium animate-in fade-in">
               Waiting for key...
+            </div>
+          )}
+          {/* ✅ PHASE 4: Offline indicator */}
+          {!isOnline && (
+            <div className="absolute top-4 left-4 bg-yellow-500 text-white px-2 py-1 rounded text-xs font-medium">
+              Offline
             </div>
           )}
         </div>
@@ -446,6 +511,13 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
                     // ✅ PHASE 3: Use handleFolderSelect for tracking
                     handleFolderSelect(folderName);
                   }}
+                  onMouseEnter={() => {
+                    // ✅ PHASE 4: Prefetch emails on hover for instant navigation
+                    if (selectedAccountId) {
+                      prefetchEmails(selectedAccountId, folderName);
+                    }
+                  }}
+                  onMouseLeave={cancelPrefetch}
                   onDragOver={(e) => handleDragOver(e, folder.id)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, folderName, () => {
