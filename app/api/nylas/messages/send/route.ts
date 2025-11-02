@@ -78,6 +78,39 @@ export async function POST(request: NextRequest) {
     const parsedCc = parseRecipients(cc);
     const parsedBcc = parseRecipients(bcc);
 
+    console.log('📧 Parsed recipients:', {
+      originalTo: to,
+      parsedTo,
+      parsedCc,
+      parsedBcc,
+    });
+
+    // Process attachments - download and convert to base64 for Nylas
+    const processedAttachments = [];
+    if (attachments && attachments.length > 0) {
+      console.log(`📎 Processing ${attachments.length} attachment(s)...`);
+      
+      for (const attachment of attachments) {
+        try {
+          // Fetch the file from URL
+          const response = await fetch(attachment.url);
+          const blob = await response.blob();
+          const buffer = Buffer.from(await blob.arrayBuffer());
+          const base64Content = buffer.toString('base64');
+          
+          processedAttachments.push({
+            filename: attachment.filename,
+            content: base64Content,
+            contentType: attachment.contentType,
+          });
+          
+          console.log(`✅ Processed attachment: ${attachment.filename}`);
+        } catch (error) {
+          console.error(`❌ Failed to process attachment: ${attachment.filename}`, error);
+        }
+      }
+    }
+
     // 5. Send email via provider
     let sentMessage;
     let providerMessageId;
@@ -97,7 +130,7 @@ export async function POST(request: NextRequest) {
         bcc: parsedBcc,
         subject: subject || '(No Subject)',
         body: emailBody || '',
-        attachments: attachments || [],
+        attachments: processedAttachments,
       });
       providerMessageId = sentMessage.data?.id;
     } else if (account.emailProvider === 'aurinko' && account.accessToken) {
@@ -107,7 +140,7 @@ export async function POST(request: NextRequest) {
         bcc: parsedBcc,
         subject: subject || '(No Subject)',
         body: emailBody || '',
-        attachments: attachments || [],
+        attachments: processedAttachments,
       });
       providerMessageId = sentMessage.id;
     } else {

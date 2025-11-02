@@ -251,6 +251,36 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     try {
       console.log('📤 Sending email...');
 
+      // Upload attachments first if any
+      const uploadedAttachments = [];
+      if (attachments.length > 0) {
+        console.log(`📎 Uploading ${attachments.length} attachment(s)...`);
+        
+        for (const file of attachments) {
+          const formData = new FormData();
+          formData.append('file', file);
+          
+          const uploadResponse = await fetch('/api/attachments/upload', {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json();
+            uploadedAttachments.push({
+              filename: file.name,
+              url: uploadData.attachment.storageUrl,
+              contentType: file.type,
+              size: file.size,
+            });
+          } else {
+            console.error('Failed to upload attachment:', file.name);
+          }
+        }
+        
+        console.log(`✅ Uploaded ${uploadedAttachments.length} attachment(s)`);
+      }
+
       const response = await fetch('/api/nylas/messages/send', {
         method: 'POST',
         headers: {
@@ -263,7 +293,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           bcc: bcc || undefined,
           subject,
           body,
-          attachments: [], // TODO: Implement attachment upload
+          attachments: uploadedAttachments,
           replyToEmailId: replyTo?.messageId,
         }),
       });
