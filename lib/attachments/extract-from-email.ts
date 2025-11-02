@@ -30,6 +30,9 @@ export async function extractAndSaveAttachments({
     return { saved: 0, skipped: 0, failed: 0 };
   }
 
+  console.log(`📎 Starting attachment extraction for message: ${message.id}`);
+  console.log(`📎 Found ${message.attachments.length} attachment(s)`);
+
   const supabase = createClient();
   let saved = 0;
   let skipped = 0;
@@ -37,79 +40,115 @@ export async function extractAndSaveAttachments({
 
   for (const file of message.attachments) {
     try {
+      // Defensive: Get filename with multiple fallbacks
+      const filename = file.filename || file.name || `attachment-${Date.now()}`;
+      const contentType = file.contentType || file.content_type || file.mimeType || 'application/octet-stream';
+      const size = file.size || 0;
+      const fileId = file.id;
+
+      console.log(`📎 Processing: ${filename} (${size} bytes, type: ${contentType})`);
+
       // Skip inline images and very large files
-      if (file.contentDisposition === 'inline' || file.isInline) {
+      const isInline = file.contentDisposition === 'inline' || 
+                       file.content_disposition === 'inline' || 
+                       file.isInline === true ||
+                       file.is_inline === true;
+
+      if (isInline) {
         skipped++;
-        console.log(`⏭️  Skipping inline: ${file.filename}`);
+        console.log(`⏭️  Skipping inline: ${filename}`);
         continue;
       }
 
-      if (file.size > 20 * 1024 * 1024) {
+      if (size > 20 * 1024 * 1024) {
         skipped++;
-        console.log(`⏭️  Skipping large file: ${file.filename} (${file.size} bytes)`);
+        console.log(`⏭️  Skipping large file: ${filename} (${size} bytes)`);
         continue;
       }
 
       // Download attachment from Nylas
-      console.log(`📥 Downloading: ${file.filename}`);
+      console.log(`📥 Downloading from Nylas: ${filename}`);
       const attachmentResponse = await nylas.attachments.download({
         identifier: grantId,
-        attachmentId: file.id,
+        attachmentId: fileId,
         queryParams: {
           messageId: message.id,
         },
       });
 
+      if (!attachmentResponse) {
+        throw new Error('Empty response from Nylas download');
+      }
+
+      console.log(`✅ Downloaded ${filename}, size: ${attachmentResponse instanceof Buffer ? attachmentResponse.length : 'unknown'} bytes`);
+
       // Upload to Supabase Storage
-      const storagePath = `${userId}/${message.id}/${file.filename}`;
-      const { error: uploadError } = await supabase.storage
+      const sanitizedFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_'); // Sanitize filename
+      const storagePath = `${userId}/${message.id}/${sanitizedFilename}`;
+      
+      console.log(`☁️  Uploading to Supabase: ${storagePath}`);
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('attachments')
         .upload(storagePath, attachmentResponse, {
-          contentType: file.contentType,
+          contentType: contentType,
           cacheControl: '3600',
           upsert: false, // Don't overwrite existing files
         });
 
       if (uploadError) {
         // If file already exists, skip it
-        if (uploadError.message.includes('already exists')) {
+        if (uploadError.message.includes('already exists') || uploadError.message.includes('duplicate')) {
           skipped++;
-          console.log(`⏭️  Already exists: ${file.filename}`);
+          console.log(`⏭️  Already exists: ${filename}`);
           continue;
         }
         throw uploadError;
       }
 
+      console.log(`✅ Uploaded to Supabase: ${filename}`);
+
       // Get file extension
-      const extension = file.filename?.split('.').pop()?.toLowerCase();
+      const extension = filename.split('.').pop()?.toLowerCase() || '';
 
       // Create attachment record
       await db.insert(attachments).values({
         userId,
         emailId: emailRecord.id,
         accountId,
-        filename: file.filename || 'unnamed',
+        filename: filename,
         fileExtension: extension,
-        mimeType: file.contentType,
-        fileSizeBytes: file.size,
+        mimeType: contentType,
+        fileSizeBytes: size,
         storagePath,
-        emailSubject: message.subject,
-        senderEmail: message.from?.[0]?.email,
-        senderName: message.from?.[0]?.name,
+        emailSubject: message.subject || '(No Subject)',
+        senderEmail: message.from?.[0]?.email || '',
+        senderName: message.from?.[0]?.name || '',
         emailDate: new Date(message.date * 1000),
         processingStatus: 'pending',
         aiProcessed: false,
       });
 
       saved++;
-      console.log(`✅ Saved: ${file.filename}`);
+      console.log(`✅ Saved to database: ${filename}`);
 
     } catch (error: any) {
       failed++;
-      console.error(`❌ Failed to save ${file.filename}:`, error.message);
+      const filename = file.filename || file.name || 'unknown';
+      console.error(`❌ Failed to save ${filename}:`, {
+        error: error.message,
+        stack: error.stack?.substring(0, 200),
+        file: {
+          id: file.id,
+          filename: file.filename,
+          size: file.size,
+          contentType: file.contentType,
+        }
+      });
     }
   }
 
+  console.log(`📎 Extraction complete: ${saved} saved, ${skipped} skipped, ${failed} failed`);
   return { saved, skipped, failed };
 }
 

@@ -246,11 +246,29 @@ export async function POST(request: NextRequest) {
 
           // ✅ FIX: Check if this is a sent message (from account owner)
           const isFromAccountOwner = message.from?.[0]?.email?.toLowerCase() === account.emailAddress?.toLowerCase();
-          const messageFolder = isFromAccountOwner && message.folders?.some((f: string) => f.toLowerCase().includes('sent'))
-            ? 'sent' // If from account owner and in Sent folder, keep it as sent
+          
+          // Check if message is in any "sent" folder (handles various naming conventions)
+          const isInSentFolder = message.folders?.some((f: string) => 
+            f.toLowerCase().includes('sent') || 
+            f.toLowerCase().includes('enviados') || // Spanish
+            f.toLowerCase().includes('skickat')    // Swedish
+          ) || false;
+          
+          // Determine folder: If from account owner AND in sent folder, use 'sent'
+          // Otherwise use first folder or default to 'inbox'
+          const messageFolder = isFromAccountOwner && isInSentFolder
+            ? 'sent' 
             : message.folders?.[0] || 'inbox';
 
-          console.log(`📧 Message from: ${message.from?.[0]?.email}, Account: ${account.emailAddress}, Is sent: ${isFromAccountOwner}, Folder: ${messageFolder}`);
+          console.log(`📧 Message analysis:`, {
+            from: message.from?.[0]?.email,
+            accountEmail: account.emailAddress,
+            isFromAccountOwner,
+            folders: message.folders,
+            isInSentFolder,
+            determinedFolder: messageFolder,
+            subject: message.subject?.substring(0, 50),
+          });
 
           await db.insert(emails).values({
             accountId: account.id,
