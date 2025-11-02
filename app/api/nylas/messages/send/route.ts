@@ -92,11 +92,23 @@ export async function POST(request: NextRequest) {
       
       for (const attachment of attachments) {
         try {
+          console.log(`📎 Fetching attachment from: ${attachment.url.substring(0, 100)}...`);
+          
           // Fetch the file from URL
           const response = await fetch(attachment.url);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch attachment: ${response.status} ${response.statusText}`);
+          }
+          
           const blob = await response.blob();
+          console.log(`📎 Blob size: ${blob.size} bytes, type: ${blob.type}`);
+          
           const buffer = Buffer.from(await blob.arrayBuffer());
+          console.log(`📎 Buffer size: ${buffer.length} bytes`);
+          
           const base64Content = buffer.toString('base64');
+          console.log(`📎 Base64 length: ${base64Content.length} chars`);
           
           processedAttachments.push({
             filename: attachment.filename,
@@ -104,9 +116,9 @@ export async function POST(request: NextRequest) {
             contentType: attachment.contentType,
           });
           
-          console.log(`✅ Processed attachment: ${attachment.filename}`);
-        } catch (error) {
-          console.error(`❌ Failed to process attachment: ${attachment.filename}`, error);
+          console.log(`✅ Processed attachment: ${attachment.filename} (${attachment.contentType})`);
+        } catch (error: any) {
+          console.error(`❌ Failed to process attachment: ${attachment.filename}`, error.message);
         }
       }
     }

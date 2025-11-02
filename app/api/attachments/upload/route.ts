@@ -81,12 +81,20 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Storage upload successful');
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
+    // Create a signed URL (valid for 1 hour - enough time to send the email)
+    const { data: signedUrlData, error: urlError } = await supabase.storage
       .from('attachments')
-      .getPublicUrl(storagePath);
+      .createSignedUrl(storagePath, 3600); // 1 hour expiry
 
-    console.log('🔗 Public URL:', urlData.publicUrl);
+    if (urlError) {
+      console.error('❌ Failed to create signed URL:', urlError);
+      return NextResponse.json(
+        { error: 'Failed to create file URL', details: urlError.message },
+        { status: 500 }
+      );
+    }
+
+    console.log('🔗 Signed URL created (valid for 1 hour)');
 
     // Create attachment record
     const [newAttachment] = await db.insert(attachments).values({
@@ -96,7 +104,7 @@ export async function POST(request: NextRequest) {
       mimeType: file.type,
       fileSizeBytes: file.size,
       storagePath,
-      storageUrl: urlData.publicUrl,
+      storageUrl: signedUrlData.signedUrl, // Use signed URL instead
       emailSubject: 'Manual Upload',
       senderEmail: null,
       senderName: 'You',
