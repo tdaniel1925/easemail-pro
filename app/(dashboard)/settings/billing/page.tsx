@@ -78,9 +78,16 @@ export default function UserBillingPage() {
         setBilling(data.billing);
       } else {
         // Set default billing data if API fails
+        const now = new Date();
+        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        
         setBilling({
           subscription: null,
           currentMonth: {
+            periodStart: periodStart.toISOString(),
+            periodEnd: periodEnd.toISOString(),
+            subscription: 0,
             sms: { messages: 0, cost: 0 },
             ai: { requests: 0, cost: 0, byFeature: {} },
             storage: { totalGb: 0, overageGb: 0, cost: 0 },
@@ -92,9 +99,16 @@ export default function UserBillingPage() {
     } catch (error) {
       console.error('Failed to fetch billing data:', error);
       // Set default billing data on error so page isn't stuck loading
+      const now = new Date();
+      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
       setBilling({
         subscription: null,
         currentMonth: {
+          periodStart: periodStart.toISOString(),
+          periodEnd: periodEnd.toISOString(),
+          subscription: 0,
           sms: { messages: 0, cost: 0 },
           ai: { requests: 0, cost: 0, byFeature: {} },
           storage: { totalGb: 0, overageGb: 0, cost: 0 },
