@@ -37,6 +37,7 @@ interface Email {
   threadId?: string | null;
   threadEmailCount?: number | null;
   accountId?: string; // Added for attachment downloads
+  folder?: string; // Email folder for AI filtering
 }
 
 interface EmailListProps {
@@ -566,8 +567,10 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
     triggerOnce: true, // Only trigger once
   });
   
-  // Fetch AI summary when in viewport
-  const { data: summaryData, isLoading: isSummaryLoading } = useEmailSummary(email, inView);
+  // Fetch AI summary when in viewport - ONLY for inbox emails
+  const isInboxEmail = !email.folder || email.folder.toLowerCase() === 'inbox';
+  const shouldFetchSummary = inView && isInboxEmail;
+  const { data: summaryData, isLoading: isSummaryLoading } = useEmailSummary(email, shouldFetchSummary);
 
   useEffect(() => {
     setMounted(true);
