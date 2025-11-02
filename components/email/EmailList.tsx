@@ -567,9 +567,8 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
     triggerOnce: true, // Only trigger once
   });
   
-  // Fetch AI summary when in viewport - ONLY for inbox emails
-  const isInboxEmail = !email.folder || email.folder.toLowerCase() === 'inbox';
-  const shouldFetchSummary = inView && isInboxEmail;
+  // Fetch AI summary when in viewport (all folders)
+  const shouldFetchSummary = inView;
   const { data: summaryData, isLoading: isSummaryLoading } = useEmailSummary(email, shouldFetchSummary);
 
   useEffect(() => {
