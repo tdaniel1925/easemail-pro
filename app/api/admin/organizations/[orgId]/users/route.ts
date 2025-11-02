@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, organizations, organizationMembers, userAuditLogs } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -103,8 +103,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     console.log(`🔐 Generated temporary password for ${email}`);
 
-    // Create user in Supabase Auth
-    const adminClient = createClient();
+    // Create user in Supabase Auth using admin client
+    const adminClient = createAdminClient();
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email: email.toLowerCase().trim(),
       password: tempPassword,
