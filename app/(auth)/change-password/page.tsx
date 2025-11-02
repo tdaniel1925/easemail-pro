@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,12 +11,15 @@ import { AlertCircle, CheckCircle, Eye, EyeOff, Lock } from 'lucide-react';
 
 export default function ChangePasswordPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isPasswordReset, setIsPasswordReset] = useState(false); // NEW: Detect if this is from password reset email
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const [formData, setFormData] = useState({
     currentPassword: '',
@@ -32,6 +35,30 @@ export default function ChangePasswordPage() {
     hasSpecial: false,
     passwordsMatch: false,
   });
+
+  // Check if this is a password reset from email or a logged-in user changing password
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Check for reset token in URL (from password reset email)
+      const hasResetToken = searchParams.get('token') || searchParams.get('type') === 'recovery';
+      
+      if (hasResetToken) {
+        setIsPasswordReset(true);
+        console.log('📧 Password reset flow detected (from email link)');
+      } else if (user) {
+        setIsLoggedIn(true);
+        console.log('🔐 Logged-in user changing password');
+      } else {
+        // Not logged in and no reset token - redirect to login
+        router.push('/login');
+      }
+    };
+
+    checkAuthStatus();
+  }, [searchParams, router]);
 
   // Real-time password validation
   const validatePassword = (password: string, confirmPassword: string) => {
@@ -56,6 +83,19 @@ export default function ChangePasswordPage() {
   };
 
   const isFormValid = () => {
+    // For password reset (from email), no current password needed
+    if (isPasswordReset) {
+      return (
+        validation.minLength &&
+        validation.hasUppercase &&
+        validation.hasLowercase &&
+        validation.hasNumber &&
+        validation.hasSpecial &&
+        validation.passwordsMatch
+      );
+    }
+    
+    // For logged-in users changing password, require current password
     return (
       formData.currentPassword &&
       validation.minLength &&
@@ -74,6 +114,46 @@ export default function ChangePasswordPage() {
 
     try {
       const supabase = createClient();
+
+      // SCENARIO 1: Password reset from email (user clicked link in email)
+      if (isPasswordReset) {
+        console.log('📧 Processing password reset from email...');
+        
+        // Update password using the reset token from URL
+        const { error: updateError } = await supabase.auth.updateUser({
+          password: formData.newPassword,
+        });
+
+        if (updateError) {
+          setError(updateError.message);
+          setLoading(false);
+          return;
+        }
+
+        // Get user after password update
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Update user record in database
+          await fetch('/api/auth/password-changed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id }),
+          });
+        }
+
+        setSuccess(true);
+        
+        // Redirect to login after success
+        setTimeout(() => {
+          router.push('/login?message=Password reset successful! Please log in with your new password.');
+        }, 2000);
+        
+        return;
+      }
+
+      // SCENARIO 2: Logged-in user changing password with temp password
+      console.log('🔐 Processing logged-in user password change...');
 
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -158,36 +238,43 @@ export default function ChangePasswordPage() {
           <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
             <Lock className="h-8 w-8 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl">Change Your Password</CardTitle>
+          <CardTitle className="text-2xl">
+            {isPasswordReset ? 'Set New Password' : 'Change Your Password'}
+          </CardTitle>
           <CardDescription>
-            For security, you must change your temporary password before continuing.
+            {isPasswordReset 
+              ? 'Please create a strong new password for your account.'
+              : 'For security, you must change your temporary password before continuing.'
+            }
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Current Password */}
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <div className="relative">
-                <Input
-                  id="currentPassword"
-                  type={showCurrentPassword ? 'text' : 'password'}
-                  value={formData.currentPassword}
-                  onChange={(e) => handleInputChange('currentPassword', e.target.value)}
-                  placeholder="Enter your temporary password"
-                  required
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                >
-                  {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+            {/* Current Password - Only show for logged-in users, not for password reset */}
+            {!isPasswordReset && (
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <div className="relative">
+                  <Input
+                    id="currentPassword"
+                    type={showCurrentPassword ? 'text' : 'password'}
+                    value={formData.currentPassword}
+                    onChange={(e) => handleInputChange('currentPassword', e.target.value)}
+                    placeholder="Enter your temporary password"
+                    required
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* New Password */}
             <div className="space-y-2">
