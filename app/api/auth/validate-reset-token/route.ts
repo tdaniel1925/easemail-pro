@@ -35,9 +35,6 @@ export async function POST(request: NextRequest) {
     // Find token in database
     const resetToken = await db.query.passwordResetTokens.findFirst({
       where: eq(passwordResetTokens.token, token),
-      with: {
-        user: true,
-      },
     });
 
     if (!resetToken) {
@@ -85,11 +82,30 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('❌ Token validation error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+    });
+    
+    // Check if it's a "table doesn't exist" error
+    if (error.message?.includes('password_reset_tokens') || 
+        error.code === '42P01' || 
+        error.message?.includes('relation') ||
+        error.message?.includes('does not exist')) {
+      return NextResponse.json(
+        { 
+          valid: false, 
+          error: 'Password reset system is not yet configured. Please contact support or run the database migration.' 
+        },
+        { status: 503 }
+      );
+    }
     
     return NextResponse.json(
       { 
         valid: false, 
-        error: 'An error occurred validating your reset link.' 
+        error: 'An error occurred validating your reset link. Please try again or contact support.' 
       },
       { status: 500 }
     );
