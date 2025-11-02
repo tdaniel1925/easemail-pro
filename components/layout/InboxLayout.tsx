@@ -12,6 +12,8 @@ import ProviderSelector from '@/components/email/ProviderSelector';
 import InlineMessage from '@/components/ui/inline-message';
 import SettingsMenu from '@/components/layout/SettingsMenu';
 import EaseMailLogo from '@/components/ui/EaseMailLogo';
+import { FolderSkeleton } from '@/components/ui/skeleton'; // ✅ PHASE 2: Loading states
+import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts'; // ✅ PHASE 2: Keyboard shortcuts
 
 interface InboxLayoutProps {
   children: React.ReactNode;
@@ -28,14 +30,26 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [hasOrganization, setHasOrganization] = useState(false); // NEW: Track org membership
   const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
   const [folders, setFolders] = useState<any[]>([]);
+  const [folderCounts, setFolderCounts] = useState<Record<string, { totalCount: number; unreadCount: number }>>({}); // ✅ PHASE 2: Real-time counts
   const [expandedSections, setExpandedSections] = useState({
     custom: false,
   });
   const [activeFolder, setActiveFolder] = useState<string>('inbox'); // ✅ FIX #6: Track active folder
+  const [foldersLoading, setFoldersLoading] = useState(false); // ✅ PHASE 2: Loading state
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
+
+  // ✅ PHASE 2: Keyboard shortcuts (g+i, g+s, g+d, c, etc)
+  const { waitingForSecondKey } = useKeyboardShortcuts({
+    onCompose: () => setIsComposeOpen(true),
+    onSearch: () => {
+      // Focus search input (implement in EmailClient)
+      console.log('⌨️ Focus search - to be implemented');
+    },
+    enabled: true,
+  });
 
   // Listen for compose events from email cards
   useEffect(() => {
@@ -165,8 +179,9 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         .catch(() => {}); // Silent
       
       if (selectedAccountId) {
-        console.log('🔄 Window focused, refetching folders...');
+        console.log('🔄 Window focused, refetching folders and counts...');
         fetchFolders(selectedAccountId);
+        // Counts will be fetched automatically by fetchFolders
       }
     };
 
@@ -174,13 +189,31 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     return () => window.removeEventListener('focus', handleFocus);
   }, [selectedAccountId]);
 
+  // ✅ PHASE 2: Listen for email action events and refresh counts
+  useEffect(() => {
+    const handleEmailAction = (event: any) => {
+      console.log('📧 Email action detected, refreshing counts...');
+      if (selectedAccountId) {
+        fetchFolderCounts(selectedAccountId);
+      }
+    };
+
+    // Listen for custom events from email actions
+    window.addEventListener('emailActionComplete' as any, handleEmailAction);
+    return () => window.removeEventListener('emailActionComplete' as any, handleEmailAction);
+  }, [selectedAccountId]);
+
   const fetchFolders = async (accountId: string) => {
+    setFoldersLoading(true); // ✅ PHASE 2: Show loading state
     try {
       const response = await fetch(`/api/nylas/folders/sync?accountId=${accountId}`);
       const data = await response.json();
       if (data.success) {
         console.log('📁 All folders from API:', data.folders);
         setFolders(data.folders || []);
+        
+        // ✅ PHASE 2: Fetch real-time counts immediately after folders load
+        fetchFolderCounts(accountId);
       } else {
         console.error('❌ Failed to fetch folders:', data.error);
         setFolders([]); // Clear on error
@@ -188,6 +221,32 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     } catch (error) {
       console.error('Failed to fetch folders:', error);
       setFolders([]); // Clear on error
+    } finally {
+      setFoldersLoading(false); // ✅ PHASE 2: Hide loading state
+    }
+  };
+
+  // ✅ PHASE 2: Fetch real-time folder counts from local database
+  const fetchFolderCounts = async (accountId: string) => {
+    try {
+      const response = await fetch(`/api/nylas/folders/counts?accountId=${accountId}`);
+      const data = await response.json();
+      
+      if (data.success && data.counts) {
+        // Convert array to map for easy lookup
+        const countsMap: Record<string, { totalCount: number; unreadCount: number }> = {};
+        data.counts.forEach((count: any) => {
+          countsMap[count.folder.toLowerCase()] = {
+            totalCount: count.totalCount,
+            unreadCount: count.unreadCount,
+          };
+        });
+        
+        console.log('📊 Real-time folder counts:', countsMap);
+        setFolderCounts(countsMap);
+      }
+    } catch (error) {
+      console.error('Failed to fetch folder counts:', error);
     }
   };
 
@@ -255,6 +314,12 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
               EaseMail
             </span>
           </div>
+          {/* ✅ PHASE 2: Show keyboard hint when waiting for second key */}
+          {waitingForSecondKey && (
+            <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-md text-xs font-medium animate-in fade-in">
+              Waiting for key...
+            </div>
+          )}
         </div>
 
         {/* Folders - Scrollable area */}
@@ -268,12 +333,20 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
           </div>
           
           <div className="space-y-0.5 px-2">
-            {foldersToDisplay.map((folder: any) => {
+            {/* ✅ PHASE 2: Show skeleton while loading */}
+            {foldersLoading ? (
+              <FolderSkeleton />
+            ) : (
+              foldersToDisplay.map((folder: any) => {
               const Icon = folder.icon || getFolderIcon(folder.folderType);
               // ✅ FIX #2: Use displayName for UI, but internal name for queries
               const displayName = folder.displayName || folder.name;
               const folderName = folder.name || folder.folderType?.toLowerCase() || 'inbox';
-              const count = folder.unreadCount || folder.count || 0;
+              
+              // ✅ PHASE 2: Use real-time counts from local database
+              const realTimeCount = folderCounts[folderName.toLowerCase()];
+              const count = realTimeCount?.unreadCount || folder.unreadCount || folder.count || 0;
+              
               // ✅ FIX #6: Check against activeFolder state
               const isActive = activeFolder === folderName;
               
@@ -346,7 +419,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
                   )}
                 </button>
               );
-            })}
+            }))}
           </div>
         </div>
 
