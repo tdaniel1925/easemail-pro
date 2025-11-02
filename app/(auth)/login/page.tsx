@@ -31,6 +31,23 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.user) {
+        // Check if user needs to change password
+        const response = await fetch(`/api/user/${data.user.id}`);
+        if (response.ok) {
+          const userData = await response.json();
+          
+          // Update last login time
+          await fetch(`/api/user/${data.user.id}/last-login`, {
+            method: 'POST',
+          });
+          
+          if (userData.requirePasswordChange) {
+            // Redirect to password change page
+            router.push('/change-password');
+            return;
+          }
+        }
+        
         router.push('/inbox');
       }
     } catch (err: any) {
