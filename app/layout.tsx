@@ -17,30 +17,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        {/* Prevent theme flash on page load */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  const savedThemeId = localStorage.getItem('easemail-theme');
-                  if (savedThemeId) {
-                    const themes = ${JSON.stringify(require('../lib/themes').themes)};
-                    const savedTheme = themes.find(t => t.id === savedThemeId);
-                    if (savedTheme) {
-                      Object.entries(savedTheme.colors).forEach(([key, value]) => {
-                        const cssVar = '--' + key.replace(/([A-Z])/g, '-$1').toLowerCase();
-                        document.documentElement.style.setProperty(cssVar, value);
-                      });
-                    }
-                  }
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
-      </head>
       <body className={inter.className}>
         <Providers>{children}</Providers>
       </body>
