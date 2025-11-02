@@ -14,6 +14,7 @@ const nylas = new Nylas({
 
 /**
  * Check if a specific grant/account is healthy
+ * NOTE: This is now very lightweight - just checks if grant exists
  */
 export async function checkNylasAccountHealth(grantId: string): Promise<{
   healthy: boolean;
@@ -53,56 +54,20 @@ export async function checkNylasAccountHealth(grantId: string): Promise<{
 }
 
 /**
- * Check if Nylas API service is reachable
- */
-export async function checkNylasServiceHealth(): Promise<{
-  healthy: boolean;
-  responseTime?: number;
-}> {
-  const startTime = Date.now();
-  
-  try {
-    // Simple HEAD request to check if API is reachable
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-
-    const response = await fetch(process.env.NYLAS_API_URI || 'https://api.us.nylas.com', {
-      method: 'HEAD',
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
-    const responseTime = Date.now() - startTime;
-
-    return {
-      healthy: response.ok,
-      responseTime,
-    };
-  } catch (error) {
-    console.error('Service health check failed:', error);
-    return { healthy: false };
-  }
-}
-
-/**
- * Comprehensive health check with retry
+ * SIMPLIFIED: Comprehensive health check
+ * 
+ * We removed the service-level check because:
+ * 1. It was too aggressive (5-second timeout)
+ * 2. It checked the base URL instead of the specific grant
+ * 3. It caused false "unreachable" errors during dev restarts
+ * 
+ * Now we only check the specific grant, which is more reliable.
  */
 export async function checkConnectionHealth(grantId: string): Promise<{
   canSync: boolean;
   reason?: string;
   suggestion?: string;
 }> {
-  // First check if service is reachable
-  const serviceHealth = await checkNylasServiceHealth();
-  
-  if (!serviceHealth.healthy) {
-    return {
-      canSync: false,
-      reason: 'Nylas service is unreachable',
-      suggestion: 'Check your internet connection and try again in a moment',
-    };
-  }
-
   // Check specific account
   const accountHealth = await checkNylasAccountHealth(grantId);
   

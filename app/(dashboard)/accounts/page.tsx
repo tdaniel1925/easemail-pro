@@ -312,6 +312,7 @@ function AccountsContent() {
     switch (status) {
       case 'active':
       case 'completed':
+      case 'idle': // ✅ FIXED: idle status should show as active
         return (
           <div className="flex items-center gap-2">
             <div className="relative">
