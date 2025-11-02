@@ -187,8 +187,8 @@ class EaseMailDiagnostic {
     try {
       const startTime = Date.now();
       
-      // Just test if we can reach the API
-      await nylas.grants.list({ limit: 1 });
+      // Just test if we can reach the API (no parameters needed)
+      await nylas.grants.list();
       
       const responseTime = Date.now() - startTime;
 

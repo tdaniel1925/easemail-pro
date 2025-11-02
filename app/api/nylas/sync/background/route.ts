@@ -3,6 +3,7 @@ import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import Nylas from 'nylas';
+import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 
 const nylas = new Nylas({
   apiKey: process.env.NYLAS_API_KEY!,
@@ -176,15 +177,15 @@ async function performBackgroundSync(
         // Insert or update emails in database
         for (const message of messages) {
           try {
-            // Map attachments to ensure required fields are present
+            // Map attachments to ensure required fields are present and sanitize all text
             const mappedAttachments = message.attachments?.map((att: any) => ({
-              id: att.id || '',
-              filename: att.filename || 'untitled',
+              id: sanitizeText(att.id) || '',
+              filename: sanitizeText(att.filename) || 'untitled',
               size: att.size || 0, // Default to 0 if size is undefined
-              contentType: att.contentType || 'application/octet-stream',
-              contentId: att.contentId,
-              url: att.url,
-              providerFileId: att.id,
+              contentType: sanitizeText(att.contentType) || 'application/octet-stream',
+              contentId: sanitizeText(att.contentId),
+              url: sanitizeText(att.url),
+              providerFileId: sanitizeText(att.id),
             })) || [];
 
             // Log date for debugging
@@ -201,24 +202,25 @@ async function performBackgroundSync(
             }
 
             // Use INSERT ... ON CONFLICT DO NOTHING to handle duplicates gracefully
-            await db.insert(emails).values({
+            // Use returning() to check if the insert actually happened (not a duplicate)
+            const result = await db.insert(emails).values({
               accountId: accountId,
               provider: 'nylas',
-              providerMessageId: message.id,
-              messageId: message.object === 'message' ? message.id : undefined,
-              threadId: message.threadId,
-              providerThreadId: message.threadId,
-              folder: message.folders?.[0] || 'inbox',
+              providerMessageId: sanitizeText(message.id),
+              messageId: message.object === 'message' ? sanitizeText(message.id) : undefined,
+              threadId: sanitizeText(message.threadId),
+              providerThreadId: sanitizeText(message.threadId),
+              folder: sanitizeText(message.folders?.[0]) || 'inbox',
               folders: message.folders || [],
-              fromEmail: message.from?.[0]?.email,
-              fromName: message.from?.[0]?.name,
-              toEmails: message.to?.map(t => ({ email: t.email, name: t.name })),
-              ccEmails: message.cc?.map(c => ({ email: c.email, name: c.name })),
-              bccEmails: message.bcc?.map(b => ({ email: b.email, name: b.name })),
-              subject: message.subject,
-              snippet: message.snippet,
-              bodyText: message.body || '',
-              bodyHtml: message.body || '',
+              fromEmail: sanitizeText(message.from?.[0]?.email),
+              fromName: sanitizeText(message.from?.[0]?.name),
+              toEmails: sanitizeParticipants(message.to),
+              ccEmails: sanitizeParticipants(message.cc),
+              bccEmails: sanitizeParticipants(message.bcc),
+              subject: sanitizeText(message.subject),
+              snippet: sanitizeText(message.snippet),
+              bodyText: sanitizeText(message.body),
+              bodyHtml: sanitizeText(message.body),
               receivedAt: receivedDate,
               sentAt: sentDate,
               isRead: !message.unread,
@@ -226,10 +228,14 @@ async function performBackgroundSync(
               hasAttachments: (message.attachments?.length || 0) > 0,
               attachmentsCount: message.attachments?.length || 0,
               attachments: mappedAttachments,
-            }).onConflictDoNothing(); // Ignore duplicates silently
+            }).onConflictDoNothing()
+              .returning(); // Check if actually inserted
 
-            totalSynced++;
-            syncedCount++;
+            // Only increment counters if email was actually inserted (not a duplicate)
+            if (result && result.length > 0) {
+              totalSynced++;
+              syncedCount++;
+            }
           } catch (emailError: any) {
             // If it's a duplicate key error, just skip it silently
             if (emailError?.code === '23505') {

@@ -5,6 +5,7 @@ import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
+import { sanitizeText } from '@/lib/utils/text-sanitizer';
 
 export async function POST(request: NextRequest) {
   try {
@@ -196,23 +197,23 @@ export async function POST(request: NextRequest) {
     const [savedEmail] = await db.insert(emails).values({
       accountId: account.id,
       provider: account.emailProvider,
-      providerMessageId: providerMessageId || `local-${Date.now()}`,
-      messageId: providerMessageId,
-      threadId: threadId,
-      providerThreadId: threadId,
-      inReplyTo: inReplyTo,
-      emailReferences: emailReferences,
+      providerMessageId: sanitizeText(providerMessageId) || `local-${Date.now()}`,
+      messageId: sanitizeText(providerMessageId),
+      threadId: sanitizeText(threadId),
+      providerThreadId: sanitizeText(threadId),
+      inReplyTo: sanitizeText(inReplyTo),
+      emailReferences: sanitizeText(emailReferences),
       folder: 'sent', // ✅ This puts it in Sent folder
       folders: ['sent'],
-      fromEmail: account.emailAddress,
-      fromName: account.emailAddress, // Could be enhanced with user's name
+      fromEmail: sanitizeText(account.emailAddress),
+      fromName: sanitizeText(account.emailAddress), // Could be enhanced with user's name
       toEmails: parsedTo,
       ccEmails: parsedCc,
       bccEmails: parsedBcc,
-      subject: subject || '(No Subject)',
-      bodyText: emailBody,
-      bodyHtml: emailBody, // Could convert to HTML
-      snippet: emailBody?.substring(0, 200) || '',
+      subject: sanitizeText(subject) || '(No Subject)',
+      bodyText: sanitizeText(emailBody),
+      bodyHtml: sanitizeText(emailBody), // Could convert to HTML
+      snippet: sanitizeText(emailBody?.substring(0, 200)),
       isRead: true, // Sent emails are always "read"
       hasAttachments: (attachments?.length || 0) > 0,
       attachmentsCount: attachments?.length || 0,

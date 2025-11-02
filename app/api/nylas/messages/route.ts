@@ -7,6 +7,7 @@ import { RuleEngine } from '@/lib/rules/rule-engine';
 import { retryWithBackoff } from '@/lib/email/retry-utils';
 import { checkConnectionHealth } from '@/lib/email/health-check';
 import { extractAndSaveAttachments } from '@/lib/attachments/extract-from-email';
+import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 
 // Enable Node.js runtime for better performance
 export const runtime = 'nodejs';
@@ -233,15 +234,15 @@ export async function POST(request: NextRequest) {
             .where(eq(emails.id, existing.id));
         } else {
           // Insert new message
-          // Map attachments to ensure required fields are present
+          // Map attachments to ensure required fields are present and sanitize all text
           const mappedAttachments = message.attachments?.map((att: any) => ({
-            id: att.id || '',
-            filename: att.filename || 'untitled',
+            id: sanitizeText(att.id) || '',
+            filename: sanitizeText(att.filename) || 'untitled',
             size: att.size || 0, // Default to 0 if size is undefined
-            contentType: att.contentType || 'application/octet-stream',
-            contentId: att.contentId,
-            url: att.url,
-            providerFileId: att.id,
+            contentType: sanitizeText(att.contentType) || 'application/octet-stream',
+            contentId: sanitizeText(att.contentId),
+            url: sanitizeText(att.url),
+            providerFileId: sanitizeText(att.id),
           })) || [];
 
           // ✅ FIX: Check if this is a sent message (from account owner)
@@ -273,22 +274,22 @@ export async function POST(request: NextRequest) {
           await db.insert(emails).values({
             accountId: account.id,
             provider: 'nylas',
-            providerMessageId: message.id,
-            threadId: message.threadId,
-            providerThreadId: message.threadId,
-            subject: message.subject || '',
-            snippet: message.snippet || '',
-            fromEmail: message.from?.[0]?.email || '',
-            fromName: message.from?.[0]?.name || '',
-            toEmails: message.to || [],
-            ccEmails: message.cc || [],
-            bccEmails: message.bcc || [],
+            providerMessageId: sanitizeText(message.id),
+            threadId: sanitizeText(message.threadId),
+            providerThreadId: sanitizeText(message.threadId),
+            subject: sanitizeText(message.subject),
+            snippet: sanitizeText(message.snippet),
+            fromEmail: sanitizeText(message.from?.[0]?.email),
+            fromName: sanitizeText(message.from?.[0]?.name),
+            toEmails: sanitizeParticipants(message.to),
+            ccEmails: sanitizeParticipants(message.cc),
+            bccEmails: sanitizeParticipants(message.bcc),
             hasAttachments: (message.attachments?.length || 0) > 0,
             attachmentsCount: message.attachments?.length || 0,
             attachments: mappedAttachments,
             isRead: message.unread === false,
             isStarred: message.starred === true,
-            folder: messageFolder, // ✅ Use determined folder
+            folder: sanitizeText(messageFolder), // ✅ Use determined folder
             folders: message.folders || [],
             receivedAt: new Date(message.date * 1000),
             providerData: message as any,

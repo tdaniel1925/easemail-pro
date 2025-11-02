@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { db } from '@/lib/db/drizzle';
 import { webhookEvents, emailAccounts, emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 
 // Verify webhook signature
 function verifyWebhookSignature(payload: string, signature: string): boolean {
@@ -93,18 +94,18 @@ async function handleMessageCreated(message: any) {
     return;
   }
   
-  // Insert message into database
+  // Insert message into database with sanitized text
   await db.insert(emails).values({
     accountId: account.id,
     provider: 'nylas',
-    providerMessageId: message.id,
-    threadId: message.thread_id,
-    subject: message.subject,
-    snippet: message.snippet,
-    fromEmail: message.from?.[0]?.email,
-    fromName: message.from?.[0]?.name,
-    toEmails: message.to || [],
-    ccEmails: message.cc || [],
+    providerMessageId: sanitizeText(message.id),
+    threadId: sanitizeText(message.thread_id),
+    subject: sanitizeText(message.subject),
+    snippet: sanitizeText(message.snippet),
+    fromEmail: sanitizeText(message.from?.[0]?.email),
+    fromName: sanitizeText(message.from?.[0]?.name),
+    toEmails: sanitizeParticipants(message.to),
+    ccEmails: sanitizeParticipants(message.cc),
     hasAttachments: message.attachments?.length > 0,
     isRead: message.unread === false,
     isStarred: message.starred === true,
