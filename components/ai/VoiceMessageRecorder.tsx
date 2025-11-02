@@ -11,6 +11,7 @@ import { Mic, Square, Play, Pause, Trash2, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { convertWebMToMP3 } from '@/lib/audio/webm-to-mp3';
 
 interface VoiceMessageRecorderProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ export function VoiceMessageRecorderModal({
   onClose,
   onAttach,
 }: VoiceMessageRecorderProps) {
-  const [status, setStatus] = useState<'ready' | 'recording' | 'stopped'>('ready');
+  const [status, setStatus] = useState<'ready' | 'recording' | 'stopped' | 'converting'>('ready');
   const [duration, setDuration] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -217,14 +218,32 @@ export function VoiceMessageRecorderModal({
       await audioContextRef.current.close();
     }
 
-    // Create audio blob
-    const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-    const url = URL.createObjectURL(blob);
-    setAudioUrl(url);
-    setStatus('stopped');
-    setAudioLevel(0);
+    // Create audio blob (WebM)
+    const webmBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+    console.log('✅ Recording stopped, WebM size:', webmBlob.size);
 
-    console.log('✅ Recording stopped, size:', blob.size);
+    // Convert to MP3
+    try {
+      setStatus('converting');
+      console.log('🔄 Converting to MP3...');
+      
+      const mp3Blob = await convertWebMToMP3(webmBlob);
+      
+      const url = URL.createObjectURL(mp3Blob);
+      setAudioUrl(url);
+      setStatus('stopped');
+      setAudioLevel(0);
+
+      console.log('✅ MP3 conversion complete, size:', mp3Blob.size);
+    } catch (error) {
+      console.error('❌ MP3 conversion failed:', error);
+      // Fallback to WebM if conversion fails
+      const url = URL.createObjectURL(webmBlob);
+      setAudioUrl(url);
+      setStatus('stopped');
+      setAudioLevel(0);
+      setError('Converted to WebM (MP3 conversion unavailable)');
+    }
   };
 
   // Discard recording
@@ -245,8 +264,8 @@ export function VoiceMessageRecorderModal({
     fetch(audioUrl)
       .then(res => res.blob())
       .then(blob => {
-        const file = new File([blob], `voice-message-${Date.now()}.webm`, {
-          type: 'audio/webm',
+        const file = new File([blob], `voice-message-${Date.now()}.mp3`, {
+          type: 'audio/mp3',
         });
         onAttach(file, duration);
         onClose();
@@ -336,10 +355,14 @@ export function VoiceMessageRecorderModal({
               <div className="flex items-center gap-2">
                 <span className={cn(
                   "h-2 w-2 rounded-full",
-                  status === 'recording' ? "bg-red-500 animate-pulse" : "bg-muted-foreground"
+                  status === 'recording' ? "bg-red-500 animate-pulse" : 
+                  status === 'converting' ? "bg-blue-500 animate-pulse" : 
+                  "bg-muted-foreground"
                 )} />
                 <span className="text-sm font-medium">
-                  {status === 'recording' ? 'Recording...' : 'Ready'}
+                  {status === 'recording' ? 'Recording...' : 
+                   status === 'converting' ? 'Converting to MP3...' : 
+                   'Ready'}
                 </span>
               </div>
               {status === 'recording' && (
@@ -416,9 +439,16 @@ export function VoiceMessageRecorderModal({
             )}
 
             {status === 'recording' && (
-              <Button onClick={handleStop} className="w-full">
+              <Button onClick={handleStop} className="w-full" disabled={false}>
                 <Square className="w-4 h-4 mr-2" />
                 Stop Recording
+              </Button>
+            )}
+
+            {status === 'converting' && (
+              <Button className="w-full" disabled>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Converting to MP3...
               </Button>
             )}
 
