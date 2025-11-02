@@ -9,7 +9,8 @@
     "start": "next start -p 3001",
     "lint": "next lint",
     "diagnose": "tsx scripts/diagnose-nylas.ts",
-    "fix-folders": "tsx scripts/fix-folder-assignments.ts"
+    "fix-folders": "tsx scripts/fix-folder-assignments.ts",
+    "monitor-folders": "tsx scripts/folder-sync-monitor.ts"
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",
