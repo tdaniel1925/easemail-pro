@@ -60,6 +60,22 @@ export const userAuditLogs = pgTable('user_audit_logs', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Password Reset Tokens Table (Custom flow via Resend)
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  token: text('token').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  tokenIdx: index('idx_password_reset_tokens_token').on(table.token),
+  userIdIdx: index('idx_password_reset_tokens_user_id').on(table.userId),
+  expiresAtIdx: index('idx_password_reset_tokens_expires_at').on(table.expiresAt),
+}));
+
 // Email Accounts with Nylas/Aurinko support
 export const emailAccounts = pgTable('email_accounts', {
   id: uuid('id').defaultRandom().primaryKey(),

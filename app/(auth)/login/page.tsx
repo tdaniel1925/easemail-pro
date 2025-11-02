@@ -100,21 +100,20 @@ export default function LoginPage() {
     setSuccess('');
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/change-password`,
+      // Use custom password reset API (bypasses Supabase rate limits, uses Resend directly)
+      const response = await fetch('/api/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail }),
       });
 
-      if (error) {
-        // Check for rate limit errors
-        if (error.message.includes('rate limit') || 
-            error.message.includes('Rate limit') ||
-            error.message.includes('too many requests')) {
-          throw new Error('Too many password reset attempts. Please wait a few minutes and try again.');
-        }
-        throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send reset email');
       }
 
-      setSuccess('Password reset link sent! Check your email. (Check spam folder if you don\'t see it)');
+      setSuccess('Password reset link sent! Check your email (and spam folder).');
       
       // Start 60 second cooldown
       setResetCooldown(60);

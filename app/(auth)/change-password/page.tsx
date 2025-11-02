@@ -43,24 +43,37 @@ function ChangePasswordForm() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Check for reset token in URL (from password reset email)
-      // Supabase uses hash fragments, not query params
-      const hash = window.location.hash;
-      const hasResetToken = 
-        hash.includes('type=recovery') || 
-        hash.includes('access_token') ||
-        searchParams.get('token') || 
-        searchParams.get('type') === 'recovery';
+      // Check for custom reset token in URL (from our Resend-based flow)
+      const resetToken = searchParams.get('token');
       
-      console.log('🔍 Checking password reset token...');
-      console.log('Hash:', hash);
-      console.log('Search params:', searchParams.toString());
-      console.log('Has reset token:', hasResetToken);
+      console.log('🔍 Checking auth status...');
+      console.log('Reset token:', resetToken ? 'Present' : 'None');
       console.log('User:', user ? 'Logged in' : 'Not logged in');
       
-      if (hasResetToken) {
+      if (resetToken) {
+        // Custom password reset flow (via Resend)
         setIsPasswordReset(true);
-        console.log('📧 Password reset flow detected (from email link)');
+        console.log('📧 Password reset flow detected (custom token)');
+        
+        // Validate token with backend
+        try {
+          const response = await fetch('/api/auth/validate-reset-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: resetToken }),
+          });
+          
+          const data = await response.json();
+          
+          if (!data.valid) {
+            setError(data.error || 'Invalid or expired reset link');
+            setTimeout(() => router.push('/login'), 3000);
+          }
+        } catch (err) {
+          console.error('Token validation error:', err);
+          setError('Failed to validate reset link');
+          setTimeout(() => router.push('/login'), 3000);
+        }
       } else if (user) {
         setIsLoggedIn(true);
         console.log('🔐 Logged-in user changing password');
@@ -129,31 +142,34 @@ function ChangePasswordForm() {
     try {
       const supabase = createClient();
 
-      // SCENARIO 1: Password reset from email (user clicked link in email)
+      // SCENARIO 1: Password reset from email (custom token-based flow)
       if (isPasswordReset) {
-        console.log('📧 Processing password reset from email...');
+        console.log('📧 Processing password reset from email link...');
         
-        // Update password using the reset token from URL
-        const { error: updateError } = await supabase.auth.updateUser({
-          password: formData.newPassword,
-        });
-
-        if (updateError) {
-          setError(updateError.message);
+        const resetToken = searchParams.get('token');
+        
+        if (!resetToken) {
+          setError('Reset token is missing');
           setLoading(false);
           return;
         }
-
-        // Get user after password update
-        const { data: { user } } = await supabase.auth.getUser();
         
-        if (user) {
-          // Update user record in database
-          await fetch('/api/auth/password-changed', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user.id }),
-          });
+        // Use custom API endpoint to reset password with token
+        const response = await fetch('/api/auth/reset-password-with-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: resetToken,
+            newPassword: formData.newPassword,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          setError(data.error || 'Failed to reset password');
+          setLoading(false);
+          return;
         }
 
         setSuccess(true);
