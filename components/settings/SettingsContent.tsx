@@ -81,7 +81,7 @@ export default function SettingsContent() {
 
 function GeneralSettings() {
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">General Settings</h1>
         <p className="text-muted-foreground">Manage your account information and preferences</p>
@@ -252,7 +252,7 @@ function SignaturesSettings() {
 
   return (
     <>
-      <div className="max-w-3xl space-y-6">
+      <div className="max-w-4xl space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">Email Signatures</h1>
@@ -379,7 +379,7 @@ function SignaturesSettings() {
 
 function PreferencesSettings() {
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">Email Preferences</h1>
         <p className="text-muted-foreground">Customize your email experience</p>
@@ -521,7 +521,7 @@ function NotificationsSettings() {
 
   if (loading) {
     return (
-      <div className="max-w-3xl space-y-6">
+      <div className="max-w-4xl space-y-6">
         <div>
           <h1 className="text-3xl font-bold mb-2">Notifications</h1>
           <p className="text-muted-foreground">Loading...</p>
@@ -531,7 +531,7 @@ function NotificationsSettings() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">Notifications</h1>
         <p className="text-muted-foreground">Manage how you receive notifications</p>
@@ -679,7 +679,7 @@ function PrivacySettings() {
   };
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">Privacy & Security</h1>
         <p className="text-muted-foreground">Control your privacy and security settings</p>
@@ -771,7 +771,7 @@ function PrivacySettings() {
 
 function IntegrationsSettings() {
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">Integrations</h1>
         <p className="text-muted-foreground">Connect third-party services</p>
@@ -823,7 +823,7 @@ function HelpSupportSettings() {
   };
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">Help & Support</h1>
         <p className="text-muted-foreground">Get help and learn about EaseMail features</p>
