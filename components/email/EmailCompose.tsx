@@ -258,8 +258,6 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     setShowBcc(false);
   };
 
-  if (!isOpen) return null;
-
   const handleSend = async () => {
     // Validation
     if (to.length === 0) {
@@ -562,6 +560,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     const days = Math.floor(hours / 24);
     return `${days}d ago`;
   };
+
+  if (!isOpen) return null;
 
   return (
     <>
