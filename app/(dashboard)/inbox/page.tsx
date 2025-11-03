@@ -15,7 +15,6 @@ function InboxContent() {
   const onboardingParam = searchParams.get('onboarding');
   
   // Check if onboarding should start
-  const shouldShowOnboarding = onboardingParam === 'true' || onboardingParam === 'restart';
   const startFromBeginning = onboardingParam === 'restart';
 
   return (
@@ -26,7 +25,7 @@ function InboxContent() {
           onSearchChange={setSearchQuery}
           folder={folder}
         />
-        {shouldShowOnboarding && <OnboardingOverlay />}
+        <OnboardingOverlay />
       </InboxLayout>
     </OnboardingProvider>
   );
