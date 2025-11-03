@@ -17,10 +17,15 @@ export interface PolishOptions {
   tone?: 'professional' | 'friendly' | 'casual';
 }
 
-export async function polishDictation(options: PolishOptions): Promise<string> {
+export interface PolishedResult {
+  subject: string;
+  body: string;
+}
+
+export async function polishDictation(options: PolishOptions): Promise<PolishedResult> {
   const { text, recipientName, tone = 'professional' } = options;
 
-  const systemPrompt = `You are an expert email writing assistant. Transform raw dictated speech into a polished, professional email.
+  const systemPrompt = `You are an expert email writing assistant. Transform raw dictated speech into a polished, professional email with a subject line.
 
 RULES:
 1. Fix grammar, spelling, and punctuation
@@ -33,8 +38,13 @@ RULES:
 8. Maintain the original intent and meaning
 9. Use ${tone} tone
 10. DO NOT add information that wasn't in the original text
+11. Generate a clear, concise subject line based on the email content
 
-Return ONLY the polished email text, nothing else.`;
+IMPORTANT: Format your response EXACTLY as follows:
+SUBJECT: [Your subject line here]
+
+BODY:
+[Your polished email body here]`;
 
   const userPrompt = recipientName
     ? `Recipient: ${recipientName}\n\nDictated text:\n${text}`
@@ -51,13 +61,20 @@ Return ONLY the polished email text, nothing else.`;
       max_tokens: 1000,
     });
 
-    const polished = completion.choices[0]?.message?.content?.trim();
+    const response = completion.choices[0]?.message?.content?.trim();
     
-    if (!polished) {
+    if (!response) {
       throw new Error('Failed to generate polished text');
     }
 
-    return polished;
+    // Parse the response to extract subject and body
+    const subjectMatch = response.match(/SUBJECT:\s*(.+?)(?:\n|$)/i);
+    const bodyMatch = response.match(/BODY:\s*([\s\S]+)/i);
+
+    const subject = subjectMatch?.[1]?.trim() || 'No Subject';
+    const body = bodyMatch?.[1]?.trim() || response;
+
+    return { subject, body };
   } catch (error) {
     console.error('Dictation polish error:', error);
     throw error;

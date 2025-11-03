@@ -22,7 +22,7 @@ interface DictationDialogProps {
   onClose: () => void;
   dictatedText: string;
   onUseAsIs: (text: string) => void;
-  onUsePolished: (text: string) => void;
+  onUsePolished: (subject: string, body: string) => void;
   recipientName?: string;
 }
 
@@ -40,6 +40,7 @@ export function DictationDialog({
   recipientName,
 }: DictationDialogProps) {
   const [step, setStep] = useState<Step>('choice');
+  const [polishedSubject, setPolishedSubject] = useState('');
   const [polishedText, setPolishedText] = useState('');
   const [isPolishing, setIsPolishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +68,7 @@ export function DictationDialog({
   useEffect(() => {
     if (!isOpen) {
       setStep('choice');
+      setPolishedSubject('');
       setPolishedText('');
       setError(null);
       setRememberChoice(false);
@@ -94,11 +96,12 @@ export function DictationDialog({
       }
 
       const data = await response.json();
+      setPolishedSubject(data.subject);
       setPolishedText(data.polishedText);
       
       // If auto-polish (from preference), directly insert
       if (auto && rememberChoice) {
-        onUsePolished(data.polishedText);
+        onUsePolished(data.subject, data.polishedText);
         onClose();
       } else {
         setStep('comparison');
@@ -124,13 +127,13 @@ export function DictationDialog({
     if (rememberChoice) {
       localStorage.setItem(STORAGE_KEY, 'always_polish');
     }
-    onUsePolished(polishedText);
+    onUsePolished(polishedSubject, polishedText);
     onClose();
   };
 
   const handleOpenRemix = () => {
     // TODO: Pass polished text to AI Remix panel
-    onUsePolished(polishedText);
+    onUsePolished(polishedSubject, polishedText);
     onClose();
   };
 
@@ -265,6 +268,16 @@ export function DictationDialog({
             </div>
 
             <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Subject Line */}
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-primary uppercase tracking-wide">
+                  Generated Subject ✨
+                </label>
+                <div className="p-3 border-2 border-primary rounded-lg bg-primary/5 text-sm font-medium">
+                  {polishedSubject}
+                </div>
+              </div>
+
               {/* Before */}
               <div>
                 <label className="block text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">

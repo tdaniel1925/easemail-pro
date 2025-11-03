@@ -91,7 +91,9 @@ export function UnifiedAIToolbar({
   };
 
   // ✅ NEW: Handle "Use Polished" from dialog
-  const handleUsePolished = (polishedText: string) => {
+  const handleUsePolished = (subject: string, polishedText: string) => {
+    // Set both subject and body
+    onSubjectChange(subject);
     // Append the AI-polished text to the body (add space before if body not empty)
     const separator = body.trim() ? ' ' : '';
     onBodyChange(body.trim() + separator + polishedText);

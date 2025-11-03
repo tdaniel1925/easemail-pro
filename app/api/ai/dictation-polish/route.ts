@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Polish the dictation
-    const polishedText = await polishDictation({
+    const result = await polishDictation({
       text,
       recipientName,
       tone: 'professional',
@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      polishedText,
+      subject: result.subject,
+      polishedText: result.body,
     });
   } catch (error: any) {
     console.error('Dictation polish API error:', error);
