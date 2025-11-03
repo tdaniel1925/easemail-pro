@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, lazy } from 'react';
-import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, Bold, Italic, Underline, List, PenTool, Check, Heading1, Heading2, Heading3, AlignLeft, AlignCenter, AlignRight, Code } from 'lucide-react';
+import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,11 +46,10 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null); // Draft save indicator
+  const [isDirty, setIsDirty] = useState(false); // Track if compose has unsaved changes
 
-  // Text formatting state
-  const [isBold, setIsBold] = useState(false);
-  const [isItalic, setIsItalic] = useState(false);
-  const [isUnderline, setIsUnderline] = useState(false);
+  // Text formatting state - REMOVED (they don't actually work)
   const [isHtmlMode, setIsHtmlMode] = useState(true); // HTML vs Plain text mode
 
   // Signature state
@@ -75,6 +74,26 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       }
     }
   }, [isOpen, type, accountId, useSignature]);
+
+  // Track dirty state for unsaved changes warning
+  useEffect(() => {
+    if (to.length > 0 || subject.trim() || body.trim()) {
+      setIsDirty(true);
+    } else {
+      setIsDirty(false);
+    }
+  }, [to, subject, body]);
+
+  // Auto-save draft every 30 seconds
+  useEffect(() => {
+    if (!isOpen || !isDirty || !accountId) return;
+    
+    const autoSaveInterval = setInterval(() => {
+      handleSaveDraft(true); // Silent auto-save
+    }, 30000); // Every 30 seconds
+    
+    return () => clearInterval(autoSaveInterval);
+  }, [isOpen, isDirty, accountId, to, cc, bcc, subject, body]);
 
   // Initialize body with quoted content for reply/forward
   useEffect(() => {
@@ -120,7 +139,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           const applicableSignature = getApplicableSignature(type, accountId);
           if (applicableSignature) {
             setSelectedSignatureId(applicableSignature.id);
-            const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to });
+            const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to[0]?.email || '' });
             quotedBody += renderedSignature + '\n\n';
           }
         }
@@ -153,7 +172,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           const applicableSignature = getApplicableSignature(type, accountId);
           if (applicableSignature) {
             setSelectedSignatureId(applicableSignature.id);
-            const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to });
+            const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to[0]?.email || '' });
             quotedBody += '\n\n' + renderedSignature;
           }
         }
@@ -168,7 +187,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     if (!signature) return;
 
     // Render signature with template variables
-    const renderedSignature = renderSignature(signature, {}, { emailAddress: to });
+    const renderedSignature = renderSignature(signature, {}, { emailAddress: to[0]?.email || '' });
 
     // Insert signature based on email type
     const insertOptions = {
@@ -202,7 +221,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       // Remove signature
       const currentSignature = signatures.find(s => s.id === selectedSignatureId);
       if (currentSignature) {
-        const renderedSignature = renderSignature(currentSignature, {}, { emailAddress: to });
+        const renderedSignature = renderSignature(currentSignature, {}, { emailAddress: to[0]?.email || '' });
         const newBody = SignatureService.stripSignature(body, renderedSignature);
         setBody(newBody);
       }
@@ -214,7 +233,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     if (selectedSignatureId) {
       const oldSignature = signatures.find(s => s.id === selectedSignatureId);
       if (oldSignature) {
-        const renderedOld = renderSignature(oldSignature, {}, { emailAddress: to });
+        const renderedOld = renderSignature(oldSignature, {}, { emailAddress: to[0]?.email || '' });
         const bodyWithoutOld = SignatureService.stripSignature(body, renderedOld);
         setBody(bodyWithoutOld);
       }
@@ -230,12 +249,39 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     setShowSignatureDropdown(false);
   };
 
+  // Helper function to validate email addresses
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  // Helper function to reset form state
+  const resetForm = () => {
+    setTo([]);
+    setCc([]);
+    setBcc([]);
+    setSubject('');
+    setBody('');
+    setAttachments([]);
+    setIsInitialized(false);
+    setIsDirty(false);
+    setLastSaved(null);
+    setShowCc(false);
+    setShowBcc(false);
+  };
+
   if (!isOpen) return null;
 
   const handleSend = async () => {
     // Validation
     if (to.length === 0) {
       alert('Please enter at least one recipient');
+      return;
+    }
+
+    // Validate email addresses
+    const invalidEmails = to.filter(r => !isValidEmail(r.email));
+    if (invalidEmails.length > 0) {
+      alert(`Invalid email addresses:\n${invalidEmails.map(r => r.email).join('\n')}`);
       return;
     }
 
@@ -322,6 +368,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         document.body.appendChild(successMessage);
         setTimeout(() => successMessage.remove(), 3000);
         
+        // Reset form state before closing
+        resetForm();
         onClose();
         
         // Trigger refresh of email list
@@ -338,21 +386,21 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     }
   };
 
-  const handleSaveDraft = async () => {
+  const handleSaveDraft = async (silent = false) => {
     if (!accountId) {
-      alert('No email account selected. Please select an account first.');
+      if (!silent) alert('No email account selected. Please select an account first.');
       return;
     }
 
-    if (to.length === 0) {
-      alert('Please enter at least one recipient before saving draft');
+    // Don't save completely empty drafts
+    if (to.length === 0 && !subject.trim() && !body.trim()) {
       return;
     }
 
     setIsSavingDraft(true);
 
     try {
-      console.log('💾 Saving draft...');
+      if (!silent) console.log('💾 Saving draft...');
       
       const response = await fetch('/api/nylas/drafts', {
         method: 'POST',
@@ -361,7 +409,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         },
         body: JSON.stringify({
           accountId,
-          to: to.map(r => r.email).join(', '),
+          to: to.map(r => r.email).join(', ') || '', // Allow empty recipients
           cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
           bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
           subject,
@@ -376,20 +424,26 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       const data = await response.json();
 
       if (data.success) {
-        console.log('✅ Draft saved:', data.draftId);
+        if (!silent) console.log('✅ Draft saved:', data.draftId);
         
-        // Show success message
-        const successMessage = document.createElement('div');
-        successMessage.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg z-[100] animate-in slide-in-from-top';
-        successMessage.textContent = '✓ Draft saved successfully!';
-        document.body.appendChild(successMessage);
-        setTimeout(() => successMessage.remove(), 3000);
+        // Update last saved time
+        setLastSaved(new Date());
+        setIsDirty(false);
+        
+        if (!silent) {
+          // Show success message for manual saves
+          const successMessage = document.createElement('div');
+          successMessage.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg z-[100] animate-in slide-in-from-top';
+          successMessage.textContent = '✓ Draft saved successfully!';
+          document.body.appendChild(successMessage);
+          setTimeout(() => successMessage.remove(), 3000);
+        }
       } else {
-        alert(`Failed to save draft: ${data.error || 'Unknown error'}`);
+        if (!silent) alert(`Failed to save draft: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('❌ Draft save error:', error);
-      alert('Failed to save draft. Please try again.');
+      if (!silent) alert('Failed to save draft. Please try again.');
     } finally {
       setIsSavingDraft(false);
     }
@@ -398,6 +452,24 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const handleAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
+      const MAX_SIZE = 25 * 1024 * 1024; // 25MB per file
+      const MAX_TOTAL = 100 * 1024 * 1024; // 100MB total
+      
+      // Check individual file sizes
+      const oversized = files.filter(f => f.size > MAX_SIZE);
+      if (oversized.length > 0) {
+        alert(`❌ Some files are too large (max 25MB each):\n\n${oversized.map(f => `• ${f.name} (${formatFileSize(f.size)})`).join('\n')}`);
+        return;
+      }
+      
+      // Check total size
+      const currentTotalSize = attachments.reduce((sum, f) => sum + f.size, 0);
+      const newTotalSize = files.reduce((sum, f) => sum + f.size, 0);
+      if (currentTotalSize + newTotalSize > MAX_TOTAL) {
+        alert(`❌ Total attachments would exceed 100MB limit\n\nCurrent: ${formatFileSize(currentTotalSize)}\nAdding: ${formatFileSize(newTotalSize)}\nMax: 100MB`);
+        return;
+      }
+      
       setAttachments([...attachments, ...files]);
     }
   };
@@ -410,6 +482,51 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     console.log('Attaching voice message:', file.name, duration);
     setAttachments([...attachments, file]);
   };
+
+  // Handle close with auto-save
+  const handleClose = async () => {
+    if (isDirty && accountId) {
+      // Auto-save draft before closing
+      await handleSaveDraft(true);
+    }
+    
+    // Reset form and close
+    resetForm();
+    onClose();
+  };
+
+  // Handle backdrop click with confirmation
+  const handleBackdropClick = () => {
+    if (isDirty) {
+      if (confirm('You have unsaved changes. Save draft before closing?')) {
+        handleSaveDraft(false).then(() => {
+          resetForm();
+          onClose();
+        });
+      } else {
+        resetForm();
+        onClose();
+      }
+    } else {
+      resetForm();
+      onClose();
+    }
+  };
+
+  // Ctrl+Enter to send
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSend();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, to, subject, body, accountId, attachments]);
 
   const handleInsertLink = () => {
     const url = prompt('Enter URL:');
@@ -435,10 +552,21 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
+  const formatDistanceToNow = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
+
   return (
     <>
       {/* Backdrop overlay */}
-      <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" onClick={handleBackdropClick} />
       
       {/* Centered modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
@@ -455,22 +583,52 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         <div className="flex items-center justify-between p-3 border-b border-border bg-muted/30">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-sm">
-              {replyTo ? `Reply to ${replyTo.to}` : 'New Message'}
+              {type === 'reply' && replyTo && `Re: ${replyTo.subject}`}
+              {type === 'reply-all' && replyTo && `Re: ${replyTo.subject}`}
+              {type === 'forward' && replyTo && `Fwd: ${replyTo.subject}`}
+              {type === 'compose' && 'New Message'}
             </h3>
             {isMinimized && to.length > 0 && (
               <span className="text-xs text-muted-foreground truncate max-w-[200px]">
                 To: {to.map(r => r.email).join(', ')}
               </span>
             )}
+            {lastSaved && !isMinimized && (
+              <span className="text-xs text-muted-foreground">
+                Saved {formatDistanceToNow(lastSaved)}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1">
             {!isMinimized && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setIsMinimized(true)}
+                  title="Minimize"
+                >
+                  <Minimize2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setIsFullscreen(!isFullscreen)}
+                  title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+            {isMinimized && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                onClick={() => setIsMinimized(false)}
+                title="Restore"
               >
                 <Maximize2 className="h-4 w-4" />
               </Button>
@@ -479,7 +637,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={onClose}
+              onClick={handleClose}
               title="Close"
             >
               <X className="h-4 w-4" />
@@ -595,39 +753,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               </Button>
               <div className="w-px h-6 bg-border mx-1" />
 
-              {/* Basic Formatting */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn('h-8 w-8', isBold && 'bg-accent')}
-                onClick={() => setIsBold(!isBold)}
-                title="Bold (Ctrl+B)"
-                disabled={!isHtmlMode}
-              >
-                <Bold className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn('h-8 w-8', isItalic && 'bg-accent')}
-                onClick={() => setIsItalic(!isItalic)}
-                title="Italic (Ctrl+I)"
-                disabled={!isHtmlMode}
-              >
-                <Italic className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn('h-8 w-8', isUnderline && 'bg-accent')}
-                onClick={() => setIsUnderline(!isUnderline)}
-                title="Underline (Ctrl+U)"
-                disabled={!isHtmlMode}
-              >
-                <Underline className="h-4 w-4" />
-              </Button>
-
-              <div className="w-px h-6 bg-border mx-1" />
+              {/* Removed: Bold/Italic/Underline buttons (don't actually work without rich text editor) */}
 
               {/* Headings */}
               <Button 
@@ -780,12 +906,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 placeholder="Write your message..."
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                className={cn(
-                  'w-full h-full resize-none bg-transparent border-0 focus:outline-none text-sm',
-                  isBold && 'font-bold',
-                  isItalic && 'italic',
-                  isUnderline && 'underline'
-                )}
+                className="w-full h-full resize-none bg-transparent border-0 focus:outline-none text-sm"
               />
             </div>
 
@@ -866,7 +987,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 >
                   {isSavingDraft ? 'Saving...' : 'Save Draft'}
                 </Button>
-                <Button variant="ghost" size="sm" onClick={onClose}>
+                <Button variant="ghost" size="sm" onClick={handleClose}>
                   Discard
                 </Button>
               </div>

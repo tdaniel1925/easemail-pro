@@ -92,10 +92,8 @@ export async function POST(request: NextRequest) {
 
     const parsedTo = parseRecipients(to);
 
-    // Validate at least one recipient
-    if (parsedTo.length === 0) {
-      return NextResponse.json({ error: 'At least one recipient is required' }, { status: 400 });
-    }
+    // Allow drafts without recipients (user might be composing)
+    // Validation removed to allow saving partial drafts
 
     // Save draft
     const [draft] = await db.insert(emailDrafts).values({

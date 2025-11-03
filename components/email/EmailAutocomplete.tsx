@@ -32,10 +32,28 @@ export default function EmailAutocomplete({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch suggestions when user types
+  // Fetch suggestions when user types OR show recent on focus
   useEffect(() => {
+    if (input.length === 0) {
+      // Show recent contacts when field is focused but empty
+      const fetchRecentContacts = async () => {
+        try {
+          const response = await fetch('/api/emails/suggestions?recent=true');
+          if (!response.ok) return;
+          const data = await response.json();
+          if (data.suggestions && data.suggestions.length > 0) {
+            setSuggestions(data.suggestions);
+            // Don't auto-show on page load, only on focus
+          }
+        } catch (error) {
+          console.error('Error fetching recent contacts:', error);
+        }
+      };
+      fetchRecentContacts();
+      return;
+    }
+
     if (input.length < 2) {
-      setSuggestions([]);
       setShowSuggestions(false);
       return;
     }
@@ -121,6 +139,41 @@ export default function EmailAutocomplete({
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
+  // Handle paste to support comma-separated emails
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+    
+    // Split by comma, semicolon, space, or newline
+    const emails = pastedText
+      .split(/[,;\s\n]+/)
+      .map(email => email.trim())
+      .filter(email => email.length > 0);
+    
+    let addedCount = 0;
+    emails.forEach(email => {
+      if (isValidEmail(email) && !value.some(r => r.email.toLowerCase() === email.toLowerCase())) {
+        onChange([...value, { email }]);
+        addedCount++;
+      }
+    });
+    
+    // Clear input after paste
+    setInput('');
+    setShowSuggestions(false);
+    
+    if (addedCount > 0) {
+      inputRef.current?.focus();
+    }
+  };
+
+  // Show recent contacts on focus
+  const handleFocus = () => {
+    if (suggestions.length > 0 && input.length === 0) {
+      setShowSuggestions(true);
+    }
+  };
+
   return (
     <div ref={containerRef} className="relative">
       {label && (
@@ -163,7 +216,8 @@ export default function EmailAutocomplete({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => input.length >= 2 && setShowSuggestions(true)}
+          onPaste={handlePaste}
+          onFocus={handleFocus}
           placeholder={value.length === 0 ? placeholder : ''}
           className="flex-1 min-w-[200px] outline-none bg-transparent text-sm"
         />
