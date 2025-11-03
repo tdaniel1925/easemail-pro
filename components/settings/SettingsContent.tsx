@@ -64,14 +64,16 @@ export default function SettingsContent() {
       </aside>
 
       {/* Settings Content */}
-      <main className="flex-1 overflow-y-auto p-8">
-        {activeSection === 'general' && <GeneralSettings />}
-        {activeSection === 'signatures' && <SignaturesSettings />}
-        {activeSection === 'preferences' && <PreferencesSettings />}
-        {activeSection === 'notifications' && <NotificationsSettings />}
-        {activeSection === 'privacy' && <PrivacySettings />}
-        {activeSection === 'integrations' && <IntegrationsSettings />}
-        {activeSection === 'help' && <HelpSupportSettings />}
+      <main className="flex-1 overflow-y-auto">
+        <div className="p-6">
+          {activeSection === 'general' && <GeneralSettings />}
+          {activeSection === 'signatures' && <SignaturesSettings />}
+          {activeSection === 'preferences' && <PreferencesSettings />}
+          {activeSection === 'notifications' && <NotificationsSettings />}
+          {activeSection === 'privacy' && <PrivacySettings />}
+          {activeSection === 'integrations' && <IntegrationsSettings />}
+          {activeSection === 'help' && <HelpSupportSettings />}
+        </div>
       </main>
     </div>
   );
