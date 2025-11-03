@@ -233,12 +233,9 @@ export function AIToolbarShortcuts({ toolbar }: { toolbar: HTMLDivElement | null
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toolbar]);
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [toolbar]);
 
-  return null;
+return null;
 }
-
-import { useEffect } from 'react';
-
