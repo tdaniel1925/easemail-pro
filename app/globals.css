@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* TipTap Editor Styles */
+@import '../components/editor/editor.css';
+
 @layer base {
   :root {
     /* Corporate Grey (Default) */

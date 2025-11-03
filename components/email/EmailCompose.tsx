@@ -10,6 +10,7 @@ import { useSignatures } from '@/lib/hooks/useSignatures';
 import { SignatureService } from '@/lib/signatures/signature-service';
 import EmailAutocomplete from '@/components/email/EmailAutocomplete';
 import { URLInputDialog } from '@/components/ui/url-input-dialog';
+import { RichTextEditor } from '@/components/editor/RichTextEditor';
 
 // Lazy load the AI toolbar to prevent SSR issues
 const UnifiedAIToolbar = lazy(() => 
@@ -903,13 +904,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               )}
             </div>
 
-            {/* Email Body */}
-            <div className="flex-1 p-4 overflow-y-auto">
-              <textarea
+            {/* Email Body - Rich Text Editor */}
+            <div className="flex-1 overflow-y-auto">
+              <RichTextEditor
+                content={body}
+                onChange={setBody}
                 placeholder="Write your message..."
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                className="w-full h-full resize-none bg-transparent border-0 focus:outline-none text-sm"
+                className="border-0 h-full"
               />
             </div>
 
