@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, User, Sparkles } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, User, Sparkles, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +21,7 @@ export default function SettingsContent() {
     { id: 'notifications', name: 'Notifications', icon: Bell },
     { id: 'privacy', name: 'Privacy & Security', icon: Shield },
     { id: 'integrations', name: 'Integrations', icon: Plug },
+    { id: 'help', name: 'Help & Support', icon: HelpCircle },
   ];
 
   return (
@@ -69,6 +71,7 @@ export default function SettingsContent() {
         {activeSection === 'notifications' && <NotificationsSettings />}
         {activeSection === 'privacy' && <PrivacySettings />}
         {activeSection === 'integrations' && <IntegrationsSettings />}
+        {activeSection === 'help' && <HelpSupportSettings />}
       </main>
     </div>
   );
@@ -648,6 +651,139 @@ function IntegrationsSettings() {
               </div>
             </div>
             <Button variant="outline">Connect</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function HelpSupportSettings() {
+  const router = useRouter();
+  
+  const restartOnboarding = async () => {
+    await fetch('/api/user/onboarding/reset', { method: 'POST' });
+    router.push('/inbox?onboarding=restart');
+  };
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold mb-2">Help & Support</h1>
+        <p className="text-muted-foreground">Get help and learn about EaseMail features</p>
+      </div>
+
+      {/* Getting Started Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            Getting Started
+          </CardTitle>
+          <CardDescription>
+            Learn the basics and explore powerful features
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Replay Onboarding Tour Button */}
+          <div className="flex items-start justify-between gap-4 p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <svg className="h-4 w-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="font-medium">Take the Tour Again</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Replay the interactive walkthrough to review key features: 
+                connecting accounts, using AI, voice messages, SMS, and more.
+              </p>
+            </div>
+            <Button onClick={restartOnboarding}>
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Start Tour
+            </Button>
+          </div>
+
+          {/* Help Center */}
+          <div className="flex items-start justify-between gap-4 p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <HelpCircle className="h-4 w-4 text-primary" />
+                <p className="font-medium">Help Center</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Browse our comprehensive help articles, guides, and tutorials
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => router.push('/help')}>
+              Browse
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Support Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Support</CardTitle>
+          <CardDescription>Get help when you need it</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start justify-between gap-4 p-4 border border-border rounded-lg">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <Mail className="h-4 w-4" />
+                <p className="font-medium">Email Support</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                support@easemail.app • Response within 24 hours
+              </p>
+            </div>
+            <Button variant="outline" asChild>
+              <a href="mailto:support@easemail.app">
+                Send Email
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Keyboard Shortcuts Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Keyboard Shortcuts</CardTitle>
+          <CardDescription>Work faster with shortcuts</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <kbd className="px-2 py-1 bg-muted rounded text-xs">C</kbd>
+              <span className="ml-2 text-muted-foreground">Compose</span>
+            </div>
+            <div>
+              <kbd className="px-2 py-1 bg-muted rounded text-xs">E</kbd>
+              <span className="ml-2 text-muted-foreground">Archive</span>
+            </div>
+            <div>
+              <kbd className="px-2 py-1 bg-muted rounded text-xs">#</kbd>
+              <span className="ml-2 text-muted-foreground">Delete</span>
+            </div>
+            <div>
+              <kbd className="px-2 py-1 bg-muted rounded text-xs">R</kbd>
+              <span className="ml-2 text-muted-foreground">Reply</span>
+            </div>
+            <div>
+              <kbd className="px-2 py-1 bg-muted rounded text-xs">Ctrl+Enter</kbd>
+              <span className="ml-2 text-muted-foreground">Send</span>
+            </div>
+            <div>
+              <kbd className="px-2 py-1 bg-muted rounded text-xs">?</kbd>
+              <span className="ml-2 text-muted-foreground">Show all shortcuts</span>
+            </div>
           </div>
         </CardContent>
       </Card>

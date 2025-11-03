@@ -5,20 +5,30 @@ import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import InboxLayout from '@/components/layout/InboxLayout';
 import EmailClient from '@/components/email/EmailClient';
+import { OnboardingProvider } from '@/components/onboarding/OnboardingProvider';
+import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay';
 
 function InboxContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const searchParams = useSearchParams();
   const folder = searchParams.get('folder') || null;
+  const onboardingParam = searchParams.get('onboarding');
+  
+  // Check if onboarding should start
+  const shouldShowOnboarding = onboardingParam === 'true' || onboardingParam === 'restart';
+  const startFromBeginning = onboardingParam === 'restart';
 
   return (
-    <InboxLayout>
-      <EmailClient 
-        searchQuery={searchQuery} 
-        onSearchChange={setSearchQuery}
-        folder={folder}
-      />
-    </InboxLayout>
+    <OnboardingProvider startFromBeginning={startFromBeginning}>
+      <InboxLayout>
+        <EmailClient 
+          searchQuery={searchQuery} 
+          onSearchChange={setSearchQuery}
+          folder={folder}
+        />
+        {shouldShowOnboarding && <OnboardingOverlay />}
+      </InboxLayout>
+    </OnboardingProvider>
   );
 }
 

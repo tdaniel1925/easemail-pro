@@ -44,6 +44,13 @@ export const users = pgTable('users', {
   deactivatedAt: timestamp('deactivated_at'), // When account was deactivated (for 60-day deletion)
   createdBy: uuid('created_by').references((): any => users.id, { onDelete: 'set null' }), // Admin who created this user
   
+  // Onboarding fields
+  onboardingCompleted: boolean('onboarding_completed').default(false), // Has user completed onboarding?
+  onboardingStep: integer('onboarding_step').default(0), // Current step (0-7)
+  onboardingSkipped: boolean('onboarding_skipped').default(false), // Did user skip onboarding?
+  onboardingStartedAt: timestamp('onboarding_started_at'), // When onboarding was started
+  onboardingCompletedAt: timestamp('onboarding_completed_at'), // When onboarding was completed
+  
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
