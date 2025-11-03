@@ -446,6 +446,80 @@ function PreferencesSettings() {
 }
 
 function NotificationsSettings() {
+  const [preferences, setPreferences] = useState({
+    enabled: false,
+    sound: false,
+    showPreview: true,
+    quietHours: {
+      enabled: false,
+      start: '22:00',
+      end: '08:00',
+    },
+  });
+  const [permission, setPermission] = useState({ granted: false, denied: false, default: true });
+  const [loading, setLoading] = useState(true);
+
+  // Load preferences and check permission
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        // Dynamic import to avoid SSR issues
+        const { getNotificationPreferences, getNotificationPermission } = await import('@/lib/notifications/notification-service');
+        
+        const prefs = getNotificationPreferences();
+        setPreferences(prefs);
+        
+        const perm = getNotificationPermission();
+        setPermission(perm);
+      } catch (error) {
+        console.error('Error loading notification preferences:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPreferences();
+  }, []);
+
+  const handleRequestPermission = async () => {
+    const { requestNotificationPermission } = await import('@/lib/notifications/notification-service');
+    const result = await requestNotificationPermission();
+    setPermission(result);
+    
+    if (result.granted) {
+      // Enable notifications in preferences
+      handleToggle('enabled', true);
+    }
+  };
+
+  const handleToggle = async (key: string, value: boolean) => {
+    const { saveNotificationPreferences } = await import('@/lib/notifications/notification-service');
+    
+    const newPreferences = {
+      ...preferences,
+      [key]: value,
+    };
+    
+    setPreferences(newPreferences);
+    saveNotificationPreferences(newPreferences);
+  };
+
+  const handleTestNotification = async () => {
+    const { testNotification } = await import('@/lib/notifications/notification-service');
+    await testNotification();
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-3xl space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Notifications</h1>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl space-y-6">
       <div>
@@ -453,6 +527,29 @@ function NotificationsSettings() {
         <p className="text-muted-foreground">Manage how you receive notifications</p>
       </div>
 
+      {/* Permission Card */}
+      {!permission.granted && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardHeader>
+            <CardTitle>Enable Notifications</CardTitle>
+            <CardDescription>
+              Allow EaseMail to show desktop notifications for new emails
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={handleRequestPermission}>
+              Enable Desktop Notifications
+            </Button>
+            {permission.denied && (
+              <p className="text-sm text-destructive mt-2">
+                Notifications are blocked. Please enable them in your browser settings.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Email Notifications Card */}
       <Card>
         <CardHeader>
           <CardTitle>Email Notifications</CardTitle>
@@ -463,19 +560,68 @@ function NotificationsSettings() {
               <p className="font-medium">Desktop Notifications</p>
               <p className="text-sm text-muted-foreground">Show notifications on your desktop</p>
             </div>
-            <div className="w-10 h-6 bg-primary rounded-full relative">
-              <div className="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5"></div>
-            </div>
+            <button
+              onClick={() => handleToggle('enabled', !preferences.enabled)}
+              disabled={!permission.granted}
+              className={`w-10 h-6 rounded-full relative transition-colors ${
+                preferences.enabled && permission.granted ? 'bg-primary' : 'bg-muted'
+              } ${!permission.granted ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <div
+                className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${
+                  preferences.enabled && permission.granted ? 'right-0.5' : 'left-0.5'
+                }`}
+              />
+            </button>
           </div>
+          
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Sound</p>
               <p className="text-sm text-muted-foreground">Play sound for new emails</p>
             </div>
-            <div className="w-10 h-6 bg-primary rounded-full relative">
-              <div className="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5"></div>
-            </div>
+            <button
+              onClick={() => handleToggle('sound', !preferences.sound)}
+              disabled={!permission.granted || !preferences.enabled}
+              className={`w-10 h-6 rounded-full relative transition-colors ${
+                preferences.sound && preferences.enabled ? 'bg-primary' : 'bg-muted'
+              } ${!permission.granted || !preferences.enabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <div
+                className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${
+                  preferences.sound && preferences.enabled ? 'right-0.5' : 'left-0.5'
+                }`}
+              />
+            </button>
           </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Show Preview</p>
+              <p className="text-sm text-muted-foreground">Display email content in notifications</p>
+            </div>
+            <button
+              onClick={() => handleToggle('showPreview', !preferences.showPreview)}
+              disabled={!permission.granted || !preferences.enabled}
+              className={`w-10 h-6 rounded-full relative transition-colors ${
+                preferences.showPreview && preferences.enabled ? 'bg-primary' : 'bg-muted'
+              } ${!permission.granted || !preferences.enabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <div
+                className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${
+                  preferences.showPreview && preferences.enabled ? 'right-0.5' : 'left-0.5'
+                }`}
+              />
+            </button>
+          </div>
+
+          {permission.granted && preferences.enabled && (
+            <div className="pt-4 border-t">
+              <Button variant="outline" onClick={handleTestNotification}>
+                Test Notification
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

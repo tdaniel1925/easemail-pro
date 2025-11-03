@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar, Paperclip, Zap, Shield, Users } from 'lucide-react';
+import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar, Paperclip, Zap, Shield, Users, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
@@ -20,6 +20,7 @@ import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop'; // âœ… PHASE 3:
 import { usePrefetch } from '@/lib/hooks/usePrefetch'; // âœ… PHASE 4: Prefetching
 import { folderCache } from '@/lib/cache/folder-cache'; // âœ… PHASE 4: Folder caching
 import { registerServiceWorker, setupOnlineListeners } from '@/lib/utils/service-worker'; // âœ… PHASE 4: Offline support
+import { AIAssistantSidebar } from '@/components/ai/AIAssistantSidebar'; // âœ… NEW: AI Assistant
 
 interface InboxLayoutProps {
   children: React.ReactNode;
@@ -43,9 +44,10 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [activeFolder, setActiveFolder] = useState<string>('inbox'); // âœ… FIX #6: Track active folder
   const [foldersLoading, setFoldersLoading] = useState(false); // âœ… PHASE 2: Loading state
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set()); // âœ… PHASE 3: Track expanded folders
-  const [isFolderSearchOpen, setIsFolderSearchOpen] = useState(false); // âœ… PHASE 3: Folder search
-  const [recentFolders, setRecentFolders] = useState<string[]>([]); // âœ… PHASE 3: Recently used folders
-  const [isOnline, setIsOnline] = useState(true); // âœ… PHASE 4: Online status
+  const [isFolderSearchOpen, setIsFolderSearchOpen] = useState(false); // ✅ PHASE 3: Folder search
+  const [recentFolders, setRecentFolders] = useState<string[]>([]); // ✅ PHASE 3: Recently used folders
+  const [isOnline, setIsOnline] = useState(true); // ✅ PHASE 4: Online status
+  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false); // ✅ NEW: AI Assistant state
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -468,6 +470,18 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             </Button>
           </div>
 
+          {/* AI Assistant Button */}
+          <div className="px-4 pb-4">
+            <Button 
+              variant="outline" 
+              className="w-full h-11 text-base font-medium border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground shadow-sm transition-all"
+              onClick={() => setIsAIAssistantOpen(true)}
+            >
+              <Bot className="h-5 w-5 mr-2" />
+              AI Assistant
+            </Button>
+          </div>
+
           {/* âœ… PHASE 3: Recently Used Folders */}
           {recentFolders.length > 0 && (
             <div className="px-2 mb-2">
@@ -792,13 +806,19 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       {/* Provider Selector Dialog */}
       <ProviderSelector isOpen={isProviderSelectorOpen} onClose={() => setIsProviderSelectorOpen(false)} />
       
-      {/* âœ… PHASE 3: Folder Search Command Menu */}
+      {/* ✅ PHASE 3: Folder Search Command Menu */}
       <FolderSearch
         isOpen={isFolderSearchOpen}
         onClose={() => setIsFolderSearchOpen(false)}
         folders={folders}
         onSelectFolder={handleFolderSelect}
         getFolderIcon={getFolderIcon}
+      />
+
+      {/* ✅ NEW: AI Assistant Sidebar */}
+      <AIAssistantSidebar
+        isOpen={isAIAssistantOpen}
+        onClose={() => setIsAIAssistantOpen(false)}
       />
     </div>
   );

@@ -483,6 +483,44 @@ export const emailDrafts = pgTable('email_drafts', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Email Templates
+export const emailTemplates = pgTable('email_templates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  
+  // Template metadata
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  category: varchar('category', { length: 100 }), // sales, support, personal, marketing, etc.
+  
+  // Template content
+  subject: text('subject'),
+  bodyHtml: text('body_html'),
+  bodyText: text('body_text'),
+  
+  // Variables used in template (for UI hints)
+  variables: jsonb('variables').$type<string[]>(), // Array of variable names like ["{{name}}", "{{company}}"]
+  
+  // Usage tracking
+  timesUsed: integer('times_used').default(0),
+  lastUsedAt: timestamp('last_used_at'),
+  
+  // Sharing (for org templates)
+  isShared: boolean('is_shared').default(false), // Can other org members use this?
+  createdByUserId: uuid('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  
+  // Timestamps
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('email_templates_user_id_idx').on(table.userId),
+  organizationIdIdx: index('email_templates_organization_id_idx').on(table.organizationId),
+  categoryIdx: index('email_templates_category_idx').on(table.category),
+  isSharedIdx: index('email_templates_is_shared_idx').on(table.isShared),
+  timesUsedIdx: index('email_templates_times_used_idx').on(table.timesUsed),
+}));
+
 // Webhook Logs
 export const webhookLogs = pgTable('webhook_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
