@@ -20,8 +20,7 @@ import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop'; // âœ… PHASE 3:
 import { usePrefetch } from '@/lib/hooks/usePrefetch'; // âœ… PHASE 4: Prefetching
 import { folderCache } from '@/lib/cache/folder-cache'; // âœ… PHASE 4: Folder caching
 import { registerServiceWorker, setupOnlineListeners } from '@/lib/utils/service-worker'; // âœ… PHASE 4: Offline support
-import { AIAssistantSidebar } from '@/components/ai/AIAssistantSidebar'; // ✅ NEW: AI Assistant
-import { RightSidebarWithTabs } from '@/components/layout/RightSidebarWithTabs'; // ✅ NEW: Right sidebar with tabs
+// AI Assistant is now integrated into ContactPanel tabs
 
 interface InboxLayoutProps {
   children: React.ReactNode;
@@ -48,7 +47,6 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [isFolderSearchOpen, setIsFolderSearchOpen] = useState(false); // ✅ PHASE 3: Folder search
   const [recentFolders, setRecentFolders] = useState<string[]>([]); // ✅ PHASE 3: Recently used folders
   const [isOnline, setIsOnline] = useState(true); // ✅ PHASE 4: Online status
-  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false); // ✅ NEW: AI Assistant state
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -743,8 +741,8 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         </div>
       </aside>
 
-      {/* Main Content Area with Right Sidebar Tabs */}
-      <RightSidebarWithTabs>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Main Content */}
         <main className="flex-1 overflow-hidden flex flex-col">
           {message && (
@@ -769,7 +767,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             })}
           </div>
         </main>
-      </RightSidebarWithTabs>
+      </div>
       
       {/* Email Compose Window */}
       <EmailCompose 

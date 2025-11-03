@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Calendar as CalendarIcon, Mail, Phone, UserPlus, MessageSquare, FileText } from 'lucide-react';
+import { User, Calendar as CalendarIcon, Mail, Phone, UserPlus, MessageSquare, FileText, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getInitials, generateAvatarColor } from '@/lib/utils';
@@ -11,6 +11,7 @@ import { MiniCalendar } from '@/components/calendar/MiniCalendar';
 import { SMSModal } from '@/components/sms/SMSModal';
 import { ContactNotes } from '@/components/contacts/ContactNotes';
 import { CommunicationTimeline } from '@/components/contacts/CommunicationTimeline';
+import { AIAssistantSidebar } from '@/components/ai/AIAssistantSidebar';
 
 interface Email {
   id: string;
@@ -27,7 +28,7 @@ interface ContactPanelProps {
 }
 
 export function ContactPanel({ email }: ContactPanelProps) {
-  const [activeTab, setActiveTab] = useState<'contact' | 'calendar'>('calendar'); // Default to calendar
+  const [activeTab, setActiveTab] = useState<'contact' | 'calendar' | 'ai'>('calendar'); // Added AI tab
 
   // Automatically switch tabs based on email selection
   useEffect(() => {
@@ -35,8 +36,8 @@ export function ContactPanel({ email }: ContactPanelProps) {
       // Email selected → switch to Contact tab
       setActiveTab('contact');
     } else {
-      // No email selected → switch to Calendar tab
-      setActiveTab('calendar');
+      // No email selected → switch to Calendar tab (unless on AI tab)
+      setActiveTab(prev => prev === 'ai' ? 'ai' : 'calendar');
     }
   }, [email]);
 
@@ -71,6 +72,18 @@ export function ContactPanel({ email }: ContactPanelProps) {
             <CalendarIcon className="h-4 w-4 inline mr-2" />
             Calendar
           </button>
+          <button
+            className={cn(
+              'px-3 py-2 text-sm font-medium rounded-sm transition-colors',
+              activeTab === 'ai'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+            )}
+            onClick={() => setActiveTab('ai')}
+          >
+            <Bot className="h-4 w-4 inline mr-2" />
+            AI
+          </button>
         </div>
       </div>
 
@@ -87,8 +100,16 @@ export function ContactPanel({ email }: ContactPanelProps) {
               </p>
             </div>
           )
-        ) : (
+        ) : activeTab === 'calendar' ? (
           <MiniCalendar />
+        ) : (
+          <div className="h-full">
+            <AIAssistantSidebar
+              isOpen={true}
+              onClose={() => setActiveTab('calendar')}
+              fullPage={true}
+            />
+          </div>
         )}
       </div>
     </div>
