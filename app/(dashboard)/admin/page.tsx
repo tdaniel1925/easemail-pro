@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Settings, Database, Activity, Mail, Zap, Key, Building2, DollarSign } from 'lucide-react';
+import { Users, Settings, Database, Activity, Mail, Zap, Key, Building2, DollarSign, BarChart3, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 
 interface AdminStats {
@@ -172,6 +172,34 @@ export default function AdminDashboard() {
                 </CardTitle>
                 <CardDescription>
                   Configure system-wide settings and preferences
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+
+          <Link href="/admin/usage-analytics">
+            <Card className="hover:bg-accent cursor-pointer transition-colors">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Usage Analytics
+                </CardTitle>
+                <CardDescription>
+                  Monitor SMS, AI, and storage usage across all users
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+
+          <Link href="/admin/billing-config">
+            <Card className="hover:bg-accent cursor-pointer transition-colors">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Billing Automation
+                </CardTitle>
+                <CardDescription>
+                  Configure automated billing and payment processing
                 </CardDescription>
               </CardHeader>
             </Card>
