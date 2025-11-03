@@ -982,7 +982,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  onClick={handleSaveDraft}
+                  onClick={() => handleSaveDraft(false)}
                   disabled={isSavingDraft || !accountId}
                 >
                   {isSavingDraft ? 'Saving...' : 'Save Draft'}
