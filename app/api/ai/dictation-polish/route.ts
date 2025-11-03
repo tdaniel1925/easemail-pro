@@ -32,9 +32,8 @@ export async function POST(request: NextRequest) {
     // Track AI usage
     await trackAIUsage({
       userId: user.id,
-      feature: 'dictation_polish',
-      tokensUsed: Math.ceil((text.length + polishedText.length) / 4),
-      cost: 0.0001,
+      feature: 'dictation',
+      requestCount: 1,
     });
 
     return NextResponse.json({
