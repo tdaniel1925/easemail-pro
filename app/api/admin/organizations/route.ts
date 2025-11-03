@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { users, organizations } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { users, organizations, organizationMembers } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
 
 // GET: Fetch all organizations
 export async function GET(request: NextRequest) {
@@ -23,21 +23,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
     }
 
-    // Fetch all organizations with member counts
-    const orgs = await db.query.organizations.findMany({
-      with: {
-        members: true,
-      },
-    });
+    // Fetch all organizations
+    const orgs = await db.query.organizations.findMany();
 
-    // Transform to include counts
-    const orgsWithCounts = orgs.map(org => ({
-      ...org,
-      _count: {
-        members: org.members?.length || 0,
-      },
-      members: undefined, // Remove the full members array from response
-    }));
+    // Add member counts manually to avoid relation issues
+    const orgsWithCounts = await Promise.all(
+      orgs.map(async (org) => {
+        // Count active members for this organization
+        const memberCountResult = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(organizationMembers)
+          .where(eq(organizationMembers.organizationId, org.id));
+        
+        const memberCount = Number(memberCountResult[0]?.count || 0);
+        
+        return {
+          ...org,
+          _count: {
+            members: memberCount,
+          },
+        };
+      })
+    );
 
     return NextResponse.json({ success: true, organizations: orgsWithCounts });
   } catch (error) {
