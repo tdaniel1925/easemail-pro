@@ -2,7 +2,7 @@
  * Organization Onboarding Page
  * 
  * Comprehensive form for creating new organizations
- * Replaces the simple modal with a full business onboarding process
+ * Clean full-page layout matching the rules page design
  */
 
 'use client';
@@ -20,6 +20,8 @@ import {
   Globe,
   ArrowLeft,
   Check,
+  FileText,
+  Briefcase,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -98,68 +100,35 @@ export default function CreateOrganizationPage() {
   const updateField = (field: string, value: string) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
-      
       // Auto-generate slug from name
-      if (field === 'name' && !prev.slug) {
+      if (field === 'name') {
         updated.slug = generateSlug(value);
       }
-      
-      // Copy primary contact to billing if sameAsPrimary
-      if (field.startsWith('primaryContact') && prev.sameAsPrimary) {
-        if (field === 'primaryContactName') updated.billingContactName = value;
-        if (field === 'primaryContactEmail') {
-          updated.billingContactEmail = value;
-          updated.billingEmail = value;
-        }
-        if (field === 'primaryContactPhone') updated.billingContactPhone = value;
-      }
-      
       return updated;
     });
   };
 
-  const toggleSameAsPrimary = () => {
-    setFormData(prev => {
-      const sameAsPrimary = !prev.sameAsPrimary;
-      if (sameAsPrimary) {
-        return {
-          ...prev,
-          sameAsPrimary,
-          billingContactName: prev.primaryContactName,
-          billingContactEmail: prev.primaryContactEmail,
-          billingContactPhone: prev.primaryContactPhone,
-          billingEmail: prev.primaryContactEmail,
-        };
-      } else {
-        return { ...prev, sameAsPrimary };
-      }
-    });
-  };
-
-  const toggleSameAsTech = () => {
-    setFormData(prev => {
-      const sameAsTech = !prev.sameAsTech;
-      if (sameAsTech) {
-        return {
-          ...prev,
-          sameAsTech,
-          techContactName: prev.primaryContactName,
-          techContactEmail: prev.primaryContactEmail,
-          techContactPhone: prev.primaryContactPhone,
-        };
-      } else {
-        return { ...prev, sameAsTech };
-      }
-    });
-  };
+  const steps = [
+    { number: 1, title: 'Company Info', icon: Building2 },
+    { number: 2, title: 'Address', icon: MapPin },
+    { number: 3, title: 'Contacts', icon: Users },
+    { number: 4, title: 'Billing', icon: CreditCard },
+    { number: 5, title: 'Subscription', icon: Briefcase },
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    
+    if (!formData.name || !formData.slug) {
+      setError('Organization name and slug are required');
+      return;
+    }
+
     setSaving(true);
+    setError(null);
 
     try {
-      const response = await fetch('/api/admin/organizations/onboard', {
+      const response = await fetch('/api/admin/organizations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -167,124 +136,114 @@ export default function CreateOrganizationPage() {
 
       const data = await response.json();
 
-      if (!response.ok) {
+      if (data.success) {
+        router.push('/admin-v2?tab=organizations&success=created');
+      } else {
         setError(data.error || 'Failed to create organization');
-        setSaving(false);
-        return;
       }
-
-      // Success - redirect to organizations list
-      router.push('/admin/organizations?success=created');
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (error) {
+      console.error('Error creating organization:', error);
+      setError('An error occurred while creating the organization');
+    } finally {
       setSaving(false);
     }
   };
 
-  const steps = [
-    { id: 1, name: 'Company Info', icon: Building2 },
-    { id: 2, name: 'Address', icon: MapPin },
-    { id: 3, name: 'Contacts', icon: User },
-    { id: 4, name: 'Billing', icon: CreditCard },
-    { id: 5, name: 'Subscription', icon: Users },
-  ];
+  const nextStep = () => {
+    if (currentStep < 5) setCurrentStep(currentStep + 1);
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
+  };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b border-border bg-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.back()}
+    <div className="flex w-full h-full">
+      {/* Sidebar */}
+      <aside className="w-64 border-r border-border bg-card p-4 overflow-y-auto flex-shrink-0">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold mb-3 text-foreground">New Organization</h2>
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Organizations
+          </button>
+        </div>
+
+        {/* Progress Steps */}
+        <nav className="space-y-2">
+          {steps.map((step) => {
+            const Icon = step.icon;
+            const isCompleted = step.number < currentStep;
+            const isCurrent = step.number === currentStep;
+            
+            return (
+              <button
+                key={step.number}
+                onClick={() => setCurrentStep(step.number)}
+                className={cn(
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors relative',
+                  isCurrent
+                    ? 'bg-primary text-primary-foreground'
+                    : isCompleted
+                    ? 'text-foreground hover:bg-accent'
+                    : 'text-muted-foreground hover:bg-accent/50'
+                )}
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold">New Organization Onboarding</h1>
-                <p className="text-sm text-muted-foreground">Complete business setup</p>
-              </div>
+                <div className={cn(
+                  'flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium',
+                  isCurrent
+                    ? 'bg-primary-foreground text-primary'
+                    : isCompleted
+                    ? 'bg-green-500 text-white'
+                    : 'bg-muted text-muted-foreground'
+                )}>
+                  {isCompleted ? (
+                    <Check className="h-3 w-3" />
+                  ) : (
+                    step.number
+                  )}
+                </div>
+                <span className="flex-1 text-left">{step.title}</span>
+                <Icon className="h-4 w-4" />
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="mt-6 pt-6 border-t border-border">
+          <p className="text-xs text-muted-foreground">
+            Complete all steps to create your organization and start inviting team members.
+          </p>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto bg-background">
+        <div className="max-w-4xl mx-auto p-8">
+          {error && (
+            <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+              {error}
             </div>
-          </div>
-        </div>
-      </div>
+          )}
 
-      {/* Progress Steps */}
-      <div className="border-b border-border bg-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <nav aria-label="Progress">
-            <ol className="flex items-center justify-between">
-              {steps.map((step, index) => {
-                const Icon = step.icon;
-                const isComplete = currentStep > step.id;
-                const isCurrent = currentStep === step.id;
-                
-                return (
-                  <li key={step.id} className="relative flex-1">
-                    {/* Line */}
-                    {index !== steps.length - 1 && (
-                      <div
-                        className={cn(
-                          'absolute left-[calc(50%+2rem)] right-[-50%] top-5 h-0.5',
-                          isComplete ? 'bg-primary' : 'bg-border'
-                        )}
-                      />
-                    )}
-                    
-                    {/* Step */}
-                    <div className="relative flex flex-col items-center group">
-                      <div
-                        className={cn(
-                          'w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors',
-                          isComplete
-                            ? 'bg-primary border-primary text-primary-foreground'
-                            : isCurrent
-                            ? 'bg-primary border-primary text-primary-foreground'
-                            : 'bg-background border-border text-muted-foreground'
-                        )}
-                      >
-                        {isComplete ? (
-                          <Check className="w-5 h-5" />
-                        ) : (
-                          <Icon className="w-5 h-5" />
-                        )}
-                      </div>
-                      <span
-                        className={cn(
-                          'mt-2 text-xs font-medium',
-                          isCurrent ? 'text-primary' : 'text-muted-foreground'
-                        )}
-                      >
-                        {step.name}
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </nav>
-        </div>
-      </div>
-
-      {/* Form */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Step 1: Company Information */}
-          {currentStep === 1 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Company Information</CardTitle>
-                <CardDescription>
-                  Basic details about the organization
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Step 1: Company Information */}
+            {currentStep === 1 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    Company Information
+                  </CardTitle>
+                  <CardDescription>
+                    Basic details about the organization
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
                     <Label htmlFor="name">Organization Name *</Label>
                     <Input
                       id="name"
@@ -295,77 +254,75 @@ export default function CreateOrganizationPage() {
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="slug">URL Slug *</Label>
-                    <Input
-                      id="slug"
-                      value={formData.slug}
-                      onChange={(e) => updateField('slug', generateSlug(e.target.value))}
-                      placeholder="acme-corp"
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Used in URLs: /teams/{formData.slug || 'your-slug'}
-                    </p>
-                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="slug">URL Slug *</Label>
+                      <Input
+                        id="slug"
+                        value={formData.slug}
+                        onChange={(e) => updateField('slug', e.target.value)}
+                        placeholder="acme-corp"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        /teams/{formData.slug || 'your-slug'}
+                      </p>
+                    </div>
 
-                  <div>
-                    <Label htmlFor="website">Website</Label>
-                    <div className="relative">
-                      <Globe className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <Label htmlFor="website">Website</Label>
                       <Input
                         id="website"
                         value={formData.website}
                         onChange={(e) => updateField('website', e.target.value)}
                         placeholder="https://acme.com"
-                        className="pl-9"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="industry">Industry</Label>
-                    <Select
-                      value={formData.industry}
-                      onValueChange={(value) => updateField('industry', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select industry" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="technology">Technology</SelectItem>
-                        <SelectItem value="finance">Finance</SelectItem>
-                        <SelectItem value="healthcare">Healthcare</SelectItem>
-                        <SelectItem value="education">Education</SelectItem>
-                        <SelectItem value="retail">Retail</SelectItem>
-                        <SelectItem value="manufacturing">Manufacturing</SelectItem>
-                        <SelectItem value="services">Professional Services</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="industry">Industry</Label>
+                      <Select
+                        value={formData.industry}
+                        onValueChange={(value) => updateField('industry', value)}
+                      >
+                        <SelectTrigger id="industry">
+                          <SelectValue placeholder="Select industry" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="technology">Technology</SelectItem>
+                          <SelectItem value="finance">Finance</SelectItem>
+                          <SelectItem value="healthcare">Healthcare</SelectItem>
+                          <SelectItem value="education">Education</SelectItem>
+                          <SelectItem value="retail">Retail</SelectItem>
+                          <SelectItem value="manufacturing">Manufacturing</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="companySize">Company Size</Label>
+                      <Select
+                        value={formData.companySize}
+                        onValueChange={(value) => updateField('companySize', value)}
+                      >
+                        <SelectTrigger id="companySize">
+                          <SelectValue placeholder="Select size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1-10">1-10 employees</SelectItem>
+                          <SelectItem value="11-50">11-50 employees</SelectItem>
+                          <SelectItem value="51-200">51-200 employees</SelectItem>
+                          <SelectItem value="201-500">201-500 employees</SelectItem>
+                          <SelectItem value="501+">501+ employees</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="companySize">Company Size</Label>
-                    <Select
-                      value={formData.companySize}
-                      onValueChange={(value) => updateField('companySize', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select size" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1-10">1-10 employees</SelectItem>
-                        <SelectItem value="11-50">11-50 employees</SelectItem>
-                        <SelectItem value="51-200">51-200 employees</SelectItem>
-                        <SelectItem value="201-500">201-500 employees</SelectItem>
-                        <SelectItem value="501-1000">501-1000 employees</SelectItem>
-                        <SelectItem value="1000+">1000+ employees</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="md:col-span-2">
                     <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
@@ -375,30 +332,30 @@ export default function CreateOrganizationPage() {
                       rows={3}
                     />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Step 2: Business Address */}
-          {currentStep === 2 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Business Address</CardTitle>
-                <CardDescription>
-                  Physical location of the organization
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-4">
+            {/* Step 2: Business Address */}
+            {currentStep === 2 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Business Address
+                  </CardTitle>
+                  <CardDescription>
+                    Physical address for the organization
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="addressLine1">Address Line 1 *</Label>
+                    <Label htmlFor="addressLine1">Address Line 1</Label>
                     <Input
                       id="addressLine1"
                       value={formData.addressLine1}
                       onChange={(e) => updateField('addressLine1', e.target.value)}
                       placeholder="123 Main Street"
-                      required
                     />
                   </div>
 
@@ -408,52 +365,49 @@ export default function CreateOrganizationPage() {
                       id="addressLine2"
                       value={formData.addressLine2}
                       onChange={(e) => updateField('addressLine2', e.target.value)}
-                      placeholder="Suite 100"
+                      placeholder="Suite 100 (optional)"
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <Label htmlFor="city">City *</Label>
+                      <Label htmlFor="city">City</Label>
                       <Input
                         id="city"
                         value={formData.city}
                         onChange={(e) => updateField('city', e.target.value)}
-                        placeholder="San Francisco"
-                        required
+                        placeholder="New York"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="state">State/Province *</Label>
+                      <Label htmlFor="state">State</Label>
                       <Input
                         id="state"
                         value={formData.state}
                         onChange={(e) => updateField('state', e.target.value)}
-                        placeholder="CA"
-                        required
+                        placeholder="NY"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="zipCode">ZIP/Postal Code *</Label>
+                      <Label htmlFor="zipCode">ZIP Code</Label>
                       <Input
                         id="zipCode"
                         value={formData.zipCode}
                         onChange={(e) => updateField('zipCode', e.target.value)}
-                        placeholder="94105"
-                        required
+                        placeholder="10001"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="country">Country *</Label>
+                    <Label htmlFor="country">Country</Label>
                     <Select
                       value={formData.country}
                       onValueChange={(value) => updateField('country', value)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="country">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -461,266 +415,222 @@ export default function CreateOrganizationPage() {
                         <SelectItem value="Canada">Canada</SelectItem>
                         <SelectItem value="United Kingdom">United Kingdom</SelectItem>
                         <SelectItem value="Australia">Australia</SelectItem>
-                        <SelectItem value="Germany">Germany</SelectItem>
-                        <SelectItem value="France">France</SelectItem>
                         <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Step 3: Contacts */}
-          {currentStep === 3 && (
-            <div className="space-y-6">
-              {/* Primary Contact */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Primary Contact</CardTitle>
-                  <CardDescription>
-                    Main point of contact for this organization
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="primaryContactName">Full Name *</Label>
-                      <Input
-                        id="primaryContactName"
-                        value={formData.primaryContactName}
-                        onChange={(e) => updateField('primaryContactName', e.target.value)}
-                        placeholder="John Doe"
-                        required
-                      />
+            {/* Step 3: Contact Information */}
+            {currentStep === 3 && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="h-5 w-5" />
+                      Primary Contact
+                    </CardTitle>
+                    <CardDescription>
+                      Main point of contact for this organization
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="primaryContactName">Full Name</Label>
+                        <Input
+                          id="primaryContactName"
+                          value={formData.primaryContactName}
+                          onChange={(e) => updateField('primaryContactName', e.target.value)}
+                          placeholder="John Smith"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="primaryContactTitle">Title</Label>
+                        <Input
+                          id="primaryContactTitle"
+                          value={formData.primaryContactTitle}
+                          onChange={(e) => updateField('primaryContactTitle', e.target.value)}
+                          placeholder="CEO"
+                        />
+                      </div>
                     </div>
 
-                    <div>
-                      <Label htmlFor="primaryContactTitle">Title *</Label>
-                      <Input
-                        id="primaryContactTitle"
-                        value={formData.primaryContactTitle}
-                        onChange={(e) => updateField('primaryContactTitle', e.target.value)}
-                        placeholder="CEO"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="primaryContactEmail">Email *</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="primaryContactEmail">Email</Label>
                         <Input
                           id="primaryContactEmail"
                           type="email"
                           value={formData.primaryContactEmail}
                           onChange={(e) => updateField('primaryContactEmail', e.target.value)}
                           placeholder="john@acme.com"
-                          className="pl-9"
-                          required
                         />
                       </div>
-                    </div>
 
-                    <div>
-                      <Label htmlFor="primaryContactPhone">Phone *</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <Label htmlFor="primaryContactPhone">Phone</Label>
                         <Input
                           id="primaryContactPhone"
                           type="tel"
                           value={formData.primaryContactPhone}
                           onChange={(e) => updateField('primaryContactPhone', e.target.value)}
                           placeholder="+1 (555) 123-4567"
-                          className="pl-9"
-                          required
                         />
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              {/* Technical Contact */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Technical Contact</CardTitle>
-                      <CardDescription>
-                        IT or technical point of contact
-                      </CardDescription>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5" />
+                      Billing Contact
+                    </CardTitle>
+                    <CardDescription>
+                      Contact for billing and invoices
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="sameAsPrimary"
+                        checked={formData.sameAsPrimary}
+                        onChange={(e) => updateField('sameAsPrimary', String(e.target.checked))}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="sameAsPrimary" className="cursor-pointer">
+                        Same as primary contact
+                      </Label>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={toggleSameAsTech}
-                    >
-                      {formData.sameAsTech ? 'Use Different' : 'Same as Primary'}
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {!formData.sameAsTech && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="md:col-span-2">
-                        <Label htmlFor="techContactName">Full Name *</Label>
+
+                    {!formData.sameAsPrimary && (
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="billingContactName">Name</Label>
+                          <Input
+                            id="billingContactName"
+                            value={formData.billingContactName}
+                            onChange={(e) => updateField('billingContactName', e.target.value)}
+                            placeholder="Jane Doe"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="billingContactEmail">Email</Label>
+                          <Input
+                            id="billingContactEmail"
+                            type="email"
+                            value={formData.billingContactEmail}
+                            onChange={(e) => updateField('billingContactEmail', e.target.value)}
+                            placeholder="billing@acme.com"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="billingContactPhone">Phone</Label>
+                          <Input
+                            id="billingContactPhone"
+                            type="tel"
+                            value={formData.billingContactPhone}
+                            onChange={(e) => updateField('billingContactPhone', e.target.value)}
+                            placeholder="+1 (555) 987-6543"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Mail className="h-5 w-5" />
+                      Technical Contact
+                    </CardTitle>
+                    <CardDescription>
+                      Technical support and IT contact
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="techContactName">Name</Label>
                         <Input
                           id="techContactName"
                           value={formData.techContactName}
                           onChange={(e) => updateField('techContactName', e.target.value)}
-                          placeholder="Jane Smith"
-                          required
+                          placeholder="Tech Lead"
                         />
                       </div>
 
                       <div>
-                        <Label htmlFor="techContactEmail">Email *</Label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            id="techContactEmail"
-                            type="email"
-                            value={formData.techContactEmail}
-                            onChange={(e) => updateField('techContactEmail', e.target.value)}
-                            placeholder="jane@acme.com"
-                            className="pl-9"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="techContactPhone">Phone *</Label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            id="techContactPhone"
-                            type="tel"
-                            value={formData.techContactPhone}
-                            onChange={(e) => updateField('techContactPhone', e.target.value)}
-                            placeholder="+1 (555) 123-4567"
-                            className="pl-9"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {formData.sameAsTech && (
-                    <p className="text-sm text-muted-foreground">
-                      Using primary contact as technical contact
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Step 4: Billing Contact */}
-          {currentStep === 4 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Billing Contact</CardTitle>
-                    <CardDescription>
-                      Contact for billing and invoicing matters
-                    </CardDescription>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={toggleSameAsPrimary}
-                  >
-                    {formData.sameAsPrimary ? 'Use Different' : 'Same as Primary'}
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {!formData.sameAsPrimary && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2">
-                      <Label htmlFor="billingContactName">Full Name *</Label>
-                      <Input
-                        id="billingContactName"
-                        value={formData.billingContactName}
-                        onChange={(e) => updateField('billingContactName', e.target.value)}
-                        placeholder="Sarah Johnson"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="billingContactEmail">Email *</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Label htmlFor="techContactEmail">Email</Label>
                         <Input
-                          id="billingContactEmail"
+                          id="techContactEmail"
                           type="email"
-                          value={formData.billingContactEmail}
-                          onChange={(e) => updateField('billingContactEmail', e.target.value)}
-                          placeholder="billing@acme.com"
-                          className="pl-9"
-                          required
+                          value={formData.techContactEmail}
+                          onChange={(e) => updateField('techContactEmail', e.target.value)}
+                          placeholder="tech@acme.com"
                         />
                       </div>
-                    </div>
 
-                    <div>
-                      <Label htmlFor="billingContactPhone">Phone *</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <Label htmlFor="techContactPhone">Phone</Label>
                         <Input
-                          id="billingContactPhone"
+                          id="techContactPhone"
                           type="tel"
-                          value={formData.billingContactPhone}
-                          onChange={(e) => updateField('billingContactPhone', e.target.value)}
-                          placeholder="+1 (555) 123-4567"
-                          className="pl-9"
-                          required
+                          value={formData.techContactPhone}
+                          onChange={(e) => updateField('techContactPhone', e.target.value)}
+                          placeholder="+1 (555) 456-7890"
                         />
                       </div>
                     </div>
-                  </div>
-                )}
-                {formData.sameAsPrimary && (
-                  <p className="text-sm text-muted-foreground">
-                    Using primary contact for billing
-                  </p>
-                )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
-                <div className="space-y-4 pt-4 border-t border-border">
+            {/* Step 4: Billing Information */}
+            {currentStep === 4 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Billing Information
+                  </CardTitle>
+                  <CardDescription>
+                    Tax and payment details
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="billingEmail">Billing Email *</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="billingEmail"
-                        type="email"
-                        value={formData.billingEmail}
-                        onChange={(e) => updateField('billingEmail', e.target.value)}
-                        placeholder="billing@acme.com"
-                        className="pl-9"
-                        required
-                      />
-                    </div>
+                    <Label htmlFor="billingEmail">Billing Email</Label>
+                    <Input
+                      id="billingEmail"
+                      type="email"
+                      value={formData.billingEmail}
+                      onChange={(e) => updateField('billingEmail', e.target.value)}
+                      placeholder="billing@acme.com"
+                    />
                     <p className="text-xs text-muted-foreground mt-1">
                       Invoices will be sent to this email
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="taxId">Tax ID / VAT Number</Label>
+                      <Label htmlFor="taxId">Tax ID / EIN</Label>
                       <Input
                         id="taxId"
                         value={formData.taxId}
                         onChange={(e) => updateField('taxId', e.target.value)}
-                        placeholder="XX-XXXXXXX"
+                        placeholder="12-3456789"
                       />
                     </div>
 
@@ -730,67 +640,75 @@ export default function CreateOrganizationPage() {
                         id="purchaseOrderNumber"
                         value={formData.purchaseOrderNumber}
                         onChange={(e) => updateField('purchaseOrderNumber', e.target.value)}
-                        placeholder="PO-123456"
+                        placeholder="PO-2024-001"
                       />
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 5: Subscription */}
-          {currentStep === 5 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Subscription Plan</CardTitle>
-                <CardDescription>
-                  Select the plan tier and maximum users for this organization
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="planType">Plan Type *</Label>
-                    <Select
-                      value={formData.planType}
-                      onValueChange={(value) => updateField('planType', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="free">Free (1 user) - $0/month</SelectItem>
-                        <SelectItem value="individual">Individual (1 user) - $45/month</SelectItem>
-                        <SelectItem value="team">Team (2-10 users) - $40.50/user/month</SelectItem>
-                        <SelectItem value="enterprise">Enterprise (10+ users) - $36.45/user/month</SelectItem>
-                        <SelectItem value="custom">Custom - Contact for pricing</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
 
                   <div>
-                    <Label htmlFor="maxSeats">Maximum Seats *</Label>
-                    <Input
-                      id="maxSeats"
-                      type="number"
-                      min="1"
-                      value={formData.maxSeats}
-                      onChange={(e) => updateField('maxSeats', e.target.value)}
-                      required
+                    <Label htmlFor="notes">Additional Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) => updateField('notes', e.target.value)}
+                      placeholder="Any special billing requirements or notes..."
+                      rows={3}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Maximum number of users allowed for this organization
-                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Step 5: Subscription */}
+            {currentStep === 5 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Briefcase className="h-5 w-5" />
+                    Subscription Details
+                  </CardTitle>
+                  <CardDescription>
+                    Choose a plan and configure seats
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="planType">Plan Type</Label>
+                      <Select
+                        value={formData.planType}
+                        onValueChange={(value) => updateField('planType', value)}
+                      >
+                        <SelectTrigger id="planType">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="team">Team (Up to 20 users)</SelectItem>
+                          <SelectItem value="business">Business (Up to 50 users)</SelectItem>
+                          <SelectItem value="enterprise">Enterprise (Unlimited)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="maxSeats">Maximum Seats</Label>
+                      <Input
+                        id="maxSeats"
+                        type="number"
+                        min="1"
+                        value={formData.maxSeats}
+                        onChange={(e) => updateField('maxSeats', e.target.value)}
+                      />
+                    </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="billingCycle">Billing Cycle *</Label>
+                    <Label htmlFor="billingCycle">Billing Cycle</Label>
                     <Select
                       value={formData.billingCycle}
                       onValueChange={(value) => updateField('billingCycle', value)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="billingCycle">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -800,58 +718,65 @@ export default function CreateOrganizationPage() {
                     </Select>
                   </div>
 
-                  <div>
-                    <Label htmlFor="notes">Additional Notes</Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) => updateField('notes', e.target.value)}
-                      placeholder="Any special requirements or notes..."
-                      rows={4}
-                    />
+                  <div className="pt-4 border-t border-border">
+                    <h4 className="font-medium mb-2">Review</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Organization:</span>
+                        <span className="font-medium">{formData.name || 'Not set'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Plan:</span>
+                        <span className="font-medium capitalize">{formData.planType}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Seats:</span>
+                        <span className="font-medium">{formData.maxSeats}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Billing:</span>
+                        <span className="font-medium capitalize">{formData.billingCycle}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Error Display */}
-          {error && (
-            <Card className="border-red-500 bg-red-50">
-              <CardContent className="pt-6">
-                <p className="text-sm text-red-800">{error}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Navigation */}
-          <div className="flex justify-between pt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
-              disabled={currentStep === 1 || saving}
-            >
-              Previous
-            </Button>
-
-            {currentStep < 5 ? (
+            {/* Navigation Buttons */}
+            <div className="flex justify-between pt-6 border-t border-border">
               <Button
                 type="button"
-                onClick={() => setCurrentStep(prev => Math.min(5, prev + 1))}
-                disabled={saving}
+                variant="outline"
+                onClick={prevStep}
+                disabled={currentStep === 1}
               >
-                Next
+                Previous
               </Button>
-            ) : (
-              <Button type="submit" disabled={saving}>
-                {saving ? 'Creating Organization...' : 'Create Organization'}
-              </Button>
-            )}
-          </div>
-        </form>
-      </div>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                >
+                  Cancel
+                </Button>
+
+                {currentStep < 5 ? (
+                  <Button type="button" onClick={nextStep}>
+                    Next
+                  </Button>
+                ) : (
+                  <Button type="submit" disabled={saving}>
+                    {saving ? 'Creating...' : 'Create Organization'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </form>
+        </div>
+      </main>
     </div>
   );
 }
-
