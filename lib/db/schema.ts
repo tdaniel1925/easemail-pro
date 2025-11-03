@@ -635,6 +635,11 @@ export const smsUsage = pgTable('sms_usage', {
   billingStatus: varchar('billing_status', { length: 50 }).default('pending'),
   invoiceId: varchar('invoice_id', { length: 255 }),
   
+  // Billing tracking
+  chargedAt: timestamp('charged_at'),
+  chargeAmountUsd: decimal('charge_amount_usd', { precision: 10, scale: 2 }),
+  transactionId: uuid('transaction_id'),
+  
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -965,6 +970,11 @@ export const aiUsage = pgTable('ai_usage', {
   overageRequests: integer('overage_requests').default(0),
   
   metadata: jsonb('metadata').$type<Record<string, any>>(),
+  
+  // Billing tracking
+  chargedAt: timestamp('charged_at'),
+  chargeAmountUsd: decimal('charge_amount_usd', { precision: 10, scale: 2 }),
+  transactionId: uuid('transaction_id'),
   
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

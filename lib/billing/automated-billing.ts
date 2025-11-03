@@ -107,17 +107,21 @@ export async function getBillingConfig(): Promise<BillingConfig | null> {
 export async function updateBillingConfig(config: Partial<BillingConfig>): Promise<void> {
   const existing = await db.query.billingConfig.findFirst();
   
+  // Convert decimal numbers to strings for database
+  const dbConfig: any = {
+    ...config,
+    smsChargeThresholdUsd: config.smsChargeThresholdUsd?.toString(),
+    aiChargeThresholdUsd: config.aiChargeThresholdUsd?.toString(),
+    minimumChargeUsd: config.minimumChargeUsd?.toString(),
+    updatedAt: new Date(),
+  };
+  
   if (existing) {
     await db.update(billingConfig)
-      .set({
-        ...config,
-        updatedAt: new Date(),
-      })
+      .set(dbConfig)
       .where(eq(billingConfig.id, existing.id));
   } else {
-    await db.insert(billingConfig).values({
-      ...config,
-    } as any);
+    await db.insert(billingConfig).values(dbConfig);
   }
 }
 

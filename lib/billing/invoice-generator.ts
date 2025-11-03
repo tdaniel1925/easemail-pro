@@ -255,8 +255,8 @@ export async function generateInvoice(data: InvoiceData) {
   let taxAmount = 0;
   let taxRate = 0;
   
-  if (uid) {
-    const taxInfo = await getTaxRateForUser(uid);
+  if (data.userId) {
+    const taxInfo = await getTaxRateForUser(data.userId);
     taxRate = taxInfo.rate;
     taxAmount = subtotal * taxRate;
   }
