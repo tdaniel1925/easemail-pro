@@ -578,7 +578,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           className={cn(
             'bg-card border border-border shadow-2xl rounded-lg flex flex-col pointer-events-auto transition-all duration-300',
             isMinimized && 'h-14 w-96',
-            !isMinimized && !isFullscreen && 'h-[600px] w-[700px]',
+            !isMinimized && !isFullscreen && 'h-[700px] w-[900px]',
             isFullscreen && 'h-[calc(100vh-2rem)] w-[calc(100vw-2rem)]'
           )}
           onClick={(e) => e.stopPropagation()}
