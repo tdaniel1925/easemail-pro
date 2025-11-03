@@ -689,7 +689,7 @@ export default function ContactsContent() {
           setEditingContact(null);
         }}
         contact={editingContact || undefined}
-        onSave={() => {
+        onContactSaved={() => {
           fetchContacts();
           setIsAddModalOpen(false);
           setEditingContact(null);
@@ -719,7 +719,7 @@ export default function ContactsContent() {
       <ImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        onImportComplete={fetchContacts}
+        onSuccess={fetchContacts}
       />
 
       {smsContact && (
