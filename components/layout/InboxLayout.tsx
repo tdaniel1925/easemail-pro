@@ -810,12 +810,6 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         onSelectFolder={handleFolderSelect}
         getFolderIcon={getFolderIcon}
       />
-
-      {/* ✅ NEW: AI Assistant Sidebar */}
-      <AIAssistantSidebar
-        isOpen={isAIAssistantOpen}
-        onClose={() => setIsAIAssistantOpen(false)}
-      />
     </div>
   );
 }
