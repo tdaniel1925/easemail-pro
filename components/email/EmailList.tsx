@@ -849,12 +849,8 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
 
             {!isExpanded && (
               <>
-                <p className={cn('text-sm mb-1', !email.isRead ? 'font-medium' : 'text-muted-foreground')}>
-                  {email.subject || '(No subject)'}
-                </p>
-                
-                {/* AI Summary or Snippet */}
-                <div className="flex items-start gap-2 pr-2">
+                {/* AI Summary (3 lines, no subject) */}
+                <div className="flex items-start gap-2 pr-2 mb-3">
                   {isSummaryLoading && (
                     <Loader2 className="h-3 w-3 animate-spin text-muted-foreground mt-1 flex-shrink-0" />
                   )}
@@ -862,11 +858,53 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
                     <Sparkles className="h-3 w-3 text-primary mt-1 flex-shrink-0" />
                   )}
                   <p className={cn(
-                    'text-sm line-clamp-2 flex-1 leading-relaxed',
-                    hasAISummary ? 'text-primary font-medium' : 'text-muted-foreground'
+                    'text-sm line-clamp-3 flex-1 leading-relaxed',
+                    hasAISummary ? 'text-foreground' : 'text-muted-foreground',
+                    !email.isRead && 'font-medium'
                   )}>
                     {displayText}
                   </p>
+                </div>
+
+                {/* Quick Action Buttons */}
+                <div className="flex items-center gap-1 pt-2 border-t border-border">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                    onClick={handleReply}
+                    title="Reply"
+                  >
+                    <Reply className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                    onClick={handleReplyAll}
+                    title="Reply All"
+                  >
+                    <ReplyAll className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                    onClick={handleForward}
+                    title="Forward"
+                  >
+                    <Forward className="h-4 w-4" />
+                  </Button>
+                  <div className="flex-1" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-muted-foreground hover:text-destructive"
+                    onClick={handleDelete}
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
 
                 {email.hasAttachments && email.attachments && email.attachments.length > 0 && (
