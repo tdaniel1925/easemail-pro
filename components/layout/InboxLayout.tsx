@@ -20,7 +20,8 @@ import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop'; // âœ… PHASE 3:
 import { usePrefetch } from '@/lib/hooks/usePrefetch'; // âœ… PHASE 4: Prefetching
 import { folderCache } from '@/lib/cache/folder-cache'; // âœ… PHASE 4: Folder caching
 import { registerServiceWorker, setupOnlineListeners } from '@/lib/utils/service-worker'; // âœ… PHASE 4: Offline support
-import { AIAssistantSidebar } from '@/components/ai/AIAssistantSidebar'; // âœ… NEW: AI Assistant
+import { AIAssistantSidebar } from '@/components/ai/AIAssistantSidebar'; // ✅ NEW: AI Assistant
+import { RightSidebarWithTabs } from '@/components/layout/RightSidebarWithTabs'; // ✅ NEW: Right sidebar with tabs
 
 interface InboxLayoutProps {
   children: React.ReactNode;
@@ -648,13 +649,6 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
               <span>Contacts</span>
             </button>
             <button
-              onClick={() => setIsAIAssistantOpen(true)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
-            >
-              <Bot className="h-4 w-4" />
-              <span>AI Assistant</span>
-            </button>
-            <button
               onClick={() => router.push('/attachments')}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
             >
@@ -749,9 +743,8 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-
+      {/* Main Content Area with Right Sidebar Tabs */}
+      <RightSidebarWithTabs>
         {/* Main Content */}
         <main className="flex-1 overflow-hidden flex flex-col">
           {message && (
@@ -764,7 +757,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             </div>
           )}
           <div className="flex-1 overflow-hidden">
-            {/* âœ… FIX #1: Pass selectedAccountId to children */}
+            {/* ✅ FIX #1: Pass selectedAccountId to children */}
             {React.Children.map(children, child => {
               if (React.isValidElement(child)) {
                 return React.cloneElement(child as any, { 
@@ -776,7 +769,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             })}
           </div>
         </main>
-      </div>
+      </RightSidebarWithTabs>
       
       {/* Email Compose Window */}
       <EmailCompose 
