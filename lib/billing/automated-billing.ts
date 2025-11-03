@@ -22,6 +22,11 @@ import {
 import { eq, and, gte, lte, isNull, sql } from 'drizzle-orm';
 import { generateInvoice } from './invoice-generator';
 import Stripe from 'stripe';
+import {
+  sendBillingRunNotification,
+  sendChargeSuccessEmail,
+  sendChargeFailureEmail,
+} from './email-notifications';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-11-20.acacia',
@@ -496,12 +501,7 @@ export async function processAutomatedBilling(
   console.log(`   Failed: ${failed}`);
   console.log(`   Total charged: $${totalCharged.toFixed(2)}`);
   
-  // Send notification if configured
-  if (config.notifyOnSuccess || (config.notifyOnFailure && failed > 0)) {
-    await sendBillingNotification(billingRun.id, config);
-  }
-  
-  return {
+  const runResult: BillingRunResult = {
     runId: billingRun.id,
     accountsProcessed: pendingAccounts.length,
     chargesSuccessful: successful,
@@ -509,6 +509,13 @@ export async function processAutomatedBilling(
     totalAmountCharged: totalCharged,
     errors,
   };
+  
+  // Send notification if configured
+  if (config.notifyOnSuccess || (config.notifyOnFailure && failed > 0)) {
+    await sendBillingNotification(billingRun.id, config, runResult);
+  }
+  
+  return runResult;
 }
 
 /**
@@ -630,9 +637,27 @@ export async function retryFailedCharges(): Promise<BillingRunResult> {
 /**
  * Send billing notification email
  */
-async function sendBillingNotification(billingRunId: string, config: BillingConfig): Promise<void> {
-  // TODO: Implement email notification via Resend
-  console.log(`📧 Sending billing notification for run ${billingRunId}`);
+async function sendBillingNotification(billingRunId: string, config: BillingConfig, result: BillingRunResult): Promise<void> {
+  if (!config.notificationEmail) {
+    console.log('⏭️  No notification email configured');
+    return;
+  }
+
+  try {
+    await sendBillingRunNotification(
+      {
+        runId: result.runId,
+        accountsProcessed: result.accountsProcessed,
+        chargesSuccessful: result.chargesSuccessful,
+        chargesFailed: result.chargesFailed,
+        totalAmountCharged: result.totalAmountCharged,
+        errors: result.errors,
+      },
+      config.notificationEmail
+    );
+  } catch (error) {
+    console.error('Failed to send billing notification:', error);
+  }
 }
 
 /**

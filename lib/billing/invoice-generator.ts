@@ -6,6 +6,7 @@
 import { db } from '@/lib/db/drizzle';
 import { invoices, subscriptions, smsUsage, aiUsage, storageUsage, organizations, users } from '@/lib/db/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
+import { calculateTaxAmount, getTaxRateForUser } from './tax-calculator';
 
 export interface LineItem {
   description: string;
@@ -249,8 +250,17 @@ export async function generateInvoice(data: InvoiceData) {
   
   // Calculate totals
   const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
-  const taxRate = 0; // TODO: Get tax rate based on location
-  const taxAmount = subtotal * taxRate;
+  
+  // Calculate tax based on user location
+  let taxAmount = 0;
+  let taxRate = 0;
+  
+  if (uid) {
+    const taxInfo = await getTaxRateForUser(uid);
+    taxRate = taxInfo.rate;
+    taxAmount = subtotal * taxRate;
+  }
+  
   const total = subtotal + taxAmount;
   
   // Generate invoice number

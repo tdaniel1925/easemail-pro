@@ -8,6 +8,7 @@
 import { db } from '@/lib/db/drizzle';
 import { users, paymentMethods, paymentMethodRequirements } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { sendPaymentMethodRequiredEmail } from './email-notifications';
 
 /**
  * Check if a user requires a payment method
@@ -138,17 +139,41 @@ export async function notifyPaymentMethodRequired(userId: string): Promise<void>
     return;
   }
 
-  // Update notification tracking
-  await db.update(paymentMethodRequirements)
-    .set({
-      lastNotifiedAt: new Date(),
-      notificationCount: (requirement.notificationCount || 0) + 1,
-      updatedAt: new Date(),
-    })
-    .where(eq(paymentMethodRequirements.userId, userId));
+  // Get user details
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+  });
 
-  // TODO: Send email notification via Resend
-  console.log(`📧 Payment method required notification sent to user ${userId}`);
+  if (!user || !requirement.enforceAfter) {
+    return;
+  }
+
+  // Calculate grace period days
+  const gracePeriodDays = Math.ceil((requirement.enforceAfter.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+  // Send email notification
+  try {
+    await sendPaymentMethodRequiredEmail({
+      userEmail: user.email,
+      userName: user.fullName || user.email.split('@')[0],
+      subscriptionTier: user.subscriptionTier || 'paid',
+      enforceAfter: requirement.enforceAfter,
+      gracePeriodDays: Math.max(gracePeriodDays, 0),
+    });
+
+    // Update notification tracking
+    await db.update(paymentMethodRequirements)
+      .set({
+        lastNotifiedAt: new Date(),
+        notificationCount: (requirement.notificationCount || 0) + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(paymentMethodRequirements.userId, userId));
+
+    console.log(`📧 Payment method required notification sent to user ${userId}`);
+  } catch (error) {
+    console.error('Failed to send payment method notification:', error);
+  }
 }
 
 /**

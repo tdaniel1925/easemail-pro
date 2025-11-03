@@ -4,6 +4,13 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   DollarSign, 
   MessageSquare, 
@@ -16,11 +23,15 @@ import {
 import UserUsageTable from './UserUsageTable';
 import UsageTrendsChart from './UsageTrendsChart';
 import Link from 'next/link';
+import { downloadCSV, downloadExcel, downloadSummary } from '@/lib/exports/usage-export';
 
 export default function UsageAnalyticsDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'excel' | 'summary'>('csv');
   const [overview, setOverview] = useState<any>(null);
+  const [usersData, setUsersData] = useState<any[]>([]);
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0],
@@ -28,6 +39,7 @@ export default function UsageAnalyticsDashboard() {
 
   useEffect(() => {
     fetchOverview();
+    fetchUsersData();
   }, [dateRange]);
 
   const fetchOverview = async () => {
@@ -52,15 +64,59 @@ export default function UsageAnalyticsDashboard() {
     }
   };
 
+  const fetchUsersData = async () => {
+    try {
+      const params = new URLSearchParams({
+        startDate: dateRange.start,
+        endDate: dateRange.end,
+        limit: '1000', // Get all users for export
+        offset: '0',
+      });
+
+      const response = await fetch(`/api/admin/usage/users?${params}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setUsersData(data.users);
+      }
+    } catch (error) {
+      console.error('Failed to fetch users data:', error);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchOverview();
+    await Promise.all([fetchOverview(), fetchUsersData()]);
     setRefreshing(false);
   };
 
   const handleExport = async () => {
-    // TODO: Implement export functionality
-    alert('Export functionality coming soon!');
+    if (usersData.length === 0) {
+      alert('No data to export. Please wait for data to load.');
+      return;
+    }
+
+    setExporting(true);
+
+    try {
+      const period = {
+        start: dateRange.start,
+        end: dateRange.end,
+      };
+
+      if (exportFormat === 'summary') {
+        downloadSummary(overview, period);
+      } else if (exportFormat === 'excel') {
+        downloadExcel(usersData, period);
+      } else {
+        downloadCSV(usersData, period);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export data. Please try again.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -74,6 +130,16 @@ export default function UsageAnalyticsDashboard() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Select value={exportFormat} onValueChange={(value: any) => setExportFormat(value)}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="csv">CSV</SelectItem>
+              <SelectItem value="excel">Excel</SelectItem>
+              <SelectItem value="summary">Summary</SelectItem>
+            </SelectContent>
+          </Select>
           <Button
             variant="outline"
             size="sm"
@@ -87,8 +153,13 @@ export default function UsageAnalyticsDashboard() {
             variant="outline"
             size="sm"
             onClick={handleExport}
+            disabled={exporting || loading}
           >
-            <Download className="h-4 w-4 mr-2" />
+            {exporting ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
             Export
           </Button>
         </div>
