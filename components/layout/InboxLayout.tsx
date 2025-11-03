@@ -470,18 +470,6 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             </Button>
           </div>
 
-          {/* AI Assistant Button */}
-          <div className="px-4 pb-4">
-            <Button 
-              variant="outline" 
-              className="w-full h-11 text-base font-medium border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground shadow-sm transition-all"
-              onClick={() => setIsAIAssistantOpen(true)}
-            >
-              <Bot className="h-5 w-5 mr-2" />
-              AI Assistant
-            </Button>
-          </div>
-
           {/* âœ… PHASE 3: Recently Used Folders */}
           {recentFolders.length > 0 && (
             <div className="px-2 mb-2">
@@ -637,17 +625,34 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
           <div className="px-2 py-3 space-y-0.5">
             <button
               onClick={() => router.push('/calendar')}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all",
+                pathname === '/calendar' 
+                  ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                  : "hover:bg-accent hover:shadow-sm text-muted-foreground"
+              )}
             >
               <Calendar className="h-4 w-4" />
               <span>Calendar</span>
             </button>
             <button
               onClick={() => router.push('/contacts')}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all",
+                pathname === '/contacts'
+                  ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                  : "hover:bg-accent hover:shadow-sm text-muted-foreground"
+              )}
             >
               <User className="h-4 w-4" />
               <span>Contacts</span>
+            </button>
+            <button
+              onClick={() => setIsAIAssistantOpen(true)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-accent hover:shadow-sm text-muted-foreground transition-all"
+            >
+              <Bot className="h-4 w-4" />
+              <span>AI Assistant</span>
             </button>
             <button
               onClick={() => router.push('/attachments')}
