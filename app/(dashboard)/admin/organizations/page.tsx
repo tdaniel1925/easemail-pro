@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,7 @@ interface OrganizationMember {
 }
 
 export default function OrganizationsManagement() {
+  const router = useRouter();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -251,7 +253,7 @@ export default function OrganizationsManagement() {
               Create and manage team accounts
             </p>
           </div>
-          <Button onClick={() => setCreateModalOpen(true)}>
+          <Button onClick={() => router.push('/admin/organizations/create')}>
             <Plus className="h-4 w-4 mr-2" />
             Create Organization
           </Button>
@@ -473,9 +475,11 @@ export default function OrganizationsManagement() {
                   <SelectValue placeholder="Select plan" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="team">Team (Up to 20 users)</SelectItem>
-                  <SelectItem value="business">Business (Up to 50 users)</SelectItem>
-                  <SelectItem value="enterprise">Enterprise (Unlimited)</SelectItem>
+                  <SelectItem value="free">Free (1 user)</SelectItem>
+                  <SelectItem value="individual">Individual (1 user)</SelectItem>
+                  <SelectItem value="team">Team (2-10 users)</SelectItem>
+                  <SelectItem value="enterprise">Enterprise (10+ users)</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
@@ -554,9 +558,11 @@ export default function OrganizationsManagement() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="team">Team (Up to 20 users)</SelectItem>
-                  <SelectItem value="business">Business (Up to 50 users)</SelectItem>
-                  <SelectItem value="enterprise">Enterprise (Unlimited)</SelectItem>
+                  <SelectItem value="free">Free (1 user)</SelectItem>
+                  <SelectItem value="individual">Individual (1 user)</SelectItem>
+                  <SelectItem value="team">Team (2-10 users)</SelectItem>
+                  <SelectItem value="enterprise">Enterprise (10+ users)</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">

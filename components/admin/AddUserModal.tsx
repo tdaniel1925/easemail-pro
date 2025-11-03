@@ -64,13 +64,19 @@ export function AddUserModal({
         return;
       }
 
-      // Success
+      // Success - reset form and close
       setFormData({ email: '', fullName: '', role: 'member' });
+      setError(null);
+      setSaving(false);
+      
+      // Call success callback
       onSuccess();
+      
+      // Close modal
       onClose();
     } catch (err: any) {
+      console.error('Error creating user:', err);
       setError(err.message || 'An error occurred');
-    } finally {
       setSaving(false);
     }
   };
