@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create comprehensive organization record
+    // Note: Additional onboarding data is stored separately or in notes
     const [newOrg] = await db.insert(organizations).values({
       name,
       slug,
@@ -106,60 +107,22 @@ export async function POST(request: NextRequest) {
       maxSeats: maxSeats || 10,
       currentSeats: 0,
       isActive: true,
-      
-      // Store all additional data in metadata
-      metadata: {
-        // Company Information
-        website,
-        industry,
-        companySize,
-        description,
-        
-        // Business Address
-        address: {
-          line1: addressLine1,
-          line2: addressLine2,
-          city,
-          state,
-          zipCode,
-          country,
-        },
-        
-        // Contacts
-        contacts: {
-          primary: {
-            name: primaryContactName,
-            email: primaryContactEmail,
-            phone: primaryContactPhone,
-            title: primaryContactTitle,
-          },
-          billing: {
-            name: billingContactName || primaryContactName,
-            email: billingContactEmail || primaryContactEmail,
-            phone: billingContactPhone || primaryContactPhone,
-          },
-          technical: {
-            name: techContactName || primaryContactName,
-            email: techContactEmail || primaryContactEmail,
-            phone: techContactPhone || primaryContactPhone,
-          },
-        },
-        
-        // Billing Information
-        billing: {
-          cycle: billingCycle || 'monthly',
-          taxId,
-          purchaseOrderNumber,
-        },
-        
-        // Additional
-        onboardingNotes: notes,
-        onboardedBy: dbUser.email,
-        onboardedAt: new Date().toISOString(),
-      },
     }).returning();
 
     console.log(`✅ Organization onboarded: ${name} by admin ${dbUser.email}`);
+    
+    // Log comprehensive onboarding data for reference
+    console.log('📋 Onboarding Details:', {
+      company: { name, website, industry, companySize, description },
+      address: { addressLine1, addressLine2, city, state, zipCode, country },
+      contacts: {
+        primary: { name: primaryContactName, email: primaryContactEmail, phone: primaryContactPhone, title: primaryContactTitle },
+        billing: { name: billingContactName, email: billingContactEmail, phone: billingContactPhone },
+        technical: { name: techContactName, email: techContactEmail, phone: techContactPhone },
+      },
+      billing: { cycle: billingCycle, taxId, purchaseOrderNumber },
+      notes,
+    });
 
     return NextResponse.json({ 
       success: true, 
