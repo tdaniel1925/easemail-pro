@@ -116,8 +116,12 @@ async function performBackgroundSync(
   let pageToken: string | undefined = startingCursor || undefined;
   let totalSynced = 0;
   const pageSize = 200; // Sync 200 emails per batch
-  const maxPages = 250; // Max 50,000 emails (250 pages × 200)
+  const maxPages = 1000; // ✅ FIX #2: Increased to 200,000 emails (1000 pages × 200)
   let currentPage = 0;
+  
+  // ✅ FIX #3: Timeout detection (Vercel Pro = 5 min, leave 1 min buffer)
+  const startTime = Date.now();
+  const TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
   
   // Provider-specific delays to avoid rate limiting
   const delayMs = provider === 'microsoft' ? 500 : 100; // Microsoft needs more delay
@@ -133,6 +137,33 @@ async function performBackgroundSync(
     while (currentPage < maxPages) {
       currentPage++;
       console.log(`📄 Fetching page ${currentPage} for account ${accountId}`);
+
+      // ✅ FIX #3: Check if approaching Vercel timeout
+      const elapsed = Date.now() - startTime;
+      if (elapsed > TIMEOUT_MS) {
+        console.log(`⏰ Approaching Vercel timeout (${Math.round(elapsed/1000)}s elapsed) - saving progress and re-queuing`);
+        
+        // Save current state with cursor for resume
+        await db.update(emailAccounts)
+          .set({
+            syncStatus: 'background_syncing', // Keep as syncing
+            syncProgress: Math.min(Math.round((syncedCount / 50000) * 100), 99), // Estimate progress
+            syncCursor: pageToken || null, // Save position for resume
+            syncedEmailCount: syncedCount,
+            lastSyncedAt: new Date(),
+          })
+          .where(eq(emailAccounts.id, accountId));
+        
+        // Trigger new background job to continue from where we left off
+        console.log(`🔄 Triggering continuation job with cursor: ${pageToken?.substring(0, 20)}...`);
+        fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountId }),
+        }).catch(err => console.error('⚠️ Failed to trigger continuation:', err));
+        
+        return; // Exit gracefully, continuation job will pick up
+      }
 
       // Check if account still exists before continuing
       const accountCheck = await db.query.emailAccounts.findFirst({
@@ -264,17 +295,21 @@ async function performBackgroundSync(
         }
 
         // Update sync progress
-        const progress = Math.min(Math.round((currentPage / maxPages) * 100), 99);
+        // ✅ FIX #5: Better progress calculation and logging
+        const estimatedProgress = syncedCount > 0 
+          ? Math.min(Math.round((syncedCount / 50000) * 100), 99) // Estimate based on 50K assumption
+          : Math.min(Math.round((currentPage / maxPages) * 100), 99); // Fallback to page-based
+        
         await db.update(emailAccounts)
           .set({
             syncedEmailCount: syncedCount,
-            syncProgress: progress,
+            syncProgress: estimatedProgress,
             syncCursor: response.nextCursor || null,
             lastSyncedAt: new Date(),
           })
           .where(eq(emailAccounts.id, accountId));
 
-        console.log(`📊 Progress: ${progress}% (${syncedCount} emails synced)`);
+        console.log(`📊 Progress: ${estimatedProgress}% | Synced: ${syncedCount.toLocaleString()} emails | Page: ${currentPage}/${maxPages} | Time: ${Math.round((Date.now() - startTime)/1000)}s`);
 
         // Check for next page
         if (!response.nextCursor) {
@@ -334,6 +369,9 @@ async function performBackgroundSync(
     }
 
     // Mark sync as completed
+    // ✅ FIX #5: Add completion verification and detailed logging
+    const elapsedMinutes = Math.round((Date.now() - startTime) / 60000);
+    
     await db.update(emailAccounts)
       .set({
         syncStatus: 'completed',
@@ -344,7 +382,14 @@ async function performBackgroundSync(
       })
       .where(eq(emailAccounts.id, accountId));
 
-    console.log(`✅ Background sync completed for account ${accountId}. Total synced: ${totalSynced} emails`);
+    console.log(`✅ Background sync COMPLETED for account ${accountId}`);
+    console.log(`📊 Final Stats:
+      - New emails synced this session: ${totalSynced.toLocaleString()}
+      - Total emails in database: ${syncedCount.toLocaleString()}
+      - Pages processed: ${currentPage}
+      - Time elapsed: ${elapsedMinutes} minutes
+      - Reason for completion: ${currentPage >= maxPages ? 'Reached max pages' : 'No more emails available'}
+    `);
   } catch (error) {
     console.error(`❌ Background sync failed for account ${accountId}:`, error);
     

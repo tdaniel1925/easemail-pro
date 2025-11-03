@@ -210,11 +210,19 @@ export async function POST(request: NextRequest) {
       queryParams.pageToken = account.syncCursor;
     }
     
-    // For initial sync, only get last 7 days
+    // ✅ FIX #1: Configurable initial sync window (default 90 days, or all time)
     if (fullSync && !account.initialSyncCompleted) {
-      const oneWeekAgo = Math.floor((Date.now() - (7 * 24 * 60 * 60 * 1000)) / 1000);
-      queryParams.receivedAfter = oneWeekAgo;
-      console.log('📅 Initial sync - fetching emails from last 7 days');
+      const SYNC_HISTORY_DAYS = process.env.SYNC_HISTORY_DAYS 
+        ? parseInt(process.env.SYNC_HISTORY_DAYS) 
+        : 90; // Default to 90 days instead of 7
+      
+      if (SYNC_HISTORY_DAYS > 0) {
+        const historyStart = Math.floor((Date.now() - (SYNC_HISTORY_DAYS * 24 * 60 * 60 * 1000)) / 1000);
+        queryParams.receivedAfter = historyStart;
+        console.log(`📅 Initial sync - fetching emails from last ${SYNC_HISTORY_DAYS} days`);
+      } else {
+        console.log('📅 Initial sync - fetching ALL historical emails (no time limit)');
+      }
     }
     
     console.log('🔍 Fetching messages from Nylas with params:', queryParams);
