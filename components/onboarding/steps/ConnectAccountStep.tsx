@@ -8,23 +8,20 @@ export default function ConnectAccountStep() {
   const { setHighlightedElement } = useOnboarding();
 
   useEffect(() => {
-    // Highlight the "Connect Account" button
-    setHighlightedElement('[data-onboarding="connect-account-button"]');
+    // Highlight the "Add Account" button (blue button at bottom of sidebar)
+    setHighlightedElement('[data-onboarding="add-account-button"]');
     return () => setHighlightedElement(null);
   }, [setHighlightedElement]);
 
+  // Position next to the Add Account button (bottom left of sidebar)
   return (
-    <div
-      className="fixed z-[60] top-24 left-1/2 -translate-x-1/2"
-      style={{ maxWidth: '400px' }}
-    >
+    <div className="fixed z-[60] left-[280px] bottom-[80px] max-w-[420px]">
       <OnboardingTooltip
         title="Connect Your Email Account"
-        description="Click the '+ Connect Account' button to link your Gmail, Outlook, or IMAP email. This lets EaseMail manage your emails with AI-powered features."
+        description="Click the blue 'Add Account' button at the bottom of the left sidebar to link your Gmail, Outlook, or IMAP email. This lets EaseMail manage your emails with AI-powered features."
         nextLabel="Next: Signatures"
         showBack={false}
       />
     </div>
   );
 }
-

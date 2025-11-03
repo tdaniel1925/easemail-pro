@@ -4,7 +4,6 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Loader2, Ref
 import { Button } from '@/components/ui/button';
 import { useState, Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import InboxLayout from '@/components/layout/InboxLayout';
 import EventModal from '@/components/calendar/EventModal';
 import WeekView from '@/components/calendar/WeekView';
 import DayView from '@/components/calendar/DayView';
@@ -217,13 +216,23 @@ function CalendarContent() {
   };
 
   return (
-    <InboxLayout>
-      <div className="flex flex-col h-full p-6 space-y-6 overflow-y-auto">
+    <div className="flex w-full h-screen bg-background">
+      <div className="flex-1 flex flex-col p-8 overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Calendar</h1>
             <p className="text-sm text-muted-foreground">Manage your schedule and events</p>
+            <a 
+              href="/inbox"
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mt-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m12 19-7-7 7-7"/>
+                <path d="M19 12H5"/>
+              </svg>
+              Back to Inbox
+            </a>
           </div>
           <div className="flex gap-2">
             {/* View selector */}
@@ -374,7 +383,7 @@ function CalendarContent() {
           fetchEvents();
         }}
       />
-    </InboxLayout>
+    </div>
   );
 }
 

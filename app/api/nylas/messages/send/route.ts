@@ -86,6 +86,56 @@ export async function POST(request: NextRequest) {
       parsedBcc,
     });
 
+    // ✅ NEW: Check if user is on free tier and potentially add branding
+    let finalEmailBody = emailBody;
+    
+    try {
+      // Import users table
+      const { users } = await import('@/lib/db/schema');
+      
+      // Get user's subscription tier
+      const userRecord = await db.query.users.findFirst({
+        where: eq(users.id, user.id),
+      });
+
+      const isFreeUser = !userRecord?.subscriptionTier || userRecord.subscriptionTier === 'free';
+
+      if (isFreeUser) {
+        // Generate a simple alternating pattern based on user ID and date
+        const dateKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const combinedString = `${user.id}-${dateKey}`;
+        
+        // Simple hash to get alternating behavior
+        let hash = 0;
+        for (let i = 0; i < combinedString.length; i++) {
+          hash = ((hash << 5) - hash) + combinedString.charCodeAt(i);
+          hash = hash & hash;
+        }
+        
+        // Every other email (50%)
+        const shouldAddBranding = Math.abs(hash) % 2 === 0;
+
+        if (shouldAddBranding) {
+          const brandingText = `\n\n<p style="margin-top: 20px; padding-top: 12px; border-top: 1px solid #e5e7eb; text-align: center;"><a href="https://easemail.app" style="color: #6b7280; font-size: 12px; text-decoration: none;">EaseMail - Email is now easy</a></p>`;
+          
+          // Add to HTML body
+          if (finalEmailBody && finalEmailBody.includes('</body>')) {
+            finalEmailBody = finalEmailBody.replace('</body>', `${brandingText}</body>`);
+          } else if (finalEmailBody && finalEmailBody.includes('</html>')) {
+            finalEmailBody = finalEmailBody.replace('</html>', `${brandingText}</html>`);
+          } else {
+            // Plain text email - wrap in basic HTML
+            finalEmailBody = `${finalEmailBody}${brandingText}`;
+          }
+          
+          console.log('✅ Added free tier branding to email');
+        }
+      }
+    } catch (error) {
+      console.error('Error checking subscription tier:', error);
+      // Continue without branding if check fails
+    }
+
     // Process attachments - download and convert to base64 for Nylas
     const processedAttachments = [];
     if (attachments && attachments.length > 0) {
@@ -142,7 +192,7 @@ export async function POST(request: NextRequest) {
         cc: parsedCc,
         bcc: parsedBcc,
         subject: subject || '(No Subject)',
-        body: emailBody || '',
+        body: finalEmailBody || '',
         attachments: processedAttachments,
       });
       providerMessageId = sentMessage.data?.id;
@@ -152,7 +202,7 @@ export async function POST(request: NextRequest) {
         cc: parsedCc,
         bcc: parsedBcc,
         subject: subject || '(No Subject)',
-        body: emailBody || '',
+        body: finalEmailBody || '',
         attachments: processedAttachments,
       });
       providerMessageId = sentMessage.id;

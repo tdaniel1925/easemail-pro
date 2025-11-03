@@ -432,6 +432,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     <div className="flex h-screen w-full">
       {/* Left Sidebar - Folders (20%) */}
       <aside
+        data-onboarding="sidebar"
         className={cn(
           'w-64 border-r border-border/50 bg-muted/30 flex flex-col transition-all duration-300',
           !sidebarOpen && 'w-0 overflow-hidden'
@@ -463,7 +464,11 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         <div className="flex-1 overflow-y-auto py-2">
           {/* Compose Button - Make it stand out */}
           <div className="px-4 pb-4">
-            <Button className="w-full h-11 text-base font-medium shadow-sm" onClick={() => setIsComposeOpen(true)}>
+            <Button 
+              className="w-full h-11 text-base font-medium shadow-sm" 
+              onClick={() => setIsComposeOpen(true)}
+              data-onboarding="compose-button"
+            >
               <Plus className="h-5 w-5 mr-2" />
               Compose
             </Button>
@@ -636,6 +641,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             </button>
             <button
               onClick={() => router.push('/contacts')}
+              data-onboarding="contacts-button"
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all",
                 pathname === '/contacts'

@@ -8,12 +8,10 @@
 import { useState, Suspense, useEffect } from 'react';
 import { Loader2, LayoutGrid as Squares2X2Icon, List as ListBulletIcon, Paperclip, Upload, Sparkles, Mail, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import InboxLayout from '@/components/layout/InboxLayout';
 import { SearchBar } from '@/components/attachments/SearchBar';
 import { FilterBar } from '@/components/attachments/FilterBar';
 import { AttachmentsGrid } from '@/components/attachments/AttachmentsGrid';
 import { PreviewModal } from '@/components/attachments/PreviewModal';
-import { UsageDashboard } from '@/components/attachments/UsageDashboard';
 import { UploadButton } from '@/components/attachments/UploadButton';
 import { useAttachments, useAttachmentStats, useDownloadAttachment } from '@/lib/attachments/hooks';
 import { useAttachmentsStore } from '@/lib/attachments/store';
@@ -156,8 +154,8 @@ function AttachmentsContent() {
   const hasFilters = !!(filters.search || filters.fileTypes.length > 0 || filters.documentTypes.length > 0 || filters.senders.length > 0 || filters.dateRange);
 
   return (
-    <InboxLayout>
-      <div className="flex h-full flex-col bg-background">
+    <div className="flex h-screen bg-background">
+      <div className="flex-1 flex flex-col">
         {/* Error/Success Messages */}
         {error && (
           <div className="px-6 pt-4">
@@ -196,6 +194,16 @@ function AttachmentsContent() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   {data?.pagination.total.toLocaleString() || 0} files • {formatFileSize(stats?.totalSizeBytes || 0)}
                 </p>
+                <a 
+                  href="/inbox"
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mt-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m12 19-7-7 7-7"/>
+                    <path d="M19 12H5"/>
+                  </svg>
+                  Back to Inbox
+                </a>
               </div>
               <UploadButton />
             </div>
@@ -241,9 +249,6 @@ function AttachmentsContent() {
               </div>
             </div>
           </div>
-
-          {/* Usage Dashboard */}
-          {hasAttachments && <UsageDashboard />}
         </div>
 
         {/* Search */}
@@ -298,7 +303,7 @@ function AttachmentsContent() {
           onOpenEmail={() => previewAttachment?.emailId && handleOpenEmail(previewAttachment.emailId)}
         />
       </div>
-    </InboxLayout>
+    </div>
   );
 }
 

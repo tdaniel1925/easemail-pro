@@ -8,21 +8,20 @@ export default function AIWriteStep() {
   const { setHighlightedElement } = useOnboarding();
 
   useEffect(() => {
+    // Highlight the Compose button
     setHighlightedElement('[data-onboarding="compose-button"]');
     return () => setHighlightedElement(null);
   }, [setHighlightedElement]);
 
+  // Position near Compose button (top of sidebar)
   return (
-    <div
-      className="fixed z-[60] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-      style={{ maxWidth: '400px' }}
-    >
+    <div className="fixed z-[60] left-[280px] top-[140px] max-w-[420px]">
       <OnboardingTooltip
         title="AI-Powered Email Writing"
-        description="Write emails 10x faster! Click 'Compose', then use the AI Write button to generate professional emails from just a few words. Try it: 'follow up meeting request'"
-        nextLabel="Next: Voice Messages"
+        description="Click the big 'Compose' button at the top of the sidebar to write a new email. Then use the sparkle icon (⚡) in the toolbar to generate professional emails from simple prompts using AI."
+        nextLabel="Next: Voice Features"
+        showBack={true}
       />
     </div>
   );
 }
-
