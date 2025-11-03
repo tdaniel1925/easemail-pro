@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,6 +71,7 @@ interface OrganizationMember {
 }
 
 export default function OrganizationsContent() {
+  const router = useRouter();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -250,7 +252,7 @@ export default function OrganizationsContent() {
               Create and manage team accounts
             </p>
           </div>
-          <Button onClick={() => setCreateModalOpen(true)}>
+          <Button onClick={() => router.push('/admin/organizations/create')}>
             <Plus className="h-4 w-4 mr-2" />
             Create Organization
           </Button>
