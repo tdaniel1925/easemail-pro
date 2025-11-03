@@ -95,7 +95,7 @@ function GeneralSettings() {
 
       {/* Content */}
       <div className="p-6">
-        <div className="max-w-4xl space-y-6">
+        <div className="w-full space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Profile Information</CardTitle>
@@ -276,7 +276,7 @@ function SignaturesSettings() {
 
       {/* Content */}
       <div className="p-6">
-        <div className="max-w-4xl space-y-6">
+        <div className="w-full space-y-6">
           {loading ? (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
@@ -365,7 +365,7 @@ function PreferencesSettings() {
 
       {/* Content */}
       <div className="p-6">
-        <div className="max-w-4xl space-y-6">
+        <div className="w-full space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Reading & Display</CardTitle>
@@ -519,7 +519,7 @@ function NotificationsSettings() {
 
       {/* Content */}
       <div className="p-6">
-        <div className="max-w-4xl space-y-6">
+        <div className="w-full space-y-6">
           {!permission.granted && (
             <Card className="border-primary/50 bg-primary/5">
               <CardHeader>
@@ -650,7 +650,7 @@ function PrivacySettings() {
 
       {/* Content */}
       <div className="p-6">
-        <div className="max-w-4xl space-y-6">
+        <div className="w-full space-y-6">
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -812,7 +812,7 @@ function HelpSupportSettings() {
 
       {/* Content */}
       <div className="p-6">
-        <div className="max-w-4xl space-y-6">
+        <div className="w-full space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
