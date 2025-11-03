@@ -7,7 +7,7 @@ import { OnboardingTooltip } from '../OnboardingTooltip';
 export default function SignatureStep() {
   const { setHighlightedElement } = useOnboarding();
 
-  useEffect() => {
+  useEffect(() => {
     // Highlight the Settings button (gear icon in sidebar)
     setHighlightedElement('[data-onboarding="settings-button"]');
     return () => setHighlightedElement(null);
