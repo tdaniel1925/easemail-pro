@@ -121,7 +121,7 @@ export function AIRemixPanel({
   if (variations.length > 0) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto p-0">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto p-0 [&>button]:hidden">
           <VariationSelector
             variations={variations}
             selectedIndex={selectedVariation || 0}
@@ -137,7 +137,7 @@ export function AIRemixPanel({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto p-0 [&>button]:hidden">
         {/* Header */}
         <div className="bg-card border-b border-border p-4">
           <div className="flex items-center justify-between">

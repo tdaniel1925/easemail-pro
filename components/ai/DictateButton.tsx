@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 
 interface DictateButtonProps {
   onTranscript: (text: string, isFinal: boolean) => void;
+  onDictationComplete?: (fullText: string) => void; // ✅ NEW: Called when dictation session ends
   disabled?: boolean;
   className?: string;
   userTier?: 'free' | 'pro' | 'business';
@@ -30,6 +31,7 @@ interface DictateButtonProps {
 
 export function DictateButton({
   onTranscript,
+  onDictationComplete,
   disabled = false,
   className,
   userTier = 'free',
@@ -47,6 +49,7 @@ export function DictateButton({
   const audioRecordingRef = useRef<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null); // ✅ Track MediaRecorder
   const streamRef = useRef<MediaStream | null>(null); // ✅ Track stream for cleanup
+  const fullTranscriptRef = useRef<string>(''); // ✅ Track complete transcript
 
   // Initialize dictation service
   useEffect(() => {
@@ -76,6 +79,7 @@ export function DictateButton({
 
     setError(null);
     setInterimText('');
+    fullTranscriptRef.current = ''; // ✅ Reset transcript
     usageTrackerRef.current.startTracking();
 
     // Start recording for Whisper enhancement (if premium)
@@ -97,7 +101,9 @@ export function DictateButton({
         );
 
         if (result.isFinal) {
-          // Final text - insert into editor
+          // Final text - add to full transcript (for dialog)
+          fullTranscriptRef.current += processed + ' ';
+          // Still send to parent for real-time display (they handle it)
           onTranscript(processed + ' ', true);
           setInterimText('');
         } else {
@@ -115,6 +121,11 @@ export function DictateButton({
         // Stop audio recording
         if (userTier !== 'free') {
           stopAudioRecording();
+        }
+
+        // ✅ Trigger dialog with complete transcript
+        if (onDictationComplete && fullTranscriptRef.current.trim().length > 0) {
+          onDictationComplete(fullTranscriptRef.current.trim());
         }
       },
 

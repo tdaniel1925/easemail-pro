@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { AIWriteModal } from './AIWriteModal';
 import { AIRemixPanel } from './AIRemixPanel';
 import { DictateButton } from './DictateButton';
+import { DictationDialog } from './DictationDialog'; // ✅ NEW
 import { VoiceMessageRecorderModal } from './VoiceMessageRecorder';
 import { cn } from '@/lib/utils';
 
@@ -54,6 +55,8 @@ export function UnifiedAIToolbar({
   const [showAIWrite, setShowAIWrite] = useState(false);
   const [showAIRemix, setShowAIRemix] = useState(false);
   const [showVoiceMessage, setShowVoiceMessage] = useState(false);
+  const [showDictationDialog, setShowDictationDialog] = useState(false); // ✅ NEW
+  const [dictatedText, setDictatedText] = useState(''); // ✅ NEW
   const [dictationInterim, setDictationInterim] = useState(''); // ✅ Track interim text
   const [isListening, setIsListening] = useState(false); // ✅ Track dictation state
 
@@ -68,17 +71,46 @@ export function UnifiedAIToolbar({
     onBodyChange(remixedBody);
   };
 
+  // ✅ NEW: Handle dictation completion (when user stops recording)
+  const handleDictationComplete = (fullText: string) => {
+    // Remove any interim text that was showing
+    const cleanBody = body.replace(dictationInterim, '').trim();
+    onBodyChange(cleanBody);
+    setDictationInterim('');
+    
+    // Show dialog with the complete transcript
+    setDictatedText(fullText);
+    setShowDictationDialog(true);
+  };
+
+  // ✅ NEW: Handle "Use As-Is" from dialog
+  const handleUseAsIs = (text: string) => {
+    // Append the raw dictated text to the body (add space before if body not empty)
+    const separator = body.trim() ? ' ' : '';
+    onBodyChange(body.trim() + separator + text);
+  };
+
+  // ✅ NEW: Handle "Use Polished" from dialog
+  const handleUsePolished = (polishedText: string) => {
+    // Append the AI-polished text to the body (add space before if body not empty)
+    const separator = body.trim() ? ' ' : '';
+    onBodyChange(body.trim() + separator + polishedText);
+  };
+
+  // ✅ Real-time transcript (shows interim, but doesn't commit to body)
   const handleDictateTranscript = (text: string, isFinal: boolean) => {
-    if (isFinal) {
-      // ✅ Final: Remove interim, append final text with space
-      const cleanBody = body.replace(dictationInterim, '');
-      onBodyChange(cleanBody + text + ' ');
-      setDictationInterim('');
-    } else {
-      // ✅ Interim: Replace previous interim text (update in place)
+    // NOTE: We're NOT adding final text to body anymore - that happens via the dialog
+    // We only show interim text for visual feedback during dictation
+    if (!isFinal) {
+      // Interim: Replace previous interim text (update in place for visual feedback)
       const cleanBody = body.replace(dictationInterim, '');
       onBodyChange(cleanBody + text);
       setDictationInterim(text);
+    } else {
+      // Final: Just remove interim text, actual insertion happens via dialog
+      const cleanBody = body.replace(dictationInterim, '');
+      onBodyChange(cleanBody);
+      setDictationInterim('');
     }
   };
 
@@ -143,6 +175,7 @@ export function UnifiedAIToolbar({
         {/* Dictate */}
         <DictateButton
           onTranscript={handleDictateTranscript}
+          onDictationComplete={handleDictationComplete} // ✅ NEW
           userTier={userTier}
           className="hover:bg-accent"
         />
@@ -194,6 +227,16 @@ export function UnifiedAIToolbar({
         isOpen={showVoiceMessage}
         onClose={() => setShowVoiceMessage(false)}
         onAttach={handleVoiceAttach}
+      />
+
+      {/* ✅ NEW: Dictation Dialog */}
+      <DictationDialog
+        isOpen={showDictationDialog}
+        onClose={() => setShowDictationDialog(false)}
+        dictatedText={dictatedText}
+        onUseAsIs={handleUseAsIs}
+        onUsePolished={handleUsePolished}
+        recipientName={recipientName}
       />
     </>
   );
