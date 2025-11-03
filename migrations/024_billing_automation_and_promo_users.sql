@@ -2,15 +2,18 @@
 -- Adds promo user flag, billing configuration, and billing run tracking
 
 -- ============================================================================
--- ADD PROMO USER FLAG TO USERS TABLE
+-- ADD PROMO USER FLAG AND SUBSCRIPTION TIER TO USERS TABLE
 -- ============================================================================
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_promo_user BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_tier VARCHAR(50) DEFAULT 'free';
 
--- Add index for quick filtering
+-- Add indexes for quick filtering
 CREATE INDEX IF NOT EXISTS idx_users_promo ON users(is_promo_user);
+CREATE INDEX IF NOT EXISTS idx_users_subscription_tier ON users(subscription_tier);
 
--- Add comment
+-- Add comments
 COMMENT ON COLUMN users.is_promo_user IS 'Promo users get free access to all features without billing';
+COMMENT ON COLUMN users.subscription_tier IS 'User subscription level: free, starter, pro, enterprise';
 
 -- ============================================================================
 -- BILLING CONFIGURATION TABLE
