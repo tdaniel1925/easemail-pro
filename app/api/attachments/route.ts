@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { attachments } from '@/lib/db/schema';
 import { eq, and, desc, asc, gte, lte, inArray, sql, or, like } from 'drizzle-orm';
+import { createClient } from '@/lib/supabase/server'; // ✅ ADD THIS
 
 // Force dynamic rendering - this route uses searchParams
 export const dynamic = 'force-dynamic';
@@ -14,8 +15,15 @@ export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
-    // Default test user ID (same as contacts)
-    const userId = '00000000-0000-0000-0000-000000000000';
+    // ✅ FIX: Get authenticated user instead of hardcoded ID
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const userId = user.id;  // ✅ Real user ID!
 
     const searchParams = request.nextUrl.searchParams;
 

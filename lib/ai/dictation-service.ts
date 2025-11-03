@@ -37,6 +37,7 @@ export class DictationService {
   private recognition: any; // SpeechRecognition
   private isSupported: boolean;
   private isListening: boolean = false;
+  private stopRequested: boolean = false; // ✅ Prevent auto-restart
   private config: DictationConfig;
   private callbacks: DictationCallbacks | null = null;
 
@@ -185,13 +186,16 @@ export class DictationService {
       this.callbacks?.onEnd();
 
       // Auto-restart if continuous mode (unless manually stopped)
-      if (this.config.continuous && this.recognition) {
+      if (this.config.continuous && this.recognition && !this.stopRequested) {
         try {
           this.recognition.start();
         } catch (error) {
           console.log('Dictation session completed');
         }
       }
+      
+      // Reset stop flag
+      this.stopRequested = false;
     };
 
     // Errors
@@ -239,6 +243,7 @@ export class DictationService {
     }
 
     try {
+      this.stopRequested = true; // ✅ Prevent auto-restart
       this.recognition.stop();
       this.isListening = false;
       console.log('🎤 Dictation stopped');

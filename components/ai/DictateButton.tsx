@@ -45,6 +45,8 @@ export function DictateButton({
   const punctuationRef = useRef(new SmartPunctuationProcessor());
   const usageTrackerRef = useRef(new DictationUsageTracker());
   const audioRecordingRef = useRef<Blob | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null); // ✅ Track MediaRecorder
+  const streamRef = useRef<MediaStream | null>(null); // ✅ Track stream for cleanup
 
   // Initialize dictation service
   useEffect(() => {
@@ -162,7 +164,10 @@ export function DictateButton({
   const startAudioRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream; // ✅ Store stream reference
+      
       const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder; // ✅ Store recorder reference
       const chunks: Blob[] = [];
 
       mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
@@ -177,6 +182,17 @@ export function DictateButton({
   };
 
   const stopAudioRecording = () => {
+    // Stop MediaRecorder
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    
+    // ✅ Stop all media tracks to release microphone
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
     // Recording stops automatically via MediaRecorder.onstop
     if (audioRecordingRef.current && userTier !== 'free') {
       setShowEnhancement(true);

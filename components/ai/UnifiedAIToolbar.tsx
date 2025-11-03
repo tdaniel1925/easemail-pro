@@ -10,7 +10,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, Wand2, Mic, VoicemailIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AIWriteModal } from './AIWriteModal';
@@ -54,6 +54,8 @@ export function UnifiedAIToolbar({
   const [showAIWrite, setShowAIWrite] = useState(false);
   const [showAIRemix, setShowAIRemix] = useState(false);
   const [showVoiceMessage, setShowVoiceMessage] = useState(false);
+  const [dictationInterim, setDictationInterim] = useState(''); // ✅ Track interim text
+  const [isListening, setIsListening] = useState(false); // ✅ Track dictation state
 
   const hasContent = body.trim().length > 0;
 
@@ -67,13 +69,48 @@ export function UnifiedAIToolbar({
   };
 
   const handleDictateTranscript = (text: string, isFinal: boolean) => {
-    // Always update body - if interim, it will be replaced; if final, it's appended
-    onBodyChange(body + text);
+    if (isFinal) {
+      // ✅ Final: Remove interim, append final text with space
+      const cleanBody = body.replace(dictationInterim, '');
+      onBodyChange(cleanBody + text + ' ');
+      setDictationInterim('');
+    } else {
+      // ✅ Interim: Replace previous interim text (update in place)
+      const cleanBody = body.replace(dictationInterim, '');
+      onBodyChange(cleanBody + text);
+      setDictationInterim(text);
+    }
   };
 
   const handleVoiceAttach = (file: File, duration: number) => {
     onAttachVoiceMessage?.(file, duration);
   };
+
+  // ✅ Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Shift+W: AI Write
+      if (e.ctrlKey && e.shiftKey && e.key === 'W') {
+        e.preventDefault();
+        setShowAIWrite(true);
+      }
+      // Ctrl+Shift+R: AI Remix
+      else if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        if (hasContent) {
+          setShowAIRemix(true);
+        }
+      }
+      // Ctrl+Shift+M: Voice Message
+      else if (e.ctrlKey && e.shiftKey && e.key === 'M') {
+        e.preventDefault();
+        setShowVoiceMessage(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [hasContent]);
 
   return (
     <>

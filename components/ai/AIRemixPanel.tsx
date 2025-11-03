@@ -7,12 +7,13 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Wand2, Loader2, Check, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import type { ToneType } from '@/lib/ai/ai-write-service';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 
 interface AIRemixPanelProps {
   isOpen: boolean;
@@ -38,6 +39,17 @@ export function AIRemixPanel({
   const [variations, setVariations] = useState<Array<{ body: string; changes: string[] }>>([]);
   const [selectedVariation, setSelectedVariation] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null); // ✅ Store user ID
+
+  // ✅ Get authenticated user ID
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) {
+        setUserId(data.user.id);
+      }
+    });
+  }, []);
 
   const toggleFix = (fix: string) => {
     setFixes(prev =>
@@ -51,11 +63,19 @@ export function AIRemixPanel({
     setVariations([]);
     setSelectedVariation(null);
 
+    // ✅ Check authentication
+    if (!userId) {
+      setError('Please log in to use AI Remix');
+      setIsRemixing(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/ai/remix', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': userId, // ✅ Add authentication header
         },
         body: JSON.stringify({
           content: currentContent,

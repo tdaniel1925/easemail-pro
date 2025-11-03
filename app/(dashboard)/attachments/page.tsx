@@ -6,7 +6,7 @@
  */
 
 import { useState, Suspense, useEffect } from 'react';
-import { Loader2, LayoutGrid as Squares2X2Icon, List as ListBulletIcon, Paperclip, Upload, Sparkles, Mail } from 'lucide-react';
+import { Loader2, LayoutGrid as Squares2X2Icon, List as ListBulletIcon, Paperclip, Upload, Sparkles, Mail, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import InboxLayout from '@/components/layout/InboxLayout';
 import { SearchBar } from '@/components/attachments/SearchBar';
@@ -330,17 +330,25 @@ function LoadingState() {
 function EmptyState({ hasFilters, onClearFilters }: { hasFilters: boolean; onClearFilters: () => void }) {
   const [hasAccounts, setHasAccounts] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // ✅ Add error state
 
   useEffect(() => {
-    // Check if user has email accounts connected
-    fetch('/api/accounts')
-      .then(res => res.json())
+    // ✅ Check if user has email accounts connected
+    fetch('/api/nylas/accounts') // ✅ FIX: Use correct endpoint
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Failed to fetch accounts: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
         setHasAccounts(data?.accounts?.length > 0 || false);
         setLoading(false);
       })
-      .catch(() => {
-        setHasAccounts(false);
+      .catch((err) => {
+        console.error('Failed to check accounts:', err);
+        setError('Failed to check email accounts');
+        setHasAccounts(false); // ✅ Default to false, but show error
         setLoading(false);
       });
   }, []);
@@ -368,6 +376,24 @@ function EmptyState({ hasFilters, onClearFilters }: { hasFilters: boolean; onCle
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // ✅ Show error if failed to check accounts
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <div className="rounded-full bg-red-100 dark:bg-red-900/20 p-6 mb-4">
+          <AlertCircle className="h-12 w-12 text-red-600 dark:text-red-400" />
+        </div>
+        <h3 className="text-xl font-semibold mb-2">Could not load attachments</h3>
+        <p className="text-muted-foreground text-center max-w-md mb-6">
+          {error}. Please try refreshing the page or check your connection.
+        </p>
+        <Button onClick={() => window.location.reload()} variant="outline">
+          Retry
+        </Button>
       </div>
     );
   }
