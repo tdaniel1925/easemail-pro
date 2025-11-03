@@ -51,6 +51,10 @@ export const users = pgTable('users', {
   onboardingStartedAt: timestamp('onboarding_started_at'), // When onboarding was started
   onboardingCompletedAt: timestamp('onboarding_completed_at'), // When onboarding was completed
   
+  // Billing & Promo fields
+  isPromoUser: boolean('is_promo_user').default(false), // Promo users get free access without billing
+  subscriptionTier: varchar('subscription_tier', { length: 50 }).default('free'), // 'free', 'starter', 'pro', 'enterprise'
+  
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -1057,6 +1061,119 @@ export const auditLogs = pgTable('audit_logs', {
   orgIdIdx: index('audit_logs_org_id_idx').on(table.organizationId),
   actionIdx: index('audit_logs_action_idx').on(table.action),
   resourceIdx: index('audit_logs_resource_idx').on(table.resourceType, table.resourceId),
+}));
+
+// Billing Configuration
+export const billingConfig = pgTable('billing_config', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  
+  enabled: boolean('enabled').default(false),
+  frequency: varchar('frequency', { length: 20 }).default('monthly'),
+  dayOfWeek: integer('day_of_week'),
+  dayOfMonth: integer('day_of_month'),
+  hourOfDay: integer('hour_of_day').default(2),
+  
+  autoRetry: boolean('auto_retry').default(true),
+  maxRetries: integer('max_retries').default(3),
+  retryDelayHours: integer('retry_delay_hours').default(24),
+  
+  notifyOnSuccess: boolean('notify_on_success').default(false),
+  notifyOnFailure: boolean('notify_on_failure').default(true),
+  notificationEmail: varchar('notification_email', { length: 255 }),
+  
+  smsChargeThresholdUsd: decimal('sms_charge_threshold_usd', { precision: 10, scale: 2 }).default('1.00'),
+  aiChargeThresholdUsd: decimal('ai_charge_threshold_usd', { precision: 10, scale: 2 }).default('5.00'),
+  minimumChargeUsd: decimal('minimum_charge_usd', { precision: 10, scale: 2 }).default('0.50'),
+  
+  gracePeriodDays: integer('grace_period_days').default(3),
+  
+  lastRunAt: timestamp('last_run_at'),
+  nextRunAt: timestamp('next_run_at'),
+  lastRunStatus: varchar('last_run_status', { length: 50 }),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Billing Runs
+export const billingRuns = pgTable('billing_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  
+  startedAt: timestamp('started_at').notNull(),
+  completedAt: timestamp('completed_at'),
+  status: varchar('status', { length: 50 }).default('running'),
+  
+  accountsProcessed: integer('accounts_processed').default(0),
+  chargesSuccessful: integer('charges_successful').default(0),
+  chargesFailed: integer('charges_failed').default(0),
+  totalAmountChargedUsd: decimal('total_amount_charged_usd', { precision: 10, scale: 2 }).default('0'),
+  
+  errorMessage: text('error_message'),
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+  configSnapshot: jsonb('config_snapshot').$type<Record<string, any>>(),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  startedIdx: index('billing_runs_started_idx').on(table.startedAt),
+  statusIdx: index('billing_runs_status_idx').on(table.status),
+}));
+
+// Billing Transactions
+export const billingTransactions = pgTable('billing_transactions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  
+  transactionType: varchar('transaction_type', { length: 50 }).notNull(),
+  amountUsd: decimal('amount_usd', { precision: 10, scale: 2 }).notNull(),
+  description: text('description').notNull(),
+  
+  billingRunId: uuid('billing_run_id').references(() => billingRuns.id, { onDelete: 'set null' }),
+  invoiceId: uuid('invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
+  
+  status: varchar('status', { length: 50 }).default('pending'),
+  paymentMethodId: uuid('payment_method_id').references(() => paymentMethods.id, { onDelete: 'set null' }),
+  
+  stripeChargeId: varchar('stripe_charge_id', { length: 255 }),
+  stripePaymentIntentId: varchar('stripe_payment_intent_id', { length: 255 }),
+  
+  retryCount: integer('retry_count').default(0),
+  lastRetryAt: timestamp('last_retry_at'),
+  nextRetryAt: timestamp('next_retry_at'),
+  
+  failureReason: text('failure_reason'),
+  failureCode: varchar('failure_code', { length: 100 }),
+  
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('billing_transactions_user_idx').on(table.userId),
+  orgIdIdx: index('billing_transactions_org_idx').on(table.organizationId),
+  statusIdx: index('billing_transactions_status_idx').on(table.status),
+  runIdIdx: index('billing_transactions_run_idx').on(table.billingRunId),
+  stripeIdx: index('billing_transactions_stripe_idx').on(table.stripeChargeId),
+}));
+
+// Payment Method Requirements
+export const paymentMethodRequirements = pgTable('payment_method_requirements', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').unique().references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  
+  requiresPaymentMethod: boolean('requires_payment_method').default(true),
+  reason: varchar('reason', { length: 100 }),
+  
+  enforceAfter: timestamp('enforce_after'),
+  suspendedAt: timestamp('suspended_at'),
+  
+  lastNotifiedAt: timestamp('last_notified_at'),
+  notificationCount: integer('notification_count').default(0),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('payment_requirements_user_idx').on(table.userId),
 }));
 
 // Relations
