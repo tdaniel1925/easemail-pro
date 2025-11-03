@@ -14,7 +14,7 @@ export default function VoiceMessageStep() {
 
   return (
     <div
-      className="fixed z-[60] top-1/2 right-8"
+      className="fixed z-[60] top-1/3 left-1/2 -translate-x-1/2"
       style={{ maxWidth: '400px' }}
     >
       <OnboardingTooltip

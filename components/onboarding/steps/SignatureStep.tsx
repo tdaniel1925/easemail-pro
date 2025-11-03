@@ -14,7 +14,7 @@ export default function SignatureStep() {
 
   return (
     <div
-      className="fixed z-[60] bottom-24 left-8"
+      className="fixed z-[60] bottom-24 left-1/2 -translate-x-1/2"
       style={{ maxWidth: '400px' }}
     >
       <OnboardingTooltip

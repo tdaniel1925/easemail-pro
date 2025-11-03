@@ -15,7 +15,7 @@ export default function ConnectAccountStep() {
 
   return (
     <div
-      className="fixed z-[60] top-24 right-8"
+      className="fixed z-[60] top-24 left-1/2 -translate-x-1/2"
       style={{ maxWidth: '400px' }}
     >
       <OnboardingTooltip

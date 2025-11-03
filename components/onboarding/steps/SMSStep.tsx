@@ -14,7 +14,7 @@ export default function SMSStep() {
 
   return (
     <div
-      className="fixed z-[60] bottom-1/4 left-8"
+      className="fixed z-[60] bottom-1/3 left-1/2 -translate-x-1/2"
       style={{ maxWidth: '400px' }}
     >
       <OnboardingTooltip
