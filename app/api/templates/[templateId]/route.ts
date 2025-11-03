@@ -178,7 +178,7 @@ export async function DELETE(
  */
 function extractVariables(subject?: string, body?: string): string[] {
   const text = `${subject || ''} ${body || ''}`;
-  const matches = text.matchAll(/\{\{([^}]+)\}\}/g);
+  const matches = Array.from(text.matchAll(/\{\{([^}]+)\}\}/g));
   const variables = new Set<string>();
   
   for (const match of matches) {

@@ -88,7 +88,7 @@ function extractActions(responseText: string, userMessage: string): Array<{ text
   
   // Extract [Button Text] patterns
   const buttonPattern = /\[([^\]]+)\]/g;
-  const matches = responseText.matchAll(buttonPattern);
+  const matches = Array.from(responseText.matchAll(buttonPattern));
   
   for (const match of matches) {
     const buttonText = match[1];

@@ -467,7 +467,15 @@ function NotificationsSettings() {
         const { getNotificationPreferences, getNotificationPermission } = await import('@/lib/notifications/notification-service');
         
         const prefs = getNotificationPreferences();
-        setPreferences(prefs);
+        // Ensure quietHours has default values
+        setPreferences({
+          ...prefs,
+          quietHours: prefs.quietHours || {
+            enabled: false,
+            start: '22:00',
+            end: '08:00',
+          },
+        });
         
         const perm = getNotificationPermission();
         setPermission(perm);
