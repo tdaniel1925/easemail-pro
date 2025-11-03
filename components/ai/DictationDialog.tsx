@@ -144,7 +144,7 @@ export function DictationDialog({
         {/* STEP 1: Choice */}
         {step === 'choice' && (
           <>
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+            <div className="bg-primary text-primary-foreground p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <CheckCircle className="w-6 h-6" />
@@ -157,7 +157,7 @@ export function DictationDialog({
                   onClick={onClose}
                   variant="ghost"
                   size="sm"
-                  className="text-white hover:bg-white/20"
+                  className="text-primary-foreground hover:bg-primary-foreground/20"
                 >
                   <X className="w-5 h-5" />
                 </Button>
@@ -244,7 +244,7 @@ export function DictationDialog({
         {/* STEP 3: Comparison */}
         {step === 'comparison' && (
           <>
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+            <div className="bg-primary text-primary-foreground p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Sparkles className="w-6 h-6" />
@@ -257,7 +257,7 @@ export function DictationDialog({
                   onClick={onClose}
                   variant="ghost"
                   size="sm"
-                  className="text-white hover:bg-white/20"
+                  className="text-primary-foreground hover:bg-primary-foreground/20"
                 >
                   <X className="w-5 h-5" />
                 </Button>
@@ -306,7 +306,6 @@ export function DictationDialog({
                   <Button
                     size="sm"
                     onClick={handleUsePolished}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600"
                   >
                     <Sparkles className="w-4 h-4 mr-2" />
                     Insert Enhanced
