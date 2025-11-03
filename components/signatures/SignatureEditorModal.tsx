@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { X, Save, Eye, Code, Type, Bold, Italic, Underline, Link as LinkIcon, Palette } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { EmailSignature } from '@/lib/signatures/types';
+import { URLInputDialog } from '@/components/ui/url-input-dialog';
 
 interface SignatureEditorModalProps {
   isOpen: boolean;
@@ -48,6 +49,7 @@ export function SignatureEditorModal({
   const [useForForwards, setUseForForwards] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
   const [showHtml, setShowHtml] = useState(false);
+  const [showURLDialog, setShowURLDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Initialize form with signature data
@@ -109,8 +111,13 @@ export function SignatureEditorModal({
     document.execCommand(command, false, value);
   };
 
+  const handleURLSubmit = (url: string) => {
+    applyFormatting('createLink', url);
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -235,10 +242,7 @@ export function SignatureEditorModal({
                   <div className="w-px bg-border mx-1" />
                   <button
                     type="button"
-                    onClick={() => {
-                      const url = prompt('Enter URL:');
-                      if (url) applyFormatting('createLink', url);
-                    }}
+                    onClick={() => setShowURLDialog(true)}
                     className="p-2 hover:bg-accent rounded"
                     title="Insert Link"
                   >
@@ -330,6 +334,16 @@ export function SignatureEditorModal({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* URL Input Dialog */}
+    <URLInputDialog
+      isOpen={showURLDialog}
+      onClose={() => setShowURLDialog(false)}
+      onSubmit={handleURLSubmit}
+      title="Insert Link"
+      placeholder="https://example.com"
+    />
+    </>
   );
 }
 

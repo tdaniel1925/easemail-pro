@@ -104,7 +104,7 @@ export function AIWriteModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl p-0 overflow-hidden [&>button]:hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+        <div className="bg-primary text-primary-foreground p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Sparkles className="w-6 h-6" />
@@ -117,7 +117,7 @@ export function AIWriteModal({
               onClick={onClose}
               variant="ghost"
               size="sm"
-              className="text-white hover:bg-white/20"
+              className="text-primary-foreground hover:bg-primary-foreground/20"
             >
               <X className="w-5 h-5" />
             </Button>
@@ -245,23 +245,22 @@ export function AIWriteModal({
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              onClick={handleGenerate}
-              disabled={isGenerating || (!content.trim() && method !== 'template')}
-              className="bg-gradient-to-r from-blue-600 to-purple-600"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Email
-                </>
-              )}
-            </Button>
+              <Button
+                onClick={handleGenerate}
+                disabled={isGenerating || (!content.trim() && method !== 'template')}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate Email
+                  </>
+                )}
+              </Button>
           </div>
         </div>
       </DialogContent>

@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useSignatures } from '@/lib/hooks/useSignatures';
 import { SignatureService } from '@/lib/signatures/signature-service';
 import EmailAutocomplete from '@/components/email/EmailAutocomplete';
+import { URLInputDialog } from '@/components/ui/url-input-dialog';
 
 // Lazy load the AI toolbar to prevent SSR issues
 const UnifiedAIToolbar = lazy(() => 
@@ -33,6 +34,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
+  const [showURLDialog, setShowURLDialog] = useState(false);
   
   // Form state
   const [to, setTo] = useState<Array<{ email: string; name?: string }>>(
@@ -527,10 +529,11 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   }, [isOpen, to, subject, body, accountId, attachments]);
 
   const handleInsertLink = () => {
-    const url = prompt('Enter URL:');
-    if (url) {
-      setBody(body + ` ${url}`);
-    }
+    setShowURLDialog(true);
+  };
+
+  const handleURLSubmit = (url: string) => {
+    setBody(body + ` ${url}`);
   };
 
   const handleInsertHeading = (level: 1 | 2 | 3) => {
@@ -996,6 +999,15 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         )}
       </div>
     </div>
+
+    {/* URL Input Dialog */}
+    <URLInputDialog
+      isOpen={showURLDialog}
+      onClose={() => setShowURLDialog(false)}
+      onSubmit={handleURLSubmit}
+      title="Insert Link"
+      placeholder="https://example.com"
+    />
     </>
   );
 }

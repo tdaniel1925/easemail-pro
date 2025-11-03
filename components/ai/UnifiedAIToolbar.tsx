@@ -199,8 +199,11 @@ export function UnifiedAIToolbar({
 
         {/* Feature Labels (Desktop) */}
         <div className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-primary" />
+          <span className="flex items-center gap-1.5">
+            <div className="relative">
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <div className="absolute inset-0 h-2 w-2 rounded-full bg-green-500 animate-ping opacity-75" />
+            </div>
             AI-Powered
           </span>
         </div>
