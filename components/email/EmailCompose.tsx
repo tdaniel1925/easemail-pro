@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -83,17 +83,6 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       setIsDirty(false);
     }
   }, [to, subject, body]);
-
-  // Auto-save draft every 30 seconds
-  useEffect(() => {
-    if (!isOpen || !isDirty || !accountId) return;
-    
-    const autoSaveInterval = setInterval(() => {
-      handleSaveDraft(true); // Silent auto-save
-    }, 30000); // Every 30 seconds
-    
-    return () => clearInterval(autoSaveInterval);
-  }, [isOpen, isDirty, accountId, to, cc, bcc, subject, body]);
 
   // Initialize body with quoted content for reply/forward
   useEffect(() => {
@@ -386,7 +375,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     }
   };
 
-  const handleSaveDraft = async (silent = false) => {
+  const handleSaveDraft = useCallback(async (silent = false) => {
     if (!accountId) {
       if (!silent) alert('No email account selected. Please select an account first.');
       return;
@@ -447,7 +436,18 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     } finally {
       setIsSavingDraft(false);
     }
-  };
+  }, [accountId, to, cc, bcc, subject, body, replyTo, type]);
+
+  // Auto-save draft every 30 seconds
+  useEffect(() => {
+    if (!isOpen || !isDirty || !accountId) return;
+    
+    const autoSaveInterval = setInterval(() => {
+      handleSaveDraft(true); // Silent auto-save
+    }, 30000); // Every 30 seconds
+    
+    return () => clearInterval(autoSaveInterval);
+  }, [isOpen, isDirty, accountId, handleSaveDraft]);
 
   const handleAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
