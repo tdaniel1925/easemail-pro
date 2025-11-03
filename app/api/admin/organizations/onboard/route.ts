@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { users, organizations } from '@/lib/db/schema';
+import { users, organizations, organizationMembers, subscriptions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { sendEmail } from '@/lib/email/send';
+import { getNewUserCredentialsSubject, getNewUserCredentialsTemplate } from '@/lib/email/templates/new-user-credentials';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
  * POST /api/admin/organizations/onboard
- * Comprehensive organization onboarding
+ * Comprehensive organization onboarding with user account creation
  */
 export async function POST(request: NextRequest) {
   try {
@@ -89,34 +92,135 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if slug is already taken
-    const existing = await db.query.organizations.findFirst({
+    const existingOrg = await db.query.organizations.findFirst({
       where: eq(organizations.slug, slug),
     });
 
-    if (existing) {
+    if (existingOrg) {
       return NextResponse.json({ error: 'Slug already in use' }, { status: 400 });
     }
 
-    // Create comprehensive organization record
-    // Note: Additional onboarding data is stored separately or in notes
+    // Check if primary contact email already exists
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.email, primaryContactEmail),
+    });
+
+    if (existingUser) {
+      return NextResponse.json({ 
+        error: 'Primary contact email already has an account. Please use a different email or invite them to the organization instead.' 
+      }, { status: 400 });
+    }
+
+    // Generate secure temporary password
+    const tempPassword = crypto.randomBytes(12).toString('base64').slice(0, 16);
+
+    // Create user account in Supabase
+    const supabaseAdmin = createAdminClient();
+    const { data: newAuthUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: primaryContactEmail,
+      password: tempPassword,
+      email_confirm: true, // Auto-confirm since admin is creating
+      user_metadata: {
+        full_name: primaryContactName,
+        account_type: 'team',
+        organization_name: name,
+      },
+    });
+
+    if (authError || !newAuthUser.user) {
+      console.error('Failed to create Supabase user:', authError);
+      return NextResponse.json({ 
+        error: 'Failed to create user account',
+        details: authError?.message 
+      }, { status: 500 });
+    }
+
+    // Create organization record
     const [newOrg] = await db.insert(organizations).values({
       name,
       slug,
       planType: planType || 'team',
       billingEmail: billingEmail || primaryContactEmail,
       maxSeats: maxSeats || 10,
-      currentSeats: 0,
+      currentSeats: 1, // Primary contact counts as first seat
       isActive: true,
     }).returning();
 
+    // Create user record in database with org_admin role
+    await db.insert(users).values({
+      id: newAuthUser.user.id,
+      email: primaryContactEmail,
+      fullName: primaryContactName,
+      role: 'org_admin',
+      organizationId: newOrg.id,
+      requirePasswordChange: true, // Force password change on first login
+    });
+
+    // Create organization membership (primary contact as owner)
+    await db.insert(organizationMembers).values({
+      organizationId: newOrg.id,
+      userId: newAuthUser.user.id,
+      role: 'owner',
+      isActive: true,
+    });
+
+    // Create subscription record
+    await db.insert(subscriptions).values({
+      organizationId: newOrg.id,
+      planName: planType || 'team',
+      billingCycle: billingCycle || 'monthly',
+      seatsIncluded: maxSeats || 10,
+      status: 'trialing',
+    });
+
+    // Send welcome email to primary contact
+    try {
+      const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'}/login`;
+      
+      await sendEmail({
+        to: primaryContactEmail,
+        subject: getNewUserCredentialsSubject({
+          recipientName: primaryContactName,
+          recipientEmail: primaryContactEmail,
+          organizationName: name,
+          tempPassword,
+          loginUrl,
+          expiryDays: 30,
+          adminName: dbUser.fullName || dbUser.email,
+        }),
+        html: getNewUserCredentialsTemplate({
+          recipientName: primaryContactName,
+          recipientEmail: primaryContactEmail,
+          organizationName: name,
+          tempPassword,
+          loginUrl,
+          expiryDays: 30,
+          adminName: dbUser.fullName || dbUser.email,
+        }),
+      });
+
+      console.log(`✅ Welcome email sent to ${primaryContactEmail}`);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Don't fail the entire request if email fails
+    }
+
     console.log(`✅ Organization onboarded: ${name} by admin ${dbUser.email}`);
+    console.log(`✅ Primary contact user created: ${primaryContactEmail}`);
     
     // Log comprehensive onboarding data for reference
     console.log('📋 Onboarding Details:', {
-      company: { name, website, industry, companySize, description },
+      organization: { id: newOrg.id, name, slug, planType },
+      primaryContact: { 
+        id: newAuthUser.user.id,
+        name: primaryContactName, 
+        email: primaryContactEmail, 
+        phone: primaryContactPhone, 
+        title: primaryContactTitle 
+      },
+      company: { website, industry, companySize, description },
       address: { addressLine1, addressLine2, city, state, zipCode, country },
       contacts: {
-        primary: { name: primaryContactName, email: primaryContactEmail, phone: primaryContactPhone, title: primaryContactTitle },
         billing: { name: billingContactName, email: billingContactEmail, phone: billingContactPhone },
         technical: { name: techContactName, email: techContactEmail, phone: techContactPhone },
       },
@@ -126,8 +230,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Organization created successfully',
-      organization: newOrg 
+      message: `Organization created successfully! Welcome email sent to ${primaryContactEmail}`,
+      organization: newOrg,
+      primaryContact: {
+        email: primaryContactEmail,
+        name: primaryContactName,
+      }
     });
   } catch (error: any) {
     console.error('Organization onboarding error:', error);
@@ -137,4 +245,5 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
 
