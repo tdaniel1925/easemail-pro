@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,20 @@ export default function LoginPage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetCooldown, setResetCooldown] = useState(0); // Cooldown timer in seconds
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+
+  // Check for verification success or errors from URL params
+  useEffect(() => {
+    const verified = searchParams.get('verified');
+    const urlError = searchParams.get('error');
+
+    if (verified === 'true') {
+      setSuccess('✅ Email verified successfully! You can now log in.');
+    } else if (urlError) {
+      setError(decodeURIComponent(urlError));
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -325,6 +338,21 @@ export default function LoginPage() {
         )}
       </CardFooter>
     </Card>
+  );
+}
+
+// Wrap in Suspense for useSearchParams
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-3xl font-bold text-center">Loading...</CardTitle>
+        </CardHeader>
+      </Card>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
 
