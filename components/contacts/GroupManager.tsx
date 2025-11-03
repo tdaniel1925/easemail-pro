@@ -37,7 +37,12 @@ const PRESET_COLORS = [
   '#06b6d4', // sky
 ];
 
-export default function GroupManager() {
+interface GroupManagerProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function GroupManager({ isOpen, onClose }: GroupManagerProps) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -162,11 +167,26 @@ export default function GroupManager() {
   };
 
   if (loading) {
-    return <div className="p-4 text-sm text-muted-foreground">Loading groups...</div>;
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[600px]">
+          <div className="p-4 text-sm text-muted-foreground">Loading groups...</div>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (
-    <div className="space-y-4">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Manage Groups</DialogTitle>
+          <DialogDescription>
+            Create and organize groups to categorize your contacts.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Manage Groups</h3>
@@ -339,7 +359,9 @@ export default function GroupManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

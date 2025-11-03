@@ -37,7 +37,12 @@ const PRESET_COLORS = [
   '#06b6d4', // sky
 ];
 
-export default function TagManager() {
+interface TagManagerProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function TagManager({ isOpen, onClose }: TagManagerProps) {
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -162,14 +167,29 @@ export default function TagManager() {
   };
 
   if (loading) {
-    return <div className="p-4 text-sm text-muted-foreground">Loading tags...</div>;
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[600px]">
+          <div className="p-4 text-sm text-muted-foreground">Loading tags...</div>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (
-    <div className="space-y-4">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Manage Tags</DialogTitle>
+          <DialogDescription>
+            Create and organize tags to categorize your contacts.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Manage Tags</h3>
+        <h3 className="text-sm font-semibold">Your Tags</h3>
         <Button size="sm" onClick={() => setShowCreateModal(true)}>
           <Plus className="h-4 w-4 mr-1" />
           New Tag
@@ -337,7 +357,9 @@ export default function TagManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

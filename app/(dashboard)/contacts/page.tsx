@@ -1,15 +1,6 @@
 import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
-import InboxLayout from '@/components/layout/InboxLayout';
-import ContactsList from '@/components/contacts/ContactsList';
-
-function ContactsContent() {
-  return (
-    <InboxLayout>
-      <ContactsList />
-    </InboxLayout>
-  );
-}
+import ContactsContent from '@/components/contacts/ContactsContent';
 
 export default function ContactsPage() {
   return (
@@ -22,4 +13,3 @@ export default function ContactsPage() {
     </Suspense>
   );
 }
-
