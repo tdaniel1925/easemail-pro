@@ -171,21 +171,21 @@ export default function UsersContent() {
     }
   };
 
-  const handleResetPassword = async (userId: string, userEmail: string) => {
+  const handleResendInvitation = async (userId: string, userEmail: string) => {
     try {
-      const response = await fetch(`/api/admin/users/${userId}/reset-password`, {
+      const response = await fetch(`/api/admin/users/${userId}/resend-invitation`, {
         method: 'POST',
       });
 
       if (response.ok) {
-        showMessage('success', `New temporary password sent to ${userEmail}`);
+        showMessage('success', `Invitation resent to ${userEmail}`);
       } else {
         const data = await response.json();
-        showMessage('error', data.error || 'Failed to send new password');
+        showMessage('error', data.error || 'Failed to resend invitation');
       }
     } catch (error) {
-      console.error('Failed to send new password:', error);
-      showMessage('error', 'Failed to send new password');
+      console.error('Failed to resend invitation:', error);
+      showMessage('error', 'Failed to resend invitation');
     }
   };
 
@@ -433,9 +433,9 @@ export default function UsersContent() {
                               Edit User Details
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem onClick={() => handleResetPassword(user.id, user.email)}>
-                              <Key className="h-4 w-4 mr-2" />
-                              Send New Password
+                            <DropdownMenuItem onClick={() => handleResendInvitation(user.id, user.email)}>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Resend Invitation
                             </DropdownMenuItem>
 
                             {user.suspended ? (
