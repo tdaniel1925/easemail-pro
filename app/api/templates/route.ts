@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
-import { emailTemplates, users } from '@/lib/db/schema';
+import { userEmailTemplates, users } from '@/lib/db/schema';
 import { eq, and, or, desc } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/templates
- * Get all templates for the current user (personal + shared org templates)
+ * Get all user templates for the current user (personal + shared org templates)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -30,15 +30,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Get personal templates + shared org templates
-    const templates = await db.query.emailTemplates.findMany({
+    const templates = await db.query.userEmailTemplates.findMany({
       where: or(
-        eq(emailTemplates.userId, user.id), // Personal templates
+        eq(userEmailTemplates.userId, user.id), // Personal templates
         and(
-          eq(emailTemplates.isShared, true),
-          dbUser.organizationId ? eq(emailTemplates.organizationId, dbUser.organizationId) : undefined
+          eq(userEmailTemplates.isShared, true),
+          dbUser.organizationId ? eq(userEmailTemplates.organizationId, dbUser.organizationId) : undefined
         ) // Shared org templates
       ),
-      orderBy: [desc(emailTemplates.timesUsed), desc(emailTemplates.createdAt)],
+      orderBy: [desc(userEmailTemplates.timesUsed), desc(userEmailTemplates.createdAt)],
     });
 
     return NextResponse.json({
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/templates
- * Create a new email template
+ * Create a new user email template
  */
 export async function POST(request: NextRequest) {
   try {
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     const variables = extractVariables(subject, bodyHtml || bodyText);
 
     // Create template
-    const [template] = await db.insert(emailTemplates).values({
+    const [template] = await db.insert(userEmailTemplates).values({
       userId: user.id,
       organizationId: dbUser.organizationId,
       name,

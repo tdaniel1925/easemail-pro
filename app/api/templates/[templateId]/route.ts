@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
-import { emailTemplates, users } from '@/lib/db/schema';
+import { userEmailTemplates, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/templates/[templateId]
- * Get a specific template
+ * Get a specific user template
  */
 export async function GET(
   request: NextRequest,
@@ -23,8 +23,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const template = await db.query.emailTemplates.findFirst({
-      where: eq(emailTemplates.id, params.templateId),
+    const template = await db.query.userEmailTemplates.findFirst({
+      where: eq(userEmailTemplates.id, params.templateId),
     });
 
     if (!template) {
@@ -45,12 +45,12 @@ export async function GET(
     }
 
     // Update last used timestamp
-    await db.update(emailTemplates)
+    await db.update(userEmailTemplates)
       .set({ 
         lastUsedAt: new Date(),
         timesUsed: (template.timesUsed || 0) + 1,
       })
-      .where(eq(emailTemplates.id, params.templateId));
+      .where(eq(userEmailTemplates.id, params.templateId));
 
     return NextResponse.json({
       success: true,
@@ -67,7 +67,7 @@ export async function GET(
 
 /**
  * PUT /api/templates/[templateId]
- * Update a template
+ * Update a user template
  */
 export async function PUT(
   request: NextRequest,
@@ -81,8 +81,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const template = await db.query.emailTemplates.findFirst({
-      where: eq(emailTemplates.id, params.templateId),
+    const template = await db.query.userEmailTemplates.findFirst({
+      where: eq(userEmailTemplates.id, params.templateId),
     });
 
     if (!template) {
@@ -100,7 +100,7 @@ export async function PUT(
     const variables = extractVariables(subject, bodyHtml || bodyText);
 
     // Update template
-    const [updated] = await db.update(emailTemplates)
+    const [updated] = await db.update(userEmailTemplates)
       .set({
         name: name || template.name,
         description: description !== undefined ? description : template.description,
@@ -112,7 +112,7 @@ export async function PUT(
         isShared: isShared !== undefined ? isShared : template.isShared,
         updatedAt: new Date(),
       })
-      .where(eq(emailTemplates.id, params.templateId))
+      .where(eq(userEmailTemplates.id, params.templateId))
       .returning();
 
     return NextResponse.json({
@@ -130,7 +130,7 @@ export async function PUT(
 
 /**
  * DELETE /api/templates/[templateId]
- * Delete a template
+ * Delete a user template
  */
 export async function DELETE(
   request: NextRequest,
@@ -144,8 +144,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const template = await db.query.emailTemplates.findFirst({
-      where: eq(emailTemplates.id, params.templateId),
+    const template = await db.query.userEmailTemplates.findFirst({
+      where: eq(userEmailTemplates.id, params.templateId),
     });
 
     if (!template) {
@@ -157,8 +157,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    await db.delete(emailTemplates)
-      .where(eq(emailTemplates.id, params.templateId));
+    await db.delete(userEmailTemplates)
+      .where(eq(userEmailTemplates.id, params.templateId));
 
     return NextResponse.json({
       success: true,
