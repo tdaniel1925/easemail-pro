@@ -54,10 +54,8 @@ export async function POST(request: NextRequest) {
   // Queue event for async processing without blocking the response
   setImmediate(async () => {
     try {
-      // Queue event in database with timeout protection
-      const insertTimeout = setTimeout(() => {
-        console.error('⏰ Webhook insert timeout for event:', event.id);
-      }, 5000);
+      // Queue event in database with extended timeout (15s for high load)
+      const insertStartTime = Date.now();
       
       await db.insert(webhookEvents).values({
         nylasWebhookId: event.id,
@@ -69,7 +67,12 @@ export async function POST(request: NextRequest) {
         // Don't throw - already responded to Nylas
       });
       
-      clearTimeout(insertTimeout);
+      const insertDuration = Date.now() - insertStartTime;
+      
+      // Log slow inserts for monitoring (>3s is concerning)
+      if (insertDuration > 3000) {
+        console.warn(`⚠️ Slow webhook insert: ${insertDuration}ms for event ${event.id} (type: ${event.type})`);
+      }
       
       // Process immediately (best effort, don't block)
       processWebhookEvent(event).catch((processError) => {
@@ -87,8 +90,9 @@ export async function POST(request: NextRequest) {
 async function processWebhookEvent(event: any) {
   const { type, data } = event;
   
-  // Add timeout protection for each operation
-  const operationTimeout = 10000; // 10 seconds max per operation
+  // Add timeout protection for each operation (increased to 15s for high load)
+  const operationTimeout = 15000;
+  const processStartTime = Date.now();
   
   try {
     const processPromise = (async () => {
@@ -122,11 +126,20 @@ async function processWebhookEvent(event: any) {
     
     await Promise.race([processPromise, timeoutPromise]);
     
+    const processDuration = Date.now() - processStartTime;
+    
+    // Log slow processing for monitoring (>5s is concerning)
+    if (processDuration > 5000) {
+      console.warn(`⚠️ Slow webhook processing: ${processDuration}ms for ${type} event ${event.id}`);
+    }
+    
   } catch (error: any) {
+    const processDuration = Date.now() - processStartTime;
+    
     if (error.message === 'Operation timeout') {
-      console.error(`⏰ Webhook processing timeout for ${type}:`, event.id);
+      console.error(`⏰ Webhook processing timeout (${processDuration}ms) for ${type}:`, event.id);
     } else {
-      console.error(`❌ Event processing error for ${type}:`, error.message || error);
+      console.error(`❌ Event processing error for ${type} (${processDuration}ms):`, error.message || error);
     }
     // Don't throw - event is already queued and can be retried
   }

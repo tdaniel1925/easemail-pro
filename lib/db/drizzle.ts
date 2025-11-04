@@ -2,6 +2,10 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
 
+// IMPORTANT: Use the correct Supabase connection string format
+// For Supabase, use "Transaction" mode for better performance:
+// postgresql://postgres:[password]@db.[project-ref].supabase.co:6543/postgres?pgbouncer=true
+// Port 6543 uses connection pooling (pgbouncer) which is faster for serverless
 const connectionString = process.env.DATABASE_URL!;
 
 // Configure connection pool with production-ready limits
