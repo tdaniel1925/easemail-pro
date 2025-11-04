@@ -1,26 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useOnboarding } from '../OnboardingProvider';
 import { OnboardingTooltip } from '../OnboardingTooltip';
 
 export default function SignatureStep() {
-  const { setHighlightedElement } = useOnboarding();
-
-  useEffect(() => {
-    // Highlight the Settings button (gear icon in sidebar)
-    setHighlightedElement('[data-onboarding="settings-button"]');
-    return () => setHighlightedElement(null);
-  }, [setHighlightedElement]);
-
   return (
     <OnboardingTooltip
-      title="Add Email Signature"
-      description="Click the Settings icon (⚙️ gear) at the bottom of the left sidebar, then go to Signatures to create a professional email signature with your name, title, and contact info."
-      nextLabel="Next: AI Features"
-      showBack={true}
-      position="right"
-      highlightSelector="[data-onboarding='settings-button']"
+      title="Create Professional Signatures"
+      description="Add professional email signatures to your messages. Navigate to Settings to create custom signatures with your contact information, logo, and branding."
+      nextLabel="Next"
     />
   );
 }

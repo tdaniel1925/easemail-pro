@@ -1,25 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useOnboarding } from '../OnboardingProvider';
 import { OnboardingTooltip } from '../OnboardingTooltip';
 
 export default function SMSStep() {
-  const { setHighlightedElement } = useOnboarding();
-
-  useEffect(() => {
-    // Highlight the Contacts button in sidebar
-    setHighlightedElement('[data-onboarding="contacts-button"]');
-    return () => setHighlightedElement(null);
-  }, [setHighlightedElement]);
-
   return (
     <OnboardingTooltip
-      title="Send SMS from Contacts"
-      description="Click 'Contacts' in the left sidebar, select a contact with a phone number, and click the SMS button (💬 icon) to send text messages directly from EaseMail."
-      nextLabel="Next: Navigation"
-      showBack={true}
-      position="right"
+      title="Send SMS Messages"
+      description="Reach your contacts via SMS directly from EaseMail. Navigate to the Contacts section to send text messages alongside your email communications."
+      nextLabel="Next"
       highlightSelector="[data-onboarding='contacts-button']"
     />
   );

@@ -1,25 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useOnboarding } from '../OnboardingProvider';
 import { OnboardingTooltip } from '../OnboardingTooltip';
 
 export default function NavigationStep() {
-  const { setHighlightedElement } = useOnboarding();
-
-  useEffect(() => {
-    // Highlight the entire sidebar
-    setHighlightedElement('[data-onboarding="sidebar"]');
-    return () => setHighlightedElement(null);
-  }, [setHighlightedElement]);
-
   return (
     <OnboardingTooltip
-      title="Master the Sidebar Navigation"
-      description="Use the left sidebar to navigate: Compose new emails, view Inbox/Sent/Drafts, access Calendar, Contacts, Rules, Attachments, and Settings. Quick keyboard shortcut: Press 'C' to compose anytime!"
-      nextLabel="Finish Tour"
-      showBack={true}
-      position="center"
+      title="Master Navigation"
+      description="Use the sidebar to navigate between Inbox, Sent, Drafts, and other folders. Access Contacts, Calendar, and Settings from the navigation menu. Keyboard shortcuts are available for faster workflows."
+      nextLabel="Complete Tour"
+      highlightSelector="[data-onboarding='sidebar']"
     />
   );
 }

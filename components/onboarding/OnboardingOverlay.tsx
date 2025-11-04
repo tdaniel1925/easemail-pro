@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { useOnboarding } from './OnboardingProvider';
-import { OnboardingTooltip } from './OnboardingTooltip';
 import WelcomeStep from './steps/WelcomeStep';
 import ConnectAccountStep from './steps/ConnectAccountStep';
 import SignatureStep from './steps/SignatureStep';
@@ -14,38 +13,22 @@ import CompleteStep from './steps/CompleteStep';
 
 export default function OnboardingOverlay() {
   const { isActive, currentStep, highlightedElement } = useOnboarding();
-  const [highlightedRect, setHighlightedRect] = useState<DOMRect | null>(null);
 
-  // Update highlighted element position
+  // Prevent body scroll when onboarding is active
   useEffect(() => {
-    if (!highlightedElement || !isActive) {
-      setHighlightedRect(null);
-      return;
+    if (isActive) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
     }
-
-    const updatePosition = () => {
-      const element = document.querySelector(highlightedElement);
-      if (element) {
-        const rect = element.getBoundingClientRect();
-        setHighlightedRect(rect);
-      }
-    };
-
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition);
-
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition);
-    };
-  }, [highlightedElement, isActive]);
+  }, [isActive]);
 
   if (!isActive || !currentStep) {
     return null;
   }
 
-  // Welcome and Complete are full-screen modals, not spotlight overlays
+  // Welcome and Complete are full-screen modals
   if (currentStep === 'welcome') {
     return <WelcomeStep />;
   }
@@ -54,28 +37,30 @@ export default function OnboardingOverlay() {
     return <CompleteStep />;
   }
 
+  // Get the highlighted element for spotlight effect
+  const targetElement = highlightedElement ? document.querySelector(highlightedElement) : null;
+  const targetRect = targetElement?.getBoundingClientRect();
+
   return (
     <>
-      {/* Dark overlay with spotlight cutout */}
-      <div className="fixed inset-0 z-50 pointer-events-none">
-        {/* Background overlay */}
-        <div className="absolute inset-0 bg-black/60" />
-        
-        {/* Spotlight cutout */}
-        {highlightedRect && (
+      {/* Dark overlay with optional spotlight */}
+      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px]">
+        {/* Spotlight cutout around highlighted element */}
+        {targetRect && (
           <div
-            className="absolute bg-transparent ring-4 ring-primary ring-offset-4 ring-offset-black/60 rounded-lg pointer-events-auto"
+            className="absolute border-2 border-primary rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.7)]"
             style={{
-              left: `${highlightedRect.left - 8}px`,
-              top: `${highlightedRect.top - 8}px`,
-              width: `${highlightedRect.width + 16}px`,
-              height: `${highlightedRect.height + 16}px`,
+              left: `${targetRect.left - 8}px`,
+              top: `${targetRect.top - 8}px`,
+              width: `${targetRect.width + 16}px`,
+              height: `${targetRect.height + 16}px`,
+              pointerEvents: 'none',
             }}
           />
         )}
       </div>
 
-      {/* Step-specific content */}
+      {/* Step-specific content - always centered */}
       {currentStep === 'connect-account' && <ConnectAccountStep />}
       {currentStep === 'signature' && <SignatureStep />}
       {currentStep === 'ai-write' && <AIWriteStep />}
@@ -85,4 +70,3 @@ export default function OnboardingOverlay() {
     </>
   );
 }
-

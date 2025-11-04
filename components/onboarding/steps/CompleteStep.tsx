@@ -2,117 +2,82 @@
 
 import { useOnboarding } from '../OnboardingProvider';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { PartyPopper, CheckCircle, BookOpen, Video, MessageCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CheckCircle2 } from 'lucide-react';
 
 export default function CompleteStep() {
   const { completeOnboarding } = useOnboarding();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <Card className="max-w-2xl w-full mx-4 shadow-2xl border-primary">
-        <CardContent className="p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full mb-4 animate-bounce">
-              <PartyPopper className="h-10 w-10 text-white" />
-            </div>
-            <h1 className="text-4xl font-bold mb-3">
-              You're All Set! 🎊
-            </h1>
-            <p className="text-xl text-muted-foreground">
-              You've completed the EaseMail tour!
-            </p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-6">
+      <Card className="w-full max-w-2xl shadow-2xl border-2 border-primary">
+        <CardHeader className="border-b bg-muted/30 pb-6 text-center">
+          <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <CheckCircle2 className="h-8 w-8 text-primary" />
           </div>
-
-          {/* Completed Items */}
-          <div className="bg-muted/50 rounded-lg p-6 mb-8">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-500" />
-              What you've learned:
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-sm">Connected email accounts</span>
+          <CardTitle className="text-3xl font-bold">
+            You're All Set
+          </CardTitle>
+          <p className="text-muted-foreground mt-2 text-lg">
+            You're ready to start managing your email more efficiently
+          </p>
+        </CardHeader>
+        
+        <CardContent className="pt-8 pb-8">
+          {/* Quick Tips */}
+          <div className="space-y-4 mb-8">
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-sm font-semibold text-primary">1</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-sm">Professional signatures</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-sm">AI-powered writing</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-sm">Voice messages</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-sm">SMS from contacts</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-sm">Navigation & shortcuts</span>
+              <div>
+                <h3 className="font-semibold mb-1">Connect Your First Account</h3>
+                <p className="text-sm text-muted-foreground">
+                  Click "Add Account" in the sidebar to link your email provider
+                </p>
               </div>
             </div>
-          </div>
 
-          {/* Next Steps */}
-          <div className="space-y-3 mb-8">
-            <h3 className="font-semibold">Need more help?</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <a
-                href="/settings?section=help"
-                className="flex items-center gap-3 p-4 rounded-lg border border-border hover:bg-accent transition-colors"
-              >
-                <BookOpen className="h-5 w-5 text-primary" />
-                <div className="text-sm">
-                  <div className="font-medium">Help Center</div>
-                  <div className="text-muted-foreground text-xs">Guides & tutorials</div>
-                </div>
-              </a>
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-sm font-semibold text-primary">2</span>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-1">Explore AI Features</h3>
+                <p className="text-sm text-muted-foreground">
+                  Use the AI assistant when composing emails to save time
+                </p>
+              </div>
+            </div>
 
-              <a
-                href="/settings?section=help&tab=videos"
-                className="flex items-center gap-3 p-4 rounded-lg border border-border hover:bg-accent transition-colors"
-              >
-                <Video className="h-5 w-5 text-primary" />
-                <div className="text-sm">
-                  <div className="font-medium">Video Tutorials</div>
-                  <div className="text-muted-foreground text-xs">Watch & learn</div>
-                </div>
-              </a>
-
-              <a
-                href="mailto:support@easemail.app"
-                className="flex items-center gap-3 p-4 rounded-lg border border-border hover:bg-accent transition-colors"
-              >
-                <MessageCircle className="h-5 w-5 text-primary" />
-                <div className="text-sm">
-                  <div className="font-medium">Get Support</div>
-                  <div className="text-muted-foreground text-xs">We're here to help</div>
-                </div>
-              </a>
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-sm font-semibold text-primary">3</span>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-1">Customize Your Settings</h3>
+                <p className="text-sm text-muted-foreground">
+                  Visit Settings to configure signatures, rules, and preferences
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Action */}
-          <Button
-            onClick={completeOnboarding}
-            size="lg"
-            className="w-full text-lg h-12"
-          >
-            Start Using EaseMail →
-          </Button>
-
-          <p className="text-center text-xs text-muted-foreground mt-4">
-            💡 Tip: Press <kbd className="px-2 py-1 bg-muted rounded text-xs">?</kbd> anytime to see keyboard shortcuts
-          </p>
+          <div className="text-center">
+            <Button
+              onClick={completeOnboarding}
+              size="lg"
+              className="px-8 h-12 text-base"
+            >
+              Get Started
+            </Button>
+            <p className="text-xs text-muted-foreground mt-4">
+              You can restart this tour anytime from Settings → Help & Support
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
 }
-
