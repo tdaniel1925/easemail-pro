@@ -1,21 +1,15 @@
 'use client';
 
 import { Mail, FileSignature, Sparkles, ArrowRight, Settings } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
 export default function WelcomeScreen() {
-  const handleAddAccount = () => {
-    // Scroll to bottom left where "Add Account" button is
-    const addAccountButton = document.querySelector('[data-add-account]');
-    if (addAccountButton) {
-      addAccountButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Optional: highlight the button temporarily
-      addAccountButton.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
-      setTimeout(() => {
-        addAccountButton.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
-      }, 2000);
-    }
+  const router = useRouter();
+
+  const handleGetStarted = () => {
+    router.push('/accounts');
   };
 
   return (
@@ -88,7 +82,7 @@ export default function WelcomeScreen() {
             <Button 
               size="lg" 
               className="w-full gap-2"
-              onClick={handleAddAccount}
+              onClick={handleGetStarted}
             >
               Get Started - Add Your First Account
               <ArrowRight className="w-4 h-4" />
