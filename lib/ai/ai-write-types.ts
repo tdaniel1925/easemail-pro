@@ -5,7 +5,7 @@
  * Safe for client-side import (no API keys)
  */
 
-export type ToneType = 'professional' | 'casual' | 'friendly' | 'formal' | 'persuasive';
+export type ToneType = 'professional' | 'casual' | 'friendly' | 'formal' | 'persuasive' | 'assertive' | 'empathetic';
 export type LengthType = 'short' | 'normal' | 'long';
 
 export interface AIWriteInput {
@@ -84,6 +84,8 @@ export function getToneDescription(tone: ToneType): string {
     friendly: 'Warm and approachable',
     formal: 'Very polished and traditional',
     persuasive: 'Compelling and action-oriented',
+    assertive: 'Direct and confident',
+    empathetic: 'Understanding and compassionate',
   };
   return descriptions[tone];
 }
