@@ -51,17 +51,15 @@ export function SignaturePromptModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <div className="flex items-center gap-3 mb-2">
+          <DialogTitle className="text-xl flex items-center gap-3">
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
               <PenTool className="h-6 w-6 text-primary" />
             </div>
-            <div>
-              <DialogTitle className="text-xl">Add Your Email Signature?</DialogTitle>
-              <DialogDescription className="text-sm mt-1">
-                Make your emails more professional
-              </DialogDescription>
-            </div>
-          </div>
+            <span>Add Your Email Signature?</span>
+          </DialogTitle>
+          <DialogDescription className="text-sm">
+            Make your emails more professional
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
