@@ -24,7 +24,14 @@ function verifyWebhookSignature(payload: string, signature: string): boolean {
 
 export async function POST(request: NextRequest) {
   const signature = request.headers.get('x-nylas-signature') || '';
-  const payload = await request.text();
+  let payload: string;
+  
+  try {
+    payload = await request.text();
+  } catch (error) {
+    console.error('Failed to read request body:', error);
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
   
   // Verify signature
   if (!verifyWebhookSignature(payload, signature)) {
@@ -32,108 +39,171 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
   
+  let event: any;
   try {
-    const event = JSON.parse(payload);
-    
-    // Queue event for processing
-    await db.insert(webhookEvents).values({
-      nylasWebhookId: event.id,
-      eventType: event.type,
-      payload: event,
-      processed: false,
-    });
-    
-    // Process immediately (async - don't wait)
-    processWebhookEvent(event).catch(console.error);
-    
-    return NextResponse.json({ success: true });
+    event = JSON.parse(payload);
   } catch (error) {
-    console.error('Webhook processing error:', error);
-    return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
+    console.error('Failed to parse webhook payload:', error);
+    return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
   }
+  
+  // Respond immediately to Nylas (don't wait for processing)
+  // This prevents timeout errors and webhook retries
+  const responsePromise = NextResponse.json({ success: true });
+  
+  // Queue event for async processing without blocking the response
+  setImmediate(async () => {
+    try {
+      // Queue event in database with timeout protection
+      const insertTimeout = setTimeout(() => {
+        console.error('⏰ Webhook insert timeout for event:', event.id);
+      }, 5000);
+      
+      await db.insert(webhookEvents).values({
+        nylasWebhookId: event.id,
+        eventType: event.type,
+        payload: event,
+        processed: false,
+      }).catch((insertError) => {
+        console.error('❌ Failed to queue webhook event:', insertError);
+        // Don't throw - already responded to Nylas
+      });
+      
+      clearTimeout(insertTimeout);
+      
+      // Process immediately (best effort, don't block)
+      processWebhookEvent(event).catch((processError) => {
+        console.error('❌ Failed to process webhook event:', processError);
+        // Event is queued, can be retried later
+      });
+    } catch (error) {
+      console.error('❌ Webhook background processing error:', error);
+    }
+  });
+  
+  return responsePromise;
 }
 
 async function processWebhookEvent(event: any) {
   const { type, data } = event;
   
+  // Add timeout protection for each operation
+  const operationTimeout = 10000; // 10 seconds max per operation
+  
   try {
-    switch (type) {
-      case 'message.created':
-        await handleMessageCreated(data.object);
-        break;
-        
-      case 'message.updated':
-        await handleMessageUpdated(data.object);
-        break;
-        
-      case 'message.deleted':
-        await handleMessageDeleted(data.object);
-        break;
-        
-      case 'folder.created':
-      case 'folder.updated':
-        await handleFolderUpdate(data.object);
-        break;
-        
-      default:
-        console.log('Unhandled webhook event type:', type);
+    const processPromise = (async () => {
+      switch (type) {
+        case 'message.created':
+          await handleMessageCreated(data.object);
+          break;
+          
+        case 'message.updated':
+          await handleMessageUpdated(data.object);
+          break;
+          
+        case 'message.deleted':
+          await handleMessageDeleted(data.object);
+          break;
+          
+        case 'folder.created':
+        case 'folder.updated':
+          await handleFolderUpdate(data.object);
+          break;
+          
+        default:
+          console.log('Unhandled webhook event type:', type);
+      }
+    })();
+    
+    // Race between processing and timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Operation timeout')), operationTimeout);
+    });
+    
+    await Promise.race([processPromise, timeoutPromise]);
+    
+  } catch (error: any) {
+    if (error.message === 'Operation timeout') {
+      console.error(`⏰ Webhook processing timeout for ${type}:`, event.id);
+    } else {
+      console.error(`❌ Event processing error for ${type}:`, error.message || error);
     }
-  } catch (error) {
-    console.error('Event processing error:', error);
+    // Don't throw - event is already queued and can be retried
   }
 }
 
 async function handleMessageCreated(message: any) {
-  // Find account by grant ID
-  const account = await db.query.emailAccounts.findFirst({
-    where: eq(emailAccounts.nylasGrantId, message.grant_id),
-  });
-  
-  if (!account) {
-    console.error('Account not found for message:', message.id);
-    return;
+  try {
+    // Find account by grant ID with timeout
+    const account = await db.query.emailAccounts.findFirst({
+      where: eq(emailAccounts.nylasGrantId, message.grant_id),
+    });
+    
+    if (!account) {
+      console.error('Account not found for message:', message.id);
+      return;
+    }
+    
+    // Insert message into database with sanitized text
+    await db.insert(emails).values({
+      accountId: account.id,
+      provider: 'nylas',
+      providerMessageId: sanitizeText(message.id),
+      threadId: sanitizeText(message.thread_id),
+      subject: sanitizeText(message.subject),
+      snippet: sanitizeText(message.snippet),
+      fromEmail: sanitizeText(message.from?.[0]?.email),
+      fromName: sanitizeText(message.from?.[0]?.name),
+      toEmails: sanitizeParticipants(message.to),
+      ccEmails: sanitizeParticipants(message.cc),
+      hasAttachments: message.attachments?.length > 0,
+      isRead: message.unread === false,
+      isStarred: message.starred === true,
+      receivedAt: new Date(message.date * 1000),
+      providerData: message,
+    }).onConflictDoNothing();
+    
+    console.log(`✅ Created message ${message.id} for account ${account.id}`);
+  } catch (error: any) {
+    console.error(`❌ Failed to create message ${message.id}:`, error.message || error);
+    throw error; // Re-throw to be caught by parent handler
   }
-  
-  // Insert message into database with sanitized text
-  await db.insert(emails).values({
-    accountId: account.id,
-    provider: 'nylas',
-    providerMessageId: sanitizeText(message.id),
-    threadId: sanitizeText(message.thread_id),
-    subject: sanitizeText(message.subject),
-    snippet: sanitizeText(message.snippet),
-    fromEmail: sanitizeText(message.from?.[0]?.email),
-    fromName: sanitizeText(message.from?.[0]?.name),
-    toEmails: sanitizeParticipants(message.to),
-    ccEmails: sanitizeParticipants(message.cc),
-    hasAttachments: message.attachments?.length > 0,
-    isRead: message.unread === false,
-    isStarred: message.starred === true,
-    receivedAt: new Date(message.date * 1000),
-    providerData: message,
-  }).onConflictDoNothing();
 }
 
 async function handleMessageUpdated(message: any) {
-  // Update message in database
-  await db.update(emails)
-    .set({
-      isRead: message.unread === false,
-      isStarred: message.starred === true,
-      folder: message.folders?.[0],
-      updatedAt: new Date(),
-    })
-    .where(eq(emails.providerMessageId, message.id));
+  try {
+    // Update message in database
+    await db.update(emails)
+      .set({
+        isRead: message.unread === false,
+        isStarred: message.starred === true,
+        folder: message.folders?.[0],
+        updatedAt: new Date(),
+      })
+      .where(eq(emails.providerMessageId, message.id));
+    
+    console.log(`✅ Updated message ${message.id}`);
+  } catch (error: any) {
+    console.error(`❌ Failed to update message ${message.id}:`, error.message || error);
+    throw error;
+  }
 }
 
 async function handleMessageDeleted(message: any) {
-  // Mark as trashed or delete
-  await db.update(emails)
-    .set({
-      isTrashed: true,
-      updatedAt: new Date(),
-    })
-    .where(eq(emails.providerMessageId, message.id));
+  try {
+    // Mark as trashed or delete
+    await db.update(emails)
+      .set({
+        isTrashed: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(emails.providerMessageId, message.id));
+    
+    console.log(`✅ Deleted message ${message.id}`);
+  } catch (error: any) {
+    console.error(`❌ Failed to delete message ${message.id}:`, error.message || error);
+    throw error;
+  }
 }
 
 async function handleFolderUpdate(folder: any) {

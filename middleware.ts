@@ -1,99 +1,51 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-        },
-      },
-    }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Protect dashboard routes
-  if (!user && request.nextUrl.pathname.startsWith('/inbox')) {
-    return NextResponse.redirect(new URL('/login', request.url));
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  // Block WordPress bot attacks
+  const wordpressPaths = [
+    '/wordpress',
+    '/wp-admin',
+    '/wp-content',
+    '/wp-includes',
+    '/wp-login',
+    '/xmlrpc.php',
+  ];
+  
+  if (wordpressPaths.some(path => pathname.startsWith(path))) {
+    console.warn(`🚫 Blocked WordPress bot attack: ${pathname} from ${request.headers.get('x-forwarded-for') || 'unknown'}`);
+    return new NextResponse(null, { status: 403 });
   }
-
-  if (!user && request.nextUrl.pathname.startsWith('/contacts')) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  
+  // Block common exploit attempts
+  const exploitPaths = [
+    '/admin/config.php',
+    '/phpmyadmin',
+    '/.env',
+    '/.git',
+    '/config.php',
+    '/setup-config.php',
+  ];
+  
+  if (exploitPaths.some(path => pathname.includes(path))) {
+    console.warn(`🚫 Blocked exploit attempt: ${pathname} from ${request.headers.get('x-forwarded-for') || 'unknown'}`);
+    return new NextResponse(null, { status: 403 });
   }
-
-  if (!user && request.nextUrl.pathname.startsWith('/settings')) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  if (!user && request.nextUrl.pathname.startsWith('/team')) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  if (!user && request.nextUrl.pathname.startsWith('/calendar')) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  if (!user && request.nextUrl.pathname.startsWith('/attachments')) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  // Redirect logged-in users away from auth pages
-  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
-    return NextResponse.redirect(new URL('/inbox', request.url));
-  }
-
-  return response;
+  
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|design|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
-
