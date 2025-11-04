@@ -51,7 +51,7 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
     // Query folder counts using SQL aggregation
     // This is MUCH faster than counting in JavaScript
     // ✅ FIX: Count emails in ALL folders they belong to (using jsonb_array_elements for folders array)
-    const rawResult = await db.execute(sql`
+    const rawResult = await db.execute<{ folder: string; totalCount: number; unreadCount: number }>(sql`
       SELECT
         COALESCE(TRIM(BOTH '"' FROM folder_name::text), 'inbox') as folder,
         COUNT(DISTINCT email_id)::int as "totalCount",
@@ -77,7 +77,8 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
       ORDER BY folder_name
     `);
 
-    const result = rawResult.rows as Array<{ folder: string; totalCount: number; unreadCount: number }>;
+    // Drizzle's execute returns an array directly, not wrapped in .rows
+    const result = Array.isArray(rawResult) ? rawResult : [];
 
     console.log(`📊 Calculated folder counts for account ${accountId}:`, result);
 
@@ -112,7 +113,7 @@ export async function getFolderCount(
 ): Promise<{ totalCount: number; unreadCount: number }> {
   try {
     // ✅ FIX: Check both folder field AND folders array for the folder name
-    const rawResult = await db.execute(sql`
+    const rawResult = await db.execute<{ totalCount: number; unreadCount: number }>(sql`
       SELECT
         COUNT(DISTINCT e.id)::int as "totalCount",
         COUNT(DISTINCT e.id) FILTER (WHERE e.is_read = false)::int as "unreadCount"
@@ -132,7 +133,8 @@ export async function getFolderCount(
         )
     `);
 
-    const result = rawResult.rows as Array<{ totalCount: number; unreadCount: number }>;
+    // Drizzle's execute returns an array directly, not wrapped in .rows
+    const result = Array.isArray(rawResult) ? rawResult : [];
 
     if (result.length === 0) {
       return { totalCount: 0, unreadCount: 0 };

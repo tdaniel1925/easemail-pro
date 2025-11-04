@@ -6,7 +6,9 @@
       "Bash(node check-api-files.js:*)",
       "Bash(node fix-api-routes.js:*)",
       "Bash(node fix-remaining-await.js:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
