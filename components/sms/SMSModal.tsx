@@ -96,9 +96,9 @@ export function SMSModal({ isOpen, onClose, contact, onSuccess }: SMSModalProps)
       let data;
       try {
         data = JSON.parse(responseText);
-        console.log('📦 Parsed response data:', data);
-        console.log('📦 data.success value:', data.success);
-        console.log('📦 typeof data.success:', typeof data.success);
+        console.log('[SMS] Parsed response data:', data);
+        console.log('[SMS] data.success value:', data.success);
+        console.log('[SMS] typeof data.success:', typeof data.success);
       } catch (parseError) {
         console.error('❌ JSON parse error:', parseError);
         setError('Failed to parse server response');
@@ -121,7 +121,7 @@ export function SMSModal({ isOpen, onClose, contact, onSuccess }: SMSModalProps)
       });
 
       if (isSuccess) {
-        console.log('✅ SMS sent successfully!');
+        console.log('[SMS] SMS sent successfully!');
         
         // Save Twilio details
         setTwilioDetails({

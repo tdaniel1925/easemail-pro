@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar, Paperclip, Zap, Shield, Users, Bot } from 'lucide-react';
@@ -12,14 +12,14 @@ import ProviderSelector from '@/components/email/ProviderSelector';
 import InlineMessage from '@/components/ui/inline-message';
 import SettingsMenu from '@/components/layout/SettingsMenu';
 import EaseMailLogo from '@/components/ui/EaseMailLogo';
-import { FolderSkeleton } from '@/components/ui/skeleton'; // âœ… PHASE 2: Loading states
-import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts'; // âœ… PHASE 2: Keyboard shortcuts
-import { buildFolderTree, flattenFolderTree } from '@/lib/email/folder-tree'; // âœ… PHASE 3: Folder hierarchy
-import { FolderSearch } from '@/components/email/FolderSearch'; // âœ… PHASE 3: Folder search
-import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop'; // âœ… PHASE 3: Drag and drop
-import { usePrefetch } from '@/lib/hooks/usePrefetch'; // âœ… PHASE 4: Prefetching
-import { folderCache } from '@/lib/cache/folder-cache'; // âœ… PHASE 4: Folder caching
-import { registerServiceWorker, setupOnlineListeners } from '@/lib/utils/service-worker'; // âœ… PHASE 4: Offline support
+import { FolderSkeleton } from '@/components/ui/skeleton'; // ✅ PHASE 2: Loading states
+import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts'; // ✅ PHASE 2: Keyboard shortcuts
+import { buildFolderTree, flattenFolderTree } from '@/lib/email/folder-tree'; // ✅ PHASE 3: Folder hierarchy
+import { FolderSearch } from '@/components/email/FolderSearch'; // ✅ PHASE 3: Folder search
+import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop'; // ✅ PHASE 3: Drag and drop
+import { usePrefetch } from '@/lib/hooks/usePrefetch'; // ✅ PHASE 4: Prefetching
+import { folderCache } from '@/lib/cache/folder-cache'; // ✅ PHASE 4: Folder caching
+import { registerServiceWorker, setupOnlineListeners } from '@/lib/utils/service-worker'; // ✅ PHASE 4: Offline support
 // AI Assistant is now integrated into ContactPanel tabs
 
 interface InboxLayoutProps {
@@ -37,33 +37,33 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [hasOrganization, setHasOrganization] = useState(false); // NEW: Track org membership
   const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
   const [folders, setFolders] = useState<any[]>([]);
-  const [folderCounts, setFolderCounts] = useState<Record<string, { totalCount: number; unreadCount: number }>>({}); // âœ… PHASE 2: Real-time counts
+  const [folderCounts, setFolderCounts] = useState<Record<string, { totalCount: number; unreadCount: number }>>({}); // ✅ PHASE 2: Real-time counts
   const [expandedSections, setExpandedSections] = useState({
     custom: false,
   });
-  const [activeFolder, setActiveFolder] = useState<string>('inbox'); // âœ… FIX #6: Track active folder
-  const [foldersLoading, setFoldersLoading] = useState(false); // âœ… PHASE 2: Loading state
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set()); // âœ… PHASE 3: Track expanded folders
-  const [isFolderSearchOpen, setIsFolderSearchOpen] = useState(false); // ✅ PHASE 3: Folder search
-  const [recentFolders, setRecentFolders] = useState<string[]>([]); // ✅ PHASE 3: Recently used folders
-  const [isOnline, setIsOnline] = useState(true); // ✅ PHASE 4: Online status
+  const [activeFolder, setActiveFolder] = useState<string>('inbox'); // ✅ FIX #6: Track active folder
+  const [foldersLoading, setFoldersLoading] = useState(false); // ✅ PHASE 2: Loading state
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set()); // ✅ PHASE 3: Track expanded folders
+  const [isFolderSearchOpen, setIsFolderSearchOpen] = useState(false); // ? PHASE 3: Folder search
+  const [recentFolders, setRecentFolders] = useState<string[]>([]); // ? PHASE 3: Recently used folders
+  const [isOnline, setIsOnline] = useState(true); // ? PHASE 4: Online status
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const supabase = createClient();
 
-  // âœ… PHASE 2: Keyboard shortcuts (g+i, g+s, g+d, c, etc)
+  // ✅ PHASE 2: Keyboard shortcuts (g+i, g+s, g+d, c, etc)
   const { waitingForSecondKey } = useKeyboardShortcuts({
     onCompose: () => setIsComposeOpen(true),
     onSearch: () => {
-      // âœ… PHASE 3: Open folder search
+      // ✅ PHASE 3: Open folder search
       setIsFolderSearchOpen(true);
     },
     enabled: !isFolderSearchOpen, // Disable when search is open
   });
 
-  // âœ… PHASE 3: Drag and drop for moving emails
+  // ✅ PHASE 3: Drag and drop for moving emails
   const {
     dropTarget,
     isDragging,
@@ -72,7 +72,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     handleDrop,
   } = useDragAndDrop();
 
-  // âœ… PHASE 4: Prefetching for instant navigation
+  // ✅ PHASE 4: Prefetching for instant navigation
   const {
     prefetchFolders,
     prefetchEmails,
@@ -102,19 +102,19 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     const warnings = searchParams.get('warnings');
     
     if (success === 'account_added') {
-      console.log('âœ… Account added successfully! Fetching accounts and folders...');
+      console.log('[Account] Account added successfully! Fetching accounts and folders...');
       
       if (warnings) {
         const failedItems = warnings.split(',');
         const warningText = failedItems.join(' and ');
         setMessage({ 
           type: 'info', 
-          text: `âš ï¸ Account connected, but ${warningText} sync had issues. Background sync is running and will retry automatically.` 
+          text: `⚠️ Account connected, but ${warningText} sync had issues. Background sync is running and will retry automatically.` 
         });
       } else if (syncing === 'true') {
         setMessage({ 
           type: 'info', 
-          text: 'âœ… Account connected! Initial emails are loading below. Background sync is analyzing remaining emails - this may take a few minutes.' 
+          text: '✅ Account connected! Initial emails are loading below. Background sync is analyzing remaining emails - this may take a few minutes.' 
         });
       } else {
         setMessage({ type: 'success', text: 'Email account connected successfully!' });
@@ -126,7 +126,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     }
     
     if (error) {
-      console.error('âŒ Error:', error);
+      console.error('❌ Error:', error);
       setMessage({ type: 'error', text: `Failed to connect account: ${error}` });
       router.replace('/inbox');
     }
@@ -137,24 +137,24 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     fetchAccounts();
     fetchUserContext(); // NEW: Fetch user role and org status
     
-    // âœ… FIX: Check initial online status
+    // ✅ FIX: Check initial online status
     setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
     
-    // âœ… PHASE 4: Register service worker for offline support
+    // ✅ PHASE 4: Register service worker for offline support
     if (typeof window !== 'undefined') {
       registerServiceWorker()
         .then(registration => {
           if (registration) {
-            console.log('âœ… Service worker registered successfully');
+            console.log('[ServiceWorker] Service worker registered successfully');
           }
         })
         .catch(err => {
-          console.error('âŒ Service worker registration failed:', err);
+          console.error('❌ Service worker registration failed:', err);
           // Don't block app if SW fails
         });
     }
     
-    // âœ… PHASE 4: Setup online/offline listeners
+    // ✅ PHASE 4: Setup online/offline listeners
     const cleanup = setupOnlineListeners(
       () => {
         setIsOnline(true);
@@ -170,7 +170,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       }
     );
     
-    // âœ… LAYER 1: Frontend token refresh (every 5 minutes + on focus)
+    // ✅ LAYER 1: Frontend token refresh (every 5 minutes + on focus)
     const silentTokenRefresh = () => {
       fetch('/api/nylas/token-refresh', { method: 'POST' })
         .catch(() => {}); // Silent - no error handling needed
@@ -216,10 +216,10 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         setAccounts(data.accounts);
         const firstAccount = data.accounts[0];
         setSelectedAccountId(firstAccount.id);
-        console.log('ðŸ“§ Account loaded:', firstAccount.emailAddress);
+        console.log('[Account] Account loaded:', firstAccount.emailAddress);
       } else {
         // No accounts - clear everything
-        console.log('ðŸ“§ No accounts found - clearing data');
+        console.log('[Account] No accounts found - clearing data');
         setAccounts([]);
         setSelectedAccountId(null);
         setFolders([]);
@@ -229,19 +229,19 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     }
   };
 
-  // âœ… FIX #3: Clear folders when account changes, then fetch new ones
+  // ✅ FIX #3: Clear folders when account changes, then fetch new ones
   useEffect(() => {
     if (selectedAccountId) {
-      console.log('ðŸ”„ Account changed, clearing folders and fetching new ones...');
+      console.log('[Folders] Account changed, clearing folders and fetching new ones...');
       setFolders([]); // Clear old folders immediately
       fetchFolders(selectedAccountId);
     }
   }, [selectedAccountId]);
 
-  // âœ… Refetch accounts when navigating back to inbox (e.g., from /accounts page)
+  // ✅ Refetch accounts when navigating back to inbox (e.g., from /accounts page)
   useEffect(() => {
     if (pathname === '/inbox') {
-      console.log('ðŸ"„ Navigated to inbox, refetching accounts...');
+      console.log('[Navigation] Navigated to inbox, refetching accounts...');
       fetchAccounts();
     }
   }, [pathname]);
@@ -249,16 +249,16 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   // Refetch folders when window regains focus (after navigating back from accounts page)
   useEffect(() => {
     const handleFocus = () => {
-      // âœ… Silently refresh tokens when user returns to app
+      // ✅ Silently refresh tokens when user returns to app
       fetch('/api/nylas/token-refresh', { method: 'POST' })
         .catch(() => {}); // Silent
       
-      // âœ… Refetch accounts list (in case user deleted/added accounts)
-      console.log('ðŸ"„ Window focused, refetching accounts...');
+      // ✅ Refetch accounts list (in case user deleted/added accounts)
+      console.log('[Window] Window focused, refetching accounts...');
       fetchAccounts();
       
       if (selectedAccountId) {
-        console.log('ðŸ"„ Window focused, refetching folders and counts...');
+        console.log('[Window] Window focused, refetching folders and counts...');
         fetchFolders(selectedAccountId);
         // Counts will be fetched automatically by fetchFolders
       }
@@ -268,10 +268,10 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     return () => window.removeEventListener('focus', handleFocus);
   }, [selectedAccountId]);
 
-  // âœ… PHASE 2: Listen for email action events and refresh counts
+  // ✅ PHASE 2: Listen for email action events and refresh counts
   useEffect(() => {
     const handleEmailAction = (event: any) => {
-      console.log('ðŸ“§ Email action detected, refreshing counts...');
+      console.log('[Email] Email action detected, refreshing counts...');
       if (selectedAccountId) {
         fetchFolderCounts(selectedAccountId);
       }
@@ -283,14 +283,14 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   }, [selectedAccountId]);
 
   const fetchFolders = async (accountId: string) => {
-    setFoldersLoading(true); // âœ… PHASE 2: Show loading state
+    setFoldersLoading(true); // ✅ PHASE 2: Show loading state
     
     try {
-      // âœ… PHASE 4: Try cache first
+      // ✅ PHASE 4: Try cache first
       const cached = await folderCache.getFolders(accountId);
       
       if (cached) {
-        console.log('ðŸ“¦ Using cached folders');
+        console.log('[Cache] Using cached folders');
         setFolders(cached.folders || []);
         setFolderCounts(cached.counts);
         setFoldersLoading(false);
@@ -304,24 +304,24 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       const response = await fetch(`/api/nylas/folders/sync?accountId=${accountId}`);
       const data = await response.json();
       if (data.success) {
-        console.log('ðŸ“ All folders from API:', data.folders);
+        console.log('📁 All folders from API:', data.folders);
         setFolders(data.folders || []);
         
-        // âœ… PHASE 2: Fetch real-time counts immediately after folders load
+        // ✅ PHASE 2: Fetch real-time counts immediately after folders load
         await fetchFolderCounts(accountId);
       } else {
-        console.error('âŒ Failed to fetch folders:', data.error);
+        console.error('❌ Failed to fetch folders:', data.error);
         setFolders([]); // Clear on error
       }
     } catch (error) {
       console.error('Failed to fetch folders:', error);
       setFolders([]); // Clear on error
     } finally {
-      setFoldersLoading(false); // âœ… PHASE 2: Hide loading state
+      setFoldersLoading(false); // ✅ PHASE 2: Hide loading state
     }
   };
 
-  // âœ… FIX: Move fetchFolderCounts to component level (not nested)
+  // ✅ FIX: Move fetchFolderCounts to component level (not nested)
   const fetchFolderCounts = async (accountId: string) => {
     try {
       const response = await fetch(`/api/nylas/folders/counts?accountId=${accountId}`);
@@ -337,10 +337,10 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
           };
         });
         
-        console.log('ðŸ“Š Real-time folder counts:', countsMap);
+        console.log('📊 Real-time folder counts:', countsMap);
         setFolderCounts(countsMap);
         
-        // âœ… PHASE 4: Update cache with fresh data
+        // ✅ PHASE 4: Update cache with fresh data
         if (folders.length > 0) {
           folderCache.setFolders(accountId, folders, countsMap);
         }
@@ -351,13 +351,13 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   };
 
   const handleLogout = async () => {
-    // âœ… FIX: Clear cache on logout to prevent memory leaks
+    // ✅ FIX: Clear cache on logout to prevent memory leaks
     folderCache.clearAll();
     await supabase.auth.signOut();
     router.push('/login');
   };
 
-  // âœ… PHASE 3: Handle folder selection with recent folders tracking
+  // ✅ PHASE 3: Handle folder selection with recent folders tracking
   const handleFolderSelect = (folderName: string) => {
     setActiveFolder(folderName);
     router.push(`/inbox?folder=${encodeURIComponent(folderName)}`);
@@ -369,7 +369,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     });
   };
 
-  // âœ… PHASE 3: Toggle folder expansion
+  // ✅ PHASE 3: Toggle folder expansion
   const toggleFolderExpansion = (folderId: string) => {
     setExpandedFolders(prev => {
       const newSet = new Set(prev);
@@ -401,10 +401,10 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const systemFolders = folders.filter(f => ['inbox', 'sent', 'drafts', 'trash', 'starred', 'snoozed'].includes(f.folderType?.toLowerCase()));
   const customFolders = folders.filter(f => !['inbox', 'sent', 'drafts', 'trash', 'starred', 'snoozed', 'spam', 'archive'].includes(f.folderType?.toLowerCase()));
 
-  console.log('ðŸ—‚ï¸ System folders:', systemFolders.map(f => `${f.displayName} (${f.folderType})`));
-  console.log('ðŸ“‚ Custom folders:', customFolders.map(f => `${f.displayName} (${f.folderType})`));
+  console.log('🗂️ System folders:', systemFolders.map(f => `${f.displayName} (${f.folderType})`));
+  console.log('📂 Custom folders:', customFolders.map(f => `${f.displayName} (${f.folderType})`));
 
-  // âœ… PHASE 3: Build folder tree for hierarchical display
+  // ✅ PHASE 3: Build folder tree for hierarchical display
   const folderTree = buildFolderTree(customFolders);
   const flatFolders = flattenFolderTree(folderTree);
 
@@ -412,7 +412,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const visibleCustomFolders = customFolders.slice(0, 5);
   const hasMoreFolders = customFolders.length > 5;
 
-  // âœ… FIX #2: Use lowercase folder names to match database values
+  // ✅ FIX #2: Use lowercase folder names to match database values
   const defaultFolders = [
     { name: 'inbox', icon: Mail, count: 0, href: '/inbox', active: true, displayName: 'Inbox' },
     { name: 'starred', icon: Star, count: 0, href: '/inbox', displayName: 'Starred' },
@@ -446,13 +446,13 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
               EaseMail
             </span>
           </div>
-          {/* âœ… PHASE 2: Show keyboard hint when waiting for second key */}
+          {/* ✅ PHASE 2: Show keyboard hint when waiting for second key */}
           {waitingForSecondKey && (
             <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-md text-xs font-medium animate-in fade-in">
               Waiting for key...
             </div>
           )}
-          {/* âœ… PHASE 4: Offline indicator */}
+          {/* ✅ PHASE 4: Offline indicator */}
           {!isOnline && (
             <div className="absolute top-4 left-4 bg-yellow-500 text-white px-2 py-1 rounded text-xs font-medium">
               Offline
@@ -474,7 +474,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             </Button>
           </div>
 
-          {/* âœ… PHASE 3: Recently Used Folders */}
+          {/* ✅ PHASE 3: Recently Used Folders */}
           {recentFolders.length > 0 && (
             <div className="px-2 mb-2">
               <h3 className="px-3 text-xs font-semibold text-muted-foreground mb-2">RECENT</h3>
@@ -518,35 +518,35 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
           )}
           
           <div className="space-y-0.5 px-2">
-            {/* âœ… PHASE 2: Show skeleton while loading */}
+            {/* ✅ PHASE 2: Show skeleton while loading */}
             {foldersLoading ? (
               <FolderSkeleton />
             ) : (
               foldersToDisplay.map((folder: any) => {
               const Icon = folder.icon || getFolderIcon(folder.folderType);
-              // âœ… FIX #2: Use displayName for UI, but internal name for queries
+              // ✅ FIX #2: Use displayName for UI, but internal name for queries
               const displayName = folder.displayName || folder.name;
               const folderName = folder.name || folder.folderType?.toLowerCase() || 'inbox';
               
-              // âœ… PHASE 2: Use real-time counts from local database
+              // ✅ PHASE 2: Use real-time counts from local database
               const realTimeCount = folderCounts[folderName.toLowerCase()];
               const count = realTimeCount?.unreadCount || folder.unreadCount || folder.count || 0;
               
-              // âœ… FIX #6: Check against activeFolder state
+              // ✅ FIX #6: Check against activeFolder state
               const isActive = activeFolder === folderName;
-              // âœ… PHASE 3: Check if this is the drop target
+              // ✅ PHASE 3: Check if this is the drop target
               const isDropTarget = dropTarget === folder.id;
               
               return (
                 <button
                   key={folder.id || folder.name}
                   onClick={() => {
-                    // âœ… PHASE 3: Use handleFolderSelect for tracking
+                    // ✅ PHASE 3: Use handleFolderSelect for tracking
                     handleFolderSelect(folderName);
                   }}
                   onMouseEnter={() => {
-                    // âœ… PHASE 4: Prefetch emails on hover for instant navigation
-                    // âœ… FIX: Check accountId exists before prefetching
+                    // ✅ PHASE 4: Prefetch emails on hover for instant navigation
+                    // ✅ FIX: Check accountId exists before prefetching
                     if (selectedAccountId && folderName) {
                       prefetchEmails(selectedAccountId, folderName);
                     }
@@ -603,7 +603,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
                 <button
                   key={folder.id}
                   onClick={() => {
-                    // âœ… PHASE 3: Use handleFolderSelect for tracking
+                    // ✅ PHASE 3: Use handleFolderSelect for tracking
                     const folderName = folder.displayName;
                     handleFolderSelect(folderName);
                   }}
@@ -762,7 +762,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             </div>
           )}
           <div className="flex-1 overflow-hidden">
-            {/* ✅ FIX #1: Pass selectedAccountId to children */}
+            {/* ? FIX #1: Pass selectedAccountId to children */}
             {React.Children.map(children, child => {
               if (React.isValidElement(child)) {
                 return React.cloneElement(child as any, { 
@@ -809,7 +809,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       {/* Provider Selector Dialog */}
       <ProviderSelector isOpen={isProviderSelectorOpen} onClose={() => setIsProviderSelectorOpen(false)} />
       
-      {/* ✅ PHASE 3: Folder Search Command Menu */}
+      {/* ? PHASE 3: Folder Search Command Menu */}
       <FolderSearch
         isOpen={isFolderSearchOpen}
         onClose={() => setIsFolderSearchOpen(false)}

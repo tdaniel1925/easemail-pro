@@ -336,7 +336,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           }
         }
         
-        console.log(`✅ Uploaded ${uploadedAttachments.length} attachment(s)`);
+        console.log(`[Attach] Uploaded attachment(s)`);
       }
 
       const response = await fetch('/api/nylas/messages/send', {
@@ -359,7 +359,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       const data = await response.json();
 
       if (data.success) {
-        console.log('✅ Email sent successfully:', data.emailId);
+        console.log('[Email] Email sent successfully:', data.emailId);
         
         // Show success message
         const successMessage = document.createElement('div');
@@ -424,7 +424,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       const data = await response.json();
 
       if (data.success) {
-        if (!silent) console.log('✅ Draft saved:', data.draftId);
+        if (!silent) console.log('[Draft] Draft saved:', data.draftId);
         
         // Update last saved time
         setLastSaved(new Date());

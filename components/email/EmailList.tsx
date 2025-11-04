@@ -225,7 +225,7 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
       return;
     }
 
-    console.log(`📦 Performing bulk action: ${action} on ${selectedIds.length} emails`);
+    console.log(`[Bulk] Performing bulk action: ${action} on ${selectedIds.length} emails`);
 
     // ✅ OPTIMISTIC UPDATE: Remove from UI immediately for delete/archive
     if (action === 'delete' || action === 'archive') {
@@ -260,7 +260,7 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
       const data = await response.json();
 
       if (data.success) {
-        console.log(`✅ Bulk action successful: ${data.message}`);
+        console.log(`[Bulk] Bulk action successful: ${data.message}`);
         
         // Only show success and refresh for actions that didn't remove items
         if (action !== 'delete' && action !== 'archive') {

@@ -57,7 +57,7 @@ export default function EmailClient({
   useEffect(() => {
     // ✅ FIX #4: Don't fetch if we don't have an accountId yet
     if (!propAccountId) {
-      console.log('⏸️ No accountId provided yet, waiting...');
+      console.log('[Email] No accountId provided yet, waiting...');
       setEmails([]);
       setLoading(false);
       return;
@@ -77,7 +77,7 @@ export default function EmailClient({
       };
 
       const fetchEmailsForAccount = async (accId: string, query: string, folderName: string) => {
-        console.log('📬 Fetching emails for account:', accId, 'Query:', query, 'Folder:', folderName);
+        console.log('[Email] Fetching emails for account:', accId, 'Query:', query, 'Folder:', folderName);
         
         // Build URL with folder parameter if provided
         let url = '';
@@ -96,7 +96,7 @@ export default function EmailClient({
         const data = await response.json();
         
         if (data.success) {
-          console.log('📧 Fetched emails:', data.messages?.length || 0, 'for folder:', folderName);
+          console.log('[Email] Fetched emails:', data.messages?.length || 0, 'for folder:', folderName);
           setEmails(data.messages || []);
         } else {
           console.error('❌ Failed to fetch emails:', data.error);

@@ -141,7 +141,7 @@ export default function ContactModal({ isOpen, onClose, email, contact, onContac
       console.error('Background enrichment failed:', error);
     });
 
-    console.log('🔄 Background enrichment triggered for contact:', contactId);
+    console.log('[Contact] Background enrichment triggered for contact:', contactId);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

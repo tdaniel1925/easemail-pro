@@ -106,7 +106,7 @@ export function VoiceMessageRecorderModal({
       // Set recording flag BEFORE updating state
       isRecordingRef.current = true;
       setStatus('recording');
-      console.log('✅ Recording started');
+      console.log('[Voice] Recording started');
       
       // Start waveform animation
       animateWaveform();
@@ -220,12 +220,12 @@ export function VoiceMessageRecorderModal({
 
     // Create audio blob (WebM)
     const webmBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-    console.log('✅ Recording stopped, WebM size:', webmBlob.size);
+    console.log('[Voice] Recording stopped, WebM size:', webmBlob.size);
 
     // Convert to MP3
     try {
       setStatus('converting');
-      console.log('🔄 Converting to MP3...');
+      console.log('[Voice] Converting to MP3...');
       
       const mp3Blob = await convertWebMToMP3(webmBlob);
       
@@ -234,7 +234,7 @@ export function VoiceMessageRecorderModal({
       setStatus('stopped');
       setAudioLevel(0);
 
-      console.log('✅ MP3 conversion complete, size:', mp3Blob.size);
+      console.log('[Voice] MP3 conversion complete, size:', mp3Blob.size);
     } catch (error) {
       console.error('❌ MP3 conversion failed:', error);
       // Fallback to WebM if conversion fails

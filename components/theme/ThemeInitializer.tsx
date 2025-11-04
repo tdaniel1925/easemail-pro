@@ -22,7 +22,7 @@ export function ThemeInitializer() {
     
     // Validate saved theme
     if (savedThemeId && validThemeIds.includes(savedThemeId)) {
-      console.log('✅ Theme valid, applying:', savedThemeId);
+      console.log('[Theme] Theme valid, applying:', savedThemeId);
       setTheme(savedThemeId);
     } else {
       console.log('❌ Theme invalid or missing, forcing default');
