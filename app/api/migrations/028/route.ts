@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     // Add the columns (safe if already exists)
     await db.execute(sql`
       ALTER TABLE email_drafts 
-      ADD COLUMN IF NOT EXISTS "to" JSONB NOT NULL DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS to_recipients JSONB NOT NULL DEFAULT '[]'::jsonb,
       ADD COLUMN IF NOT EXISTS cc JSONB DEFAULT '[]'::jsonb,
       ADD COLUMN IF NOT EXISTS bcc JSONB DEFAULT '[]'::jsonb
     `);
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       SELECT column_name, data_type 
       FROM information_schema.columns 
       WHERE table_name = 'email_drafts' 
-        AND column_name IN ('to', 'cc', 'bcc')
+        AND column_name IN ('to_recipients', 'cc', 'bcc')
     `);
 
     console.log('✅ Migration complete - recipient columns ready');
