@@ -199,14 +199,18 @@ RULES:
 5. Use proper email structure (greeting, body, closing)
 6. Be concise and to the point
 7. Proofread for grammar and spelling
+8. Format emails with clear paragraph breaks (use double line breaks between paragraphs)
+9. Each paragraph should address one main idea
+10. Use professional spacing for readability
 
 RESPONSE FORMAT:
 Return ONLY a JSON object with this structure:
 {
   "subject": "Email subject line",
-  "body": "Email body with greeting, content, and closing"
+  "body": "Email body with greeting\n\nMain content paragraph\n\nClosing paragraph"
 }
 
+IMPORTANT: Use double line breaks (\\n\\n) between paragraphs for proper formatting.
 Do not include any text outside the JSON object.`;
   }
 
@@ -264,7 +268,7 @@ Do not include any text outside the JSON object.`;
       const parsed = JSON.parse(content);
       return {
         subject: parsed.subject || 'Your Email',
-        body: parsed.body || content,
+        body: this.formatEmailBody(parsed.body || content),
       };
     } catch {
       // Fallback: extract subject and body manually
@@ -276,8 +280,36 @@ Do not include any text outside the JSON object.`;
       // Rest is the body
       const body = lines.slice(1).join('\n').trim() || content;
       
-      return { subject, body };
+      return { subject, body: this.formatEmailBody(body) };
     }
+  }
+
+  /**
+   * Format plain text email to HTML with proper paragraph spacing
+   */
+  private formatEmailBody(body: string): string {
+    // If already has HTML tags, return as-is
+    if (body.includes('<p>') || body.includes('<br')) {
+      return body;
+    }
+
+    // Split by double newlines (paragraphs)
+    const paragraphs = body
+      .split(/\n\n+/)
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
+
+    // If no paragraphs found (single block of text), split by single newlines
+    if (paragraphs.length === 1) {
+      const lines = body.split(/\n/).filter(l => l.trim());
+      // Wrap entire block as one paragraph with line breaks
+      return `<p>${lines.join('<br>')}</p>`;
+    }
+
+    // Wrap each paragraph in <p> tags, convert single newlines to <br>
+    return paragraphs
+      .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+      .join('');
   }
 
   /**
