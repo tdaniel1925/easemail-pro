@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Migration completed successfully',
-      column: result.rows?.[0] || null,
+      column: Array.isArray(result) && result.length > 0 ? result[0] : null,
     });
 
   } catch (error: any) {
