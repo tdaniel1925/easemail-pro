@@ -39,7 +39,8 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Password update error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 }, {
+      return NextResponse.json({ error: error.message }, { 
+        status: 500,
         headers: {
           'Access-Control-Allow-Origin': '*',
         },
@@ -51,13 +52,15 @@ export async function POST(request: NextRequest) {
       message: `Password updated for user ${userId}`,
       password: password, // Return it so you can see what was set
     }, {
+      status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
       },
     });
   } catch (error: any) {
     console.error('Set password error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 }, {
+    return NextResponse.json({ error: error.message }, { 
+      status: 500,
       headers: {
         'Access-Control-Allow-Origin': '*',
       },
