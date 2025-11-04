@@ -26,18 +26,54 @@ export interface AIWriteOutput {
   body: string;
 }
 
+// Email template structure
+export interface EmailTemplate {
+  name: string;
+  description: string;
+}
+
 // Email templates
-export const EMAIL_TEMPLATES = {
-  'follow-up': 'Professional follow-up email',
-  'thank-you': 'Thank you email',
-  'introduction': 'Introduction email',
-  'meeting-request': 'Meeting request',
-  'project-update': 'Project status update',
-  'feedback-request': 'Request for feedback',
-  'apology': 'Apology email',
-  'congratulations': 'Congratulations message',
-  'reminder': 'Friendly reminder',
-  'announcement': 'Announcement email',
+export const EMAIL_TEMPLATES: Record<string, EmailTemplate> = {
+  'follow-up': {
+    name: 'Follow-up Email',
+    description: 'Professional follow-up on a previous conversation',
+  },
+  'thank-you': {
+    name: 'Thank You',
+    description: 'Express gratitude and appreciation',
+  },
+  'introduction': {
+    name: 'Introduction',
+    description: 'Introduce yourself or your company',
+  },
+  'meeting-request': {
+    name: 'Meeting Request',
+    description: 'Request a meeting or call',
+  },
+  'project-update': {
+    name: 'Project Update',
+    description: 'Share project status and progress',
+  },
+  'feedback-request': {
+    name: 'Feedback Request',
+    description: 'Ask for input or opinions',
+  },
+  'apology': {
+    name: 'Apology',
+    description: 'Apologize professionally',
+  },
+  'congratulations': {
+    name: 'Congratulations',
+    description: 'Celebrate an achievement',
+  },
+  'reminder': {
+    name: 'Reminder',
+    description: 'Gentle reminder about something',
+  },
+  'announcement': {
+    name: 'Announcement',
+    description: 'Share news or updates',
+  },
 };
 
 // Tone descriptions
