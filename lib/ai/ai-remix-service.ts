@@ -66,8 +66,11 @@ export class AIRemixService {
         throw new Error('No content generated');
       }
 
+      // Format the content with proper HTML paragraphs
+      const formattedContent = this.formatEmailBody(content.trim());
+
       return {
-        body: content.trim(),
+        body: formattedContent,
         changes: this.identifyChanges(options),
         confidence: 0.9,
       };
@@ -130,16 +133,53 @@ export class AIRemixService {
       prompt += `FIXES: ${options.fixes.join(', ')}\n`;
     }
 
-    prompt += `\nRULES:
+    prompt += `\nFORMATTING REQUIREMENTS:
+1. Format the email with proper HTML paragraphs using <p> tags
+2. Use double line breaks (\\n\\n) to separate paragraphs
+3. Each paragraph should address one main idea
+4. Use <br> tags only for line breaks within a paragraph
+5. Ensure professional spacing between sections
+
+CONTENT RULES:
 1. Preserve the core message and intent
 2. Keep all important facts and figures
 3. Maintain the overall structure (greeting, body, closing)
 4. Return ONLY the transformed email text
 5. Do not add commentary or explanations
 
-Return the transformed email:`;
+Return the transformed email with professional formatting:`;
 
     return prompt;
+  }
+
+  /**
+   * Format email body with proper HTML paragraphs
+   */
+  private formatEmailBody(text: string): string {
+    if (!text || text.trim().length === 0) {
+      return '';
+    }
+
+    // If already contains HTML tags, assume it's formatted
+    if (text.includes('<p>') || text.includes('<br')) {
+      return text;
+    }
+
+    // Split by double newlines (paragraphs)
+    const paragraphs = text
+      .split(/\n\n+/)
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
+
+    // Wrap each paragraph in <p> tags, convert single newlines to <br>
+    const formatted = paragraphs
+      .map(p => {
+        const withBreaks = p.replace(/\n/g, '<br>');
+        return `<p>${withBreaks}</p>`;
+      })
+      .join('\n\n');
+
+    return formatted;
   }
 
   /**

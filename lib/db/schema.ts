@@ -419,6 +419,7 @@ export const userPreferences = pgTable('user_preferences', {
   smartCompose: boolean('smart_compose').default(true),
   defaultReplyBehavior: varchar('default_reply_behavior', { length: 20 }).default('reply'),
   autoSaveDrafts: boolean('auto_save_drafts').default(true),
+  hideSignaturePrompt: boolean('hide_signature_prompt').default(false),
   
   // Notifications
   notificationsEnabled: boolean('notifications_enabled').default(true),

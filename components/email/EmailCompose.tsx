@@ -11,6 +11,7 @@ import { SignatureService } from '@/lib/signatures/signature-service';
 import EmailAutocomplete from '@/components/email/EmailAutocomplete';
 import { URLInputDialog } from '@/components/ui/url-input-dialog';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
+import { SignaturePromptModal } from '@/components/email/SignaturePromptModal';
 
 // Lazy load the AI toolbar to prevent SSR issues
 const UnifiedAIToolbar = lazy(() => 
@@ -61,6 +62,27 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [selectedSignatureId, setSelectedSignatureId] = useState<string | null>(null);
   const [useSignature, setUseSignature] = useState(true);
   const [showSignatureDropdown, setShowSignatureDropdown] = useState(false);
+  const [showSignaturePrompt, setShowSignaturePrompt] = useState(false);
+  const [hideSignaturePromptPreference, setHideSignaturePromptPreference] = useState(false);
+
+  // Load user preferences on mount
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        const response = await fetch('/api/user/preferences');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.preferences) {
+            setHideSignaturePromptPreference(data.preferences.hideSignaturePrompt || false);
+          }
+        }
+      } catch (error) {
+        console.error('[Preferences] Failed to load:', error);
+      }
+    };
+
+    loadPreferences();
+  }, []);
 
   // Auto-insert signature when compose opens (for new compose only)
   useEffect(() => {
@@ -291,6 +313,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
     if (!accountId) {
       setValidationError('No email account selected. Please select an account first.');
+      return;
+    }
+
+    // Check for signature - show prompt if no signatures exist and user hasn't hidden it
+    if (signatures.length === 0 && !hideSignaturePromptPreference && type === 'compose') {
+      console.log('[EmailCompose] No signatures found, showing prompt');
+      setShowSignaturePrompt(true);
       return;
     }
 
@@ -550,6 +579,28 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
   const handleInsertLink = () => {
     setShowURLDialog(true);
+  };
+
+  // Signature prompt handlers
+  const handleNeverShowSignaturePrompt = async () => {
+    try {
+      await fetch('/api/user/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hideSignaturePrompt: true }),
+      });
+      setHideSignaturePromptPreference(true);
+      console.log('[EmailCompose] Signature prompt hidden permanently');
+    } catch (error) {
+      console.error('[EmailCompose] Failed to save preference:', error);
+    }
+  };
+
+  const handleContinueWithoutSignature = () => {
+    console.log('[EmailCompose] Continuing without signature');
+    setShowSignaturePrompt(false);
+    // Retry sending
+    handleSend();
   };
 
   const handleURLSubmit = (url: string) => {
@@ -1051,6 +1102,14 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       onSubmit={handleURLSubmit}
       title="Insert Link"
       placeholder="https://example.com"
+    />
+
+    {/* Signature Prompt Modal */}
+    <SignaturePromptModal
+      isOpen={showSignaturePrompt}
+      onClose={() => setShowSignaturePrompt(false)}
+      onContinueWithoutSignature={handleContinueWithoutSignature}
+      onNeverShowAgain={handleNeverShowSignaturePrompt}
     />
     </>
   );

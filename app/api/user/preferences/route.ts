@@ -1,73 +1,94 @@
 /**
- * User Preferences API
- * GET/PUT /api/user/preferences
+ * Update User Preferences
+ * PATCH /api/user/preferences
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { userPreferences } from '@/lib/db/schema';
+import { userPreferences, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
-const TEST_USER_ID = '00000000-0000-0000-0000-000000000000';
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+
+    // Get user from database
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Check if preferences exist
+    const existingPrefs = await db.query.userPreferences.findFirst({
+      where: eq(userPreferences.userId, dbUser.id),
+    });
+
+    if (existingPrefs) {
+      // Update existing preferences
+      await db.update(userPreferences)
+        .set({
+          ...body,
+          updatedAt: new Date(),
+        })
+        .where(eq(userPreferences.userId, dbUser.id));
+    } else {
+      // Create new preferences
+      await db.insert(userPreferences).values({
+        userId: dbUser.id,
+        ...body,
+      });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error updating preferences:', error);
+    return NextResponse.json(
+      { error: 'Failed to update preferences' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = TEST_USER_ID; // In production, get from session
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    let prefs = await db.query.userPreferences.findFirst({
-      where: eq(userPreferences.userId, userId),
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user from database
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
     });
 
-    // Create default preferences if not found
-    if (!prefs) {
-      const [newPrefs] = await db.insert(userPreferences).values({
-        userId,
-        aiAttachmentProcessing: false, // Default OFF
-      }).returning();
-      prefs = newPrefs;
+    if (!dbUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json(prefs);
-  } catch (error: any) {
-    console.error('Get preferences error:', error);
+    // Get preferences
+    const prefs = await db.query.userPreferences.findFirst({
+      where: eq(userPreferences.userId, dbUser.id),
+    });
+
+    return NextResponse.json({ preferences: prefs });
+  } catch (error) {
+    console.error('Error fetching preferences:', error);
     return NextResponse.json(
-      { error: 'Failed to get preferences', details: error.message },
+      { error: 'Failed to fetch preferences' },
       { status: 500 }
     );
   }
 }
-
-export async function PUT(request: NextRequest) {
-  try {
-    const userId = TEST_USER_ID; // In production, get from session
-    const body = await request.json();
-
-    // Update preferences
-    const [updated] = await db
-      .update(userPreferences)
-      .set({
-        ...body,
-        updatedAt: new Date(),
-      })
-      .where(eq(userPreferences.userId, userId))
-      .returning();
-
-    // If no rows updated, create new
-    if (!updated) {
-      const [newPrefs] = await db.insert(userPreferences).values({
-        userId,
-        ...body,
-      }).returning();
-      return NextResponse.json(newPrefs);
-    }
-
-    return NextResponse.json(updated);
-  } catch (error: any) {
-    console.error('Update preferences error:', error);
-    return NextResponse.json(
-      { error: 'Failed to update preferences', details: error.message },
-      { status: 500 }
-    );
-  }
-}
-
