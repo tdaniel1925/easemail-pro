@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, organizations, organizationMembers } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 type RouteContext = {
   params: Promise<{ orgId: string }>;
@@ -76,14 +76,17 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
     }
 
-    // Check if organization has members
-    const members = await db.query.organizationMembers.findMany({
-      where: eq(organizationMembers.organizationId, orgId),
-    });
+    // Check if organization has members (use direct select to avoid relation issues)
+    const memberCountResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(organizationMembers)
+      .where(eq(organizationMembers.organizationId, orgId));
+    
+    const memberCount = Number(memberCountResult[0]?.count || 0);
 
-    if (members.length > 0) {
+    if (memberCount > 0) {
       return NextResponse.json({ 
-        error: `Cannot delete organization with ${members.length} member(s). Remove all members first.` 
+        error: `Cannot delete organization with ${memberCount} member(s). Remove all members first.` 
       }, { status: 400 });
     }
 
