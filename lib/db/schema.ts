@@ -136,6 +136,7 @@ export const emailAccounts = pgTable('email_accounts', {
   syncStopped: boolean('sync_stopped').default(false), // Manual stop flag
   retryCount: integer('retry_count').default(0), // Auto-retry counter
   lastRetryAt: timestamp('last_retry_at'), // Last retry timestamp
+  continuationCount: integer('continuation_count').default(0), // ✅ Tracks sync continuation jobs (prevents infinite loops)
   
   // Webhooks
   webhookId: varchar('webhook_id', { length: 255 }),
