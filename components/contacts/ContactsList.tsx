@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface Contact {
   id: string;
@@ -54,6 +55,9 @@ export default function ContactsList() {
   const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
   const [smsContact, setSMSContact] = useState<{id: string; name: string; phoneNumber: string} | null>(null);
   const [enrichmentMessage, setEnrichmentMessage] = useState<{ type: 'info' | 'success'; text: string } | null>(null);
+  
+  // Confirmation dialog
+  const { confirm, Dialog: ConfirmDialog } = useConfirm();
 
   useEffect(() => {
     fetchContacts();
@@ -131,9 +135,15 @@ export default function ContactsList() {
   };
 
   const handleDeleteContact = async (contactId: string) => {
-    if (!confirm('Are you sure you want to delete this contact?')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Delete Contact',
+      message: 'Are you sure you want to delete this contact?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/contacts/${contactId}`, {

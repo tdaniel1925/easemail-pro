@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { SignatureEditorModal } from '@/components/signatures/SignatureEditorModal';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 type SettingsSection = 'general' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'help';
 
@@ -166,6 +167,9 @@ function SignaturesSettings() {
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingSignature, setEditingSignature] = useState<any>(null);
+  
+  // Confirmation dialog
+  const { confirm, Dialog: ConfirmDialog } = useConfirm();
 
   useEffect(() => {
     loadSignatures();
@@ -228,9 +232,15 @@ function SignaturesSettings() {
   };
 
   const handleDelete = async (signatureId: string) => {
-    if (!confirm('Are you sure you want to delete this signature?')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Delete Signature',
+      message: 'Are you sure you want to delete this signature?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     try {
       await fetch(`/api/signatures/${signatureId}`, {
@@ -346,6 +356,9 @@ function SignaturesSettings() {
           accounts={accounts}
         />
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog />
     </>
   );
 }
