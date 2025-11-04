@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import InlineMessage from '@/components/ui/inline-message';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface User {
   id: string;
@@ -55,6 +56,9 @@ export default function UsersContent() {
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
+  
+  // Confirmation dialog
+  const { confirm, Dialog: ConfirmDialog } = useConfirm();
   
   // Inline message state
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -139,9 +143,15 @@ export default function UsersContent() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Delete User',
+      message: 'Are you sure you want to delete this user? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
@@ -646,6 +656,9 @@ export default function UsersContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog />
     </div>
   );
 }

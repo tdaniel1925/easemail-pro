@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { AddUserModal } from '@/components/admin/AddUserModal';
 import InlineMessage from '@/components/ui/inline-message';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface Organization {
   id: string;
@@ -83,6 +84,9 @@ export default function OrganizationsContent() {
   const [orgMembers, setOrgMembers] = useState<OrganizationMember[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  
+  // Confirmation dialog
+  const { confirm, Dialog: ConfirmDialog } = useConfirm();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -180,9 +184,15 @@ export default function OrganizationsContent() {
   };
 
   const handleDeleteOrg = async (orgId: string) => {
-    if (!confirm('Are you sure you want to delete this organization? This action cannot be undone.')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Delete Organization',
+      message: 'Are you sure you want to delete this organization? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/admin/organizations/${orgId}`, {
@@ -671,6 +681,9 @@ export default function OrganizationsContent() {
           }}
         />
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog />
     </div>
   );
 }
