@@ -25,6 +25,7 @@ export default function EmailClient({
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accountCheckComplete, setAccountCheckComplete] = useState(false); // Track if we've checked for accounts
   const [refreshKey, setRefreshKey] = useState(0); // Force refresh trigger
 
   // Function to refresh email list
@@ -41,6 +42,16 @@ export default function EmailClient({
     window.addEventListener('refreshEmails' as any, handleRefreshEvent);
     return () => window.removeEventListener('refreshEmails' as any, handleRefreshEvent);
   }, []);
+
+  // Track when account check is complete (either we have an account or confirmed there are none)
+  useEffect(() => {
+    // Give a brief moment for parent to load accounts
+    const timer = setTimeout(() => {
+      setAccountCheckComplete(true);
+    }, 500); // 500ms delay to let parent component load accounts
+
+    return () => clearTimeout(timer);
+  }, [propAccountId]);
 
   // Fetch emails when search query, folder, or accountId changes (with debouncing)
   useEffect(() => {
@@ -109,16 +120,17 @@ export default function EmailClient({
     setSelectedEmailId(emailId);
   };
 
-  if (loading) {
+  // Show loading while checking for accounts or loading emails
+  if (!accountCheckComplete || (propAccountId && loading)) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-muted-foreground">Loading emails...</p>
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
 
-  // Show welcome screen if no account is connected
-  if (!propAccountId) {
+  // Show welcome screen ONLY if account check is complete AND no account exists
+  if (accountCheckComplete && !propAccountId) {
     return <WelcomeScreen />;
   }
 
