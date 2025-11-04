@@ -108,7 +108,7 @@ export function UnifiedAIToolbar({
     setShowInlineVoiceMessage(false);
   };
 
-  // ✅ Keyboard shortcuts
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ctrl+Shift+W: AI Write
@@ -123,10 +123,15 @@ export function UnifiedAIToolbar({
           setShowAIRemix(true);
         }
       }
-      // Ctrl+Shift+M: Voice Message
+      // Ctrl+Shift+D: Dictate (toggle inline widget)
+      else if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        setShowInlineDictation(prev => !prev);
+      }
+      // Ctrl+Shift+M: Voice Message (toggle inline widget)
       else if (e.ctrlKey && e.shiftKey && e.key === 'M') {
         e.preventDefault();
-        setShowVoiceMessage(true);
+        setShowInlineVoiceMessage(prev => !prev);
       }
     };
 
