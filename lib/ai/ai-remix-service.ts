@@ -6,7 +6,7 @@
  */
 
 import OpenAI from 'openai';
-import type { ToneType } from './ai-write-service';
+import type { ToneType } from './ai-write-types';
 
 // ✅ SECURITY: Ensure this module is NEVER imported client-side
 if (typeof window !== 'undefined') {
