@@ -50,10 +50,10 @@ export function ContactPanel({ email }: ContactPanelProps) {
         <div className="flex gap-2">
           <button
             className={cn(
-              'px-3 py-2 text-sm font-medium rounded-sm transition-colors',
+              'px-3 py-2 text-sm rounded-sm transition-colors',
               activeTab === 'contact'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                ? 'text-primary font-bold'
+                : 'text-muted-foreground font-medium hover:text-foreground'
             )}
             onClick={() => setActiveTab('contact')}
           >
@@ -62,10 +62,10 @@ export function ContactPanel({ email }: ContactPanelProps) {
           </button>
           <button
             className={cn(
-              'px-3 py-2 text-sm font-medium rounded-sm transition-colors',
+              'px-3 py-2 text-sm rounded-sm transition-colors',
               activeTab === 'calendar'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                ? 'text-primary font-bold'
+                : 'text-muted-foreground font-medium hover:text-foreground'
             )}
             onClick={() => setActiveTab('calendar')}
           >
@@ -74,10 +74,10 @@ export function ContactPanel({ email }: ContactPanelProps) {
           </button>
           <button
             className={cn(
-              'px-3 py-2 text-sm font-medium rounded-sm transition-colors',
+              'px-3 py-2 text-sm rounded-sm transition-colors',
               activeTab === 'ai'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                ? 'text-primary font-bold'
+                : 'text-muted-foreground font-medium hover:text-foreground'
             )}
             onClick={() => setActiveTab('ai')}
           >
