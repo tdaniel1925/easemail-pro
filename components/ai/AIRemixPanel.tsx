@@ -10,7 +10,8 @@
 import { useState, useEffect } from 'react';
 import { Wand2, Loader2, Check, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import type { ToneType } from '@/lib/ai/ai-write-types';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -122,6 +123,12 @@ export function AIRemixPanel({
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto p-0 [&>button]:hidden">
+          <VisuallyHidden>
+            <DialogTitle>AI Remix - Select Variation</DialogTitle>
+            <DialogDescription>
+              Choose from 3 AI-generated variations of your email
+            </DialogDescription>
+          </VisuallyHidden>
           <VariationSelector
             variations={variations}
             selectedIndex={selectedVariation || 0}
@@ -138,6 +145,13 @@ export function AIRemixPanel({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto p-0 [&>button]:hidden">
+        <VisuallyHidden>
+          <DialogTitle>AI Remix - Transform Email</DialogTitle>
+          <DialogDescription>
+            Transform your draft with different tones, lengths, and styles
+          </DialogDescription>
+        </VisuallyHidden>
+
         {/* Header */}
         <div className="bg-card border-b border-border p-4">
           <div className="flex items-center justify-between">

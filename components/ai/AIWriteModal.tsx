@@ -10,7 +10,8 @@
 import { useState } from 'react';
 import { X, Sparkles, List, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { 
   EMAIL_TEMPLATES,
   type ToneType,
@@ -103,6 +104,13 @@ export function AIWriteModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl p-0 overflow-hidden [&>button]:hidden">
+        <VisuallyHidden>
+          <DialogTitle>AI Write - Generate Email</DialogTitle>
+          <DialogDescription>
+            Generate complete email drafts instantly using AI
+          </DialogDescription>
+        </VisuallyHidden>
+
         {/* Header */}
         <div className="bg-primary text-primary-foreground p-6">
           <div className="flex items-center justify-between">
