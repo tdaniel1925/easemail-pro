@@ -34,17 +34,23 @@ RULES:
 4. Add appropriate greeting if missing (use recipient name if provided)
 5. Add professional closing if missing ("Best regards,", "Thanks,", etc.)
 6. Convert casual speech patterns into formal writing
-7. Structure with proper paragraphs
+7. Structure with proper paragraphs using HTML formatting
 8. Maintain the original intent and meaning
 9. Use ${tone} tone
 10. DO NOT add information that wasn't in the original text
 11. Generate a clear, concise subject line based on the email content
+12. Format email body with <p> tags for paragraphs and <br> for line breaks within paragraphs
+13. Each paragraph should address one main idea with clear spacing
 
 IMPORTANT: Format your response EXACTLY as follows:
 SUBJECT: [Your subject line here]
 
 BODY:
-[Your polished email body here]`;
+<p>[First paragraph with greeting]</p>
+
+<p>[Main content paragraph]</p>
+
+<p>[Closing paragraph]</p>`;
 
   const userPrompt = recipientName
     ? `Recipient: ${recipientName}\n\nDictated text:\n${text}`
@@ -72,12 +78,43 @@ BODY:
     const bodyMatch = response.match(/BODY:\s*([\s\S]+)/i);
 
     const subject = subjectMatch?.[1]?.trim() || 'No Subject';
-    const body = bodyMatch?.[1]?.trim() || response;
+    let body = bodyMatch?.[1]?.trim() || response;
+
+    // Format body to HTML if it's not already formatted
+    body = formatEmailBody(body);
 
     return { subject, body };
   } catch (error) {
     console.error('Dictation polish error:', error);
     throw error;
   }
+}
+
+/**
+ * Format plain text email to HTML with proper paragraph spacing
+ */
+function formatEmailBody(body: string): string {
+  // If already has HTML tags, return as-is
+  if (body.includes('<p>') || body.includes('<br')) {
+    return body;
+  }
+
+  // Split by double newlines (paragraphs)
+  const paragraphs = body
+    .split(/\n\n+/)
+    .map(p => p.trim())
+    .filter(p => p.length > 0);
+
+  // If no paragraphs found (single block of text), split by single newlines
+  if (paragraphs.length === 1) {
+    const lines = body.split(/\n/).filter(l => l.trim());
+    // Wrap entire block as one paragraph with line breaks
+    return `<p>${lines.join('<br>')}</p>`;
+  }
+
+  // Wrap each paragraph in <p> tags, convert single newlines to <br>
+  return paragraphs
+    .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+    .join('');
 }
 
