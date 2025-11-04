@@ -6,9 +6,6 @@ import { Loader2 } from 'lucide-react';
 import InboxLayout from '@/components/layout/InboxLayout';
 import EmailClient from '@/components/email/EmailClient';
 
-// Force dynamic rendering (no static generation)
-export const dynamic = 'force-dynamic';
-
 function InboxContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const searchParams = useSearchParams();
