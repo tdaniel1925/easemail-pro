@@ -4,17 +4,22 @@
  * Inline dictation interface with real-time waveform visualization
  * Features:
  * - No modal - appears inline in composer
- * - Real-time waveform animation
+ * - Real Web Speech API transcription
+ * - Real-time waveform animation with audio level detection
  * - Transcription displayed in colored message box
  * - Professional corporate design
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Mic, Square, Sparkles, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Mic, Square, Sparkles, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WaveformVisualizer } from '@/components/audio/WaveformVisualizer';
+import { 
+  DictationService, 
+  SmartPunctuationProcessor 
+} from '@/lib/ai/dictation-service';
 import { cn } from '@/lib/utils';
 
 interface InlineDictationWidgetProps {
@@ -33,59 +38,123 @@ export function InlineDictationWidget({
   const [isListening, setIsListening] = useState(false);
   const [accumulatedText, setAccumulatedText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSupported, setIsSupported] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock audio level simulation (will be replaced with real audio input)
+  const dictationRef = useRef<DictationService | null>(null);
+  const punctuationRef = useRef(new SmartPunctuationProcessor());
+  const fullTranscriptRef = useRef<string>('');
+
+  // Initialize dictation service
   useEffect(() => {
-    if (!isListening) return;
+    dictationRef.current = new DictationService({
+      language: 'en-US',
+      continuous: true,
+      interimResults: true,
+    });
 
-    const interval = setInterval(() => {
-      setAudioLevel(Math.random() * 100);
-    }, 100);
+    const support = dictationRef.current.getBrowserSupport();
+    setIsSupported(support.isSupported);
 
-    return () => clearInterval(interval);
-  }, [isListening]);
+    if (!support.isSupported) {
+      setError(`Real-time dictation not supported. ${support.recommendation}`);
+    }
 
-  const handleStartStop = () => {
-    if (isListening) {
-      // Stop listening
+    return () => {
+      dictationRef.current?.destroy();
+    };
+  }, []);
+
+  // Start dictation
+  const handleStart = async () => {
+    if (!dictationRef.current || !isSupported) {
+      return;
+    }
+
+    setError(null);
+    setInterimText('');
+    setAccumulatedText('');
+    fullTranscriptRef.current = '';
+
+    await dictationRef.current.startDictation({
+      onStart: () => {
+        setIsListening(true);
+        console.log('[Dictation] Started listening');
+      },
+
+      onResult: (result) => {
+        // Process with smart punctuation
+        const processed = punctuationRef.current.process(
+          result.text,
+          result.isFinal
+        );
+
+        if (result.isFinal) {
+          // Final text - add to accumulated text
+          const newText = processed + ' ';
+          fullTranscriptRef.current += newText;
+          setAccumulatedText(prev => prev + newText);
+          setInterimText('');
+        } else {
+          // Interim text - show as preview
+          setInterimText(processed);
+        }
+      },
+
+      onEnd: () => {
+        setIsListening(false);
+        console.log('[Dictation] Stopped listening');
+      },
+
+      onError: (errorType) => {
+        setIsListening(false);
+        handleDictationError(errorType);
+      },
+
+      onAudioLevel: (level) => {
+        setAudioLevel(level);
+      },
+    });
+  };
+
+  // Stop dictation
+  const handleStop = () => {
+    if (dictationRef.current) {
+      dictationRef.current.stopDictation();
       setIsListening(false);
       setAudioLevel(0);
       setIsProcessing(true);
       
-      // Simulate processing time
+      // Process the complete transcript
       setTimeout(() => {
-        const fullText = accumulatedText + (interimText ? ' ' + interimText : '');
+        const fullText = fullTranscriptRef.current.trim();
         onComplete(fullText);
-      }, 500);
-    } else {
-      // Start listening
-      setIsListening(true);
-      setAccumulatedText('');
-      setInterimText('');
+        setIsProcessing(false);
+      }, 300);
     }
   };
 
-  // Simulate transcription (will be replaced with real Web Speech API)
-  useEffect(() => {
-    if (!isListening) return;
+  // Handle start/stop toggle
+  const handleStartStop = () => {
+    if (isListening) {
+      handleStop();
+    } else {
+      handleStart();
+    }
+  };
 
-    const phrases = [
-      'Hello, I would like to',
-      'schedule a meeting',
-      'to discuss the project',
-      'next week if possible',
-    ];
+  // Handle errors
+  const handleDictationError = (errorType: string) => {
+    const errorMessages = {
+      'not-supported': 'Your browser doesn\'t support real-time dictation. Try Chrome, Edge, or Safari.',
+      'permission-denied': 'Microphone permission denied. Please allow microphone access.',
+      'no-speech': 'No speech detected. Please speak clearly into your microphone.',
+      'network-error': 'Network error. Please check your connection.',
+      'aborted': 'Dictation was interrupted.',
+    };
 
-    let currentPhrase = 0;
-    const interval = setInterval(() => {
-      if (currentPhrase < phrases.length) {
-        setAccumulatedText(prev => prev + (prev ? ' ' : '') + phrases[currentPhrase]);
-        currentPhrase++;
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [isListening]);
+    setError(errorMessages[errorType as keyof typeof errorMessages] || 'An error occurred');
+  };
 
   return (
     <div className="my-4 p-4 border border-border rounded-lg bg-card shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
@@ -130,6 +199,18 @@ export function InlineDictationWidget({
         />
       </div>
 
+      {/* Error Display */}
+      {error && (
+        <div className="mb-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-destructive flex-1">
+              {error}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Transcription Display */}
       {(accumulatedText || interimText) && (
         <div className="mb-4 p-3 rounded-lg bg-primary/10 border border-primary/20 animate-in fade-in slide-in-from-top-1 duration-200">
@@ -138,7 +219,7 @@ export function InlineDictationWidget({
             <div className="text-sm flex-1">
               <span className="text-foreground">{accumulatedText}</span>
               {interimText && (
-                <span className="text-muted-foreground italic"> {interimText}</span>
+                <span className="text-muted-foreground italic">{interimText}</span>
               )}
             </div>
           </div>
@@ -151,7 +232,7 @@ export function InlineDictationWidget({
           variant={isListening ? "destructive" : "default"}
           size="lg"
           onClick={handleStartStop}
-          disabled={isProcessing}
+          disabled={isProcessing || !isSupported}
           className="gap-2 min-w-[200px]"
         >
           {isProcessing ? (
@@ -174,7 +255,7 @@ export function InlineDictationWidget({
       </div>
 
       {/* Helper Text */}
-      {!isListening && !isProcessing && (
+      {!isListening && !isProcessing && !error && (
         <p className="text-xs text-center text-muted-foreground mt-3">
           Click to start speaking. Your words will be transcribed in real-time.
         </p>
