@@ -9,6 +9,9 @@ export default function NavigationStep() {
       description="Use the sidebar to navigate between Inbox, Sent, Drafts, and other folders. Access Contacts, Calendar, and Settings from the navigation menu. Keyboard shortcuts are available for faster workflows."
       nextLabel="Complete Tour"
       highlightSelector="[data-onboarding='sidebar']"
+      screenshotUrl="/onboarding/navigation-sidebar.png"
+      screenshotAlt="Sidebar navigation overview"
+      screenshotCaption="Navigate your inbox with the sidebar"
     />
   );
 }

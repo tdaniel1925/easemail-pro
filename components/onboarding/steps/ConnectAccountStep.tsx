@@ -10,6 +10,9 @@ export default function ConnectAccountStep() {
       nextLabel="Next"
       showBack={false}
       highlightSelector="[data-onboarding='add-account-button']"
+      screenshotUrl="/onboarding/connect-account.png"
+      screenshotAlt="Add Account button location in sidebar"
+      screenshotCaption="Click 'Add Account' at the bottom of the sidebar"
     />
   );
 }

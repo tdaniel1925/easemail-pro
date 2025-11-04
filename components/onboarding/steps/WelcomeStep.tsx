@@ -72,6 +72,24 @@ export default function WelcomeStep() {
             </div>
           </div>
 
+          {/* Dashboard Preview */}
+          <div className="mb-8">
+            <div className="rounded-lg border-2 border-muted overflow-hidden shadow-lg">
+              <img 
+                src="/onboarding/welcome-hero.png" 
+                alt="EaseMail Dashboard Preview"
+                className="w-full h-auto"
+                onError={(e) => {
+                  // Fallback to placeholder if image doesn't exist
+                  e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="400"%3E%3Crect width="800" height="400" fill="%23f1f5f9"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="system-ui" font-size="18" fill="%2394a3b8"%3EYour Dashboard Preview%3C/text%3E%3C/svg%3E';
+                }}
+              />
+            </div>
+            <p className="text-center text-xs text-muted-foreground mt-3">
+              Your unified email management dashboard
+            </p>
+          </div>
+
           {/* Tour Overview */}
           <div className="bg-muted/50 rounded-lg p-6 mb-8">
             <h3 className="font-semibold mb-4 text-center">What You'll Learn</h3>

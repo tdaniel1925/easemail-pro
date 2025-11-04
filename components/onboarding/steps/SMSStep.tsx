@@ -9,6 +9,9 @@ export default function SMSStep() {
       description="Reach your contacts via SMS directly from EaseMail. Navigate to the Contacts section to send text messages alongside your email communications."
       nextLabel="Next"
       highlightSelector="[data-onboarding='contacts-button']"
+      screenshotUrl="/onboarding/sms-contacts.png"
+      screenshotAlt="SMS feature in contacts page"
+      screenshotCaption="Send SMS from your contacts"
     />
   );
 }
