@@ -127,8 +127,13 @@ export default function EmailClient({
     setSelectedEmailId(emailId);
   };
 
-  // Show loading while checking for accounts or loading emails
-  if (!accountCheckComplete || (propAccountId && loading)) {
+  // Show welcome screen ONLY if account check is complete AND no account exists
+  if (accountCheckComplete && !propAccountId) {
+    return <WelcomeScreen />;
+  }
+
+  // Show loading while checking for accounts
+  if (!accountCheckComplete) {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
@@ -136,13 +141,8 @@ export default function EmailClient({
     );
   }
 
-  // Show welcome screen ONLY if account check is complete AND no account exists
-  if (accountCheckComplete && !propAccountId) {
-    return <WelcomeScreen />;
-  }
-
-  // Show syncing indicator only if we have an account but NO emails
-  if (emails.length === 0) {
+  // Show syncing indicator if we have an account but NO emails (or still loading)
+  if (propAccountId && emails.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
         <SyncingIndicator accountId={propAccountId || undefined} emailCount={emails.length} />
