@@ -146,14 +146,14 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       where: eq(emailAccounts.userId, userId),
       columns: {
         id: true,
-        email: true,
+        emailAddress: true,
       },
     });
 
     for (const account of userEmailAccounts) {
       // Delete all emails for each account
       const emailCount = await db.delete(emails).where(eq(emails.accountId, account.id));
-      console.log(`  ✓ Deleted emails for account ${account.email || account.id}`);
+      console.log(`  ✓ Deleted emails for account ${account.emailAddress || account.id}`);
     }
 
     // Delete email accounts
