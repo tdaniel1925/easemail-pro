@@ -445,6 +445,9 @@ export default function ContactsList() {
         contact={smsContact}
         onSuccess={handleSMSSuccess}
       />
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog />
     </div>
   );
 }
