@@ -13,15 +13,14 @@ export default function SMSStep() {
     return () => setHighlightedElement(null);
   }, [setHighlightedElement]);
 
-  // Position near Contacts button in sidebar
   return (
-    <div className="fixed z-[60] left-[280px] top-[280px] max-w-[420px]">
-      <OnboardingTooltip
-        title="Send SMS from Contacts"
-        description="Click 'Contacts' in the left sidebar, select a contact with a phone number, and click the SMS button (💬 icon) to send text messages directly from EaseMail."
-        nextLabel="Next: Navigation"
-        showBack={true}
-      />
-    </div>
+    <OnboardingTooltip
+      title="Send SMS from Contacts"
+      description="Click 'Contacts' in the left sidebar, select a contact with a phone number, and click the SMS button (💬 icon) to send text messages directly from EaseMail."
+      nextLabel="Next: Navigation"
+      showBack={true}
+      position="right"
+      highlightSelector="[data-onboarding='contacts-button']"
+    />
   );
 }

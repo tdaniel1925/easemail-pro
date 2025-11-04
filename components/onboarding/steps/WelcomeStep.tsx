@@ -9,9 +9,9 @@ export default function WelcomeStep() {
   const { nextStep, skipOnboarding } = useOnboarding();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <Card className="max-w-2xl w-full mx-4 shadow-2xl border-primary">
-        <CardContent className="p-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <Card className="max-w-xl w-full max-h-[85vh] overflow-y-auto shadow-2xl border-primary">
+        <CardContent className="p-6">
           {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-full mb-4">
