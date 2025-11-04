@@ -266,6 +266,15 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     // Clear previous validation errors
     setValidationError(null);
 
+    // Debug logging
+    console.log('[EmailCompose] Validation check:');
+    console.log('  - to:', to);
+    console.log('  - cc:', cc);
+    console.log('  - bcc:', bcc);
+    console.log('  - to.length:', to.length);
+    console.log('  - cc.length:', cc.length);
+    console.log('  - bcc.length:', bcc.length);
+
     // Validation - check if at least ONE recipient exists (to, cc, OR bcc)
     if (to.length === 0 && cc.length === 0 && bcc.length === 0) {
       setValidationError('Please enter at least one recipient (To, Cc, or Bcc)');
