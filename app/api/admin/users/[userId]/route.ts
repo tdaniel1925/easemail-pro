@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { users } from '@/lib/db/schema';
+import { 
+  users, 
+  emailAccounts, 
+  emails, 
+  contacts, 
+  emailSignatures,
+  userAuditLogs,
+  organizationMembers,
+  teamInvitations,
+  smsUsage,
+  aiUsage,
+  storageUsage,
+} from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 type RouteContext = {
@@ -106,16 +118,111 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
     }
 
-    // Delete user from database (cascading deletes will handle related records)
+    // Get user details before deletion for logging
+    const userToDelete = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (!userToDelete) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    console.log(`🗑️ Starting deletion process for user: ${userToDelete.email} (${userId})`);
+
+    // Step 1: Delete all related data (in order to avoid foreign key constraints)
+    
+    // Delete usage tracking records
+    await db.delete(smsUsage).where(eq(smsUsage.userId, userId));
+    console.log('  ✓ Deleted SMS usage records');
+    
+    await db.delete(aiUsage).where(eq(aiUsage.userId, userId));
+    console.log('  ✓ Deleted AI usage records');
+    
+    await db.delete(storageUsage).where(eq(storageUsage.userId, userId));
+    console.log('  ✓ Deleted storage usage records');
+
+    // Delete email-related data
+    const userEmailAccounts = await db.query.emailAccounts.findMany({
+      where: eq(emailAccounts.userId, userId),
+    });
+
+    for (const account of userEmailAccounts) {
+      // Delete all emails for each account
+      await db.delete(emails).where(eq(emails.accountId, account.id));
+      console.log(`  ✓ Deleted emails for account ${account.email}`);
+    }
+
+    // Delete email accounts
+    await db.delete(emailAccounts).where(eq(emailAccounts.userId, userId));
+    console.log('  ✓ Deleted email accounts');
+
+    // Delete contacts
+    await db.delete(contacts).where(eq(contacts.userId, userId));
+    console.log('  ✓ Deleted contacts');
+
+    // Delete signatures
+    await db.delete(emailSignatures).where(eq(emailSignatures.userId, userId));
+    console.log('  ✓ Deleted email signatures');
+
+    // Delete organization memberships
+    await db.delete(organizationMembers).where(eq(organizationMembers.userId, userId));
+    console.log('  ✓ Deleted organization memberships');
+
+    // Delete team invitations (sent by this user)
+    await db.delete(teamInvitations).where(eq(teamInvitations.invitedBy, userId));
+    console.log('  ✓ Deleted team invitations');
+
+    // Delete audit logs (or keep them for compliance - your choice)
+    // Uncomment if you want to delete audit logs:
+    // await db.delete(userAuditLogs).where(eq(userAuditLogs.userId, userId));
+    // console.log('  ✓ Deleted audit logs');
+
+    // Step 2: Delete from Supabase Auth
+    try {
+      const adminClient = createAdminClient();
+      const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId);
+      
+      if (authDeleteError) {
+        console.warn(`  ⚠️ Failed to delete from Supabase Auth: ${authDeleteError.message}`);
+        // Continue anyway - the database record will be deleted
+      } else {
+        console.log('  ✓ Deleted from Supabase Auth');
+      }
+    } catch (authError) {
+      console.warn('  ⚠️ Error deleting from Supabase Auth:', authError);
+      // Continue anyway
+    }
+
+    // Step 3: Delete user from database
     await db.delete(users).where(eq(users.id, userId));
+    console.log('  ✓ Deleted user record from database');
 
-    // TODO: Also delete from Supabase Auth
-    // This requires admin API access which we'll add later
+    // Log the deletion in audit logs (from admin's perspective)
+    await db.insert(userAuditLogs).values({
+      userId: user.id, // Admin who performed the deletion
+      action: 'deleted_user',
+      performedBy: user.id,
+      details: {
+        deletedUserId: userId,
+        deletedUserEmail: userToDelete.email,
+        deletedUserRole: userToDelete.role,
+      },
+      ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+      userAgent: request.headers.get('user-agent') || 'unknown',
+    });
 
-    return NextResponse.json({ success: true });
+    console.log(`✅ User ${userToDelete.email} deleted successfully`);
+
+    return NextResponse.json({ 
+      success: true,
+      message: `User ${userToDelete.email} and all associated data deleted successfully`
+    });
   } catch (error) {
-    console.error('User delete error:', error);
-    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
+    console.error('❌ User delete error:', error);
+    return NextResponse.json({ 
+      error: 'Failed to delete user',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
