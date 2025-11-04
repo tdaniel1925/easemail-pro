@@ -1,7 +1,9 @@
 # Dictation Feature Fixes - Summary
 
 **Date:** 2025-11-04
-**Issues Fixed:** 3 critical dictation problems
+**Issues Fixed:** 4 critical dictation problems
+
+⚠️ **MOST CRITICAL FIX:** Permissions Policy was blocking ALL microphone access
 
 ---
 
@@ -10,10 +12,23 @@
 1. **"Microphone permission denied"** error appearing even when permission was granted
 2. **Choppy transcription** - text would show a few words then disappear and be replaced
 3. **Missing waveform visualizer** - wanted continuous display under compose box
+4. **Permissions Policy violation** - microphone not allowed in document (BLOCKING ISSUE)
 
 ---
 
 ## Root Causes Identified
+
+### 0. Permissions Policy Blocking (CRITICAL) ⚠️
+**Problem:** The HTTP Permissions-Policy header was blocking ALL microphone access:
+- `next.config.js` line 41: `microphone=()` means "no origins allowed"
+- This blocked even same-origin (self) access
+- Browser console error: "Permissions policy violation: microphone is not allowed"
+- NotAllowedError before even requesting user permission
+
+**This was the PRIMARY cause of "permission denied" errors!**
+
+**Files Affected:**
+- `next.config.js`
 
 ### 1. Double Permission Request
 **Problem:** Microphone permission was requested TWICE:
@@ -42,6 +57,32 @@ This caused conflicts where the second request would fail with "permission denie
 ---
 
 ## Fixes Implemented
+
+### Fix 0: Enable Microphone in Permissions Policy ✅ (CRITICAL)
+
+**File:** `next.config.js`
+
+**Change:**
+```javascript
+// Before (BLOCKED ALL ACCESS):
+{
+  key: 'Permissions-Policy',
+  value: 'camera=(), microphone=(), geolocation=()',
+}
+
+// After (ALLOWS SAME-ORIGIN):
+{
+  key: 'Permissions-Policy',
+  value: 'camera=(), microphone=(self), geolocation=()',
+}
+```
+
+**Explanation:**
+- `microphone=()` = No origins allowed (blocks everything)
+- `microphone=(self)` = Only same origin allowed (secure and functional)
+- `microphone=*` = All origins allowed (insecure, don't use)
+
+**Impact:** This was the ROOT CAUSE of all permission errors. Without this fix, nothing else would work!
 
 ### Fix 1: Single Permission Request ✅
 
@@ -233,17 +274,22 @@ const [dictationInterimText, setDictationInterimText] = useState('');
 
 ## Files Modified
 
-1. **components/ai/DictateButton.tsx**
+1. **next.config.js** ⚠️ CRITICAL
+   - Enabled microphone in Permissions-Policy header
+   - Changed from `microphone=()` to `microphone=(self)`
+   - This fix was REQUIRED for all other fixes to work
+
+2. **components/ai/DictateButton.tsx**
    - Fixed double permission request
    - Added parent notification callbacks
    - Enhanced state tracking
 
-2. **components/ai/UnifiedAIToolbar.tsx**
+3. **components/ai/UnifiedAIToolbar.tsx**
    - Fixed choppy transcription logic
    - Added accumulated text tracking
    - Continuous text display
 
-3. **components/ai/DictationWaveform.tsx** (NEW)
+4. **components/ai/DictationWaveform.tsx** (NEW)
    - Created waveform visualizer component
    - Canvas-based real-time animation
    - Integrated stop button and tips
