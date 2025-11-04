@@ -52,6 +52,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
       password: newTempPassword,
       email_confirm: true, // Ensure email is confirmed
+      ban_duration: 'none', // Ensure user is not banned
     });
 
     if (authError) {
