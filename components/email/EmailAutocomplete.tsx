@@ -174,6 +174,16 @@ export default function EmailAutocomplete({
     }
   };
 
+  // Handle blur - add email if valid
+  const handleBlur = () => {
+    // Small delay to allow click events to fire first
+    setTimeout(() => {
+      if (input.trim() && isValidEmail(input.trim())) {
+        addRecipient(input.trim());
+      }
+    }, 200);
+  };
+
   return (
     <div ref={containerRef} className="relative">
       {label && (
@@ -218,6 +228,7 @@ export default function EmailAutocomplete({
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           onFocus={handleFocus}
+          onBlur={handleBlur}
           placeholder={value.length === 0 ? placeholder : ''}
           className="flex-1 min-w-[200px] outline-none bg-transparent text-sm"
         />
