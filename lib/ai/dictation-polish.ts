@@ -6,9 +6,13 @@
 
 import OpenAI from 'openai';
 
+// ✅ SECURITY: Ensure this module is NEVER imported client-side
+if (typeof window !== 'undefined') {
+  throw new Error('dictation-polish must only be imported server-side (contains API keys)');
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-build',
-  dangerouslyAllowBrowser: true, // Only for API routes - not exposed to client
 });
 
 export interface PolishOptions {

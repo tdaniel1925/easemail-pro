@@ -8,9 +8,13 @@
 import OpenAI from 'openai';
 import type { ToneType } from './ai-write-service';
 
+// ✅ SECURITY: Ensure this module is NEVER imported client-side
+if (typeof window !== 'undefined') {
+  throw new Error('ai-remix-service must only be imported server-side (contains API keys)');
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-build',
-  dangerouslyAllowBrowser: true, // Only for API routes - not exposed to client
 });
 
 // ============================================================================

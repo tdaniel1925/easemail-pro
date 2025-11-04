@@ -20,7 +20,9 @@ export async function GET(request: NextRequest) {
   }
   
   try {
-    const searchPattern = `%${query.trim()}%`;
+    // ✅ SAFETY: Escape special SQL LIKE characters (%, _) to prevent wildcard injection
+    const escapedQuery = query.trim().replace(/[%_]/g, '\\$&');
+    const searchPattern = `%${escapedQuery}%`;
     
     // Determine which date field to sort by based on folder
     const isSentFolder = folder?.toLowerCase().includes('sent');

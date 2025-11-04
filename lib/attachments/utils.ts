@@ -133,7 +133,8 @@ export function truncateFilename(filename: string, maxLength: number = 40): stri
  */
 export function parseDateRangePreset(preset: string): { from: Date; to: Date } | null {
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // ✅ SAFETY: Use UTC for consistent date boundaries across timezones
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   
   switch (preset) {
     case 'today':
@@ -144,7 +145,7 @@ export function parseDateRangePreset(preset: string): { from: Date; to: Date } |
     
     case 'yesterday':
       const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
       return {
         from: yesterday,
         to: today,
@@ -152,7 +153,7 @@ export function parseDateRangePreset(preset: string): { from: Date; to: Date } |
     
     case 'last7days':
       const week = new Date(today);
-      week.setDate(week.getDate() - 7);
+      week.setUTCDate(week.getUTCDate() - 7);
       return {
         from: week,
         to: now,
@@ -160,7 +161,7 @@ export function parseDateRangePreset(preset: string): { from: Date; to: Date } |
     
     case 'last30days':
       const month = new Date(today);
-      month.setDate(month.getDate() - 30);
+      month.setUTCDate(month.getUTCDate() - 30);
       return {
         from: month,
         to: now,
@@ -168,7 +169,7 @@ export function parseDateRangePreset(preset: string): { from: Date; to: Date } |
     
     case 'last90days':
       const quarter = new Date(today);
-      quarter.setDate(quarter.getDate() - 90);
+      quarter.setUTCDate(quarter.getUTCDate() - 90);
       return {
         from: quarter,
         to: now,
@@ -176,7 +177,7 @@ export function parseDateRangePreset(preset: string): { from: Date; to: Date } |
     
     case 'thisYear':
       return {
-        from: new Date(now.getFullYear(), 0, 1),
+        from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)),
         to: now,
       };
     

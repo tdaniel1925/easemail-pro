@@ -127,12 +127,29 @@ async function performBackgroundSync(
   const delayMs = provider === 'microsoft' ? 500 : 100; // Microsoft needs more delay
 
   try {
-    // Get current synced count
+    // Get current synced count and continuation count
     const account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.id, accountId),
     });
 
     let syncedCount = account?.syncedEmailCount || 0;
+    const continuationCount = account?.continuationCount || 0;
+    
+    // ✅ SAFETY: Prevent infinite continuation loops
+    const MAX_CONTINUATIONS = 50; // Maximum 50 continuation jobs (~3.3 hours of syncing)
+    
+    if (continuationCount >= MAX_CONTINUATIONS) {
+      console.error(`❌ Max continuations reached (${MAX_CONTINUATIONS}) for account ${accountId} - stopping sync`);
+      await db.update(emailAccounts)
+        .set({
+          syncStatus: 'error',
+          lastError: `Sync exceeded maximum time limit (${MAX_CONTINUATIONS} continuations). Please contact support if you have an extremely large mailbox.`,
+          syncProgress: 99,
+          continuationCount: 0, // Reset for next manual sync
+        })
+        .where(eq(emailAccounts.id, accountId));
+      return;
+    }
 
     while (currentPage < maxPages) {
       currentPage++;
@@ -151,11 +168,12 @@ async function performBackgroundSync(
             syncCursor: pageToken || null, // Save position for resume
             syncedEmailCount: syncedCount,
             lastSyncedAt: new Date(),
+            continuationCount: continuationCount + 1, // Increment continuation counter
           })
           .where(eq(emailAccounts.id, accountId));
         
         // Trigger new background job to continue from where we left off
-        console.log(`🔄 Triggering continuation job with cursor: ${pageToken?.substring(0, 20)}...`);
+        console.log(`🔄 Triggering continuation ${continuationCount + 1}/${MAX_CONTINUATIONS} with cursor: ${pageToken?.substring(0, 20)}...`);
         fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -379,6 +397,7 @@ async function performBackgroundSync(
         initialSyncCompleted: true,
         totalEmailCount: syncedCount,
         lastSyncedAt: new Date(),
+        continuationCount: 0, // Reset continuation counter on successful completion
       })
       .where(eq(emailAccounts.id, accountId));
 

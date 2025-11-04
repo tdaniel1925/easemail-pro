@@ -13,6 +13,7 @@ import { ThreadSummaryPanel } from '@/components/email/ThreadSummaryPanel';
 import { LabelManager } from '@/components/email/LabelManager';
 import { LabelPicker } from '@/components/email/LabelPicker';
 import { SnoozePicker } from '@/components/email/SnoozePicker';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface Email {
   id: string;
@@ -1041,7 +1042,14 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
                     {displayEmail.bodyHtml ? (
                       <div 
                         className="email-content break-words"
-                        dangerouslySetInnerHTML={{ __html: displayEmail.bodyHtml }}
+                        dangerouslySetInnerHTML={{ 
+                          __html: DOMPurify.sanitize(displayEmail.bodyHtml, {
+                            ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'img', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+                            ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style', 'target', 'rel'],
+                            ALLOW_DATA_ATTR: false,
+                            ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+                          })
+                        }}
                       />
                     ) : displayEmail.bodyText ? (
                       <div className="whitespace-pre-wrap break-words">{displayEmail.bodyText}</div>
