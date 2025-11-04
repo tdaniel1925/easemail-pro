@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -82,9 +82,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invitation already accepted' }, { status: 400 });
     }
 
-    // Update password in Supabase Auth
-    const supabase = await createClient();
-    const { error: authError } = await supabase.auth.admin.updateUserById(user.id, {
+    // Update password in Supabase Auth (requires admin client)
+    const adminClient = createAdminClient();
+    const { error: authError } = await adminClient.auth.admin.updateUserById(user.id, {
       password: password,
       email_confirm: true,
       ban_duration: 'none',
