@@ -48,6 +48,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null); // Draft save indicator
   const [isDirty, setIsDirty] = useState(false); // Track if compose has unsaved changes
@@ -262,26 +263,35 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   };
 
   const handleSend = async () => {
-    // Validation
-    if (to.length === 0) {
-      alert('Please enter at least one recipient');
+    // Clear previous validation errors
+    setValidationError(null);
+
+    // Validation - check if at least ONE recipient exists (to, cc, OR bcc)
+    if (to.length === 0 && cc.length === 0 && bcc.length === 0) {
+      setValidationError('Please enter at least one recipient (To, Cc, or Bcc)');
       return;
     }
 
     // Validate email addresses
-    const invalidEmails = to.filter(r => !isValidEmail(r.email));
+    const allRecipients = [...to, ...cc, ...bcc];
+    const invalidEmails = allRecipients.filter(r => !isValidEmail(r.email));
     if (invalidEmails.length > 0) {
-      alert(`Invalid email addresses:\n${invalidEmails.map(r => r.email).join('\n')}`);
+      setValidationError(`Invalid email addresses: ${invalidEmails.map(r => r.email).join(', ')}`);
       return;
     }
 
     if (!accountId) {
-      alert('No email account selected. Please select an account first.');
+      setValidationError('No email account selected. Please select an account first.');
       return;
     }
 
+    // Warn about empty subject (but allow sending)
     if (!subject || subject.trim() === '') {
-      if (!confirm('Send email without a subject?')) {
+      setValidationError('Warning: Email has no subject. Click Send again to confirm.');
+      // Allow them to click Send again to proceed
+      if (validationError?.includes('no subject')) {
+        setValidationError(null); // Clear warning and proceed
+      } else {
         return;
       }
     }
@@ -962,12 +972,35 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
             </Suspense>
 
             {/* Footer */}
-            <div className="flex items-center justify-between p-3 border-t border-border">
-              <div className="flex items-center gap-2">
-                <Button onClick={handleSend} className="gap-2" disabled={isSending || !accountId}>
-                  <Send className="h-4 w-4" />
-                  {isSending ? 'Sending...' : 'Send'}
-                </Button>
+            <div className="flex flex-col border-t border-border">
+              {/* Validation Error */}
+              {validationError && (
+                <div className="px-3 pt-3">
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
+                    <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm text-red-800 dark:text-red-300 font-medium">
+                        {validationError}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setValidationError(null)}
+                      className="text-red-500 hover:text-red-700 flex-shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between p-3">
+                <div className="flex items-center gap-2">
+                  <Button onClick={handleSend} className="gap-2" disabled={isSending || !accountId}>
+                    <Send className="h-4 w-4" />
+                    {isSending ? 'Sending...' : 'Send'}
+                  </Button>
                 <label>
                   <input
                     type="file"
@@ -995,6 +1028,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                   Discard
                 </Button>
               </div>
+            </div>
             </div>
           </>
         )}
