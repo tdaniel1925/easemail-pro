@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { Wand2, Loader2, Check, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import type { ToneType } from '@/lib/ai/ai-write-service';
+import type { ToneType } from '@/lib/ai/ai-write-types';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 

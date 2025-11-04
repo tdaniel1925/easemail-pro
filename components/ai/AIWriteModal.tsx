@@ -17,7 +17,7 @@ import {
   type LengthType,
   getToneDescription,
   getLengthDescription,
-} from '@/lib/ai/ai-write-service';
+} from '@/lib/ai/ai-write-types';
 import { cn } from '@/lib/utils';
 
 interface AIWriteModalProps {
