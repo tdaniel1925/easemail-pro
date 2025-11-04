@@ -739,6 +739,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
           
           <button
             onClick={() => setIsProviderSelectorOpen(true)}
+            data-add-account="true"
             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <Plus className="h-4 w-4" />

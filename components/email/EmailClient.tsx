@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { EmailList } from './EmailList';
 import { ContactPanel } from './ContactPanel';
 import SyncingIndicator from './SyncingIndicator';
+import WelcomeScreen from './WelcomeScreen';
 
 interface EmailClientProps {
   searchQuery?: string;
@@ -116,7 +117,12 @@ export default function EmailClient({
     );
   }
 
-  // Show syncing indicator only if NO emails at all
+  // Show welcome screen if no account is connected
+  if (!propAccountId) {
+    return <WelcomeScreen />;
+  }
+
+  // Show syncing indicator only if we have an account but NO emails
   if (emails.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
