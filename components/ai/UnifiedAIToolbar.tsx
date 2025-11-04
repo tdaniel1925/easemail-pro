@@ -58,6 +58,7 @@ export function UnifiedAIToolbar({
   const [showDictationDialog, setShowDictationDialog] = useState(false); // ✅ NEW
   const [dictatedText, setDictatedText] = useState(''); // ✅ NEW
   const [dictationInterim, setDictationInterim] = useState(''); // ✅ Track interim text
+  const [dictationAccumulated, setDictationAccumulated] = useState(''); // ✅ Track all final text during session
   const [isListening, setIsListening] = useState(false); // ✅ Track dictation state
 
   const hasContent = body.trim().length > 0;
@@ -73,11 +74,12 @@ export function UnifiedAIToolbar({
 
   // ✅ NEW: Handle dictation completion (when user stops recording)
   const handleDictationComplete = (fullText: string) => {
-    // Remove any interim text that was showing
-    const cleanBody = body.replace(dictationInterim, '').trim();
+    // Remove accumulated dictation text from body (we'll insert via dialog choice)
+    const cleanBody = body.replace(dictationAccumulated, '').replace(dictationInterim, '').trim();
     onBodyChange(cleanBody);
     setDictationInterim('');
-    
+    setDictationAccumulated(''); // Reset for next session
+
     // Show dialog with the complete transcript
     setDictatedText(fullText);
     setShowDictationDialog(true);
@@ -99,19 +101,19 @@ export function UnifiedAIToolbar({
     onBodyChange(body.trim() + separator + polishedText);
   };
 
-  // ✅ Real-time transcript (shows interim, but doesn't commit to body)
+  // ✅ FIX: Real-time transcript that shows ALL text continuously
   const handleDictateTranscript = (text: string, isFinal: boolean) => {
-    // NOTE: We're NOT adding final text to body anymore - that happens via the dialog
-    // We only show interim text for visual feedback during dictation
     if (!isFinal) {
-      // Interim: Replace previous interim text (update in place for visual feedback)
-      const cleanBody = body.replace(dictationInterim, '');
-      onBodyChange(cleanBody + text);
+      // Interim: Show as preview (gray, italic) after accumulated text
+      const baseText = body.replace(dictationInterim, '');
+      onBodyChange(baseText + text);
       setDictationInterim(text);
     } else {
-      // Final: Just remove interim text, actual insertion happens via dialog
+      // Final: Add to accumulated text and keep showing it
       const cleanBody = body.replace(dictationInterim, '');
-      onBodyChange(cleanBody);
+      const newAccumulated = dictationAccumulated + text;
+      setDictationAccumulated(newAccumulated);
+      onBodyChange(cleanBody + newAccumulated);
       setDictationInterim('');
     }
   };

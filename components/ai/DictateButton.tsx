@@ -24,6 +24,9 @@ import { cn } from '@/lib/utils';
 interface DictateButtonProps {
   onTranscript: (text: string, isFinal: boolean) => void;
   onDictationComplete?: (fullText: string) => void; // ✅ NEW: Called when dictation session ends
+  onListeningChange?: (isListening: boolean) => void; // ✅ NEW: Notify parent of state changes
+  onAudioLevelChange?: (level: number) => void; // ✅ NEW: Pass audio level to parent
+  onInterimTextChange?: (text: string) => void; // ✅ NEW: Pass interim text to parent
   disabled?: boolean;
   className?: string;
   userTier?: 'free' | 'pro' | 'business';
@@ -32,6 +35,9 @@ interface DictateButtonProps {
 export function DictateButton({
   onTranscript,
   onDictationComplete,
+  onListeningChange,
+  onAudioLevelChange,
+  onInterimTextChange,
   disabled = false,
   className,
   userTier = 'free',
@@ -82,15 +88,19 @@ export function DictateButton({
     fullTranscriptRef.current = ''; // ✅ Reset transcript
     usageTrackerRef.current.startTracking();
 
-    // Start recording for Whisper enhancement (if premium)
-    if (userTier !== 'free') {
-      startAudioRecording();
-    }
+    // ✅ FIX: startDictation already requests microphone permission
+    // We'll start audio recording AFTER permission is granted (in onStart callback)
 
     await dictationRef.current.startDictation({
       onStart: () => {
         setIsListening(true);
+        onListeningChange?.(true); // ✅ Notify parent
         console.log('🎤 Dictation started');
+
+        // ✅ FIX: Start recording AFTER permission granted (for premium users)
+        if (userTier !== 'free') {
+          startAudioRecording();
+        }
       },
 
       onResult: (result) => {
@@ -106,15 +116,18 @@ export function DictateButton({
           // Still send to parent for real-time display (they handle it)
           onTranscript(processed + ' ', true);
           setInterimText('');
+          onInterimTextChange?.(''); // ✅ Clear interim for parent
         } else {
           // Interim text - show as preview
           setInterimText(processed);
           onTranscript(processed, false);
+          onInterimTextChange?.(processed); // ✅ Send interim to parent for waveform
         }
       },
 
       onEnd: () => {
         setIsListening(false);
+        onListeningChange?.(false); // ✅ Notify parent
         const minutes = usageTrackerRef.current.stopTracking();
         console.log(`🎤 Dictation ended. Used ${minutes} minutes.`);
 
@@ -131,11 +144,13 @@ export function DictateButton({
 
       onError: (errorType) => {
         setIsListening(false);
+        onListeningChange?.(false); // ✅ Notify parent
         handleDictationError(errorType);
       },
 
       onAudioLevel: (level) => {
         setAudioLevel(level);
+        onAudioLevelChange?.(level); // ✅ Send to parent for waveform
       },
     });
   };
@@ -174,9 +189,11 @@ export function DictateButton({
   // Audio recording for Whisper enhancement
   const startAudioRecording = async () => {
     try {
+      // ✅ FIX: Reuse the same stream that Web Speech API is using
+      // Get the existing media stream instead of requesting a new one
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream; // ✅ Store stream reference
-      
+
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder; // ✅ Store recorder reference
       const chunks: Blob[] = [];
@@ -189,6 +206,7 @@ export function DictateButton({
       mediaRecorder.start();
     } catch (error) {
       console.error('Failed to start audio recording:', error);
+      // Don't fail the whole dictation if recording fails
     }
   };
 
