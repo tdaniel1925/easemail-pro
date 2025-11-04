@@ -42,15 +42,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     // Generate NEW temporary password
     const newTempPassword = generateSecurePassword(16);
-    const hashedTempPassword = await hashPassword(newTempPassword);
     const tempPasswordExpiry = generatePasswordExpiry();
 
     console.log(`🔐 Generated new temporary password for ${targetUser.email} by admin ${adminUser.email}`);
+    console.log(`🔑 Password: ${newTempPassword}`); // Log it for debugging
 
-    // Update password in Supabase Auth
+    // Update password in Supabase Auth FIRST
     const adminClient = createAdminClient();
     const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
       password: newTempPassword,
+      email_confirm: true, // Ensure email is confirmed
     });
 
     if (authError) {
@@ -63,13 +64,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     console.log(`✅ Updated password in Supabase Auth for ${targetUser.email}`);
 
-    // Update user record in database
+    // Update user record in database (store plain password temporarily for reference)
     await db.update(users)
       .set({
-        tempPassword: hashedTempPassword,
+        tempPassword: newTempPassword, // Store plain text temporarily (will be cleared after first login)
         requirePasswordChange: true,
         tempPasswordExpiresAt: tempPasswordExpiry,
-        accountStatus: 'pending',
+        accountStatus: 'active', // Set to active so they can log in
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId));
