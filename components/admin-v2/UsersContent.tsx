@@ -178,13 +178,14 @@ export default function UsersContent() {
       });
 
       if (response.ok) {
-        showMessage('success', `Password reset email sent to ${userEmail}`);
+        showMessage('success', `New temporary password sent to ${userEmail}`);
       } else {
-        showMessage('error', 'Failed to send password reset email');
+        const data = await response.json();
+        showMessage('error', data.error || 'Failed to send new password');
       }
     } catch (error) {
-      console.error('Failed to send reset email:', error);
-      showMessage('error', 'Failed to send password reset email');
+      console.error('Failed to send new password:', error);
+      showMessage('error', 'Failed to send new password');
     }
   };
 
@@ -434,7 +435,7 @@ export default function UsersContent() {
 
                             <DropdownMenuItem onClick={() => handleResetPassword(user.id, user.email)}>
                               <Key className="h-4 w-4 mr-2" />
-                              Reset Password
+                              Send New Password
                             </DropdownMenuItem>
 
                             {user.suspended ? (

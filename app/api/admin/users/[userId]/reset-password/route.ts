@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { generateSecurePassword, hashPassword, generatePasswordExpiry } from '@/lib/auth/password-utils';
 import { sendEmail } from '@/lib/email/send';
-import { getPasswordResetTemplate, getPasswordResetSubject } from '@/lib/email/templates/password-reset';
+import { getNewUserCredentialsTemplate, getNewUserCredentialsSubject } from '@/lib/email/templates/new-user-credentials';
 
 type RouteContext = {
   params: Promise<{ userId: string }>;
 };
 
-// POST: Send password reset email (admin only)
+// POST: Generate and send new temporary password (admin only)
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { userId } = await context.params;
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -39,44 +40,81 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Generate password reset link using Supabase Auth
-    const { data, error } = await supabase.auth.admin.generateLink({
-      type: 'recovery',
-      email: targetUser.email,
+    // Generate NEW temporary password
+    const newTempPassword = generateSecurePassword(16);
+    const hashedTempPassword = await hashPassword(newTempPassword);
+    const tempPasswordExpiry = generatePasswordExpiry();
+
+    console.log(`🔐 Generated new temporary password for ${targetUser.email} by admin ${adminUser.email}`);
+
+    // Update password in Supabase Auth
+    const adminClient = createAdminClient();
+    const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
+      password: newTempPassword,
     });
 
-    if (error) {
-      console.error('Password reset link generation error:', error);
-      return NextResponse.json({ error: 'Failed to generate reset link' }, { status: 500 });
+    if (authError) {
+      console.error('❌ Failed to update password in Supabase Auth:', authError);
+      return NextResponse.json({ 
+        error: 'Failed to update password',
+        details: authError.message 
+      }, { status: 500 });
     }
 
-    // Send password reset email
+    console.log(`✅ Updated password in Supabase Auth for ${targetUser.email}`);
+
+    // Update user record in database
+    await db.update(users)
+      .set({
+        tempPassword: hashedTempPassword,
+        requirePasswordChange: true,
+        tempPasswordExpiresAt: tempPasswordExpiry,
+        accountStatus: 'pending',
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+
+    console.log(`📝 Updated user record in database`);
+
+    // Send NEW credentials email
+    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL}/login`;
+    
     const emailData = {
       recipientName: targetUser.fullName || targetUser.email,
-      resetLink: data.properties?.action_link || '',
-      expiryHours: 24,
+      recipientEmail: targetUser.email,
+      organizationName: targetUser.organizationId ? 'Your Organization' : 'EaseMail',
+      tempPassword: newTempPassword, // Send plain text password in email (only time it's exposed)
+      loginUrl: loginUrl,
+      expiryDays: 7,
+      adminName: adminUser.fullName || adminUser.email,
     };
 
     const result = await sendEmail({
       to: targetUser.email,
-      subject: getPasswordResetSubject(emailData),
-      html: getPasswordResetTemplate(emailData),
+      subject: `[Password Reset] ${getNewUserCredentialsSubject(emailData)}`,
+      html: getNewUserCredentialsTemplate(emailData),
     });
 
     if (!result.success) {
-      console.error('Password reset email send error:', result.error);
-      return NextResponse.json({ error: 'Failed to send reset email' }, { status: 500 });
+      console.error('⚠️ Failed to send credentials email:', result.error);
+      return NextResponse.json({ 
+        error: 'Password was updated but failed to send email',
+        details: result.error 
+      }, { status: 500 });
     }
 
-    console.log(`✅ Password reset email sent to ${targetUser.email} by admin ${adminUser.email}`);
+    console.log(`✅ New credentials email sent to ${targetUser.email}`);
 
     return NextResponse.json({ 
       success: true, 
-      message: `Password reset email sent to ${targetUser.email}` 
+      message: `New temporary password generated and sent to ${targetUser.email}` 
     });
-  } catch (error) {
-    console.error('Password reset error:', error);
-    return NextResponse.json({ error: 'Failed to send reset email' }, { status: 500 });
+  } catch (error: any) {
+    console.error('❌ Password reset error:', error);
+    return NextResponse.json({ 
+      error: 'Failed to reset password',
+      details: error.message 
+    }, { status: 500 });
   }
 }
 
