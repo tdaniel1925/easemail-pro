@@ -205,6 +205,20 @@ export default function AdminDashboard() {
             </Card>
           </Link>
 
+          <Link href="/admin/email-templates">
+            <Card className="hover:bg-accent cursor-pointer transition-colors">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Email Templates
+                </CardTitle>
+                <CardDescription>
+                  Customize and manage email templates with live preview
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+
           <Card className="hover:bg-accent cursor-pointer transition-colors opacity-50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

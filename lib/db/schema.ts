@@ -1498,4 +1498,100 @@ export const planFeatureLimitsRelations = relations(planFeatureLimits, ({ one })
   }),
 }));
 
+// ================================
+// EMAIL TEMPLATES SYSTEM
+// ================================
+
+// Email Templates Table - Visual editor for platform admins
+export const emailTemplates = pgTable('email_templates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  templateKey: varchar('template_key', { length: 100 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  subjectTemplate: text('subject_template').notNull(),
+  htmlTemplate: text('html_template').notNull(),
+  
+  // Template metadata
+  category: varchar('category', { length: 50 }).default('general'),
+  triggerEvent: varchar('trigger_event', { length: 100 }),
+  requiredVariables: jsonb('required_variables').$type<string[]>().default([]),
+  
+  // Versioning and status
+  version: integer('version').notNull().default(1),
+  isActive: boolean('is_active').default(true),
+  isDefault: boolean('is_default').default(false),
+  
+  // Audit fields
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Email Template Versions - Version history
+export const emailTemplateVersions = pgTable('email_template_versions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  templateId: uuid('template_id').notNull().references(() => emailTemplates.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  
+  // Template content at this version
+  subjectTemplate: text('subject_template').notNull(),
+  htmlTemplate: text('html_template').notNull(),
+  
+  // Version metadata
+  changeNotes: text('change_notes'),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Email Template Test Sends - Track test emails
+export const emailTemplateTestSends = pgTable('email_template_test_sends', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  templateId: uuid('template_id').notNull().references(() => emailTemplates.id, { onDelete: 'cascade' }),
+  sentTo: varchar('sent_to', { length: 255 }).notNull(),
+  testData: jsonb('test_data').$type<Record<string, any>>(),
+  sentBy: uuid('sent_by').references(() => users.id, { onDelete: 'set null' }),
+  sentAt: timestamp('sent_at').defaultNow().notNull(),
+  success: boolean('success').default(true),
+  errorMessage: text('error_message'),
+});
+
+// Relations for email templates
+export const emailTemplatesRelations = relations(emailTemplates, ({ many, one }) => ({
+  versions: many(emailTemplateVersions),
+  testSends: many(emailTemplateTestSends),
+  creator: one(users, {
+    fields: [emailTemplates.createdBy],
+    references: [users.id],
+    relationName: 'templateCreator',
+  }),
+  updater: one(users, {
+    fields: [emailTemplates.updatedBy],
+    references: [users.id],
+    relationName: 'templateUpdater',
+  }),
+}));
+
+export const emailTemplateVersionsRelations = relations(emailTemplateVersions, ({ one }) => ({
+  template: one(emailTemplates, {
+    fields: [emailTemplateVersions.templateId],
+    references: [emailTemplates.id],
+  }),
+  creator: one(users, {
+    fields: [emailTemplateVersions.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const emailTemplateTestSendsRelations = relations(emailTemplateTestSends, ({ one }) => ({
+  template: one(emailTemplates, {
+    fields: [emailTemplateTestSends.templateId],
+    references: [emailTemplates.id],
+  }),
+  sender: one(users, {
+    fields: [emailTemplateTestSends.sentBy],
+    references: [users.id],
+  }),
+}));
+
 
