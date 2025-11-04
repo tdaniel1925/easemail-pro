@@ -72,9 +72,12 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         const response = await fetch('/api/user/preferences');
         if (response.ok) {
           const data = await response.json();
+          console.log('[Preferences] Loaded:', data.preferences);
           if (data.preferences) {
             setHideSignaturePromptPreference(data.preferences.hideSignaturePrompt || false);
           }
+        } else {
+          console.log('[Preferences] No preferences found or error:', response.status);
         }
       } catch (error) {
         console.error('[Preferences] Failed to load:', error);
@@ -83,6 +86,11 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
     loadPreferences();
   }, []);
+
+  // Debug: Log signatures on mount/change
+  useEffect(() => {
+    console.log('[EmailCompose] Signatures loaded:', signatures.length, signatures);
+  }, [signatures]);
 
   // Auto-insert signature when compose opens (for new compose only)
   useEffect(() => {
@@ -317,8 +325,15 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     }
 
     // Check for signature - show prompt if no signatures exist and user hasn't hidden it
+    console.log('[EmailCompose] Signature check:', {
+      signaturesCount: signatures.length,
+      hidePrompt: hideSignaturePromptPreference,
+      type: type,
+      showPrompt: signatures.length === 0 && !hideSignaturePromptPreference && type === 'compose'
+    });
+    
     if (signatures.length === 0 && !hideSignaturePromptPreference && type === 'compose') {
-      console.log('[EmailCompose] No signatures found, showing prompt');
+      console.log('[EmailCompose] ✅ Showing signature prompt');
       setShowSignaturePrompt(true);
       return;
     }
