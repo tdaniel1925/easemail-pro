@@ -34,8 +34,33 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [userRole, setUserRole] = useState<string>('user');
   const [hasOrganization, setHasOrganization] = useState(false); // NEW: Track org membership
   const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
-  const [folders, setFolders] = useState<any[]>([]);
-  const [folderCounts, setFolderCounts] = useState<Record<string, { totalCount: number; unreadCount: number }>>({}); // ✅ PHASE 2: Real-time counts
+  // ✅ INSTANT LOAD: Initialize folders from localStorage immediately for instant display
+  const [folders, setFolders] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('easemail_folders');
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch {
+          return [];
+        }
+      }
+    }
+    return [];
+  });
+  const [folderCounts, setFolderCounts] = useState<Record<string, { totalCount: number; unreadCount: number }>>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('easemail_folder_counts');
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch {
+          return {};
+        }
+      }
+    }
+    return {};
+  });
   const [expandedSections, setExpandedSections] = useState({
     custom: false,
   });
@@ -262,41 +287,53 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   }, [selectedAccountId]);
 
   const fetchFolders = async (accountId: string) => {
-    setFoldersLoading(true); // ✅ PHASE 2: Show loading state
-    
+    // ✅ INSTANT LOAD: Don't show loading state - update happens silently in background
+
     try {
       // ✅ PHASE 4: Try cache first
       const cached = await folderCache.getFolders(accountId);
-      
+
       if (cached) {
         console.log('[Cache] Using cached folders');
-        setFolders(cached.folders || []);
-        setFolderCounts(cached.counts);
-        setFoldersLoading(false);
-        
+        const newFolders = cached.folders || [];
+        const newCounts = cached.counts;
+
+        setFolders(newFolders);
+        setFolderCounts(newCounts);
+
+        // ✅ INSTANT LOAD: Persist to localStorage for next mount
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('easemail_folders', JSON.stringify(newFolders));
+          localStorage.setItem('easemail_folder_counts', JSON.stringify(newCounts));
+        }
+
         // Still fetch in background to update cache
         // (handled by cache manager's background refresh)
         return;
       }
-      
-      // Cache miss - fetch from API
+
+      // Cache miss - fetch from API (still no loading state - keep showing old data)
       const response = await fetch(`/api/nylas/folders/sync?accountId=${accountId}`);
       const data = await response.json();
       if (data.success) {
         console.log('📁 All folders from API:', data.folders);
-        setFolders(data.folders || []);
-        
+        const newFolders = data.folders || [];
+        setFolders(newFolders);
+
+        // ✅ INSTANT LOAD: Persist to localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('easemail_folders', JSON.stringify(newFolders));
+        }
+
         // ✅ PHASE 2: Fetch real-time counts immediately after folders load
         await fetchFolderCounts(accountId);
       } else {
         console.error('❌ Failed to fetch folders:', data.error);
-        setFolders([]); // Clear on error
+        // Don't clear folders on error - keep showing cached data
       }
     } catch (error) {
       console.error('Failed to fetch folders:', error);
-      setFolders([]); // Clear on error
-    } finally {
-      setFoldersLoading(false); // ✅ PHASE 2: Hide loading state
+      // Don't clear folders on error - keep showing cached data
     }
   };
 
@@ -305,7 +342,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     try {
       const response = await fetch(`/api/nylas/folders/counts?accountId=${accountId}`);
       const data = await response.json();
-      
+
       if (data.success && data.counts) {
         // Convert array to map for easy lookup
         const countsMap: Record<string, { totalCount: number; unreadCount: number }> = {};
@@ -315,10 +352,15 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             unreadCount: count.unreadCount,
           };
         });
-        
+
         console.log('📊 Real-time folder counts:', countsMap);
         setFolderCounts(countsMap);
-        
+
+        // ✅ INSTANT LOAD: Persist to localStorage for next mount
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('easemail_folder_counts', JSON.stringify(countsMap));
+        }
+
         // ✅ PHASE 4: Update cache with fresh data
         if (folders.length > 0) {
           folderCache.setFolders(accountId, folders, countsMap);
@@ -332,6 +374,13 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const handleLogout = async () => {
     // ✅ FIX: Clear cache on logout to prevent memory leaks
     folderCache.clearAll();
+
+    // ✅ INSTANT LOAD: Clear localStorage on logout
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('easemail_folders');
+      localStorage.removeItem('easemail_folder_counts');
+    }
+
     await supabase.auth.signOut();
     router.push('/login');
   };
@@ -491,11 +540,8 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
           )}
           
           <div className="space-y-0.5 px-2">
-            {/* ✅ PHASE 2: Show skeleton while loading */}
-            {foldersLoading ? (
-              <FolderSkeleton />
-            ) : (
-              foldersToDisplay.map((folder: any) => {
+            {/* ✅ INSTANT LOAD: Always show folders (no loading state) */}
+            {foldersToDisplay.map((folder: any) => {
               const Icon = folder.icon || getFolderIcon(folder.folderType);
               // ✅ FIX #2: Use displayName for UI, but internal name for queries
               const displayName = folder.displayName || folder.name;
@@ -546,7 +592,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
                   )}
                 </button>
               );
-            }))}
+            })}
 
             {/* Show "More folders" button if there are hidden folders */}
             {hasMoreFolders && (
