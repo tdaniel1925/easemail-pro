@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { DashboardProviders } from '@/components/providers/DashboardProviders';
 
 export default async function DashboardLayout({
   children,
@@ -18,9 +19,11 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {children}
-    </div>
+    <DashboardProviders userId={user.id}>
+      <div className="flex h-screen bg-background overflow-hidden">
+        {children}
+      </div>
+    </DashboardProviders>
   );
 }
 
