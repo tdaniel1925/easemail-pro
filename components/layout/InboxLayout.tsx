@@ -12,14 +12,12 @@ import ProviderSelector from '@/components/email/ProviderSelector';
 import InlineMessage from '@/components/ui/inline-message';
 import SettingsMenu from '@/components/layout/SettingsMenu';
 import EaseMailLogo from '@/components/ui/EaseMailLogo';
-import { FolderSkeleton } from '@/components/ui/skeleton'; // ✅ PHASE 2: Loading states
-import { useKeyboardShortcuts } from '@/lib/hooks/useKeyboardShortcuts'; // ✅ PHASE 2: Keyboard shortcuts
-import { buildFolderTree, flattenFolderTree } from '@/lib/email/folder-tree'; // ✅ PHASE 3: Folder hierarchy
-import { FolderSearch } from '@/components/email/FolderSearch'; // ✅ PHASE 3: Folder search
-import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop'; // ✅ PHASE 3: Drag and drop
-import { usePrefetch } from '@/lib/hooks/usePrefetch'; // ✅ PHASE 4: Prefetching
-import { folderCache } from '@/lib/cache/folder-cache'; // ✅ PHASE 4: Folder caching
-import { registerServiceWorker, setupOnlineListeners } from '@/lib/utils/service-worker'; // ✅ PHASE 4: Offline support
+import { FolderSkeleton } from '@/components/ui/skeleton';
+import { buildFolderTree, flattenFolderTree } from '@/lib/email/folder-tree';
+import { FolderSearch } from '@/components/email/FolderSearch';
+import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop';
+import { folderCache } from '@/lib/cache/folder-cache';
+import { registerServiceWorker, setupOnlineListeners } from '@/lib/utils/service-worker';
 // AI Assistant is now integrated into ContactPanel tabs
 
 interface InboxLayoutProps {
@@ -53,16 +51,6 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const pathname = usePathname();
   const supabase = createClient();
 
-  // ✅ PHASE 2: Keyboard shortcuts (g+i, g+s, g+d, c, etc)
-  const { waitingForSecondKey } = useKeyboardShortcuts({
-    onCompose: () => setIsComposeOpen(true),
-    onSearch: () => {
-      // ✅ PHASE 3: Open folder search
-      setIsFolderSearchOpen(true);
-    },
-    enabled: !isFolderSearchOpen, // Disable when search is open
-  });
-
   // ✅ PHASE 3: Drag and drop for moving emails
   const {
     dropTarget,
@@ -71,16 +59,6 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     handleDragLeave,
     handleDrop,
   } = useDragAndDrop();
-
-  // ✅ PHASE 4: Prefetching for instant navigation
-  const {
-    prefetchFolders,
-    prefetchEmails,
-    cancelPrefetch,
-  } = usePrefetch({
-    delay: 200, // Prefetch after 200ms hover
-    enabled: true,
-  });
 
   // Listen for compose events from email cards
   useEffect(() => {
@@ -446,12 +424,6 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
               EaseMail
             </span>
           </div>
-          {/* ✅ PHASE 2: Show keyboard hint when waiting for second key */}
-          {waitingForSecondKey && (
-            <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-md text-xs font-medium animate-in fade-in">
-              Waiting for key...
-            </div>
-          )}
           {/* ✅ PHASE 4: Offline indicator */}
           {!isOnline && (
             <div className="absolute top-4 left-4 bg-yellow-500 text-white px-2 py-1 rounded text-xs font-medium">
@@ -544,14 +516,6 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
                     // ✅ PHASE 3: Use handleFolderSelect for tracking
                     handleFolderSelect(folderName);
                   }}
-                  onMouseEnter={() => {
-                    // ✅ PHASE 4: Prefetch emails on hover for instant navigation
-                    // ✅ FIX: Check accountId exists before prefetching
-                    if (selectedAccountId && folderName) {
-                      prefetchEmails(selectedAccountId, folderName);
-                    }
-                  }}
-                  onMouseLeave={cancelPrefetch}
                   onDragOver={(e) => handleDragOver(e, folder.id)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, folderName, () => {
