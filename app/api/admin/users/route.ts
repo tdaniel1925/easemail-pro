@@ -108,37 +108,66 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Generate temporary password
-    const tempPassword = generateSecurePassword(16);
+    // Check if user exists in Supabase Auth (to prevent duplicate auth users)
+    const adminClient = createAdminClient();
+    const { data: existingAuthUsers } = await adminClient.auth.admin.listUsers();
+    const authUserExists = existingAuthUsers?.users?.some(
+      u => u.email?.toLowerCase() === email.toLowerCase().trim()
+    );
+
+    let authUserId: string;
+    let tempPassword: string;
+
+    if (authUserExists) {
+      // User exists in auth but not in our DB - get their ID and reset password
+      const existingAuthUser = existingAuthUsers?.users?.find(
+        u => u.email?.toLowerCase() === email.toLowerCase().trim()
+      );
+      authUserId = existingAuthUser!.id;
+      tempPassword = generateSecurePassword(16);
+      
+      console.log(`♻️ Reusing existing Supabase Auth user: ${authUserId}`);
+      
+      // Update their password
+      await adminClient.auth.admin.updateUserById(authUserId, {
+        password: tempPassword,
+        user_metadata: {
+          full_name: fullName,
+        },
+      });
+    } else {
+      // Create new auth user
+      tempPassword = generateSecurePassword(16);
+      
+      console.log(`🔐 Generated temporary password for ${email}`);
+
+      const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+        email: email.toLowerCase().trim(),
+        password: tempPassword,
+        email_confirm: true, // Skip email verification for admin-created users
+        user_metadata: {
+          full_name: fullName,
+        },
+      });
+
+      if (authError || !authData.user) {
+        console.error('❌ Supabase Auth error:', authError);
+        return NextResponse.json({ 
+          error: 'Failed to create user account',
+          details: authError?.message 
+        }, { status: 500 });
+      }
+
+      authUserId = authData.user.id;
+      console.log(`✅ Created Supabase Auth user: ${authUserId}`);
+    }
+
     const hashedTempPassword = await hashPassword(tempPassword);
     const tempPasswordExpiry = generatePasswordExpiry();
 
-    console.log(`🔐 Generated temporary password for ${email}`);
-
-    // Create user in Supabase Auth using admin client
-    const adminClient = createAdminClient();
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email: email.toLowerCase().trim(),
-      password: tempPassword,
-      email_confirm: true, // Skip email verification for admin-created users
-      user_metadata: {
-        full_name: fullName,
-      },
-    });
-
-    if (authError || !authData.user) {
-      console.error('❌ Supabase Auth error:', authError);
-      return NextResponse.json({ 
-        error: 'Failed to create user account',
-        details: authError?.message 
-      }, { status: 500 });
-    }
-
-    console.log(`✅ Created Supabase Auth user: ${authData.user.id}`);
-
-    // Create user in database
+    // Create user in database (use upsert to handle race conditions)
     const [newUser] = await db.insert(users).values({
-      id: authData.user.id,
+      id: authUserId,
       email: email.toLowerCase().trim(),
       fullName,
       organizationId: organizationId || null,
@@ -148,9 +177,24 @@ export async function POST(request: NextRequest) {
       requirePasswordChange: true,
       tempPasswordExpiresAt: tempPasswordExpiry,
       createdBy: currentUser.id,
-    }).returning();
+    })
+    .onConflictDoUpdate({
+      target: users.id,
+      set: {
+        email: email.toLowerCase().trim(),
+        fullName,
+        organizationId: organizationId || null,
+        role: role,
+        accountStatus: 'pending',
+        tempPassword: hashedTempPassword,
+        requirePasswordChange: true,
+        tempPasswordExpiresAt: tempPasswordExpiry,
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
 
-    console.log(`📝 Created database user record: ${newUser.id}`);
+    console.log(`📝 Created/updated database user record: ${newUser.id}`);
 
     // Log audit event
     await db.insert(userAuditLogs).values({
