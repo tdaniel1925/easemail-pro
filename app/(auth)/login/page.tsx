@@ -55,7 +55,14 @@ function LoginForm() {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Login error:', error);
+        // Provide more helpful error messages
+        if (error.message.includes('Invalid login credentials')) {
+          throw new Error('Invalid email or password. Please check your credentials and try again. If you just received your temporary password, make sure you copied it exactly as shown in the email (no extra spaces).');
+        }
+        throw error;
+      }
 
       if (data.user) {
         setSuccess('Login successful! Redirecting...');
