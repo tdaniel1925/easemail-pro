@@ -193,64 +193,64 @@ function AcceptInvitationContent() {
           </div>
 
           {/* Main Headline */}
-          <div className="space-y-4 mb-8">
-            <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
+          <div className="space-y-3 mb-6">
+            <h1 className="text-3xl xl:text-4xl font-bold text-white leading-tight">
               Welcome to Your Team
             </h1>
-            <p className="text-lg xl:text-xl text-white/90 leading-relaxed">
+            <p className="text-base xl:text-lg text-white/90 leading-relaxed">
               You've been invited to join your team on EaseMail. Set your password and start collaborating with AI-powered email management.
             </p>
           </div>
 
           {/* Getting Started Benefits */}
-          <div className="space-y-3 mb-8">
-            <div className="flex items-start gap-3 text-white">
-              <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+          <div className="space-y-2.5 mb-6">
+            <div className="flex items-start gap-2.5 text-white">
+              <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
                 <Sparkles className="w-4 h-4" />
               </div>
-              <div>
-                <h3 className="font-semibold text-base">AI-Powered Assistance</h3>
-                <p className="text-white/80 text-sm">Write emails 10x faster with intelligent AI that learns your style</p>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold text-sm">AI-Powered Assistance</h3>
+                <p className="text-white/80 text-xs leading-relaxed">Write emails 10x faster with intelligent AI that learns your style</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 text-white">
-              <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+            <div className="flex items-start gap-2.5 text-white">
+              <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
                 <Users className="w-4 h-4" />
               </div>
-              <div>
-                <h3 className="font-semibold text-base">Team Collaboration</h3>
-                <p className="text-white/80 text-sm">Shared templates, signatures, and workflows for your entire team</p>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold text-sm">Team Collaboration</h3>
+                <p className="text-white/80 text-xs leading-relaxed">Shared templates, signatures, and workflows for your entire team</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 text-white">
-              <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+            <div className="flex items-start gap-2.5 text-white">
+              <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
                 <Target className="w-4 h-4" />
               </div>
-              <div>
-                <h3 className="font-semibold text-base">Smart Organization</h3>
-                <p className="text-white/80 text-sm">Intelligent threading and prioritization keeps you focused</p>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold text-sm">Smart Organization</h3>
+                <p className="text-white/80 text-xs leading-relaxed">Intelligent threading and prioritization keeps you focused</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 text-white">
-              <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+            <div className="flex items-start gap-2.5 text-white">
+              <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
                 <Zap className="w-4 h-4" />
               </div>
-              <div>
-                <h3 className="font-semibold text-base">Lightning Fast Setup</h3>
-                <p className="text-white/80 text-sm">Connect your email accounts and start working in under 2 minutes</p>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold text-sm">Lightning Fast Setup</h3>
+                <p className="text-white/80 text-xs leading-relaxed">Connect your email accounts and start working in under 2 minutes</p>
               </div>
             </div>
           </div>
 
           {/* Value Proposition */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
-            <p className="text-white text-base leading-relaxed">
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+            <p className="text-white text-sm leading-relaxed">
               <span className="font-semibold">"EaseMail is built for teams that value efficiency."</span>
               <br />
-              <span className="text-white/80 text-sm mt-2 block">
+              <span className="text-white/80 text-xs mt-1.5 block leading-relaxed">
                 Unified inbox management, AI writing assistance, SMS integration, and powerful automation — all in one platform designed for modern professionals.
               </span>
             </p>
@@ -258,25 +258,25 @@ function AcceptInvitationContent() {
         </div>
 
         {/* Bottom Stats */}
-        <div className="relative z-10 space-y-3">
-          <div className="flex items-center gap-6 text-white">
+        <div className="relative z-10 space-y-2">
+          <div className="flex items-center gap-4 text-white">
             <div>
-              <div className="text-2xl font-bold">2 min</div>
-              <div className="text-xs text-white/80">Setup Time</div>
+              <div className="text-xl font-bold">2 min</div>
+              <div className="text-[10px] text-white/80">Setup Time</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">10x</div>
-              <div className="text-xs text-white/80">Faster Writing</div>
+              <div className="text-xl font-bold">10x</div>
+              <div className="text-[10px] text-white/80">Faster Writing</div>
             </div>
             <div>
-              <div className="text-2xl font-bold">100%</div>
-              <div className="text-xs text-white/80">Secure</div>
+              <div className="text-xl font-bold">100%</div>
+              <div className="text-[10px] text-white/80">Secure</div>
             </div>
           </div>
           
           <div className="flex items-center gap-2 text-white/90">
-            <CheckCircle2 className="w-4 h-4" />
-            <p className="text-xs">
+            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+            <p className="text-[10px] leading-relaxed">
               Your data is encrypted and never shared with third parties
             </p>
           </div>
