@@ -44,6 +44,12 @@ export const users = pgTable('users', {
   deactivatedAt: timestamp('deactivated_at'), // When account was deactivated (for 60-day deletion)
   createdBy: uuid('created_by').references((): any => users.id, { onDelete: 'set null' }), // Admin who created this user
   
+  // Invitation fields (modern flow where user creates their own password)
+  invitationToken: text('invitation_token'), // Secure token for invitation link
+  invitationExpiresAt: timestamp('invitation_expires_at'), // Invitation expiry (7 days)
+  invitationAcceptedAt: timestamp('invitation_accepted_at'), // When invitation was accepted
+  invitedBy: uuid('invited_by').references((): any => users.id, { onDelete: 'set null' }), // Admin who invited this user
+  
   // Onboarding fields
   onboardingCompleted: boolean('onboarding_completed').default(false), // Has user completed onboarding?
   onboardingStep: integer('onboarding_step').default(0), // Current step (0-7)

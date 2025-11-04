@@ -3,9 +3,13 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, emailAccounts, userAuditLogs } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
-import { generateSecurePassword, hashPassword, generatePasswordExpiry } from '@/lib/auth/password-utils';
 import { sendEmail } from '@/lib/email/send';
-import { getNewUserCredentialsTemplate, getNewUserCredentialsSubject } from '@/lib/email/templates/new-user-credentials';
+import { 
+  getInvitationEmailTemplate, 
+  getInvitationEmailSubject,
+  generateInvitationToken,
+  generateInvitationExpiry
+} from '@/lib/email/templates/invitation-email';
 
 // GET: List all users (admin only)
 export async function GET() {
@@ -116,35 +120,33 @@ export async function POST(request: NextRequest) {
     );
 
     let authUserId: string;
-    let tempPassword: string;
+    const invitationToken = generateInvitationToken();
+    const invitationExpiry = generateInvitationExpiry(7); // 7 days
 
     if (authUserExists) {
-      // User exists in auth but not in our DB - get their ID and reset password
+      // User exists in auth but not in our DB - get their ID
       const existingAuthUser = existingAuthUsers?.users?.find(
         u => u.email?.toLowerCase() === email.toLowerCase().trim()
       );
       authUserId = existingAuthUser!.id;
-      tempPassword = generateSecurePassword(16);
       
       console.log(`♻️ Reusing existing Supabase Auth user: ${authUserId}`);
       
-      // Update their password
+      // Update their metadata
       await adminClient.auth.admin.updateUserById(authUserId, {
-        password: tempPassword,
         user_metadata: {
           full_name: fullName,
         },
+        email_confirm: false, // They need to accept invitation first
       });
     } else {
-      // Create new auth user
-      tempPassword = generateSecurePassword(16);
+      // Create new auth user with a random password (they'll set their own)
+      const randomPassword = Math.random().toString(36).slice(-32); // Temporary, won't be used
       
-      console.log(`🔐 Generated temporary password for ${email}`);
-
       const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
         email: email.toLowerCase().trim(),
-        password: tempPassword,
-        email_confirm: true, // Skip email verification for admin-created users
+        password: randomPassword,
+        email_confirm: false, // They need to accept invitation first
         user_metadata: {
           full_name: fullName,
         },
@@ -162,20 +164,17 @@ export async function POST(request: NextRequest) {
       console.log(`✅ Created Supabase Auth user: ${authUserId}`);
     }
 
-    const hashedTempPassword = await hashPassword(tempPassword);
-    const tempPasswordExpiry = generatePasswordExpiry();
-
-    // Create user in database (use upsert to handle race conditions)
+    // Create user in database with invitation token
     const [newUser] = await db.insert(users).values({
       id: authUserId,
       email: email.toLowerCase().trim(),
       fullName,
       organizationId: organizationId || null,
       role: role,
-      accountStatus: 'pending', // User hasn't logged in yet
-      tempPassword: hashedTempPassword,
-      requirePasswordChange: true,
-      tempPasswordExpiresAt: tempPasswordExpiry,
+      accountStatus: 'pending', // User hasn't accepted invitation yet
+      invitationToken: invitationToken,
+      invitationExpiresAt: invitationExpiry,
+      invitedBy: currentUser.id,
       createdBy: currentUser.id,
     })
     .onConflictDoUpdate({
@@ -186,9 +185,9 @@ export async function POST(request: NextRequest) {
         organizationId: organizationId || null,
         role: role,
         accountStatus: 'pending',
-        tempPassword: hashedTempPassword,
-        requirePasswordChange: true,
-        tempPasswordExpiresAt: tempPasswordExpiry,
+        invitationToken: invitationToken,
+        invitationExpiresAt: invitationExpiry,
+        invitedBy: currentUser.id,
         updatedAt: new Date(),
       },
     })
@@ -212,42 +211,39 @@ export async function POST(request: NextRequest) {
 
     console.log(`📊 Logged audit event`);
 
-    // Send credentials email
-    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL}/login`;
+    // Send invitation email
+    const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/accept-invitation?token=${invitationToken}`;
     
     const emailData = {
       recipientName: fullName,
       recipientEmail: email,
-      organizationName: 'EaseMail',
-      tempPassword: tempPassword, // Send plain text password in email (only time it's exposed)
-      loginUrl: loginUrl,
+      invitationUrl: invitationUrl,
+      inviterName: currentUser.fullName || currentUser.email,
       expiryDays: 7,
-      adminName: currentUser.fullName || currentUser.email,
     };
 
     const emailResult = await sendEmail({
       to: email,
-      subject: getNewUserCredentialsSubject(emailData),
-      html: getNewUserCredentialsTemplate(emailData),
+      subject: getInvitationEmailSubject(emailData),
+      html: getInvitationEmailTemplate(emailData),
     });
 
     if (!emailResult.success) {
-      console.error('⚠️ Failed to send credentials email:', emailResult.error);
+      console.error('⚠️ Failed to send invitation email:', emailResult.error);
       // Don't fail the request - user was created successfully
     } else {
-      console.log(`✅ Credentials email sent to ${email}`);
+      console.log(`✅ Invitation email sent to ${email}`);
     }
 
     return NextResponse.json({
       success: true,
-      message: `User created successfully and credentials sent to ${email}`,
+      message: `User created successfully. Invitation email sent to ${email}`,
       user: {
         id: newUser.id,
         email: newUser.email,
         fullName: newUser.fullName,
         role: newUser.role,
         accountStatus: newUser.accountStatus,
-        tempPasswordExpiresAt: newUser.tempPasswordExpiresAt,
       },
       emailSent: emailResult.success,
     });
