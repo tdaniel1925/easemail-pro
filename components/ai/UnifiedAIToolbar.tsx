@@ -4,8 +4,8 @@
  * Single toolbar combining all 4 AI features:
  * - AI Write
  * - AI Remix
- * - Dictate
- * - Voice Message
+ * - Dictate (Inline)
+ * - Voice Message (Inline)
  */
 
 'use client';
@@ -15,9 +15,9 @@ import { Sparkles, Wand2, Mic, VoicemailIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AIWriteModal } from './AIWriteModal';
 import { AIRemixPanel } from './AIRemixPanel';
-import { DictateButton } from './DictateButton';
-import { DictationDialog } from './DictationDialog'; // ✅ NEW
-import { VoiceMessageRecorderModal } from './VoiceMessageRecorder';
+import { DictationDialog } from './DictationDialog';
+import { InlineDictationWidget } from '@/components/audio/InlineDictationWidget';
+import { InlineVoiceMessageWidget } from '@/components/audio/InlineVoiceMessageWidget';
 import { cn } from '@/lib/utils';
 
 interface UnifiedAIToolbarProps {
@@ -54,12 +54,12 @@ export function UnifiedAIToolbar({
 }: UnifiedAIToolbarProps) {
   const [showAIWrite, setShowAIWrite] = useState(false);
   const [showAIRemix, setShowAIRemix] = useState(false);
-  const [showVoiceMessage, setShowVoiceMessage] = useState(false);
-  const [showDictationDialog, setShowDictationDialog] = useState(false); // ✅ NEW
-  const [dictatedText, setDictatedText] = useState(''); // ✅ NEW
-  const [dictationInterim, setDictationInterim] = useState(''); // ✅ Track interim text
-  const [dictationAccumulated, setDictationAccumulated] = useState(''); // ✅ Track all final text during session
-  const [isListening, setIsListening] = useState(false); // ✅ Track dictation state
+  const [showDictationDialog, setShowDictationDialog] = useState(false);
+  const [dictatedText, setDictatedText] = useState('');
+  
+  // Inline widget states
+  const [showInlineDictation, setShowInlineDictation] = useState(false);
+  const [showInlineVoiceMessage, setShowInlineVoiceMessage] = useState(false);
 
   const hasContent = body.trim().length > 0;
 
@@ -72,54 +72,40 @@ export function UnifiedAIToolbar({
     onBodyChange(remixedBody);
   };
 
-  // ✅ NEW: Handle dictation completion (when user stops recording)
-  const handleDictationComplete = (fullText: string) => {
-    // Remove accumulated dictation text from body (we'll insert via dialog choice)
-    const cleanBody = body.replace(dictationAccumulated, '').replace(dictationInterim, '').trim();
-    onBodyChange(cleanBody);
-    setDictationInterim('');
-    setDictationAccumulated(''); // Reset for next session
-
-    // Show dialog with the complete transcript
-    setDictatedText(fullText);
+  // Handle dictation completion
+  const handleDictationComplete = (text: string) => {
+    setShowInlineDictation(false);
+    setDictatedText(text);
     setShowDictationDialog(true);
   };
 
-  // ✅ NEW: Handle "Use As-Is" from dialog
+  // Handle dictation cancellation
+  const handleDictationCancel = () => {
+    setShowInlineDictation(false);
+  };
+
+  // Handle "Use As-Is" from dialog
   const handleUseAsIs = (text: string) => {
-    // Append the raw dictated text to the body (add space before if body not empty)
     const separator = body.trim() ? ' ' : '';
     onBodyChange(body.trim() + separator + text);
   };
 
-  // ✅ NEW: Handle "Use Polished" from dialog
-  const handleUsePolished = (subject: string, polishedText: string) => {
-    // Set both subject and body
-    onSubjectChange(subject);
-    // Append the AI-polished text to the body (add space before if body not empty)
+  // Handle "Use Polished" from dialog
+  const handleUsePolished = (polishedSubject: string, polishedText: string) => {
+    onSubjectChange(polishedSubject);
     const separator = body.trim() ? ' ' : '';
     onBodyChange(body.trim() + separator + polishedText);
   };
 
-  // ✅ FIX: Real-time transcript that shows ALL text continuously
-  const handleDictateTranscript = (text: string, isFinal: boolean) => {
-    if (!isFinal) {
-      // Interim: Show as preview (gray, italic) after accumulated text
-      const baseText = body.replace(dictationInterim, '');
-      onBodyChange(baseText + text);
-      setDictationInterim(text);
-    } else {
-      // Final: Add to accumulated text and keep showing it
-      const cleanBody = body.replace(dictationInterim, '');
-      const newAccumulated = dictationAccumulated + text;
-      setDictationAccumulated(newAccumulated);
-      onBodyChange(cleanBody + newAccumulated);
-      setDictationInterim('');
-    }
+  // Handle voice message attachment
+  const handleVoiceAttach = (file: File, duration: number) => {
+    setShowInlineVoiceMessage(false);
+    onAttachVoiceMessage?.(file, duration);
   };
 
-  const handleVoiceAttach = (file: File, duration: number) => {
-    onAttachVoiceMessage?.(file, duration);
+  // Handle voice message cancellation  
+  const handleVoiceCancel = () => {
+    setShowInlineVoiceMessage(false);
   };
 
   // ✅ Keyboard shortcuts
@@ -150,6 +136,23 @@ export function UnifiedAIToolbar({
 
   return (
     <>
+      {/* Inline Widgets (appear above toolbar) */}
+      {showInlineDictation && (
+        <InlineDictationWidget
+          onComplete={handleDictationComplete}
+          onCancel={handleDictationCancel}
+          userTier={userTier}
+        />
+      )}
+
+      {showInlineVoiceMessage && (
+        <InlineVoiceMessageWidget
+          onAttach={handleVoiceAttach}
+          onCancel={handleVoiceCancel}
+        />
+      )}
+
+      {/* Toolbar */}
       <div className={cn('flex items-center gap-2 p-3 border-t border-border bg-card', className)}>
         {/* AI Write */}
         <Button
@@ -176,20 +179,30 @@ export function UnifiedAIToolbar({
           <span className="hidden sm:inline">AI Remix</span>
         </Button>
 
-        {/* Dictate */}
-        <DictateButton
-          onTranscript={handleDictateTranscript}
-          onDictationComplete={handleDictationComplete} // ✅ NEW
-          userTier={userTier}
-          className="hover:bg-accent"
-        />
-
-        {/* Voice Message */}
+        {/* Dictate - Toggle Inline Widget */}
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setShowVoiceMessage(true)}
-          className="hover:bg-accent"
+          onClick={() => setShowInlineDictation(!showInlineDictation)}
+          className={cn(
+            "hover:bg-accent",
+            showInlineDictation && "bg-accent"
+          )}
+          title="Dictate email (Ctrl+Shift+D)"
+        >
+          <Mic className="w-4 h-4 mr-2 text-primary" />
+          <span className="hidden sm:inline">Dictate</span>
+        </Button>
+
+        {/* Voice Message - Toggle Inline Widget */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowInlineVoiceMessage(!showInlineVoiceMessage)}
+          className={cn(
+            "hover:bg-accent",
+            showInlineVoiceMessage && "bg-accent"
+          )}
           title="Record voice message (Ctrl+Shift+M)"
         >
           <VoicemailIcon className="w-4 h-4 mr-2 text-primary" />
@@ -230,13 +243,7 @@ export function UnifiedAIToolbar({
         onApply={handleAIRemix}
       />
 
-      <VoiceMessageRecorderModal
-        isOpen={showVoiceMessage}
-        onClose={() => setShowVoiceMessage(false)}
-        onAttach={handleVoiceAttach}
-      />
-
-      {/* ✅ NEW: Dictation Dialog */}
+      {/* Dictation Dialog */}
       <DictationDialog
         isOpen={showDictationDialog}
         onClose={() => setShowDictationDialog(false)}
@@ -289,3 +296,4 @@ export function AIToolbarShortcuts({ toolbar }: { toolbar: HTMLDivElement | null
 
 return null;
 }
+
