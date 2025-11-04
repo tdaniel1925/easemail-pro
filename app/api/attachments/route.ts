@@ -16,7 +16,7 @@ export const runtime = 'nodejs';
 export async function GET(request: NextRequest) {
   try {
     // ✅ FIX: Get authenticated user instead of hardcoded ID
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {

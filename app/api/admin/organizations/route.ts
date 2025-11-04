@@ -4,10 +4,12 @@ import { db } from '@/lib/db/drizzle';
 import { users, organizations, organizationMembers } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // GET: Fetch all organizations
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -56,7 +58,7 @@ export async function GET(request: NextRequest) {
 // POST: Create new organization
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

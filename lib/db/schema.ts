@@ -465,7 +465,7 @@ export const emailDrafts = pgTable('email_drafts', {
   replyType: varchar('reply_type', { length: 20 }),
   
   // Recipients
-  to: jsonb('to').$type<Array<{ email: string; name?: string }>>().notNull(),
+  toRecipients: jsonb('to_recipients').$type<Array<{ email: string; name?: string }>>().notNull(),
   cc: jsonb('cc').$type<Array<{ email: string; name?: string }>>(),
   bcc: jsonb('bcc').$type<Array<{ email: string; name?: string }>>(),
   

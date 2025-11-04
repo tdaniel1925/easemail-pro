@@ -7,6 +7,8 @@ import { generateSecurePassword, hashPassword, generatePasswordExpiry } from '@/
 import { sendEmail } from '@/lib/email/send';
 import { getNewUserCredentialsTemplate, getNewUserCredentialsSubject } from '@/lib/email/templates/new-user-credentials';
 
+export const dynamic = 'force-dynamic';
+
 type RouteContext = {
   params: Promise<{ orgId: string }>;
 };
@@ -19,7 +21,7 @@ type RouteContext = {
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const { orgId } = await context.params;
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

@@ -151,12 +151,37 @@ async function handleMessageCreated(message: any) {
     const account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.nylasGrantId, message.grant_id),
     });
-    
+
     if (!account) {
       console.error('Account not found for message:', message.id);
       return;
     }
-    
+
+    // ✅ FIX: Check if message already exists (sent emails are saved first, then webhook fires)
+    const existingMessage = await db.query.emails.findFirst({
+      where: eq(emails.providerMessageId, sanitizeText(message.id)),
+    });
+
+    if (existingMessage) {
+      console.log(`⏭️ Skipping duplicate message ${message.id} (already exists in DB)`);
+      return;
+    }
+
+    // ✅ FIX: Determine folder - exclude sent folder messages if from webhook
+    // Gmail/Microsoft webhook fires for sent emails, but we already saved them
+    const folders = message.folders || [];
+    const isSentFolder = folders.some((f: string) =>
+      f.toLowerCase().includes('sent') ||
+      f.toLowerCase().includes('sent items') ||
+      f.toLowerCase() === '[gmail]/sent mail'
+    );
+
+    // Skip if this is a sent message coming from webhook (we already saved it when sending)
+    if (isSentFolder && message.from?.[0]?.email === account.emailAddress) {
+      console.log(`⏭️ Skipping sent message ${message.id} from webhook (already saved when sending)`);
+      return;
+    }
+
     // Insert message into database with sanitized text
     await db.insert(emails).values({
       accountId: account.id,
@@ -172,11 +197,13 @@ async function handleMessageCreated(message: any) {
       hasAttachments: message.attachments?.length > 0,
       isRead: message.unread === false,
       isStarred: message.starred === true,
+      folder: folders[0] || 'inbox',
+      folders: folders,
       receivedAt: new Date(message.date * 1000),
       providerData: message,
     }).onConflictDoNothing();
-    
-    console.log(`✅ Created message ${message.id} for account ${account.id}`);
+
+    console.log(`✅ Created message ${message.id} for account ${account.id} in folder ${folders[0] || 'inbox'}`);
   } catch (error: any) {
     console.error(`❌ Failed to create message ${message.id}:`, error.message || error);
     throw error; // Re-throw to be caught by parent handler

@@ -16,6 +16,8 @@ import { eq, and } from 'drizzle-orm';
 import { processAttachment } from '@/lib/attachments/ai-service';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 // Secure this endpoint - only allow internal calls or authenticated admin users
 const PROCESSING_BATCH_SIZE = 10;
 const MAX_FILE_SIZE_MB = 20;
@@ -73,7 +75,7 @@ export async function POST(request: NextRequest) {
     console.log(`🤖 Processing ${pendingAttachments.length} attachments...`);
 
     // Initialize Supabase client for storage
-    const supabase = createClient();
+    const supabase = await createClient();
     const results = [];
 
     // Process each attachment

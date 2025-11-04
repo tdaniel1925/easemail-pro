@@ -15,6 +15,8 @@ import { logSMSAudit } from '@/lib/sms/audit-service';
 import { checkSMSConsent } from '@/lib/sms/audit-service';
 import { eq, gte, lte, and } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 const SMS_PRICE = parseFloat(process.env.SMS_PRICE_PER_MESSAGE || '0.05');
 const SMS_COST = parseFloat(process.env.SMS_COST_PER_MESSAGE || '0.0075');
 

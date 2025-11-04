@@ -4,17 +4,19 @@ import { db } from '@/lib/db/drizzle';
 import { users, emailAccounts, userAuditLogs } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { sendEmail } from '@/lib/email/send';
-import { 
-  getInvitationEmailTemplate, 
+import {
+  getInvitationEmailTemplate,
   getInvitationEmailSubject,
   generateInvitationToken,
   generateInvitationExpiry
 } from '@/lib/email/templates/invitation-email';
 
+export const dynamic = 'force-dynamic';
+
 // GET: List all users (admin only)
 export async function GET() {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -65,7 +67,7 @@ export async function GET() {
 // POST: Create a new user (platform admin only)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

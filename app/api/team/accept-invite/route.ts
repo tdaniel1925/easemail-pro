@@ -4,13 +4,15 @@ import { teamInvitations, users, organizationMembers, organizations } from '@/li
 import { eq, and } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/team/accept-invite
  * Accept a team invitation
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

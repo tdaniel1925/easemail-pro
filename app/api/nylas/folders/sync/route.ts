@@ -128,19 +128,21 @@ export async function POST(request: NextRequest) {
 
         if (existing) {
           // Update existing folder (INCLUDING folderType to fix any that were miscategorized)
+          // ✅ FIX: Don't save unreadCount/totalCount from Nylas - they're often stale
+          // Counts are calculated in real-time from the emails table instead
           console.log(`  ✏️ Updating: ${folder.name} -> folderType: ${folderType}`);
           await db.update(emailFolders)
             .set({
               displayName: folder.name,
               folderType: folderType,  // Update type in case it changed
-              unreadCount: (folder as any).unreadCount || 0,
-              totalCount: (folder as any).totalCount || 0,
               lastSyncedAt: new Date(),
               updatedAt: new Date(),
             })
             .where(eq(emailFolders.id, existing.id));
         } else {
           // Insert new folder
+          // ✅ FIX: Don't save unreadCount/totalCount from Nylas - they're often stale
+          // Counts are calculated in real-time from the emails table instead
           console.log(`  ➕ Inserting: ${folder.name} -> folderType: ${folderType}`);
           await db.insert(emailFolders).values({
             accountId: account.id,
@@ -148,8 +150,8 @@ export async function POST(request: NextRequest) {
             displayName: folder.name,
             folderType: folderType,
             providerAttributes: folder.attributes as any,
-            unreadCount: (folder as any).unreadCount || 0,
-            totalCount: (folder as any).totalCount || 0,
+            unreadCount: 0, // Will be calculated in real-time
+            totalCount: 0, // Will be calculated in real-time
             lastSyncedAt: new Date(),
           });
         }

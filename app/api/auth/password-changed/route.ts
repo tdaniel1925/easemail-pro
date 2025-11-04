@@ -4,6 +4,8 @@ import { db } from '@/lib/db/drizzle';
 import { users, userAuditLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/auth/password-changed
  * Called after user successfully changes their password
@@ -17,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     // Verify the authenticated user matches the userId

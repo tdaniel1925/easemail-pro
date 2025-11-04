@@ -5,6 +5,8 @@ import { emailAccounts, emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 type RouteContext = {
   params: Promise<{ messageId: string; attachmentId: string }>;
 };
@@ -15,7 +17,7 @@ export async function GET(
 ) {
   try {
     // Authenticate user
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {

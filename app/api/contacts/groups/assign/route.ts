@@ -4,10 +4,12 @@ import { db } from '@/lib/db/drizzle';
 import { contactGroupMemberships, contactGroups, contacts } from '@/lib/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/contacts/groups/assign - Add contacts to groups
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -92,7 +94,7 @@ export async function POST(request: NextRequest) {
 // DELETE /api/contacts/groups/assign - Remove contacts from groups
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

@@ -50,21 +50,34 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
 
     // Query folder counts using SQL aggregation
     // This is MUCH faster than counting in JavaScript
-    const result = await db
-      .select({
-        folder: emails.folder,
-        totalCount: sql<number>`COUNT(*)::int`,
-        unreadCount: sql<number>`COUNT(*) FILTER (WHERE ${emails.isRead} = false)::int`,
-      })
-      .from(emails)
-      .where(
-        and(
-          eq(emails.accountId, accountId),
-          eq(emails.isTrashed, false), // Exclude trashed emails
-          eq(emails.isArchived, false) // Exclude archived emails
-        )
-      )
-      .groupBy(emails.folder);
+    // ✅ FIX: Count emails in ALL folders they belong to (using jsonb_array_elements for folders array)
+    const rawResult = await db.execute(sql`
+      SELECT
+        COALESCE(TRIM(BOTH '"' FROM folder_name::text), 'inbox') as folder,
+        COUNT(DISTINCT email_id)::int as "totalCount",
+        COUNT(DISTINCT email_id) FILTER (WHERE is_read = false)::int as "unreadCount"
+      FROM (
+        SELECT
+          e.id as email_id,
+          e.is_read,
+          CASE
+            WHEN e.folders IS NOT NULL AND jsonb_array_length(e.folders) > 0 THEN
+              jsonb_array_elements_text(e.folders)
+            ELSE
+              e.folder
+          END as folder_name
+        FROM emails e
+        WHERE
+          e.account_id = ${accountId}
+          AND e.is_trashed = false
+          AND e.is_archived = false
+      ) AS expanded_folders
+      WHERE folder_name IS NOT NULL AND folder_name != ''
+      GROUP BY folder_name
+      ORDER BY folder_name
+    `);
+
+    const result = rawResult.rows as Array<{ folder: string; totalCount: number; unreadCount: number }>;
 
     console.log(`📊 Calculated folder counts for account ${accountId}:`, result);
 
@@ -98,20 +111,28 @@ export async function getFolderCount(
   folderName: string
 ): Promise<{ totalCount: number; unreadCount: number }> {
   try {
-    const result = await db
-      .select({
-        totalCount: sql<number>`COUNT(*)::int`,
-        unreadCount: sql<number>`COUNT(*) FILTER (WHERE ${emails.isRead} = false)::int`,
-      })
-      .from(emails)
-      .where(
-        and(
-          eq(emails.accountId, accountId),
-          sql`LOWER(${emails.folder}) = LOWER(${folderName})`, // Case-insensitive
-          eq(emails.isTrashed, false),
-          eq(emails.isArchived, false)
+    // ✅ FIX: Check both folder field AND folders array for the folder name
+    const rawResult = await db.execute(sql`
+      SELECT
+        COUNT(DISTINCT e.id)::int as "totalCount",
+        COUNT(DISTINCT e.id) FILTER (WHERE e.is_read = false)::int as "unreadCount"
+      FROM emails e
+      WHERE
+        e.account_id = ${accountId}
+        AND e.is_trashed = false
+        AND e.is_archived = false
+        AND (
+          LOWER(e.folder) = LOWER(${folderName})
+          OR e.folders ? ${folderName}
+          OR EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements_text(e.folders) as folder_elem
+            WHERE LOWER(folder_elem) = LOWER(${folderName})
+          )
         )
-      );
+    `);
+
+    const result = rawResult.rows as Array<{ totalCount: number; unreadCount: number }>;
 
     if (result.length === 0) {
       return { totalCount: 0, unreadCount: 0 };

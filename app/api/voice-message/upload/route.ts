@@ -8,6 +8,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     // 1. Get form data
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
     const userId = req.headers.get('x-user-id') || 'anonymous';
 
     // 4. Upload to Supabase Storage
-    const supabase = createClient();
+    const supabase = await createClient();
     const filename = `${userId}/${Date.now()}-${audioFile.name}`;
 
     const { data, error } = await supabase.storage

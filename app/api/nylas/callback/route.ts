@@ -5,6 +5,8 @@ import { db } from '@/lib/db/drizzle';
 import { emailAccounts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
   const state = request.nextUrl.searchParams.get('state');
@@ -23,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
   
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     // For testing without auth, use the state as user ID or default test user

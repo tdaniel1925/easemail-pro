@@ -4,10 +4,12 @@ import { db } from '@/lib/db/drizzle';
 import { emails, labels, emailLabels } from '@/lib/db/schema';
 import { eq, inArray, and } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/labels/apply - Apply labels to one or more emails
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {

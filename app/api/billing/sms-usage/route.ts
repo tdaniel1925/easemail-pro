@@ -10,6 +10,8 @@ import { smsUsage, smsAuditLog } from '@/lib/db/schema';
 import { eq, desc, gte, lte, and } from 'drizzle-orm';
 import { generateSMSReceipt } from '@/lib/sms/audit-service';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();

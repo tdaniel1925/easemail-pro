@@ -4,6 +4,8 @@ import { db } from '@/lib/db/drizzle';
 import { users, organizationMembers } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 type RouteContext = {
   params: Promise<{ orgId: string }>;
 };
@@ -12,7 +14,7 @@ type RouteContext = {
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { orgId } = await context.params;
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

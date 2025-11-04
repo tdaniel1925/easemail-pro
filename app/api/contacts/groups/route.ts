@@ -4,10 +4,12 @@ import { db } from '@/lib/db/drizzle';
 import { contactGroups } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/contacts/groups - List all user's groups
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
 // POST /api/contacts/groups - Create new group
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

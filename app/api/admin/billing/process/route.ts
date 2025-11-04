@@ -17,7 +17,7 @@ export const maxDuration = 300; // 5 minutes for billing process
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

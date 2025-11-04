@@ -9,6 +9,8 @@ import { db } from '@/lib/db/drizzle';
 import { contactNotes } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 interface RouteContext {
   params: {
     contactId: string;
@@ -21,7 +23,7 @@ export async function GET(
   { params }: RouteContext
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -55,7 +57,7 @@ export async function POST(
   { params }: RouteContext
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -101,7 +103,7 @@ export async function PATCH(
   { params }: RouteContext
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
@@ -158,7 +160,7 @@ export async function DELETE(
   { params }: RouteContext
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {

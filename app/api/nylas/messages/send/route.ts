@@ -7,6 +7,8 @@ import { eq } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 import { sanitizeText } from '@/lib/utils/text-sanitizer';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate user

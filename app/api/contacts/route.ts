@@ -4,6 +4,8 @@ import { db } from '@/lib/db/drizzle';
 import { contacts } from '@/lib/db/schema';
 import { eq, and, or, ilike } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user

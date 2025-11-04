@@ -4,10 +4,12 @@ import { db } from '@/lib/db/drizzle';
 import { contactTagAssignments, contactTags, contacts } from '@/lib/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/contacts/tags/assign - Assign tags to contacts
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -92,7 +94,7 @@ export async function POST(request: NextRequest) {
 // DELETE /api/contacts/tags/assign - Remove tags from contacts
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

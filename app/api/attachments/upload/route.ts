@@ -8,6 +8,8 @@ import { db } from '@/lib/db/drizzle';
 import { attachments } from '@/lib/db/schema';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
 export async function POST(request: NextRequest) {
@@ -17,7 +19,7 @@ export async function POST(request: NextRequest) {
     console.log('📎 Upload API called');
     
     // Get authenticated user
-    const supabase = createClient();
+    const supabase = await createClient();
     console.log('✅ Supabase client created');
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();

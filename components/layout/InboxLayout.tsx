@@ -207,19 +207,20 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     }
   };
 
-  // ✅ FIX #3: Clear folders when account changes, then fetch new ones
+  // ✅ FIX #3: Fetch folders when account changes WITHOUT clearing first (prevents flash)
   useEffect(() => {
     if (selectedAccountId) {
-      console.log('[Folders] Account changed, clearing folders and fetching new ones...');
-      setFolders([]); // Clear old folders immediately
+      console.log('[Folders] Account changed, fetching folders...');
+      // ✅ FIX: Don't clear folders here - let fetchFolders handle it smoothly with loading state
       fetchFolders(selectedAccountId);
     }
   }, [selectedAccountId]);
 
   // ✅ Refetch accounts when navigating back to inbox (e.g., from /accounts page)
+  // But only if we don't already have accounts loaded (prevents unnecessary flashing)
   useEffect(() => {
-    if (pathname === '/inbox') {
-      console.log('[Navigation] Navigated to inbox, refetching accounts...');
+    if (pathname === '/inbox' && accounts.length === 0) {
+      console.log('[Navigation] Navigated to inbox without accounts, fetching...');
       fetchAccounts();
     }
   }, [pathname]);

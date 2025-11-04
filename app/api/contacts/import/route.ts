@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { contacts } from '@/lib/db/schema';
 
+export const dynamic = 'force-dynamic';
+
 interface CSVRow {
   'First Name'?: string;
   'Last Name'?: string;

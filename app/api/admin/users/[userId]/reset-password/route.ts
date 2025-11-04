@@ -7,6 +7,8 @@ import { generateSecurePassword, hashPassword, generatePasswordExpiry } from '@/
 import { sendEmail } from '@/lib/email/send';
 import { getPasswordResetCredentialsTemplate, getPasswordResetCredentialsSubject } from '@/lib/email/templates/password-reset-credentials';
 
+export const dynamic = 'force-dynamic';
+
 type RouteContext = {
   params: Promise<{ userId: string }>;
 };

@@ -45,12 +45,19 @@ export default function EmailClient({
 
   // Track when account check is complete (either we have an account or confirmed there are none)
   useEffect(() => {
-    // Give a brief moment for parent to load accounts
-    const timer = setTimeout(() => {
+    // ✅ FIX: Only mark complete when we have definitive account state
+    // If propAccountId changes from null to a value, we have an account
+    // If it stays null after initial load, parent has confirmed no accounts exist
+    if (propAccountId !== null && propAccountId !== undefined) {
+      // We have an account - mark complete immediately
       setAccountCheckComplete(true);
-    }, 500); // 500ms delay to let parent component load accounts
-
-    return () => clearTimeout(timer);
+    } else {
+      // No account yet - wait briefly to let parent finish loading
+      const timer = setTimeout(() => {
+        setAccountCheckComplete(true);
+      }, 200); // Reduced from 500ms to 200ms for faster response
+      return () => clearTimeout(timer);
+    }
   }, [propAccountId]);
 
   // Fetch emails when search query, folder, or accountId changes (with debouncing)

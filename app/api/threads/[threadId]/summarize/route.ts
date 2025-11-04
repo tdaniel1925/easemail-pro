@@ -13,7 +13,7 @@ export async function POST(
   { params }: { params: { threadId: string } }
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {

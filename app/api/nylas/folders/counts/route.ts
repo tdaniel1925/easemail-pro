@@ -12,6 +12,8 @@ import { db } from '@/lib/db/drizzle';
 import { emailAccounts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 export const runtime = 'nodejs';
 export const revalidate = 0; // Never cache - always fresh
 

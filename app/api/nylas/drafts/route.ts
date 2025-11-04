@@ -4,6 +4,8 @@ import { emailDrafts, emailAccounts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 // GET: Fetch drafts for an account
 export async function GET(request: NextRequest) {
   try {
@@ -100,7 +102,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       accountId,
       provider: account.emailProvider,
-      to: parsedTo,
+      toRecipients: parsedTo,
       cc: parseRecipients(cc),
       bcc: parseRecipients(bcc),
       subject: subject || '',

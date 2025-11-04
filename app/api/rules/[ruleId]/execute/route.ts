@@ -22,7 +22,7 @@ export async function POST(
 ) {
   try {
     const { ruleId } = await context.params;
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

@@ -4,13 +4,15 @@ import { db } from '@/lib/db/drizzle';
 import { labels, emailLabels, emails } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // DELETE /api/labels/[id] - Delete a label
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {

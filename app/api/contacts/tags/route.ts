@@ -4,10 +4,12 @@ import { db } from '@/lib/db/drizzle';
 import { contactTags, contactTagAssignments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/contacts/tags - List all user's tags
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
 // POST /api/contacts/tags - Create new tag
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

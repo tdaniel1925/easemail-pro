@@ -12,6 +12,8 @@ import { eq, and } from 'drizzle-orm';
 import { SignatureService } from '@/lib/signatures/signature-service';
 import type { CreateSignatureRequest } from '@/lib/signatures/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();

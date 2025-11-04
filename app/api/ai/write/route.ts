@@ -12,6 +12,8 @@ import { db } from '@/lib/db/drizzle';
 import { emailSignatures, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     // 1. Parse request body

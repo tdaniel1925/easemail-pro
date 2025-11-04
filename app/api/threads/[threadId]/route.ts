@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: { threadId: string } }
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
@@ -56,7 +56,7 @@ export async function PUT(
   { params }: { params: { threadId: string } }
 ) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {

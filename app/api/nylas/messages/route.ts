@@ -10,6 +10,8 @@ import { extractAndSaveAttachments } from '@/lib/attachments/extract-from-email'
 import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 import { createClient } from '@/lib/supabase/server'; // ✅ FIX #5: Import Supabase for auth
 
+export const dynamic = 'force-dynamic';
+
 // Enable Node.js runtime for better performance
 export const runtime = 'nodejs';
 // Cache responses for 5 seconds to reduce database load

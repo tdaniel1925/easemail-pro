@@ -9,6 +9,8 @@ import { db } from '@/lib/db/drizzle';
 import { smsMessages } from '@/lib/db/schema';
 import { eq, desc, and, gte, lte, or, like } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
