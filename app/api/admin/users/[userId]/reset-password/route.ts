@@ -5,7 +5,7 @@ import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { generateSecurePassword, hashPassword, generatePasswordExpiry } from '@/lib/auth/password-utils';
 import { sendEmail } from '@/lib/email/send';
-import { getNewUserCredentialsTemplate, getNewUserCredentialsSubject } from '@/lib/email/templates/new-user-credentials';
+import { getPasswordResetCredentialsTemplate, getPasswordResetCredentialsSubject } from '@/lib/email/templates/password-reset-credentials';
 
 type RouteContext = {
   params: Promise<{ userId: string }>;
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     console.log(`📝 Updated user record in database`);
 
-    // Send NEW credentials email
+    // Send password reset credentials email
     const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL}/login`;
     
     const emailData = {
@@ -91,19 +91,19 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const result = await sendEmail({
       to: targetUser.email,
-      subject: `[Password Reset] ${getNewUserCredentialsSubject(emailData)}`,
-      html: getNewUserCredentialsTemplate(emailData),
+      subject: getPasswordResetCredentialsSubject(emailData),
+      html: getPasswordResetCredentialsTemplate(emailData),
     });
 
     if (!result.success) {
-      console.error('⚠️ Failed to send credentials email:', result.error);
+      console.error('⚠️ Failed to send password reset email:', result.error);
       return NextResponse.json({ 
         error: 'Password was updated but failed to send email',
         details: result.error 
       }, { status: 500 });
     }
 
-    console.log(`✅ New credentials email sent to ${targetUser.email}`);
+    console.log(`✅ Password reset email sent to ${targetUser.email}`);
 
     return NextResponse.json({ 
       success: true, 
