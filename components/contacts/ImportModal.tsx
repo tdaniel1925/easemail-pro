@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Upload, X, CheckCircle, AlertCircle, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ColumnMappingModal } from './ColumnMappingModal';
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -15,12 +16,31 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [csvData, setCsvData] = useState<any[]>([]);
+  const [showMapping, setShowMapping] = useState(false);
+  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile && selectedFile.type === 'text/csv') {
       setFile(selectedFile);
       setResult(null);
+      
+      // Parse CSV to get headers
+      try {
+        const text = await selectedFile.text();
+        const parsed = parseCSV(text);
+        if (parsed.length > 0) {
+          const headers = Object.keys(parsed[0]);
+          setCsvHeaders(headers);
+          setCsvData(parsed);
+          setShowMapping(true); // Show mapping modal
+        }
+      } catch (error) {
+        console.error('Failed to parse CSV:', error);
+        alert('Failed to read CSV file');
+      }
     } else {
       alert('Please select a valid CSV file');
     }
@@ -45,6 +65,61 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
     }
 
     return data;
+  };
+
+  const handleMappingConfirm = (mapping: Record<string, string>) => {
+    setColumnMapping(mapping);
+    setShowMapping(false);
+    // Auto-proceed to import after mapping
+    performImport(mapping);
+  };
+
+  const performImport = async (mapping: Record<string, string>) => {
+    setImporting(true);
+    try {
+      // Transform CSV data using the mapping
+      const mappedContacts = csvData.map(row => {
+        const contact: any = {};
+        
+        for (const [fieldKey, csvColumn] of Object.entries(mapping)) {
+          if (csvColumn && row[csvColumn]) {
+            contact[fieldKey] = row[csvColumn];
+          }
+        }
+        
+        return contact;
+      });
+
+      if (mappedContacts.length === 0) {
+        alert('No valid contacts found after mapping');
+        setImporting(false);
+        return;
+      }
+
+      const response = await fetch('/api/contacts/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contacts: mappedContacts }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setResult(data);
+        if (data.imported > 0) {
+          setTimeout(() => {
+            onSuccess();
+          }, 2000);
+        }
+      } else {
+        alert(data.error || 'Failed to import contacts');
+      }
+    } catch (error) {
+      console.error('Import failed:', error);
+      alert('Failed to import contacts');
+    } finally {
+      setImporting(false);
+    }
   };
 
   const handleImport = async () => {
@@ -198,12 +273,13 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
           {/* CSV Format Help */}
           {!result && (
             <div className="bg-muted/50 p-4 rounded-lg">
-              <h4 className="font-semibold mb-2 text-sm">CSV Format Requirements:</h4>
+              <h4 className="font-semibold mb-2 text-sm">How It Works:</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• <strong>Email</strong> field is required</li>
-                <li>• Supported columns: First Name, Last Name, Email, Phone, Company, Job Title, Location, Website, LinkedIn, Twitter, Tags, Notes</li>
-                <li>• Tags should be comma-separated (e.g., "VIP,Client,Work")</li>
-                <li>• First row should contain column headers</li>
+                <li>• Upload any CSV file with contact information</li>
+                <li>• Map your CSV columns to our contact fields</li>
+                <li>• We'll auto-detect common field names for you</li>
+                <li>• <strong>Email</strong> field is required, all others are optional</li>
+                <li>• Skip columns you don't need</li>
               </ul>
             </div>
           )}
@@ -213,23 +289,21 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
             <Button variant="outline" onClick={handleClose}>
               {result ? 'Close' : 'Cancel'}
             </Button>
-            {!result && (
-              <Button onClick={handleImport} disabled={!file || importing}>
-                {importing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Importing...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import Contacts
-                  </>
-                )}
+            {!result && file && !importing && (
+              <Button onClick={() => setShowMapping(true)}>
+                Review Mapping
               </Button>
             )}
           </div>
         </div>
+
+        {/* Column Mapping Modal */}
+        <ColumnMappingModal
+          isOpen={showMapping}
+          onClose={() => setShowMapping(false)}
+          csvHeaders={csvHeaders}
+          onConfirm={handleMappingConfirm}
+        />
       </DialogContent>
     </Dialog>
   );

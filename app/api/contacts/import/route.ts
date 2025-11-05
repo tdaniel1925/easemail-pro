@@ -5,6 +5,7 @@ import { contacts } from '@/lib/db/schema';
 
 export const dynamic = 'force-dynamic';
 
+// Flexible row format - can use camelCase (from mapping) or original CSV column names
 interface CSVRow {
   'First Name'?: string;
   'Last Name'?: string;
@@ -18,6 +19,19 @@ interface CSVRow {
   'Twitter'?: string;
   'Tags'?: string;
   'Notes'?: string;
+  // Support camelCase from mapping
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  jobTitle?: string;
+  location?: string;
+  website?: string;
+  linkedin?: string;
+  twitter?: string;
+  tags?: string;
+  notes?: string;
   [key: string]: string | undefined;
 }
 
@@ -46,19 +60,24 @@ export async function POST(request: NextRequest) {
 
     for (const row of contactsData) {
       try {
+        // Support both camelCase (from mapping) and Title Case (from template)
+        const getField = (camelCase: string, titleCase: string) =>
+          row[camelCase]?.trim() || row[titleCase]?.trim() || '';
+
         // Skip if no email
-        if (!row.Email || !row.Email.trim()) {
+        const email = getField('email', 'Email');
+        if (!email) {
           errors.push({ row, error: 'Missing email' });
           continue;
         }
 
-        const email = row.Email.trim().toLowerCase();
+        const emailLower = email.toLowerCase();
 
         // Check if contact already exists
         const existing = await db.query.contacts.findFirst({
           where: (contacts, { and, eq }) => and(
             eq(contacts.userId, user.id),
-            eq(contacts.email, email)
+            eq(contacts.email, emailLower)
           ),
         });
 
@@ -68,31 +87,41 @@ export async function POST(request: NextRequest) {
         }
 
         // Parse tags
-        let tags: string[] = [];
-        if (row.Tags) {
-          tags = row.Tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+        let tagsList: string[] = [];
+        const tagsField = getField('tags', 'Tags');
+        if (tagsField) {
+          tagsList = tagsField.split(',').map((t: string) => t.trim()).filter(Boolean);
         }
 
-        // Create contact
-        const firstName = row['First Name']?.trim() || '';
-        const lastName = row['Last Name']?.trim() || '';
+        // Get all fields
+        const firstName = getField('firstName', 'First Name');
+        const lastName = getField('lastName', 'Last Name');
+        const phone = getField('phone', 'Phone');
+        const company = getField('company', 'Company');
+        const jobTitle = getField('jobTitle', 'Job Title');
+        const location = getField('location', 'Location');
+        const website = getField('website', 'Website');
+        const linkedin = getField('linkedin', 'LinkedIn');
+        const twitter = getField('twitter', 'Twitter');
+        const notes = getField('notes', 'Notes');
 
+        // Create contact
         const newContact = await db.insert(contacts).values({
           userId: user.id,
-          email,
+          email: emailLower,
           firstName: firstName || null,
           lastName: lastName || null,
           fullName: firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || null,
-          displayName: firstName || email.split('@')[0],
-          phone: row.Phone?.trim() || null,
-          company: row.Company?.trim() || null,
-          jobTitle: row['Job Title']?.trim() || null,
-          location: row.Location?.trim() || null,
-          website: row.Website?.trim() || null,
-          linkedinUrl: row.LinkedIn?.trim() || null,
-          twitterHandle: row.Twitter?.trim() || null,
-          notes: row.Notes?.trim() || null,
-          tags,
+          displayName: firstName || emailLower.split('@')[0],
+          phone: phone || null,
+          company: company || null,
+          jobTitle: jobTitle || null,
+          location: location || null,
+          website: website || null,
+          linkedinUrl: linkedin || null,
+          twitterHandle: twitter || null,
+          notes: notes || null,
+          tags: tagsList,
         }).returning();
 
         imported.push(newContact[0]);
