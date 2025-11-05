@@ -50,7 +50,7 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
 
     // Query folder counts using SQL aggregation
     // This is MUCH faster than counting in JavaScript
-    // ✅ FIX: Count emails in ALL folders they belong to (using jsonb_array_elements for folders array)
+    // ✅ FIX: Use LATERAL join instead of CASE with set-returning function
     const rawResult = await db.execute<{ folder: string; totalCount: number; unreadCount: number }>(sql`
       SELECT
         COALESCE(TRIM(BOTH '"' FROM folder_name::text), 'inbox') as folder,
@@ -60,17 +60,35 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
         SELECT
           e.id as email_id,
           e.is_read,
-          CASE
-            WHEN e.folders IS NOT NULL AND jsonb_array_length(e.folders) > 0 THEN
-              jsonb_array_elements_text(e.folders)
-            ELSE
-              e.folder
-          END as folder_name
+          e.folder as folder_name
         FROM emails e
         WHERE
           e.account_id = ${accountId}
           AND e.is_trashed = false
           AND e.is_archived = false
+          AND e.folder IS NOT NULL
+          AND e.folder != ''
+        
+        UNION ALL
+        
+        SELECT
+          e.id as email_id,
+          e.is_read,
+          folder_elem as folder_name
+        FROM emails e
+        CROSS JOIN LATERAL jsonb_array_elements_text(
+          CASE 
+            WHEN e.folders IS NOT NULL AND jsonb_array_length(e.folders) > 0 
+            THEN e.folders 
+            ELSE '[]'::jsonb 
+          END
+        ) AS folder_elem
+        WHERE
+          e.account_id = ${accountId}
+          AND e.is_trashed = false
+          AND e.is_archived = false
+          AND folder_elem IS NOT NULL
+          AND folder_elem != ''
       ) AS expanded_folders
       WHERE folder_name IS NOT NULL AND folder_name != ''
       GROUP BY folder_name
