@@ -8,16 +8,25 @@ import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 // Verify webhook signature
 function verifyWebhookSignature(payload: string, signature: string): boolean {
   if (!process.env.NYLAS_WEBHOOK_SECRET) {
-    console.warn('NYLAS_WEBHOOK_SECRET not set - skipping signature verification');
+    console.warn('⚠️ NYLAS_WEBHOOK_SECRET not set - skipping signature verification');
     return true; // Allow in development
   }
   
   try {
     const hmac = crypto.createHmac('sha256', process.env.NYLAS_WEBHOOK_SECRET);
     const digest = hmac.update(payload).digest('hex');
+    
+    // Log for debugging (first 20 chars only for security)
+    console.log('[Webhook] Signature verification:', {
+      receivedSignature: signature.substring(0, 20) + '...',
+      calculatedSignature: digest.substring(0, 20) + '...',
+      payloadLength: payload.length,
+      match: signature === digest
+    });
+    
     return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest));
   } catch (error) {
-    console.error('Signature verification error:', error);
+    console.error('❌ Signature verification error:', error);
     return false;
   }
 }
@@ -29,13 +38,17 @@ export async function POST(request: NextRequest) {
   try {
     payload = await request.text();
   } catch (error) {
-    console.error('Failed to read request body:', error);
+    console.error('❌ Failed to read request body:', error);
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
   
-  // Verify signature
-  if (!verifyWebhookSignature(payload, signature)) {
-    console.error('Invalid webhook signature');
+  // Verify signature (can be disabled with DISABLE_WEBHOOK_VERIFICATION=true for debugging)
+  const skipVerification = process.env.DISABLE_WEBHOOK_VERIFICATION === 'true';
+  
+  if (skipVerification) {
+    console.warn('⚠️ Webhook signature verification DISABLED (DISABLE_WEBHOOK_VERIFICATION=true)');
+  } else if (!verifyWebhookSignature(payload, signature)) {
+    console.error('❌ Invalid webhook signature');
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
   
@@ -43,7 +56,7 @@ export async function POST(request: NextRequest) {
   try {
     event = JSON.parse(payload);
   } catch (error) {
-    console.error('Failed to parse webhook payload:', error);
+    console.error('❌ Failed to parse webhook payload:', error);
     return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
   }
   
