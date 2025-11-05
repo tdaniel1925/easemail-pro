@@ -19,6 +19,7 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '10mb',
     },
+    instrumentationHook: true,
   },
   // ✅ SECURITY: Add security headers
   async headers() {
