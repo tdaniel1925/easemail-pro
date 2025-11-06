@@ -61,12 +61,11 @@ export async function GET(request: NextRequest) {
     console.log(`✅ Cleanup complete: Deleted ${deletedCount} inactive conversations`);
 
     // Get remaining active conversations count
-    const activeConversations = await db.execute(sql`
-      SELECT COUNT(*) as count
-      FROM sms_conversations
-    `);
+    const activeConversations = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(smsConversations);
 
-    const activeCount = activeConversations.rows[0]?.count || 0;
+    const activeCount = activeConversations[0]?.count || 0;
 
     return NextResponse.json({
       success: true,
