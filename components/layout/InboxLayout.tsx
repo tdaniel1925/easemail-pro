@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar, Paperclip, Zap, Shield, Users, Bot } from 'lucide-react';
+import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar, Paperclip, Zap, Shield, Users, Bot, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
@@ -443,6 +443,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   // ✅ FIX #2: Use lowercase folder names to match database values
   const defaultFolders = [
     { name: 'inbox', icon: Mail, count: 0, href: '/inbox', active: true, displayName: 'Inbox' },
+    { name: 'sms', icon: MessageSquare, count: 0, href: '/inbox', displayName: 'SMS', isSMS: true },
     { name: 'starred', icon: Star, count: 0, href: '/inbox', displayName: 'Starred' },
     { name: 'snoozed', icon: Clock, count: 0, href: '/inbox', displayName: 'Snoozed' },
     { name: 'sent', icon: Send, count: 0, href: '/inbox', displayName: 'Sent' },

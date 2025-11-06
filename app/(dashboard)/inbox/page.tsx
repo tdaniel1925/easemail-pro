@@ -5,11 +5,21 @@ import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import InboxLayout from '@/components/layout/InboxLayout';
 import EmailClient from '@/components/email/EmailClient';
+import { SMSInbox } from '@/components/sms/SMSInbox';
 
 function InboxContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const searchParams = useSearchParams();
   const folder = searchParams.get('folder') || null;
+
+  // Show SMS inbox if folder is 'sms'
+  if (folder === 'sms') {
+    return (
+      <InboxLayout>
+        <SMSInbox />
+      </InboxLayout>
+    );
+  }
 
   return (
     <InboxLayout>
