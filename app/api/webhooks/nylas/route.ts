@@ -4,6 +4,7 @@ import { db } from '@/lib/db/drizzle';
 import { webhookEvents, emailAccounts, emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
+import * as Sentry from '@sentry/nextjs';
 
 // Verify webhook signature
 function verifyWebhookSignature(payload: string, signature: string): boolean {
@@ -77,6 +78,22 @@ export async function POST(request: NextRequest) {
         processed: false,
       }).catch((insertError) => {
         console.error('❌ Failed to queue webhook event:', insertError);
+        
+        // Capture in Sentry
+        Sentry.captureException(insertError, {
+          tags: {
+            component: 'webhook',
+            operation: 'queue_event',
+            event_type: event.type,
+          },
+          extra: {
+            eventId: event.id,
+            eventType: event.type,
+            errorCode: insertError?.code,
+            errorMessage: insertError?.message,
+          },
+        });
+        
         // Don't throw - already responded to Nylas
       });
       
@@ -85,15 +102,55 @@ export async function POST(request: NextRequest) {
       // Log slow inserts for monitoring (>3s is concerning)
       if (insertDuration > 3000) {
         console.warn(`⚠️ Slow webhook insert: ${insertDuration}ms for event ${event.id} (type: ${event.type})`);
+        
+        // Track slow queries in Sentry
+        Sentry.captureMessage('Slow webhook database insert', {
+          level: 'warning',
+          tags: {
+            component: 'webhook',
+            performance: 'slow_query',
+          },
+          extra: {
+            duration: insertDuration,
+            eventId: event.id,
+            eventType: event.type,
+          },
+        });
       }
       
       // Process immediately (best effort, don't block)
       processWebhookEvent(event).catch((processError) => {
         console.error('❌ Failed to process webhook event:', processError);
+        
+        // Capture in Sentry
+        Sentry.captureException(processError, {
+          tags: {
+            component: 'webhook',
+            operation: 'process_event',
+            event_type: event.type,
+          },
+          extra: {
+            eventId: event.id,
+            eventType: event.type,
+          },
+        });
+        
         // Event is queued, can be retried later
       });
     } catch (error) {
       console.error('❌ Webhook background processing error:', error);
+      
+      // Capture in Sentry
+      Sentry.captureException(error, {
+        tags: {
+          component: 'webhook',
+          operation: 'background_processing',
+        },
+        extra: {
+          eventId: event?.id,
+          eventType: event?.type,
+        },
+      });
     }
   });
   
