@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ Routed inbound SMS:', {
       userId: conversation.userId,
       contactId: conversation.contactId,
-      messageCount: conversation.messageCount + 1,
+      messageCount: (conversation.messageCount || 0) + 1,
     });
 
     // Step 2: Save inbound SMS to database
