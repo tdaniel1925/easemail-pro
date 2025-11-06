@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Step 1: Look up conversation mapping (this tells us which user to route to)
     console.log('🔍 Looking up conversation mapping...');
-    const conversation = await db.query.smsConversations.findFirst({
+    let conversation = await db.query.smsConversations.findFirst({
       where: and(
         eq(smsConversations.contactPhone, inboundData.from),
         eq(smsConversations.twilioNumber, inboundData.to)
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       }).returning();
 
       // Use the new conversation for routing
-      conversation = newConversation as any;
+      conversation = newConversation;
     }
 
     console.log('✅ Routed inbound SMS:', {
