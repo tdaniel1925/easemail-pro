@@ -6,14 +6,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { smsMessages, smsUsage, contactCommunications } from '@/lib/db/schema';
+import { smsMessages, smsUsage, contactCommunications, smsConversations } from '@/lib/db/schema';
 import { sendSMSWithTestMode } from '@/lib/sms/twilio-client';
 import { checkRateLimit } from '@/lib/sms/rate-limiter';
 import { parseInternationalPhone, isSMSSupportedCountry } from '@/lib/utils/phone';
 import { calculateSMSSegments, validateSMSLength } from '@/lib/sms/character-counter';
 import { logSMSAudit } from '@/lib/sms/audit-service';
 import { checkSMSConsent } from '@/lib/sms/audit-service';
-import { eq, gte, lte, and } from 'drizzle-orm';
+import { eq, gte, lte, and, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -179,7 +179,37 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ No contactId provided, skipping timeline entry');
     }
 
-    // 10. Audit Log
+    // 10. Track SMS conversation for inbound routing
+    if (contactId) {
+      try {
+        console.log('🔗 Tracking SMS conversation for inbound routing...');
+        
+        // Create or update conversation record
+        await db.insert(smsConversations).values({
+          userId: user.id,
+          contactId: contactId,
+          contactPhone: phoneValidation.e164!,
+          twilioNumber: process.env.TWILIO_PHONE_NUMBER || '',
+          lastMessageAt: new Date(),
+          messageCount: 1,
+        }).onConflictDoUpdate({
+          target: [smsConversations.contactPhone, smsConversations.twilioNumber],
+          set: {
+            lastMessageAt: new Date(),
+            contactId: contactId, // Update in case contact changed
+            messageCount: sql`${smsConversations.messageCount} + 1`,
+            updatedAt: new Date(),
+          },
+        });
+        
+        console.log('✅ Conversation tracked for inbound SMS routing');
+      } catch (convError: any) {
+        // Don't fail the whole SMS send if conversation tracking fails
+        console.error('⚠️ Failed to track conversation:', convError.message);
+      }
+    }
+
+    // 11. Audit Log
     await logSMSAudit({
       userId: user.id,
       smsId: smsRecord.id,
@@ -194,10 +224,10 @@ export async function POST(request: NextRequest) {
       userAgent: request.headers.get('user-agent') || undefined,
     });
 
-    // 11. Update usage tracking
+    // 12. Update usage tracking
     await updateUsageTracking(user.id, result.cost || SMS_COST, totalCost);
 
-    // 12. Success response
+    // 13. Success response
     console.log('✅ SMS API Success - returning response with twilioSid:', result.sid);
     
     return NextResponse.json({

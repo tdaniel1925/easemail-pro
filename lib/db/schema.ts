@@ -628,6 +628,31 @@ export const smsMessages = pgTable('sms_messages', {
   createdAtIdx: index('sms_messages_created_at_idx').on(table.createdAt),
 }));
 
+// SMS Conversation Tracking (for routing inbound SMS to correct user)
+export const smsConversations = pgTable('sms_conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'cascade' }).notNull(),
+  
+  // Phone number mapping
+  contactPhone: varchar('contact_phone', { length: 50 }).notNull(),
+  twilioNumber: varchar('twilio_number', { length: 50 }).notNull(),
+  
+  // Tracking
+  lastMessageAt: timestamp('last_message_at').notNull(),
+  messageCount: integer('message_count').default(1),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('sms_conv_user_id_idx').on(table.userId),
+  contactIdIdx: index('sms_conv_contact_id_idx').on(table.contactId),
+  phoneIdx: index('sms_conv_phone_idx').on(table.contactPhone),
+  twilioIdx: index('sms_conv_twilio_idx').on(table.twilioNumber),
+  // Unique constraint: one active conversation per phone pair
+  uniqueConversation: unique('sms_conv_unique').on(table.contactPhone, table.twilioNumber),
+}));
+
 // SMS Usage Tracking
 export const smsUsage = pgTable('sms_usage', {
   id: uuid('id').defaultRandom().primaryKey(),
