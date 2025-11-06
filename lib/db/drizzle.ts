@@ -10,15 +10,19 @@ import * as schema from './schema';
 // postgresql://postgres:[password]@db.[project-ref].supabase.co:6543/postgres?pgbouncer=true
 const connectionString = process.env.DATABASE_URL!;
 
-// Configure connection pool with production-ready limits
+// ✅ CRITICAL FIX: Optimized connection pool for serverless + webhook volume
+// Supabase Pooler (Transaction Mode) has connection limits - we need to be conservative
 const queryClient = postgres(connectionString, {
-  max: 20, // Maximum connections
-  idle_timeout: 30, // Keep connections alive longer
-  connect_timeout: 30, // Increased from 10 to handle Supabase latency
-  max_lifetime: 60 * 30, // Close after 30 minutes
+  max: 10, // ✅ REDUCED: Lower connection limit for serverless (prevents exhaustion)
+  idle_timeout: 20, // ✅ REDUCED: Release idle connections faster in serverless
+  connect_timeout: 10, // ✅ REDUCED: Fail fast if pooler is overloaded (prevents queue buildup)
+  max_lifetime: 60 * 5, // ✅ REDUCED: Rotate connections every 5 min (prevents stale connections)
   fetch_types: false, // Better performance
-  prepare: false, // Disable for serverless (required for pgbouncer mode)
+  prepare: false, // REQUIRED for pgbouncer/pooler mode
   onnotice: () => {}, // Suppress PostgreSQL notices
+  transform: {
+    undefined: null, // Transform undefined to null for cleaner queries
+  },
   connection: {
     application_name: 'easemail_vercel', // Help identify connections in Supabase dashboard
   },

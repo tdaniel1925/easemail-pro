@@ -81,24 +81,42 @@ export async function POST(request: NextRequest) {
       })
       .onConflictDoNothing({ target: webhookEvents.nylasWebhookId })
       .catch((insertError) => {
-        console.error('❌ Failed to queue webhook event:', insertError);
+        const isConnectionTimeout = insertError?.message?.includes('CONNECT_TIMEOUT');
+        const isPoolExhausted = insertError?.message?.includes('ETIMEDOUT') ||
+                                insertError?.message?.includes('ECONNREFUSED');
 
-        // Capture in Sentry
+        // Log appropriate error level
+        if (isConnectionTimeout || isPoolExhausted) {
+          console.error('🔴 DATABASE POOL EXHAUSTED:', {
+            error: insertError?.message,
+            eventId: event.id,
+            eventType: event.type,
+            suggestion: 'Connection pool likely exhausted - webhook will be retried by Nylas'
+          });
+        } else {
+          console.error('❌ Failed to queue webhook event:', insertError);
+        }
+
+        // Capture in Sentry with enhanced context
         Sentry.captureException(insertError, {
           tags: {
             component: 'webhook',
             operation: 'queue_event',
             event_type: event.type,
+            is_timeout: isConnectionTimeout,
+            is_pool_exhausted: isPoolExhausted,
           },
           extra: {
             eventId: event.id,
             eventType: event.type,
             errorCode: insertError?.code,
             errorMessage: insertError?.message,
+            errorStack: insertError?.stack,
           },
         });
 
         // Don't throw - already responded to Nylas
+        // Nylas will retry the webhook if this was a transient error
       });
       
       const insertDuration = Date.now() - insertStartTime;
