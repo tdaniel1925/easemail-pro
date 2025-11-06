@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/cleanup-sms-conversations",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-webhook-events",
+      "schedule": "0 4 * * *"
     }
   ]
 }
