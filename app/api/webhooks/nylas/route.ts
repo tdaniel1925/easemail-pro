@@ -70,15 +70,19 @@ export async function POST(request: NextRequest) {
     try {
       // Queue event in database with extended timeout (15s for high load)
       const insertStartTime = Date.now();
-      
+
+      // ✅ FIX: Use ON CONFLICT to handle duplicate webhooks (Nylas retries)
+      // This makes the insert idempotent and prevents lock contention
       await db.insert(webhookEvents).values({
         nylasWebhookId: event.id,
         eventType: event.type,
         payload: event,
         processed: false,
-      }).catch((insertError) => {
+      })
+      .onConflictDoNothing({ target: webhookEvents.nylasWebhookId })
+      .catch((insertError) => {
         console.error('❌ Failed to queue webhook event:', insertError);
-        
+
         // Capture in Sentry
         Sentry.captureException(insertError, {
           tags: {
@@ -93,7 +97,7 @@ export async function POST(request: NextRequest) {
             errorMessage: insertError?.message,
           },
         });
-        
+
         // Don't throw - already responded to Nylas
       });
       
