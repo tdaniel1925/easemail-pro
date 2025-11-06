@@ -12,6 +12,7 @@ import { SMSModal } from '@/components/sms/SMSModal';
 import { ContactNotes } from '@/components/contacts/ContactNotes';
 import { CommunicationTimeline } from '@/components/contacts/CommunicationTimeline';
 import { AIAssistantSidebar } from '@/components/ai/AIAssistantSidebar';
+import { SMSPanelTab } from '@/components/sms/SMSPanelTab';
 
 interface Email {
   id: string;
@@ -25,19 +26,35 @@ interface Email {
 
 interface ContactPanelProps {
   email: Email | undefined;
+  activeTab?: 'contact' | 'calendar' | 'ai' | 'sms';
+  onTabChange?: (tab: 'contact' | 'calendar' | 'ai' | 'sms') => void;
 }
 
-export function ContactPanel({ email }: ContactPanelProps) {
-  const [activeTab, setActiveTab] = useState<'contact' | 'calendar' | 'ai'>('calendar'); // Added AI tab
+export function ContactPanel({ email, activeTab: externalActiveTab, onTabChange }: ContactPanelProps) {
+  const [internalActiveTab, setInternalActiveTab] = useState<'contact' | 'calendar' | 'ai' | 'sms'>('calendar'); // Added SMS tab
+  
+  // Use external activeTab if provided, otherwise use internal
+  const activeTab = externalActiveTab !== undefined ? externalActiveTab : internalActiveTab;
+  
+  // Handle tab change
+  const handleTabChange = (tab: 'contact' | 'calendar' | 'ai' | 'sms') => {
+    if (onTabChange) {
+      onTabChange(tab);
+    } else {
+      setInternalActiveTab(tab);
+    }
+  };
 
   // Automatically switch tabs based on email selection
   useEffect(() => {
     if (email) {
       // Email selected → switch to Contact tab
-      setActiveTab('contact');
+      handleTabChange('contact');
     } else {
-      // No email selected → switch to Calendar tab (unless on AI tab)
-      setActiveTab(prev => prev === 'ai' ? 'ai' : 'calendar');
+      // No email selected → switch to Calendar tab (unless on AI or SMS tab)
+      if (activeTab !== 'ai' && activeTab !== 'sms') {
+        handleTabChange('calendar');
+      }
     }
   }, [email]);
 
@@ -55,7 +72,7 @@ export function ContactPanel({ email }: ContactPanelProps) {
                 ? 'text-primary font-bold'
                 : 'text-muted-foreground font-medium hover:text-foreground'
             )}
-            onClick={() => setActiveTab('contact')}
+            onClick={() => handleTabChange('contact')}
           >
             <User className="h-4 w-4 inline mr-2" />
             Contact
@@ -67,7 +84,7 @@ export function ContactPanel({ email }: ContactPanelProps) {
                 ? 'text-primary font-bold'
                 : 'text-muted-foreground font-medium hover:text-foreground'
             )}
-            onClick={() => setActiveTab('calendar')}
+            onClick={() => handleTabChange('calendar')}
           >
             <CalendarIcon className="h-4 w-4 inline mr-2" />
             Calendar
@@ -79,10 +96,22 @@ export function ContactPanel({ email }: ContactPanelProps) {
                 ? 'text-primary font-bold'
                 : 'text-muted-foreground font-medium hover:text-foreground'
             )}
-            onClick={() => setActiveTab('ai')}
+            onClick={() => handleTabChange('ai')}
           >
             <Bot className="h-4 w-4 inline mr-2" />
             AI
+          </button>
+          <button
+            className={cn(
+              'px-3 py-2 text-sm rounded-sm transition-colors',
+              activeTab === 'sms'
+                ? 'text-primary font-bold'
+                : 'text-muted-foreground font-medium hover:text-foreground'
+            )}
+            onClick={() => handleTabChange('sms')}
+          >
+            <MessageSquare className="h-4 w-4 inline mr-2" />
+            SMS
           </button>
         </div>
       </div>
@@ -102,11 +131,13 @@ export function ContactPanel({ email }: ContactPanelProps) {
           )
         ) : activeTab === 'calendar' ? (
           <MiniCalendar />
+        ) : activeTab === 'sms' ? (
+          <SMSPanelTab />
         ) : (
           <div className="h-full">
             <AIAssistantSidebar
               isOpen={true}
-              onClose={() => setActiveTab('calendar')}
+              onClose={() => handleTabChange('calendar')}
               fullPage={true}
             />
           </div>

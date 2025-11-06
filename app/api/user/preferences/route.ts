@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       where: eq(userPreferences.userId, dbUser.id),
     });
 
-    return NextResponse.json({ preferences: prefs });
+    return NextResponse.json({ success: true, preferences: prefs });
   } catch (error) {
     console.error('Error fetching preferences:', error);
     return NextResponse.json(

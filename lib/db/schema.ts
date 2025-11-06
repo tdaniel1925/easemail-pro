@@ -408,6 +408,7 @@ export const userPreferences = pgTable('user_preferences', {
   emailsPerPage: integer('emails_per_page').default(50),
   showAvatars: boolean('show_avatars').default(true),
   showSnippets: boolean('show_snippets').default(true),
+  showAISummaries: boolean('show_ai_summaries').default(true),
   
   // Reading
   autoAdvance: boolean('auto_advance').default(true),
@@ -616,6 +617,7 @@ export const smsMessages = pgTable('sms_messages', {
   
   // Metadata
   direction: varchar('direction', { length: 20 }).default('outbound'),
+  isRead: boolean('is_read').default(false),
   sentAt: timestamp('sent_at'),
   deliveredAt: timestamp('delivered_at'),
   

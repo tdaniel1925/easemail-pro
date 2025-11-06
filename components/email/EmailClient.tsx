@@ -27,6 +27,7 @@ export default function EmailClient({
   const [loading, setLoading] = useState(true);
   const [accountCheckComplete, setAccountCheckComplete] = useState(false); // Track if we've checked for accounts
   const [refreshKey, setRefreshKey] = useState(0); // Force refresh trigger
+  const [rightSidebarTab, setRightSidebarTab] = useState<'contact' | 'calendar' | 'ai' | 'sms'>('calendar'); // SMS tab control
 
   // Function to refresh email list
   const refreshEmails = () => {
@@ -163,12 +164,17 @@ export default function EmailClient({
           onSearchChange={onSearchChange}
           onRefresh={refreshEmails}
           currentFolder={activeFolder}
+          onSMSBellClick={() => setRightSidebarTab('sms')}
         />
       </div>
 
       {/* Mini Calendar Sidebar (25%) */}
       <div className="w-1/4 border-l border-border">
-        <ContactPanel email={selectedEmail} />
+        <ContactPanel 
+          email={selectedEmail} 
+          activeTab={rightSidebarTab}
+          onTabChange={setRightSidebarTab}
+        />
       </div>
     </div>
   );

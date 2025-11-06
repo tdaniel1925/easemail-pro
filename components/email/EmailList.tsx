@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { formatDate, getInitials, generateAvatarColor, formatFileSize } from '@/lib/utils';
-import { Star, Paperclip, Reply, ReplyAll, Forward, Download, ChevronDown, ChevronUp, Search, Sparkles, Loader2, Trash2, Archive, Mail, MailOpen, FolderInput, CheckSquare, Square, MessageSquare, Tag, Clock, Ban } from 'lucide-react';
+import { Star, Paperclip, Reply, ReplyAll, Forward, Download, ChevronDown, ChevronUp, Search, Sparkles, Loader2, Trash2, Archive, Mail, MailOpen, FolderInput, CheckSquare, Square, MessageSquare, Tag, Clock, Ban, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useEmailSummary } from '@/lib/hooks/useEmailSummary';
 import { ToastContainer, useToast } from '@/components/ui/toast';
@@ -50,12 +51,20 @@ interface EmailListProps {
   onSearchChange?: (query: string) => void;
   onRefresh?: () => void;
   currentFolder?: string | null;
+  onSMSBellClick?: () => void;
 }
 
-export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailClick, searchQuery = '', onSearchChange, onRefresh, currentFolder = null }: EmailListProps) {
+export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailClick, searchQuery = '', onSearchChange, onRefresh, currentFolder = null, onSMSBellClick }: EmailListProps) {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const { toasts, closeToast, success, error, info } = useToast();
+  
+  // AI Summary Toggle
+  const [showAISummaries, setShowAISummaries] = useState(true);
+  
+  // SMS Notifications
+  const [unreadSMSCount, setUnreadSMSCount] = useState(0);
+  const [showSMSDropdown, setShowSMSDropdown] = useState(false);
   
   // Optimistic updates: track locally removed emails
   const [locallyRemovedEmails, setLocallyRemovedEmails] = useState<Set<string>>(new Set());
@@ -87,6 +96,57 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
       setUndoStack(null);
     }
   }, [undoStack]);
+  
+  // Load AI Summary preference
+  useEffect(() => {
+    const loadPreference = async () => {
+      try {
+        const response = await fetch('/api/user/preferences');
+        const data = await response.json();
+        if (data.success && data.preferences) {
+          setShowAISummaries(data.preferences.showAISummaries ?? true);
+        }
+      } catch (error) {
+        console.error('Failed to load AI summary preference:', error);
+      }
+    };
+    loadPreference();
+  }, []);
+  
+  // Fetch unread SMS count
+  useEffect(() => {
+    const fetchSMSCount = async () => {
+      try {
+        const response = await fetch('/api/sms/unread-count');
+        const data = await response.json();
+        if (data.success) {
+          setUnreadSMSCount(data.count);
+        }
+      } catch (error) {
+        console.error('Failed to fetch SMS count:', error);
+      }
+    };
+    fetchSMSCount();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchSMSCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Handle AI Summary toggle change
+  const handleAISummaryToggle = async (checked: boolean) => {
+    setShowAISummaries(checked);
+    
+    try {
+      await fetch('/api/user/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showAISummaries: checked }),
+      });
+    } catch (error) {
+      console.error('Failed to save preference:', error);
+    }
+  };
   
   // ✅ Undo handler
   const handleUndo = () => {
@@ -441,6 +501,18 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
               <h2 className="text-sm font-medium">{currentFolder || 'Inbox'}</h2>
             </div>
 
+            {/* AI Summary Toggle */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                <Switch 
+                  checked={showAISummaries}
+                  onCheckedChange={handleAISummaryToggle}
+                />
+                <Sparkles className="h-4 w-4" />
+                <span className="text-xs">AI</span>
+              </label>
+            </div>
+
             {/* Search bar - takes remaining space */}
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -451,6 +523,28 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
                 value={searchQuery}
                 onChange={handleSearchChange}
               />
+            </div>
+            
+            {/* SMS Notification Bell */}
+            <div className="relative flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 w-9 p-0 relative"
+                onClick={() => {
+                  setShowSMSDropdown(!showSMSDropdown);
+                  if (onSMSBellClick) {
+                    onSMSBellClick();
+                  }
+                }}
+              >
+                <Bell className="h-4 w-4" />
+                {unreadSMSCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
+                    {unreadSMSCount > 9 ? '9+' : unreadSMSCount}
+                  </span>
+                )}
+              </Button>
             </div>
             
             {/* Quick filters - right aligned */}
@@ -477,6 +571,7 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
             isSelected={selectedEmailId === email.id}
             isChecked={selectedEmails.has(email.id)}
             selectMode={selectMode}
+            showAISummaries={showAISummaries}
             onSelect={(e) => handleSelectEmail(email.id, e)}
             onClick={() => onEmailClick(email.id)}
             showToast={(type, message) => {
@@ -549,13 +644,14 @@ interface EmailCardProps {
   isSelected: boolean;
   isChecked: boolean;
   selectMode: boolean;
+  showAISummaries: boolean;
   onSelect: (e: React.MouseEvent) => void;
   onClick: () => void;
   showToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
   onRemove: (emailId: string, action: 'delete' | 'archive') => void;
 }
 
-function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSelect, onClick, showToast, onRemove }: EmailCardProps) {
+function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showAISummaries, onSelect, onClick, showToast, onRemove }: EmailCardProps) {
   const avatarColor = generateAvatarColor(email.fromEmail || 'unknown@example.com');
   const [mounted, setMounted] = useState(false);
   const [fullEmail, setFullEmail] = useState<Email | null>(null);
@@ -568,8 +664,8 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
     triggerOnce: true, // Only trigger once
   });
   
-  // Fetch AI summary when in viewport (all folders)
-  const shouldFetchSummary = inView;
+  // Fetch AI summary when in viewport (all folders) AND showAISummaries is enabled
+  const shouldFetchSummary = inView && showAISummaries;
   const { data: summaryData, isLoading: isSummaryLoading } = useEmailSummary(email, shouldFetchSummary);
 
   useEffect(() => {
@@ -601,8 +697,8 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, onSel
   const displayEmail = fullEmail || email;
   
   // Use AI summary if available, otherwise use snippet
-  const displayText = summaryData?.summary || email.snippet;
-  const hasAISummary = !!(summaryData && summaryData.summary);
+  const displayText = (showAISummaries && summaryData?.summary) || email.snippet;
+  const hasAISummary = showAISummaries && !!(summaryData && summaryData.summary);
   
   // Action handlers
   const handleReply = (e: React.MouseEvent) => {
