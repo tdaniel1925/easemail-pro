@@ -63,8 +63,8 @@ export async function GET(request: NextRequest) {
 
     // Calculate estimated time remaining
     let estimatedTimeRemaining = null;
-    if (emailsPerMinute > 0 && account.totalEmailCount > 0) {
-      const remainingEmails = account.totalEmailCount - account.syncedEmailCount;
+    if (emailsPerMinute > 0 && account.totalEmailCount && account.totalEmailCount > 0) {
+      const remainingEmails = account.totalEmailCount - (account.syncedEmailCount || 0);
       estimatedTimeRemaining = Math.ceil(remainingEmails / emailsPerMinute);
     }
 
