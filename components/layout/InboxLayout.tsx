@@ -34,33 +34,9 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [userRole, setUserRole] = useState<string>('user');
   const [hasOrganization, setHasOrganization] = useState(false); // NEW: Track org membership
   const [isAccountSelectorOpen, setIsAccountSelectorOpen] = useState(false);
-  // ✅ INSTANT LOAD: Initialize folders from localStorage immediately for instant display
-  const [folders, setFolders] = useState<any[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('easemail_folders');
-      if (cached) {
-        try {
-          return JSON.parse(cached);
-        } catch {
-          return [];
-        }
-      }
-    }
-    return [];
-  });
-  const [folderCounts, setFolderCounts] = useState<Record<string, { totalCount: number; unreadCount: number }>>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('easemail_folder_counts');
-      if (cached) {
-        try {
-          return JSON.parse(cached);
-        } catch {
-          return {};
-        }
-      }
-    }
-    return {};
-  });
+  // ✅ FIX #1: Account-specific localStorage - Initialize with account ID validation
+  const [folders, setFolders] = useState<any[]>([]);
+  const [folderCounts, setFolderCounts] = useState<Record<string, { totalCount: number; unreadCount: number }>>({});
   const [expandedSections, setExpandedSections] = useState({
     custom: false,
   });
@@ -232,6 +208,42 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     }
   };
 
+  // ✅ FIX #2: Load account-specific folders from localStorage when account changes
+  useEffect(() => {
+    if (selectedAccountId && typeof window !== 'undefined') {
+      console.log(`[Cache] Loading folders for account: ${selectedAccountId}`);
+      
+      // Load account-specific folders
+      const cachedFolders = localStorage.getItem(`easemail_folders_${selectedAccountId}`);
+      if (cachedFolders) {
+        try {
+          const parsedFolders = JSON.parse(cachedFolders);
+          setFolders(parsedFolders);
+          console.log(`[Cache] Loaded ${parsedFolders.length} cached folders for account`);
+        } catch (error) {
+          console.error('[Cache] Failed to parse cached folders:', error);
+        }
+      }
+      
+      // Load account-specific folder counts
+      const cachedCounts = localStorage.getItem(`easemail_folder_counts_${selectedAccountId}`);
+      if (cachedCounts) {
+        try {
+          const parsedCounts = JSON.parse(cachedCounts);
+          setFolderCounts(parsedCounts);
+          console.log('[Cache] Loaded cached folder counts for account');
+        } catch (error) {
+          console.error('[Cache] Failed to parse cached counts:', error);
+        }
+      }
+    } else if (!selectedAccountId) {
+      // Clear folders when no account is selected
+      console.log('[Cache] No account selected, clearing folders');
+      setFolders([]);
+      setFolderCounts({});
+    }
+  }, [selectedAccountId]);
+
   // ✅ FIX #3: Fetch folders when account changes WITHOUT clearing first (prevents flash)
   useEffect(() => {
     if (selectedAccountId) {
@@ -301,10 +313,10 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         setFolders(newFolders);
         setFolderCounts(newCounts);
 
-        // ✅ INSTANT LOAD: Persist to localStorage for next mount
+        // ✅ FIX #1: Persist to account-specific localStorage
         if (typeof window !== 'undefined') {
-          localStorage.setItem('easemail_folders', JSON.stringify(newFolders));
-          localStorage.setItem('easemail_folder_counts', JSON.stringify(newCounts));
+          localStorage.setItem(`easemail_folders_${accountId}`, JSON.stringify(newFolders));
+          localStorage.setItem(`easemail_folder_counts_${accountId}`, JSON.stringify(newCounts));
         }
 
         // Still fetch in background to update cache
@@ -320,9 +332,9 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         const newFolders = data.folders || [];
         setFolders(newFolders);
 
-        // ✅ INSTANT LOAD: Persist to localStorage
+        // ✅ FIX #1: Persist to account-specific localStorage
         if (typeof window !== 'undefined') {
-          localStorage.setItem('easemail_folders', JSON.stringify(newFolders));
+          localStorage.setItem(`easemail_folders_${accountId}`, JSON.stringify(newFolders));
         }
 
         // ✅ PHASE 2: Fetch real-time counts immediately after folders load
@@ -356,9 +368,9 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
         console.log('📊 Real-time folder counts:', countsMap);
         setFolderCounts(countsMap);
 
-        // ✅ INSTANT LOAD: Persist to localStorage for next mount
+        // ✅ FIX #1: Persist to account-specific localStorage
         if (typeof window !== 'undefined') {
-          localStorage.setItem('easemail_folder_counts', JSON.stringify(countsMap));
+          localStorage.setItem(`easemail_folder_counts_${accountId}`, JSON.stringify(countsMap));
         }
 
         // ✅ PHASE 4: Update cache with fresh data
@@ -375,10 +387,18 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     // ✅ FIX: Clear cache on logout to prevent memory leaks
     folderCache.clearAll();
 
-    // ✅ INSTANT LOAD: Clear localStorage on logout
+    // ✅ FIX #1: Clear ALL account-specific localStorage on logout
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('easemail_folders');
-      localStorage.removeItem('easemail_folder_counts');
+      // Clear all easemail_ prefixed items
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('easemail_')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      console.log(`[Cache] Cleared ${keysToRemove.length} localStorage items on logout`);
     }
 
     await supabase.auth.signOut();

@@ -1,77 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db/drizzle';
-import { emailAccounts, emailFolders, emails } from '@/lib/db/schema';
+import { createClient } from '@/lib/supabase/server';
+import { db } from '@/lib/db';
+import { emailAccounts, emails, emailFolders, emailThreads, emailDrafts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import Nylas from 'nylas';
 
-const nylas = new Nylas({
-  apiKey: process.env.NYLAS_API_KEY!,
-  apiUri: process.env.NYLAS_API_URI!,
-});
+export const dynamic = 'force-dynamic';
 
-// DELETE: Remove an email account
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { accountId: string } }
-) {
+interface RouteContext {
+  params: Promise<{
+    accountId: string;
+  }>;
+}
+
+/**
+ * DELETE /api/nylas/accounts/[accountId]
+ * Delete an email account and all associated data
+ * ✅ FIX #4: Clear cache when account is deleted
+ */
+export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    const accountId = params.accountId;
-
-    console.log('🗑️ Starting account deletion for:', accountId);
-
-    // Get account details for Nylas cleanup
+    const { accountId } = await context.params;
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Verify account belongs to user
     const account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.id, accountId),
     });
-
+    
     if (!account) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 });
     }
-
-    // Cleanup Nylas resources BEFORE deleting from database
-    if (account.nylasGrantId) {
-      try {
-        console.log('🧹 Revoking Nylas grant:', account.nylasGrantId);
-        await nylas.auth.revoke(account.nylasGrantId);
-        console.log('✅ Nylas grant revoked');
-      } catch (grantError) {
-        console.warn('⚠️ Failed to revoke Nylas grant (may already be revoked):', grantError);
-        // Continue with deletion even if grant revocation fails
-      }
+    
+    if (account.userId !== user.id) {
+      return NextResponse.json({ error: 'Unauthorized - Account does not belong to you' }, { status: 403 });
     }
-
-    if (account.webhookId) {
-      try {
-        console.log('🧹 Deleting Nylas webhook:', account.webhookId);
-        await nylas.webhooks.destroy({
-          webhookId: account.webhookId,
-        });
-        console.log('✅ Nylas webhook deleted');
-      } catch (webhookError) {
-        console.warn('⚠️ Failed to delete Nylas webhook (may already be deleted):', webhookError);
-        // Continue with deletion even if webhook deletion fails
-      }
-    }
-
-    // Delete related data from database (explicit for better logging)
-    console.log('🗑️ Deleting folders...');
+    
+    console.log(`🗑️ Starting deletion of account ${account.emailAddress} (${accountId})`);
+    
+    // Delete all related data in order (to avoid foreign key constraints)
+    
+    // 1. Delete drafts
+    await db.delete(emailDrafts).where(eq(emailDrafts.accountId, accountId));
+    console.log('  ✓ Deleted email drafts');
+    
+    // 2. Delete emails (this might take time for large mailboxes)
+    const deletedEmails = await db.delete(emails).where(eq(emails.accountId, accountId));
+    console.log(`  ✓ Deleted emails`);
+    
+    // 3. Delete threads
+    await db.delete(emailThreads).where(eq(emailThreads.accountId, accountId));
+    console.log('  ✓ Deleted email threads');
+    
+    // 4. Delete folders
     await db.delete(emailFolders).where(eq(emailFolders.accountId, accountId));
+    console.log('  ✓ Deleted email folders');
     
-    console.log('🗑️ Deleting emails...');
-    await db.delete(emails).where(eq(emails.accountId, accountId));
-    
-    console.log('🗑️ Deleting account...');
+    // 5. Finally, delete the account itself
     await db.delete(emailAccounts).where(eq(emailAccounts.id, accountId));
-
-    console.log('✅ Account and all related data deleted successfully');
-
-    return NextResponse.json({ success: true });
+    console.log('  ✓ Deleted email account');
+    
+    console.log(`✅ Successfully deleted account ${accountId}`);
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Account and all associated data deleted successfully',
+    });
   } catch (error) {
     console.error('Account deletion error:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete account' },
-      { status: 500 }
-    );
+    return NextResponse.json({ 
+      error: 'Failed to delete account', 
+      details: error instanceof Error ? error.message : 'Unknown error',
+    }, { status: 500 });
   }
 }
-

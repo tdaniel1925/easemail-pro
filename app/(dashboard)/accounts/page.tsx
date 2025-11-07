@@ -313,6 +313,13 @@ function AccountsContent() {
       });
 
       if (response.ok) {
+        // ✅ FIX #4: Clear account-specific localStorage when account is deleted
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(`easemail_folders_${accountId}`);
+          localStorage.removeItem(`easemail_folder_counts_${accountId}`);
+          console.log(`[Cache] Cleared localStorage for deleted account: ${accountId}`);
+        }
+        
         setMessage({ type: 'success', text: 'Account removed successfully' });
         await fetchAccounts();
       } else {

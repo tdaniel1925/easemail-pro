@@ -115,8 +115,8 @@ async function performBackgroundSync(
   
   let pageToken: string | undefined = startingCursor || undefined;
   let totalSynced = 0;
-  const pageSize = 200; // Sync 200 emails per batch
-  const maxPages = 1000; // ✅ FIX #2: Increased to 200,000 emails (1000 pages × 200)
+  const pageSize = 500; // ✅ FIX #6: Increased from 200 to 500 emails per batch (reduces continuations by 60%)
+  const maxPages = 1000; // ✅ FIX #2: Supports up to 500,000 emails (1000 pages × 500)
   let currentPage = 0;
   
   // ✅ FIX #3: Timeout detection (Vercel Pro = 5 min, leave 1 min buffer)
@@ -177,29 +177,56 @@ async function performBackgroundSync(
         console.log(`🔄 Triggering continuation ${continuationCount + 1}/${MAX_CONTINUATIONS} with cursor: ${pageToken?.substring(0, 20)}...`);
         console.log(`📊 Progress before continuation: ${syncedCount.toLocaleString()} emails synced, ${currentPage} pages processed`);
 
-        try {
-          const continuationResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accountId }),
-          });
+        // ✅ FIX #5: Retry continuation request with exponential backoff
+        let continuationSuccess = false;
+        const maxContinuationRetries = 3;
+        
+        for (let retryAttempt = 1; retryAttempt <= maxContinuationRetries; retryAttempt++) {
+          try {
+            console.log(`🔄 Continuation attempt ${retryAttempt}/${maxContinuationRetries}`);
+            
+            const continuationResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ accountId }),
+            });
 
-          if (!continuationResponse.ok) {
-            console.error(`❌ Continuation request failed with status ${continuationResponse.status}`);
-            throw new Error(`Continuation request failed: ${continuationResponse.statusText}`);
+            if (!continuationResponse.ok) {
+              throw new Error(`Continuation request failed with status ${continuationResponse.status}: ${continuationResponse.statusText}`);
+            }
+
+            const responseData = await continuationResponse.json();
+            console.log(`✅ Continuation ${continuationCount + 1} successfully triggered:`, responseData);
+            continuationSuccess = true;
+            break; // Success! Exit retry loop
+          } catch (err) {
+            console.error(`❌ Continuation attempt ${retryAttempt}/${maxContinuationRetries} failed:`, err);
+            
+            if (retryAttempt < maxContinuationRetries) {
+              // Exponential backoff: 2s, 4s, 8s
+              const backoffMs = 2000 * Math.pow(2, retryAttempt - 1);
+              console.log(`⏳ Waiting ${backoffMs}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, backoffMs));
+            } else {
+              // All retries failed - log detailed error
+              console.error(`❌ All ${maxContinuationRetries} continuation attempts failed`);
+              console.error(`📊 Sync stopped at: ${syncedCount.toLocaleString()} emails, ${currentPage} pages`);
+              console.error(`💾 Saved cursor for manual retry: ${pageToken?.substring(0, 50)}...`);
+              
+              // Update account with detailed error status
+              await db.update(emailAccounts)
+                .set({
+                  syncStatus: 'error',
+                  lastError: `Continuation ${continuationCount + 1} failed after ${maxContinuationRetries} retries. Synced ${syncedCount.toLocaleString()} emails before stopping. Please retry sync to continue from where it left off.`,
+                })
+                .where(eq(emailAccounts.id, accountId));
+            }
           }
-
-          console.log(`✅ Continuation ${continuationCount + 1} successfully triggered`);
-        } catch (err) {
-          console.error('❌ Failed to trigger continuation:', err);
-
-          // Update account with error status so user knows sync stopped
-          await db.update(emailAccounts)
-            .set({
-              syncStatus: 'error',
-              lastError: `Failed to trigger continuation job ${continuationCount + 1}. Synced ${syncedCount.toLocaleString()} emails before stopping. Please retry sync.`,
-            })
-            .where(eq(emailAccounts.id, accountId));
+        }
+        
+        if (!continuationSuccess) {
+          console.error(`❌ Continuation failed permanently - sync stopped`);
+          return; // Exit function since continuation failed
         }
 
         return; // Exit gracefully, continuation job will pick up

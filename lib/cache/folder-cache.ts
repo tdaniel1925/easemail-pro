@@ -30,10 +30,21 @@ class FolderCacheManager {
 
   /**
    * Get folders from cache or fetch if not cached
+   * ✅ FIX #3: Validate cached account ID matches requested account ID
    */
   async getFolders(accountId: string): Promise<CachedFolders | null> {
     const cached = this.cache.get(accountId);
     const now = Date.now();
+
+    // ✅ FIX #3: Double-check account ID matches (defense in depth)
+    if (cached && cached.accountId !== accountId) {
+      console.warn('⚠️ Cache accountId mismatch! Invalidating:', {
+        requested: accountId,
+        cached: cached.accountId,
+      });
+      this.cache.delete(accountId);
+      return null;
+    }
 
     // Cache hit and fresh
     if (cached && now - cached.timestamp < this.ttl) {
