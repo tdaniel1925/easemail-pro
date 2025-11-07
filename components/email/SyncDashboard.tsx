@@ -377,8 +377,8 @@ export default function SyncDashboard({ accountId, emailAddress }: SyncDashboard
                 </span>
               </div>
               <Progress
-                value={metrics.totalFolders > 0
-                  ? (metrics.foldersSynced / metrics.totalFolders) * 100
+                value={(metrics.totalFolders && metrics.totalFolders > 0)
+                  ? ((metrics.foldersSynced || 0) / metrics.totalFolders) * 100
                   : 0
                 }
                 className="h-2"
