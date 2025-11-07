@@ -3,6 +3,7 @@ import { nylas } from '@/lib/email/nylas-client';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emailFolders, syncLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { normalizeFolderToCanonical } from '@/lib/email/folder-utils';
 
 // GET: Fetch folders for account
 export async function GET(request: NextRequest) {
@@ -105,26 +106,14 @@ export async function POST(request: NextRequest) {
           ),
         });
 
-        // Detect folder type from name (for both new and existing folders)
-        const folderName = folder.name.toLowerCase();
-        let folderType = 'custom';
-        
-        // Map common folder names to types
-        if (folderName === 'inbox' || folderName === 'posteingang') {
-          folderType = 'inbox';
-        } else if (folderName.includes('sent') || folderName === 'gesendete elemente') {
-          folderType = 'sent';
-        } else if (folderName.includes('draft') || folderName === 'entwürfe') {
-          folderType = 'drafts';
-        } else if (folderName.includes('trash') || folderName.includes('deleted') || folderName === 'gelöschte elemente') {
-          folderType = 'trash';
-        } else if (folderName.includes('spam') || folderName.includes('junk')) {
-          folderType = 'spam';
-        } else if (folderName.includes('archive') || folderName === 'archiv') {
-          folderType = 'archive';
-        } else if (folderName.includes('starred') || folderName.includes('flagged')) {
-          folderType = 'starred';
-        }
+        // ✅ Use comprehensive normalization for folder type detection
+        const normalizedType = normalizeFolderToCanonical(folder.name);
+
+        // Determine folderType for database storage
+        // If normalized type is same as lowercase folder name, it's a custom folder
+        const folderType = ['inbox', 'sent', 'drafts', 'trash', 'spam', 'archive', 'all', 'important', 'starred', 'outbox', 'conversation_history', 'notes'].includes(normalizedType)
+          ? normalizedType
+          : 'custom';
 
         if (existing) {
           // Update existing folder (INCLUDING folderType to fix any that were miscategorized)
