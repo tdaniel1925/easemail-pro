@@ -8,6 +8,7 @@ import { retryWithBackoff } from '@/lib/email/retry-utils';
 import { checkConnectionHealth } from '@/lib/email/health-check';
 import { extractAndSaveAttachments } from '@/lib/attachments/extract-from-email';
 import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
+import { normalizeFolderToCanonical } from '@/lib/email/folder-utils';
 import { createClient } from '@/lib/supabase/server'; // ✅ FIX #5: Import Supabase for auth
 
 export const dynamic = 'force-dynamic';
@@ -261,12 +262,15 @@ export async function POST(request: NextRequest) {
         });
 
         if (existing) {
-          // Update existing message
+          // Update existing message with normalized folder
+          const rawFolder = message.folders?.[0] || 'inbox';
+          const normalizedFolder = normalizeFolderToCanonical(rawFolder);
+
           await db.update(emails)
             .set({
               isRead: message.unread === false,
               isStarred: message.starred === true,
-              folder: message.folders?.[0] || 'inbox',
+              folder: normalizedFolder, // ✅ Use normalized folder
               folders: message.folders || [],
               updatedAt: new Date(),
             })
@@ -284,29 +288,19 @@ export async function POST(request: NextRequest) {
             providerFileId: sanitizeText(att.id),
           })) || [];
 
-          // ✅ FIX: Check if this is a sent message (from account owner)
+          // ✅ FIX: Normalize folder using comprehensive utility
+          const rawFolder = message.folders?.[0] || 'inbox';
+          const normalizedFolder = normalizeFolderToCanonical(rawFolder);
+
+          // Check if this is a sent message (from account owner)
           const isFromAccountOwner = message.from?.[0]?.email?.toLowerCase() === account.emailAddress?.toLowerCase();
-          
-          // Check if message is in any "sent" folder (handles various naming conventions)
-          const isInSentFolder = message.folders?.some((f: string) => 
-            f.toLowerCase().includes('sent') || 
-            f.toLowerCase().includes('enviados') || // Spanish
-            f.toLowerCase().includes('skickat')    // Swedish
-          ) || false;
-          
-          // Determine folder: If from account owner AND in sent folder, use 'sent'
-          // Otherwise use first folder or default to 'inbox'
-          const messageFolder = isFromAccountOwner && isInSentFolder
-            ? 'sent' 
-            : message.folders?.[0] || 'inbox';
 
           console.log(`📧 Message analysis:`, {
             from: message.from?.[0]?.email,
             accountEmail: account.emailAddress,
             isFromAccountOwner,
-            folders: message.folders,
-            isInSentFolder,
-            determinedFolder: messageFolder,
+            rawFolder,
+            normalizedFolder,
             subject: message.subject?.substring(0, 50),
           });
 
@@ -328,7 +322,7 @@ export async function POST(request: NextRequest) {
             attachments: mappedAttachments,
             isRead: message.unread === false,
             isStarred: message.starred === true,
-            folder: sanitizeText(messageFolder), // ✅ Use determined folder
+            folder: normalizedFolder, // ✅ Use normalized folder (sent, inbox, drafts, etc.)
             folders: message.folders || [],
             receivedAt: new Date(message.date * 1000),
             providerData: message as any,

@@ -4,6 +4,7 @@ import { db } from '@/lib/db/drizzle';
 import { webhookEvents, emailAccounts, emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
+import { normalizeFolderToCanonical } from '@/lib/email/folder-utils';
 import * as Sentry from '@sentry/nextjs';
 
 // Verify webhook signature
@@ -259,22 +260,20 @@ async function handleMessageCreated(message: any) {
       return;
     }
 
-    // ✅ FIX: Determine folder - exclude sent folder messages if from webhook
-    // Gmail/Microsoft webhook fires for sent emails, but we already saved them
+    // ✅ FIX: Normalize folder using comprehensive utility
+    // This handles Gmail, Microsoft, IMAP folder naming conventions
     const folders = message.folders || [];
-    const isSentFolder = folders.some((f: string) =>
-      f.toLowerCase().includes('sent') ||
-      f.toLowerCase().includes('sent items') ||
-      f.toLowerCase() === '[gmail]/sent mail'
-    );
+    const rawFolder = folders[0] || 'inbox';
+    const normalizedFolder = normalizeFolderToCanonical(rawFolder);
 
     // Skip if this is a sent message coming from webhook (we already saved it when sending)
+    const isSentFolder = normalizedFolder === 'sent';
     if (isSentFolder && message.from?.[0]?.email === account.emailAddress) {
       console.log(`⏭️ Skipping sent message ${message.id} from webhook (already saved when sending)`);
       return;
     }
 
-    // Insert message into database with sanitized text
+    // Insert message into database with sanitized text and normalized folder
     await db.insert(emails).values({
       accountId: account.id,
       provider: 'nylas',
@@ -289,13 +288,13 @@ async function handleMessageCreated(message: any) {
       hasAttachments: message.attachments?.length > 0,
       isRead: message.unread === false,
       isStarred: message.starred === true,
-      folder: folders[0] || 'inbox',
-      folders: folders,
+      folder: normalizedFolder, // ✅ Use normalized folder (sent, inbox, drafts, etc.)
+      folders: folders, // Keep original provider folders for reference
       receivedAt: new Date(message.date * 1000),
       providerData: message,
     }).onConflictDoNothing();
 
-    console.log(`✅ Created message ${message.id} for account ${account.id} in folder ${folders[0] || 'inbox'}`);
+    console.log(`✅ Created message ${message.id} for account ${account.id} in folder ${normalizedFolder} (raw: ${rawFolder})`);
   } catch (error: any) {
     console.error(`❌ Failed to create message ${message.id}:`, error.message || error);
     throw error; // Re-throw to be caught by parent handler
