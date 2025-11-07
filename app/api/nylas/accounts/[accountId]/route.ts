@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
-import { emailAccounts, emails, emailFolders, emailThreads, emailDrafts } from '@/lib/db/schema';
+import { emailAccounts, emails, emailFolders, emailDrafts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
@@ -48,19 +48,15 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     await db.delete(emailDrafts).where(eq(emailDrafts.accountId, accountId));
     console.log('  ✓ Deleted email drafts');
     
-    // 2. Delete emails (this might take time for large mailboxes)
-    const deletedEmails = await db.delete(emails).where(eq(emails.accountId, accountId));
-    console.log(`  ✓ Deleted emails`);
+    // 2. Delete emails (this also handles thread references via threadId field)
+    await db.delete(emails).where(eq(emails.accountId, accountId));
+    console.log('  ✓ Deleted emails');
     
-    // 3. Delete threads
-    await db.delete(emailThreads).where(eq(emailThreads.accountId, accountId));
-    console.log('  ✓ Deleted email threads');
-    
-    // 4. Delete folders
+    // 3. Delete folders
     await db.delete(emailFolders).where(eq(emailFolders.accountId, accountId));
     console.log('  ✓ Deleted email folders');
     
-    // 5. Finally, delete the account itself
+    // 4. Finally, delete the account itself
     await db.delete(emailAccounts).where(eq(emailAccounts.id, accountId));
     console.log('  ✓ Deleted email account');
     
