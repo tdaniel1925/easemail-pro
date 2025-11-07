@@ -89,6 +89,14 @@ function AccountsContent() {
 
   useEffect(() => {
     fetchAccounts();
+  }, []);
+
+  // Separate effect for polling that depends on accounts
+  useEffect(() => {
+    if (accounts.length === 0) return;
+
+    // Check immediately
+    checkSyncStatus();
 
     // Start with faster polling
     const interval = setInterval(() => {
@@ -96,7 +104,7 @@ function AccountsContent() {
     }, 2000); // Poll every 2 seconds for real-time updates
 
     return () => clearInterval(interval);
-  }, []);
+  }, [accounts]);
 
   const checkSyncStatus = async () => {
     // Only check status for accounts that are syncing or background_syncing
@@ -572,46 +580,42 @@ function AccountsContent() {
                           {syncMetrics[account.id] && (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-blue-200 dark:border-blue-800">
                               {/* Sync Rate */}
-                              {syncMetrics[account.id].emailsPerMinute > 0 && (
-                                <div className="space-y-1">
-                                  <p className="text-xs text-blue-600 dark:text-blue-400">Rate</p>
-                                  <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
-                                    {syncMetrics[account.id].emailsPerMinute}/min
-                                  </p>
-                                </div>
-                              )}
+                              <div className="space-y-1">
+                                <p className="text-xs text-blue-600 dark:text-blue-400">Rate</p>
+                                <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                                  {syncMetrics[account.id].emailsPerMinute > 0
+                                    ? `${syncMetrics[account.id].emailsPerMinute}/min`
+                                    : 'Calculating...'}
+                                </p>
+                              </div>
 
                               {/* ETA */}
-                              {syncMetrics[account.id].estimatedTimeRemaining && (
-                                <div className="space-y-1">
-                                  <p className="text-xs text-blue-600 dark:text-blue-400">ETA</p>
-                                  <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
-                                    {syncMetrics[account.id].estimatedTimeRemaining < 60
+                              <div className="space-y-1">
+                                <p className="text-xs text-blue-600 dark:text-blue-400">ETA</p>
+                                <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                                  {syncMetrics[account.id].estimatedTimeRemaining
+                                    ? syncMetrics[account.id].estimatedTimeRemaining < 60
                                       ? `${syncMetrics[account.id].estimatedTimeRemaining}m`
-                                      : `${Math.floor(syncMetrics[account.id].estimatedTimeRemaining / 60)}h ${syncMetrics[account.id].estimatedTimeRemaining % 60}m`}
-                                  </p>
-                                </div>
-                              )}
+                                      : `${Math.floor(syncMetrics[account.id].estimatedTimeRemaining / 60)}h ${syncMetrics[account.id].estimatedTimeRemaining % 60}m`
+                                    : 'Calculating...'}
+                                </p>
+                              </div>
 
                               {/* Continuation Count */}
-                              {syncMetrics[account.id].continuationCount !== undefined && (
-                                <div className="space-y-1">
-                                  <p className="text-xs text-blue-600 dark:text-blue-400">Continuations</p>
-                                  <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
-                                    {syncMetrics[account.id].continuationCount} / 100
-                                  </p>
-                                </div>
-                              )}
+                              <div className="space-y-1">
+                                <p className="text-xs text-blue-600 dark:text-blue-400">Continuations</p>
+                                <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                                  {syncMetrics[account.id].continuationCount || 0} / 100
+                                </p>
+                              </div>
 
                               {/* Current Page */}
-                              {syncMetrics[account.id].currentPage !== undefined && (
-                                <div className="space-y-1">
-                                  <p className="text-xs text-blue-600 dark:text-blue-400">Page</p>
-                                  <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
-                                    {syncMetrics[account.id].currentPage} / {syncMetrics[account.id].maxPages || 1000}
-                                  </p>
-                                </div>
-                              )}
+                              <div className="space-y-1">
+                                <p className="text-xs text-blue-600 dark:text-blue-400">Page</p>
+                                <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                                  {syncMetrics[account.id].currentPage || 0} / {syncMetrics[account.id].maxPages || 1000}
+                                </p>
+                              </div>
                             </div>
                           )}
 
