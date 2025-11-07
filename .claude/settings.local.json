@@ -13,7 +13,9 @@
       "Bash(npm run db:migrate:*)",
       "Bash(npm run:*)",
       "Bash(cat:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(npx drizzle-kit studio)",
+      "Bash(npx drizzle-kit push:*)"
     ],
     "deny": [],
     "ask": []

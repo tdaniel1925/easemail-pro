@@ -93,7 +93,28 @@ export function normalizeFolderToCanonical(folderName: string): string {
   // ============================================================================
   // GMAIL PATTERNS
   // ============================================================================
+
+  // Gmail Categories (shown in Gmail web UI as tabs)
+  if (normalized.startsWith('category_')) {
+    const category = normalized.replace('category_', '');
+    if (category === 'personal') return 'inbox'; // Primary tab
+    if (category === 'social') return 'social';
+    if (category === 'promotions') return 'promotions';
+    if (category === 'updates') return 'updates';
+    if (category === 'forums') return 'forums';
+  }
+
+  // Gmail Labels (custom user labels or system labels)
+  if (normalized.startsWith('label_') || normalized.includes('/label_')) {
+    return 'custom'; // Treat Gmail labels as custom folders
+  }
+
   const gmailPatterns: Record<string, string> = {
+    // Gmail special system labels
+    'unread': 'inbox', // Unread is typically inbox
+    'important': 'important',
+    'starred': 'starred',
+
     // Gmail All Mail (special Gmail folder with all emails)
     '[gmail]/all mail': 'all',
     '[gmail]/toda a correspondência': 'all', // Portuguese
@@ -161,6 +182,18 @@ export function normalizeFolderToCanonical(folderName: string): string {
   // ============================================================================
   // MICROSOFT / OUTLOOK PATTERNS
   // ============================================================================
+
+  // Microsoft folder IDs (base64-encoded UUIDs) - these are opaque IDs
+  // Format: AQMkADcwODQ5NDQ2LTYwNzgtNDNiMS1hOTI4LWM4YWZkNGQ5NWIxNAAu...
+  // or AAMkADcwODQ5NDQ2LTYwNzgtNDNiMS1hOTI4LWM4YWZkNGQ5NWIxNAAu...
+  // These need to be resolved via email_folders table or kept as-is for later resolution
+  if (normalized.match(/^[a-z0-9=\-_]{50,}/i)) {
+    // This looks like a Microsoft folder ID
+    // Keep it as-is so we can resolve it later or via email_folders table
+    // The sync should ideally sync folders first, then emails
+    return normalized; // Return the folder ID unchanged
+  }
+
   const microsoftPatterns: Record<string, string> = {
     // Sent
     'sent items': 'sent',

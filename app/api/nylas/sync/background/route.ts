@@ -136,14 +136,15 @@ async function performBackgroundSync(
     const continuationCount = account?.continuationCount || 0;
     
     // ✅ SAFETY: Prevent infinite continuation loops
-    const MAX_CONTINUATIONS = 50; // Maximum 50 continuation jobs (~3.3 hours of syncing)
-    
+    const MAX_CONTINUATIONS = 100; // ✅ INCREASED: Allow more continuations for large mailboxes (100 × 4min = 6.6 hours max)
+
     if (continuationCount >= MAX_CONTINUATIONS) {
       console.error(`❌ Max continuations reached (${MAX_CONTINUATIONS}) for account ${accountId} - stopping sync`);
+      console.error(`📊 Sync stats at stop: ${syncedCount.toLocaleString()} emails synced`);
       await db.update(emailAccounts)
         .set({
           syncStatus: 'error',
-          lastError: `Sync exceeded maximum time limit (${MAX_CONTINUATIONS} continuations). Please contact support if you have an extremely large mailbox.`,
+          lastError: `Sync exceeded maximum time limit (${MAX_CONTINUATIONS} continuations = ~${Math.round(MAX_CONTINUATIONS * 4 / 60)} hours). Synced ${syncedCount.toLocaleString()} emails. Please contact support if you have an extremely large mailbox.`,
           syncProgress: 99,
           continuationCount: 0, // Reset for next manual sync
         })
@@ -174,12 +175,33 @@ async function performBackgroundSync(
         
         // Trigger new background job to continue from where we left off
         console.log(`🔄 Triggering continuation ${continuationCount + 1}/${MAX_CONTINUATIONS} with cursor: ${pageToken?.substring(0, 20)}...`);
-        fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountId }),
-        }).catch(err => console.error('⚠️ Failed to trigger continuation:', err));
-        
+        console.log(`📊 Progress before continuation: ${syncedCount.toLocaleString()} emails synced, ${currentPage} pages processed`);
+
+        try {
+          const continuationResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountId }),
+          });
+
+          if (!continuationResponse.ok) {
+            console.error(`❌ Continuation request failed with status ${continuationResponse.status}`);
+            throw new Error(`Continuation request failed: ${continuationResponse.statusText}`);
+          }
+
+          console.log(`✅ Continuation ${continuationCount + 1} successfully triggered`);
+        } catch (err) {
+          console.error('❌ Failed to trigger continuation:', err);
+
+          // Update account with error status so user knows sync stopped
+          await db.update(emailAccounts)
+            .set({
+              syncStatus: 'error',
+              lastError: `Failed to trigger continuation job ${continuationCount + 1}. Synced ${syncedCount.toLocaleString()} emails before stopping. Please retry sync.`,
+            })
+            .where(eq(emailAccounts.id, accountId));
+        }
+
         return; // Exit gracefully, continuation job will pick up
       }
 
@@ -216,9 +238,11 @@ async function performBackgroundSync(
         });
 
         const messages = response.data;
-        
+
         if (!messages || messages.length === 0) {
-          console.log(`✅ No more messages to sync for account ${accountId}`);
+          console.log(`✅ No more messages returned from Nylas for account ${accountId}`);
+          console.log(`📊 Sync completion reason: Empty response from Nylas API`);
+          console.log(`📊 Total synced: ${syncedCount.toLocaleString()} emails across ${currentPage} pages`);
           break;
         }
 
@@ -331,7 +355,9 @@ async function performBackgroundSync(
 
         // Check for next page
         if (!response.nextCursor) {
-          console.log(`✅ Reached end of messages for account ${accountId}`);
+          console.log(`✅ Reached end of messages for account ${accountId} - no nextCursor`);
+          console.log(`📊 Sync completion reason: Nylas pagination complete (no nextCursor)`);
+          console.log(`📊 Total synced: ${syncedCount.toLocaleString()} emails across ${currentPage} pages`);
           break;
         }
 
@@ -389,7 +415,18 @@ async function performBackgroundSync(
     // Mark sync as completed
     // ✅ FIX #5: Add completion verification and detailed logging
     const elapsedMinutes = Math.round((Date.now() - startTime) / 60000);
-    
+    const elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
+
+    // Determine completion reason
+    let completionReason = 'Unknown';
+    if (currentPage >= maxPages) {
+      completionReason = `Reached max pages limit (${maxPages})`;
+    } else if (!pageToken) {
+      completionReason = 'Nylas pagination complete (no more pages)';
+    } else {
+      completionReason = 'No more emails available from provider';
+    }
+
     await db.update(emailAccounts)
       .set({
         syncStatus: 'completed',
@@ -398,17 +435,22 @@ async function performBackgroundSync(
         totalEmailCount: syncedCount,
         lastSyncedAt: new Date(),
         continuationCount: 0, // Reset continuation counter on successful completion
+        retryCount: 0, // Reset retry counter
+        lastError: null, // Clear any previous errors
       })
       .where(eq(emailAccounts.id, accountId));
 
+    console.log(`✅ ========================================`);
     console.log(`✅ Background sync COMPLETED for account ${accountId}`);
-    console.log(`📊 Final Stats:
-      - New emails synced this session: ${totalSynced.toLocaleString()}
-      - Total emails in database: ${syncedCount.toLocaleString()}
-      - Pages processed: ${currentPage}
-      - Time elapsed: ${elapsedMinutes} minutes
-      - Reason for completion: ${currentPage >= maxPages ? 'Reached max pages' : 'No more emails available'}
-    `);
+    console.log(`✅ ========================================`);
+    console.log(`📊 Final Stats:`);
+    console.log(`   - New emails synced this session: ${totalSynced.toLocaleString()}`);
+    console.log(`   - Total emails in database: ${syncedCount.toLocaleString()}`);
+    console.log(`   - Pages processed: ${currentPage}/${maxPages}`);
+    console.log(`   - Time elapsed: ${elapsedMinutes} min ${elapsedSeconds % 60} sec`);
+    console.log(`   - Completion reason: ${completionReason}`);
+    console.log(`   - Continuations used: ${continuationCount}/${MAX_CONTINUATIONS}`);
+    console.log(`✅ ========================================`);
   } catch (error) {
     console.error(`❌ Background sync failed for account ${accountId}:`, error);
     
