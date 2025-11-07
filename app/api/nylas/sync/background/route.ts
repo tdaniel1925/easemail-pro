@@ -336,22 +336,33 @@ async function performBackgroundSync(
           }
         }
 
-        // Update sync progress
+        // Update sync progress with detailed metrics
         // ✅ FIX #5: Better progress calculation and logging
-        const estimatedProgress = syncedCount > 0 
+        const estimatedProgress = syncedCount > 0
           ? Math.min(Math.round((syncedCount / 50000) * 100), 99) // Estimate based on 50K assumption
           : Math.min(Math.round((currentPage / maxPages) * 100), 99); // Fallback to page-based
-        
+
+        // Calculate sync rate (emails per minute)
+        const elapsedMinutes = (Date.now() - startTime) / (1000 * 60);
+        const emailsPerMinute = elapsedMinutes > 0 ? Math.round(syncedCount / elapsedMinutes) : 0;
+
         await db.update(emailAccounts)
           .set({
             syncedEmailCount: syncedCount,
             syncProgress: estimatedProgress,
             syncCursor: response.nextCursor || null,
             lastSyncedAt: new Date(),
+            // Store metadata for dashboard
+            metadata: {
+              currentPage,
+              maxPages,
+              emailsPerMinute,
+              lastBatchSize: messages.length,
+            },
           })
           .where(eq(emailAccounts.id, accountId));
 
-        console.log(`📊 Progress: ${estimatedProgress}% | Synced: ${syncedCount.toLocaleString()} emails | Page: ${currentPage}/${maxPages} | Time: ${Math.round((Date.now() - startTime)/1000)}s`);
+        console.log(`📊 Progress: ${estimatedProgress}% | Synced: ${syncedCount.toLocaleString()} emails | Page: ${currentPage}/${maxPages} | Rate: ${emailsPerMinute}/min | Time: ${Math.round((Date.now() - startTime)/1000)}s`);
 
         // Check for next page
         if (!response.nextCursor) {
