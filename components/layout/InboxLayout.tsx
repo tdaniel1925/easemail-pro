@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar, Paperclip, Zap, Shield, Users, Bot, MessageSquare, RefreshCw } from 'lucide-react';
+import { Mail, Star, Clock, Send, FileText, Trash2, Archive, Settings, Plus, Search, User, LogOut, Menu, ChevronRight, ChevronDown, Folder, Calendar, Paperclip, Zap, Shield, Users, Bot, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
@@ -663,18 +663,6 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             >
               <User className="h-4 w-4" />
               <span>Contacts</span>
-            </button>
-            <button
-              onClick={() => router.push('/sync-status')}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all",
-                pathname === '/sync-status'
-                  ? "bg-primary text-primary-foreground font-medium shadow-sm"
-                  : "hover:bg-accent hover:shadow-sm text-muted-foreground"
-              )}
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span>Sync Status</span>
             </button>
             <button
               onClick={() => router.push('/attachments')}

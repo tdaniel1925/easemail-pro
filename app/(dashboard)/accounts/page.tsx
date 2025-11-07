@@ -85,22 +85,23 @@ function AccountsContent() {
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [isProviderSelectorOpen, setIsProviderSelectorOpen] = useState(false);
+  const [syncMetrics, setSyncMetrics] = useState<Record<string, any>>({});
 
   useEffect(() => {
     fetchAccounts();
-    
+
     // Start with faster polling
     const interval = setInterval(() => {
       checkSyncStatus();
     }, 2000); // Poll every 2 seconds for real-time updates
-    
+
     return () => clearInterval(interval);
   }, []);
 
   const checkSyncStatus = async () => {
     // Only check status for accounts that are syncing or background_syncing
-    const syncingAccounts = accounts.filter(a => 
-      a.syncStatus === 'syncing' || 
+    const syncingAccounts = accounts.filter(a =>
+      a.syncStatus === 'syncing' ||
       a.syncStatus === 'background_syncing'
     );
 
@@ -108,21 +109,28 @@ function AccountsContent() {
 
     for (const account of syncingAccounts) {
       try {
-        const response = await fetch(`/api/nylas/sync/background?accountId=${account.id}`);
-        const data = await response.json();
-        
-        if (data.success) {
+        // Fetch detailed metrics from the metrics API
+        const metricsResponse = await fetch(`/api/nylas/sync/metrics?accountId=${account.id}`);
+        const metricsData = await metricsResponse.json();
+
+        if (metricsData.success) {
+          // Update sync metrics for this account
+          setSyncMetrics(prev => ({
+            ...prev,
+            [account.id]: metricsData.metrics
+          }));
+
           // Update account with new sync status
-          setAccounts(prev => prev.map(a => 
-            a.id === account.id 
-              ? { 
-                  ...a, 
-                  syncStatus: data.syncStatus,
-                  syncProgress: data.progress,
-                  totalEmailCount: data.totalEmailCount,
-                  syncedEmailCount: data.syncedEmailCount,
-                  initialSyncCompleted: data.initialSyncCompleted,
-                  lastSyncedAt: data.lastSyncedAt,
+          setAccounts(prev => prev.map(a =>
+            a.id === account.id
+              ? {
+                  ...a,
+                  syncStatus: metricsData.metrics.syncStatus,
+                  syncProgress: metricsData.metrics.syncProgress,
+                  totalEmailCount: metricsData.metrics.totalEmailCount,
+                  syncedEmailCount: metricsData.metrics.syncedEmailCount,
+                  initialSyncCompleted: metricsData.metrics.initialSyncCompleted,
+                  lastSyncedAt: metricsData.metrics.lastSyncedAt,
                 }
               : a
           ));
@@ -548,7 +556,7 @@ function AccountsContent() {
                         </div>
                       </div>
                       {account.syncedEmailCount !== undefined && (
-                        <div className="mt-3 space-y-1">
+                        <div className="mt-3 space-y-2">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-blue-700 dark:text-blue-300 font-medium">
                               📧 {account.syncedEmailCount.toLocaleString()} emails synced
@@ -559,7 +567,55 @@ function AccountsContent() {
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
+
+                          {/* Enhanced Metrics Grid */}
+                          {syncMetrics[account.id] && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-blue-200 dark:border-blue-800">
+                              {/* Sync Rate */}
+                              {syncMetrics[account.id].emailsPerMinute > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-xs text-blue-600 dark:text-blue-400">Rate</p>
+                                  <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                                    {syncMetrics[account.id].emailsPerMinute}/min
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* ETA */}
+                              {syncMetrics[account.id].estimatedTimeRemaining && (
+                                <div className="space-y-1">
+                                  <p className="text-xs text-blue-600 dark:text-blue-400">ETA</p>
+                                  <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                                    {syncMetrics[account.id].estimatedTimeRemaining < 60
+                                      ? `${syncMetrics[account.id].estimatedTimeRemaining}m`
+                                      : `${Math.floor(syncMetrics[account.id].estimatedTimeRemaining / 60)}h ${syncMetrics[account.id].estimatedTimeRemaining % 60}m`}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Continuation Count */}
+                              {syncMetrics[account.id].continuationCount !== undefined && (
+                                <div className="space-y-1">
+                                  <p className="text-xs text-blue-600 dark:text-blue-400">Continuations</p>
+                                  <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                                    {syncMetrics[account.id].continuationCount} / 100
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Current Page */}
+                              {syncMetrics[account.id].currentPage !== undefined && (
+                                <div className="space-y-1">
+                                  <p className="text-xs text-blue-600 dark:text-blue-400">Page</p>
+                                  <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                                    {syncMetrics[account.id].currentPage} / {syncMetrics[account.id].maxPages || 1000}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 pt-1">
                             <div className="flex items-center gap-1">
                               <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
                               <span>Live sync in progress</span>
