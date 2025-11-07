@@ -25,7 +25,7 @@ const CACHEABLE_API_PATTERNS = [
 ];
 
 // Install: Cache critical assets
-self.addEventListener('install', (event: any) => {
+self.addEventListener('install', (event) => {
   console.log('📦 Service Worker installing...');
   
   event.waitUntil(
@@ -36,13 +36,13 @@ self.addEventListener('install', (event: any) => {
       })
       .then(() => {
         console.log('✅ Service Worker installed');
-        return (self as any).skipWaiting();
+        return self.skipWaiting();
       })
   );
 });
 
 // Activate: Clean up old caches
-self.addEventListener('activate', (event: any) => {
+self.addEventListener('activate', (event) => {
   console.log('📦 Service Worker activating...');
   
   event.waitUntil(
@@ -59,13 +59,13 @@ self.addEventListener('activate', (event: any) => {
       })
       .then(() => {
         console.log('✅ Service Worker activated');
-        return (self as any).clients.claim();
+        return self.clients.claim();
       })
   );
 });
 
 // Fetch: Network-first with cache fallback
-self.addEventListener('fetch', (event: any) => {
+self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
@@ -151,7 +151,7 @@ self.addEventListener('fetch', (event: any) => {
 });
 
 // Background Sync: Queue failed requests
-self.addEventListener('sync', (event: any) => {
+self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-emails') {
     console.log('🔄 Background sync: Syncing emails');
     
@@ -170,9 +170,9 @@ async function syncFailedRequests() {
 }
 
 // Message handler: Clear cache on command
-self.addEventListener('message', (event: any) => {
+self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') {
-    (self as any).skipWaiting();
+    self.skipWaiting();
   }
   
   if (event.data === 'clearCache') {

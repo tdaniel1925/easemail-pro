@@ -75,19 +75,30 @@ export async function GET(request: NextRequest) {
     });
 
     if (!dbUser) {
+      console.error('User not found in database:', user.id);
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get preferences
+    // Get preferences (or return defaults if none exist)
     const prefs = await db.query.userPreferences.findFirst({
       where: eq(userPreferences.userId, dbUser.id),
     });
 
+    // If no preferences exist, return defaults
+    if (!prefs) {
+      console.log('No preferences found for user, returning defaults');
+      return NextResponse.json({ 
+        success: true, 
+        preferences: null // Frontend will use defaults
+      });
+    }
+
     return NextResponse.json({ success: true, preferences: prefs });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching preferences:', error);
+    console.error('Error details:', error.message, error.stack);
     return NextResponse.json(
-      { error: 'Failed to fetch preferences' },
+      { error: 'Failed to fetch preferences', details: error.message },
       { status: 500 }
     );
   }
