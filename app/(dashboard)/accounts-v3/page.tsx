@@ -598,9 +598,13 @@ export default function AccountsV3Page() {
                       </div>
                       <div className="flex items-center gap-2">
                         {account.webhookStatus === 'active' ? (
-                          <Wifi className="h-4 w-4 text-green-600" title="Webhooks active" />
+                          <div title="Webhooks active">
+                            <Wifi className="h-4 w-4 text-green-600" />
+                          </div>
                         ) : (
-                          <WifiOff className="h-4 w-4 text-orange-600" title="Webhooks inactive" />
+                          <div title="Webhooks inactive">
+                            <WifiOff className="h-4 w-4 text-orange-600" />
+                          </div>
                         )}
                         {account.syncStatus && (
                           <Badge variant={
