@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getInitials, generateAvatarColor } from '@/lib/utils';
 import ProviderSelector from '@/components/email/ProviderSelector';
 
@@ -76,6 +77,14 @@ export default function AccountsV3Page() {
   const [syncMetrics, setSyncMetrics] = useState<Record<string, SyncMetrics>>({});
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [accountSettings, setAccountSettings] = useState<{
+    autoSync: boolean;
+    isActive: boolean;
+    syncFrequency: string | null;
+    isDefault: boolean;
+  } | null>(null);
 
   // Refs for stable polling
   const accountsRef = useRef<EmailAccount[]>([]);
@@ -408,6 +417,63 @@ export default function AccountsV3Page() {
       console.error('Webhook activation failed:', error);
       setMessage({ type: 'error', text: error.message || 'Failed to activate webhooks' });
     }
+  };
+
+  const handleOpenSettings = async (accountId: string) => {
+    setSelectedAccount(accountId);
+    setSettingsModalOpen(true);
+    setSettingsLoading(true);
+
+    try {
+      const response = await fetch(`/api/nylas/accounts/${accountId}/settings`);
+      const data = await response.json();
+
+      if (data.success) {
+        setAccountSettings(data.settings);
+      } else {
+        throw new Error(data.error || 'Failed to load settings');
+      }
+    } catch (error: any) {
+      console.error('Failed to load account settings:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to load account settings' });
+      setSettingsModalOpen(false);
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!selectedAccount || !accountSettings) return;
+
+    setSettingsLoading(true);
+    try {
+      const response = await fetch(`/api/nylas/accounts/${selectedAccount}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(accountSettings),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Account settings saved successfully' });
+        setSettingsModalOpen(false);
+        await fetchAccounts();
+      } else {
+        throw new Error(data.error || 'Failed to save settings');
+      }
+    } catch (error: any) {
+      console.error('Failed to save account settings:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to save settings' });
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleCloseSettings = () => {
+    setSettingsModalOpen(false);
+    setSelectedAccount(null);
+    setAccountSettings(null);
   };
 
   // Calculate aggregate stats
@@ -791,7 +857,8 @@ export default function AccountsV3Page() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => setSelectedAccount(account.id)}
+                        onClick={() => handleOpenSettings(account.id)}
+                        title="Account Settings"
                       >
                         <Settings className="h-4 w-4" />
                       </Button>
@@ -896,6 +963,101 @@ export default function AccountsV3Page() {
         isOpen={isProviderSelectorOpen}
         onClose={() => setIsProviderSelectorOpen(false)}
       />
+
+      {/* Account Settings Modal */}
+      <Dialog open={settingsModalOpen} onOpenChange={handleCloseSettings}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Account Settings</DialogTitle>
+            <DialogDescription>
+              Configure settings for {selectedAccount && accounts.find(a => a.id === selectedAccount)?.emailAddress}
+            </DialogDescription>
+          </DialogHeader>
+
+          {settingsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : accountSettings ? (
+            <div className="space-y-6 py-4">
+              {/* Auto Sync */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="settings-auto-sync">Auto Sync</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically sync emails every 5 minutes
+                  </p>
+                </div>
+                <Switch
+                  id="settings-auto-sync"
+                  checked={accountSettings.autoSync}
+                  onCheckedChange={(checked) =>
+                    setAccountSettings({ ...accountSettings, autoSync: checked })
+                  }
+                />
+              </div>
+
+              {/* Active Status */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="settings-active">Account Active</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Enable or disable this email account
+                  </p>
+                </div>
+                <Switch
+                  id="settings-active"
+                  checked={accountSettings.isActive}
+                  onCheckedChange={(checked) =>
+                    setAccountSettings({ ...accountSettings, isActive: checked })
+                  }
+                />
+              </div>
+
+              {/* Default Account */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="settings-default">Default Account</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Use this as the default account for sending emails
+                  </p>
+                </div>
+                <Switch
+                  id="settings-default"
+                  checked={accountSettings.isDefault}
+                  onCheckedChange={(checked) =>
+                    setAccountSettings({ ...accountSettings, isDefault: checked })
+                  }
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={handleCloseSettings}
+                  disabled={settingsLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveSettings}
+                  disabled={settingsLoading}
+                >
+                  {settingsLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
