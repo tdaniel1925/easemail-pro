@@ -112,11 +112,11 @@ async function performBackgroundSync(
   provider?: string
 ) {
   console.log(`📧 Starting background email sync for account ${accountId} (Provider: ${provider})`);
-  
+
   let pageToken: string | undefined = startingCursor || undefined;
   let totalSynced = 0;
-  const pageSize = 500; // ✅ FIX #6: Increased from 200 to 500 emails per batch (reduces continuations by 60%)
-  const maxPages = 1000; // ✅ FIX #2: Supports up to 500,000 emails (1000 pages × 500)
+  const pageSize = 200; // Nylas API max limit is 200 emails per request
+  const maxPages = 1000; // Supports up to 200,000 emails (1000 pages × 200)
   let currentPage = 0;
   
   // ✅ FIX #3: Timeout detection (Vercel Pro = 5 min, leave 1 min buffer)

@@ -214,7 +214,7 @@ export default function TeamAdminPage() {
     <div className="container mx-auto p-6 max-w-7xl">
       {/* Back Link */}
       <Link
-        href="/inbox"
+        href="/inbox-v3"
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />

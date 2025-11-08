@@ -53,7 +53,7 @@ export default function SignupPage() {
       if (error) throw error;
 
       if (data.user) {
-        router.push('/inbox');
+        router.push('/inbox-v3');
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred during signup');

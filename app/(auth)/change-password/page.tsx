@@ -232,7 +232,7 @@ function ChangePasswordForm() {
       
       // Redirect to dashboard after 2 seconds
       setTimeout(() => {
-        router.push('/inbox');
+        router.push('/inbox-v3');
       }, 2000);
 
     } catch (err: any) {

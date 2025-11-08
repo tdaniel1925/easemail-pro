@@ -16,7 +16,20 @@
       "Bash(npx tsx:*)",
       "Bash(npx drizzle-kit studio)",
       "Bash(npx drizzle-kit push:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(copy:*)",
+      "Bash(find:*)",
+      "Bash(psql:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill /F /PID 116888)",
+      "Bash(taskkill //F //PID 116888)",
+      "Bash(move \"C:\\dev\\EaseMail - The Future\\app\\api\\nylas\\accounts\\[id]\" \"C:\\dev\\EaseMail - The Future\\app\\api\\nylas\\accounts\\[accountId]\\settings_temp\")",
+      "Bash(move \"C:\\dev\\EaseMail - The Future\\app\\api\\nylas\\accounts\\[accountId]\\settings_temp\" \"C:\\dev\\EaseMail - The Future\\app\\api\\nylas\\accounts\\[accountId]\\settings\")",
+      "Bash(taskkill //F //PID 140924)",
+      "Bash(tail:*)",
+      "Bash(taskkill //F //PID 172568)"
     ],
     "deny": [],
     "ask": []

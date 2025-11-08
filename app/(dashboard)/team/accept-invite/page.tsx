@@ -41,7 +41,7 @@ export default function AcceptInvitePage() {
         
         // Redirect to inbox after 2 seconds
         setTimeout(() => {
-          router.push('/inbox');
+          router.push('/inbox-v3');
         }, 2000);
       } else {
         setStatus('error');
@@ -94,7 +94,7 @@ export default function AcceptInvitePage() {
                 </p>
               </div>
               <Button
-                onClick={() => router.push('/inbox')}
+                onClick={() => router.push('/inbox-v3')}
                 className="w-full"
               >
                 <Users className="h-4 w-4 mr-2" />

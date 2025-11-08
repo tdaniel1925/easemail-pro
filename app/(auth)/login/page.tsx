@@ -83,7 +83,7 @@ function LoginForm() {
           }
         }
         
-        setTimeout(() => router.push('/inbox'), 1000);
+        setTimeout(() => router.push('/inbox-v3'), 1000);
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred during login');

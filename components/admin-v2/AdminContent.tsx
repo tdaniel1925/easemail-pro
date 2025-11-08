@@ -66,7 +66,7 @@ export default function AdminContent() {
               <h2 className="text-xl font-bold text-foreground">Admin Panel</h2>
             </div>
             <a 
-              href="/inbox"
+              href="/inbox-v3"
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />

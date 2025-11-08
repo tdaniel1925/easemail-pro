@@ -139,7 +139,7 @@ export async function showEmailNotification(email: {
     requireInteraction: false, // Auto-dismiss after a few seconds
     silent: !preferences.sound,
     data: {
-      url: '/inbox',
+      url: '/inbox-v3',
       from: email.from,
       subject: email.subject,
     },

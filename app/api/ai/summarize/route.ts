@@ -15,6 +15,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// In-memory cache for v3 messages (session-based)
+const summaryCache = new Map<string, { summary: string; timestamp: number }>();
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
 interface SummaryRequest {
   emailId: string;
   subject?: string;
@@ -39,20 +43,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 🔥 CHECK DATABASE FIRST - One-time generation!
-    const existingEmail = await db.query.emails.findFirst({
-      where: eq(emails.id, emailId),
-      columns: { aiSummary: true },
-    });
-
-    if (existingEmail?.aiSummary) {
-      console.log(`✅ Using cached summary from database for ${emailId}`);
+    // 🔥 CHECK IN-MEMORY CACHE FIRST (for v3 messages)
+    const cached = summaryCache.get(emailId);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      console.log(`✅ Using in-memory cached summary for ${emailId}`);
       return NextResponse.json({
         emailId,
-        summary: existingEmail.aiSummary,
-        cached: true, // From database!
-        tokens: 0, // No OpenAI cost
+        summary: cached.summary,
+        cached: true,
+        tokens: 0,
       });
+    }
+
+    // 🔥 CHECK DATABASE (for v1 messages)
+    try {
+      const existingEmail = await db.query.emails.findFirst({
+        where: eq(emails.id, emailId),
+        columns: { aiSummary: true },
+      });
+
+      if (existingEmail?.aiSummary) {
+        console.log(`✅ Using database cached summary for ${emailId}`);
+        // Also cache in memory for faster access
+        summaryCache.set(emailId, { summary: existingEmail.aiSummary, timestamp: Date.now() });
+        return NextResponse.json({
+          emailId,
+          summary: existingEmail.aiSummary,
+          cached: true,
+          tokens: 0,
+        });
+      }
+    } catch (dbError) {
+      // Email not in DB (v3 on-demand) - continue with generation
+      console.log(`📧 Email ${emailId} not in database, will generate fresh summary`);
     }
 
     // Use snippet, bodyText, or subject as content (in order of preference)
@@ -123,9 +146,13 @@ ${content}`
       max_tokens: 60,
     });
 
-    const summary = completion.choices[0]?.message?.content?.trim() || snippet;
+    const summary = completion.choices[0]?.message?.content?.trim() || snippet || 'No summary available';
 
-    // 🔥 SAVE TO DATABASE - Never generate again!
+    // 🔥 SAVE TO IN-MEMORY CACHE (for v3 messages)
+    summaryCache.set(emailId, { summary, timestamp: Date.now() });
+    console.log(`💾 Summary cached in memory for ${emailId}`);
+
+    // 🔥 TRY TO SAVE TO DATABASE (for v1 messages)
     try {
       await db.update(emails)
         .set({
@@ -133,11 +160,11 @@ ${content}`
           updatedAt: new Date(),
         })
         .where(eq(emails.id, emailId));
-      
-      console.log(`💾 Summary saved to database for ${emailId}`);
+
+      console.log(`💾 Summary also saved to database for ${emailId}`);
     } catch (dbError) {
-      console.error('⚠️ Failed to save summary to database:', dbError);
-      // Continue anyway - at least return the summary
+      // Not in DB (v3 message) - that's fine, in-memory cache works
+      console.log(`ℹ️ Email ${emailId} not saved to database (likely v3 message)`);
     }
 
     console.log(`✅ Summary generated for ${emailId}: "${summary}"`);

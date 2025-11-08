@@ -11,7 +11,7 @@ import EmailCompose from '@/components/email/EmailCompose';
 import ProviderSelector from '@/components/email/ProviderSelector';
 import InlineMessage from '@/components/ui/inline-message';
 import SettingsMenu from '@/components/layout/SettingsMenu';
-import EaseMailLogo from '@/components/ui/EaseMailLogo';
+import EaseMailLogoFull from '@/components/ui/EaseMailLogoFull';
 import { FolderSkeleton } from '@/components/ui/skeleton';
 import { buildFolderTree, flattenFolderTree } from '@/lib/email/folder-tree';
 import { FolderSearch } from '@/components/email/FolderSearch';
@@ -101,13 +101,13 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       // Refetch accounts and folders
       fetchAccounts();
       // Clear the query param
-      router.replace('/inbox');
+      router.replace('/inbox-v3');
     }
     
     if (error) {
       console.error('❌ Error:', error);
       setMessage({ type: 'error', text: `Failed to connect account: ${error}` });
-      router.replace('/inbox');
+      router.replace('/inbox-v3');
     }
   }, [searchParams]);
 
@@ -256,7 +256,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   // ✅ Refetch accounts when navigating back to inbox (e.g., from /accounts page)
   // But only if we don't already have accounts loaded (prevents unnecessary flashing)
   useEffect(() => {
-    if (pathname === '/inbox' && accounts.length === 0) {
+    if (pathname === '/inbox-v3' && accounts.length === 0) {
       console.log('[Navigation] Navigated to inbox without accounts, fetching...');
       fetchAccounts();
     }
@@ -462,14 +462,14 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
 
   // ✅ FIX #2: Use lowercase folder names to match database values
   const defaultFolders = [
-    { name: 'inbox', icon: Mail, count: 0, href: '/inbox', active: true, displayName: 'Inbox' },
-    { name: 'sms', icon: MessageSquare, count: 0, href: '/inbox', displayName: 'SMS', isSMS: true },
-    { name: 'starred', icon: Star, count: 0, href: '/inbox', displayName: 'Starred' },
-    { name: 'snoozed', icon: Clock, count: 0, href: '/inbox', displayName: 'Snoozed' },
-    { name: 'sent', icon: Send, count: 0, href: '/inbox', displayName: 'Sent' },
-    { name: 'drafts', icon: FileText, count: 0, href: '/inbox', displayName: 'Drafts' },
-    { name: 'archive', icon: Archive, count: 0, href: '/inbox', displayName: 'Archive' },
-    { name: 'trash', icon: Trash2, count: 0, href: '/inbox', displayName: 'Trash' },
+    { name: 'inbox', icon: Mail, count: 0, href: '/inbox-v3', active: true, displayName: 'Inbox' },
+    { name: 'sms', icon: MessageSquare, count: 0, href: '/inbox-v3', displayName: 'SMS', isSMS: true },
+    { name: 'starred', icon: Star, count: 0, href: '/inbox-v3', displayName: 'Starred' },
+    { name: 'snoozed', icon: Clock, count: 0, href: '/inbox-v3', displayName: 'Snoozed' },
+    { name: 'sent', icon: Send, count: 0, href: '/inbox-v3', displayName: 'Sent' },
+    { name: 'drafts', icon: FileText, count: 0, href: '/inbox-v3', displayName: 'Drafts' },
+    { name: 'archive', icon: Archive, count: 0, href: '/inbox-v3', displayName: 'Archive' },
+    { name: 'trash', icon: Trash2, count: 0, href: '/inbox-v3', displayName: 'Trash' },
   ];
 
   // Only show folders if we have accounts, otherwise show empty state
@@ -489,12 +489,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       >
         {/* Brand Header - Centered with Logo */}
         <div className="h-16 px-5 flex items-center justify-center border-b border-border/50 relative">
-          <div className="flex items-center gap-1">
-            <EaseMailLogo className="h-9 w-9" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-              EaseMail
-            </span>
-          </div>
+          <EaseMailLogoFull className="h-8" />
           {/* ✅ PHASE 4: Offline indicator */}
           {!isOnline && (
             <div className="absolute top-4 left-4 bg-yellow-500 text-white px-2 py-1 rounded text-xs font-medium">
