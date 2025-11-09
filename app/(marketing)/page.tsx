@@ -199,65 +199,173 @@ export default function HomePage() {
       </section>
 
       {/* Comparison Section */}
-      <section className="container mx-auto px-6 py-20">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              How we compare
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              See what makes EaseMail different from traditional email clients.
-            </p>
-          </div>
+      <section className="bg-muted/50 py-20">
+        <div className="container mx-auto px-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                How EaseMail Compares
+              </h2>
+              <p className="text-lg text-muted-foreground">
+                See how we stack up against Superhuman, Gmail, and Outlook
+              </p>
+            </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-4 px-4 font-semibold">Feature</th>
-                  <th className="text-center py-4 px-4 font-semibold">EaseMail</th>
-                  <th className="text-center py-4 px-4 font-semibold text-muted-foreground">Others</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { feature: 'AI Email Writing', easemail: true, others: false },
-                  { feature: 'Voice Dictation with AI Polish', easemail: true, others: false },
-                  { feature: 'Smart Email Remix', easemail: true, others: false },
-                  { feature: 'Multi-Account Inbox', easemail: true, others: true },
-                  { feature: 'Custom Automation Rules', easemail: true, others: 'Limited' },
-                  { feature: 'SMS Integration', easemail: true, others: false },
-                  { feature: 'Rich Text Editor', easemail: true, others: true },
-                  { feature: 'Transparent Pricing', easemail: true, others: 'Limited' },
-                ].map((row, index) => (
-                  <tr key={index} className="border-b">
-                    <td className="py-4 px-4">{row.feature}</td>
-                    <td className="text-center py-4 px-4">
-                      {typeof row.easemail === 'boolean' ? (
-                        row.easemail ? (
-                          <Check className="h-5 w-5 text-green-600 mx-auto" />
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )
-                      ) : (
-                        <span className="text-sm">{row.easemail}</span>
-                      )}
-                    </td>
-                    <td className="text-center py-4 px-4">
-                      {typeof row.others === 'boolean' ? (
-                        row.others ? (
-                          <Check className="h-5 w-5 text-muted-foreground mx-auto" />
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )
-                      ) : (
-                        <span className="text-sm text-muted-foreground">{row.others}</span>
-                      )}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse bg-background rounded-lg overflow-hidden shadow-lg">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left py-4 px-6 font-semibold min-w-[250px]">Feature</th>
+                    <th className="text-center py-4 px-4 font-semibold min-w-[120px]">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                          <Mail className="h-5 w-5 text-primary-foreground" />
+                        </div>
+                        <span>EaseMail</span>
+                      </div>
+                    </th>
+                    <th className="text-center py-4 px-4 font-semibold text-muted-foreground min-w-[120px]">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                          <Zap className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <span>Superhuman</span>
+                      </div>
+                    </th>
+                    <th className="text-center py-4 px-4 font-semibold text-muted-foreground min-w-[120px]">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                          <Mail className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <span>Gmail</span>
+                      </div>
+                    </th>
+                    <th className="text-center py-4 px-4 font-semibold text-muted-foreground min-w-[120px]">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                          <Mail className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <span>Outlook</span>
+                      </div>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {[
+                    {
+                      category: 'AI Features',
+                      features: [
+                        { name: 'AI Email Writing', easemail: true, superhuman: false, gmail: 'Limited', outlook: 'Limited' },
+                        { name: 'Voice to Email with AI Polish', easemail: true, superhuman: false, gmail: false, outlook: false },
+                        { name: 'Smart Remix (Tone/Length)', easemail: true, superhuman: false, gmail: false, outlook: false },
+                        { name: 'AI Smart Replies', easemail: true, superhuman: 'Basic', gmail: 'Basic', outlook: 'Basic' },
+                        { name: 'Email Summaries', easemail: true, superhuman: false, gmail: 'Limited', outlook: false },
+                      ]
+                    },
+                    {
+                      category: 'Email Management',
+                      features: [
+                        { name: 'Multi-Account Unified Inbox', easemail: true, superhuman: true, gmail: 'Limited', outlook: true },
+                        { name: 'Advanced Search', easemail: true, superhuman: true, gmail: true, outlook: true },
+                        { name: 'Custom Automation Rules', easemail: true, superhuman: 'Limited', gmail: 'Basic', outlook: 'Basic' },
+                        { name: 'Snooze Emails', easemail: true, superhuman: true, gmail: true, outlook: true },
+                        { name: 'Email Scheduling', easemail: true, superhuman: true, gmail: true, outlook: true },
+                      ]
+                    },
+                    {
+                      category: 'Communication',
+                      features: [
+                        { name: 'SMS Integration', easemail: true, superhuman: false, gmail: false, outlook: false },
+                        { name: 'Calendar Integration', easemail: true, superhuman: true, gmail: true, outlook: true },
+                        { name: 'Contact Management', easemail: true, superhuman: 'Basic', gmail: 'Basic', outlook: true },
+                        { name: 'Rich Text Editor', easemail: true, superhuman: true, gmail: true, outlook: true },
+                      ]
+                    },
+                    {
+                      category: 'Security & Privacy',
+                      features: [
+                        { name: 'End-to-End Encryption', easemail: true, superhuman: true, gmail: 'In Transit', outlook: 'In Transit' },
+                        { name: 'Privacy-First AI (Zero Retention)', easemail: true, superhuman: false, gmail: false, outlook: false },
+                        { name: 'Two-Factor Authentication', easemail: true, superhuman: true, gmail: true, outlook: true },
+                        { name: 'GDPR Compliant', easemail: true, superhuman: true, gmail: true, outlook: true },
+                      ]
+                    },
+                    {
+                      category: 'Pricing & Access',
+                      features: [
+                        { name: 'Free Plan Available', easemail: true, superhuman: false, gmail: true, outlook: true },
+                        { name: 'Starting Price', easemail: '$0/mo', superhuman: '$30/mo', gmail: '$0/mo', outlook: '$0/mo' },
+                        { name: 'Pro Plan Price', easemail: '$12/mo', superhuman: '$30/mo', gmail: '$6/mo', outlook: '$7/mo' },
+                        { name: 'Mobile Apps', easemail: true, superhuman: true, gmail: true, outlook: true },
+                      ]
+                    }
+                  ].map((section, sectionIndex) => (
+                    <>
+                      <tr key={`section-${sectionIndex}`} className="border-b bg-muted/30">
+                        <td colSpan={5} className="py-3 px-6 font-bold text-sm">
+                          {section.category}
+                        </td>
+                      </tr>
+                      {section.features.map((row, rowIndex) => (
+                        <tr key={`${sectionIndex}-${rowIndex}`} className="border-b hover:bg-muted/20 transition-colors">
+                          <td className="py-4 px-6 font-medium">{row.name}</td>
+                          <td className="text-center py-4 px-4">
+                            {typeof row.easemail === 'boolean' ? (
+                              row.easemail ? (
+                                <Check className="h-6 w-6 text-green-600 mx-auto" />
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )
+                            ) : (
+                              <span className="text-sm font-medium">{row.easemail}</span>
+                            )}
+                          </td>
+                          <td className="text-center py-4 px-4">
+                            {typeof row.superhuman === 'boolean' ? (
+                              row.superhuman ? (
+                                <Check className="h-6 w-6 text-muted-foreground mx-auto" />
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )
+                            ) : (
+                              <span className="text-sm text-muted-foreground">{row.superhuman}</span>
+                            )}
+                          </td>
+                          <td className="text-center py-4 px-4">
+                            {typeof row.gmail === 'boolean' ? (
+                              row.gmail ? (
+                                <Check className="h-6 w-6 text-muted-foreground mx-auto" />
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )
+                            ) : (
+                              <span className="text-sm text-muted-foreground">{row.gmail}</span>
+                            )}
+                          </td>
+                          <td className="text-center py-4 px-4">
+                            {typeof row.outlook === 'boolean' ? (
+                              row.outlook ? (
+                                <Check className="h-6 w-6 text-muted-foreground mx-auto" />
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )
+                            ) : (
+                              <span className="text-sm text-muted-foreground">{row.outlook}</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-8 text-center">
+              <p className="text-sm text-muted-foreground mb-4">
+                * Pricing and features accurate as of 2024. Competitor features may vary by plan.
+              </p>
+            </div>
           </div>
         </div>
       </section>
