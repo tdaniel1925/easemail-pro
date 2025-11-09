@@ -316,7 +316,7 @@ export default function TroubleshootingArticle() {
                     <li>Settings → Display → Enable "Load images automatically"</li>
                     <li>Check if "Data Saver" mode is enabled in your browser</li>
                     <li>Whitelist EaseMail domain in your ad blocker</li>
-                    <li>For large attachments (>25MB), download may take time - be patient</li>
+                    <li>For large attachments (&gt;25MB), download may take time - be patient</li>
                   </ol>
                 </div>
               </AccordionContent>
