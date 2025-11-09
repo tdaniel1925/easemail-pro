@@ -130,18 +130,6 @@ export default function InboxV3Page() {
             <Pencil className="h-4 w-4" />
             Compose
           </Button>
-          <Button
-            onClick={() => {
-              setSelectedFolderId('sms');
-              setSelectedFolderName('sms');
-              setSelectedMessageId(null);
-            }}
-            variant={selectedFolderName === 'sms' ? 'default' : 'outline'}
-            className="w-full gap-2"
-          >
-            <MessageSquare className="h-4 w-4" />
-            SMS
-          </Button>
         </div>
 
         {/* Account Selector - Fixed */}

@@ -55,6 +55,7 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -68,6 +69,7 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
   const [showSignatureDropdown, setShowSignatureDropdown] = useState(false);
   const [showSignaturePrompt, setShowSignaturePrompt] = useState(false);
   const [hideSignaturePromptPreference, setHideSignaturePromptPreference] = useState(false);
+  const [skipSignatureCheck, setSkipSignatureCheck] = useState(false);
 
   // Load user preferences on mount
   useEffect(() => {
@@ -253,10 +255,12 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
     setLastSaved(null);
     setShowCc(false);
     setShowBcc(false);
+    setSkipSignatureCheck(false);
   };
 
   const handleSend = async () => {
     setValidationError(null);
+    setSuccessMessage(null);
 
     // Validation
     if (to.length === 0 && cc.length === 0 && bcc.length === 0) {
@@ -276,9 +280,16 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       return;
     }
 
-    // Check for signature
-    if (signatures.length === 0 && !hideSignaturePromptPreference && type === 'compose') {
+    // Check for signature (skip if user explicitly chose to continue without one)
+    if (signatures.length === 0 && !hideSignaturePromptPreference && !skipSignatureCheck && type === 'compose') {
       setShowSignaturePrompt(true);
+      return;
+    }
+
+    // Allow empty body if there are attachments (e.g., voice messages)
+    const hasContent = body.trim() || attachments.length > 0;
+    if (!hasContent) {
+      setValidationError('Email body cannot be empty');
       return;
     }
 
@@ -348,13 +359,6 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       if (data.success) {
         console.log('[EmailComposeV3] Email sent successfully');
 
-        // Show success message
-        const successMessage = document.createElement('div');
-        successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-[100] animate-in slide-in-from-top';
-        successMessage.textContent = '✓ Email sent successfully!';
-        document.body.appendChild(successMessage);
-        setTimeout(() => successMessage.remove(), 3000);
-
         resetForm();
         onClose();
 
@@ -362,11 +366,11 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
         window.dispatchEvent(new CustomEvent('refreshEmails'));
       } else {
         console.error('[EmailComposeV3] Failed to send email:', data.error);
-        alert(`Failed to send email: ${data.error || 'Unknown error'}`);
+        setValidationError(`Failed to send email: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('[EmailComposeV3] Send error:', error);
-      alert('Failed to send email. Please check your connection and try again.');
+      setValidationError('Failed to send email. Please check your connection and try again.');
     } finally {
       setIsSending(false);
     }
@@ -412,19 +416,23 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
         setLastSaved(new Date());
         setIsDirty(false);
 
+        // Trigger refresh to update draft folder count
+        window.dispatchEvent(new CustomEvent('refreshEmails'));
+
         if (!silent) {
-          const successMessage = document.createElement('div');
-          successMessage.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg z-[100] animate-in slide-in-from-top';
-          successMessage.textContent = '✓ Draft saved successfully!';
-          document.body.appendChild(successMessage);
-          setTimeout(() => successMessage.remove(), 3000);
+          setSuccessMessage('Draft saved successfully');
+          setTimeout(() => setSuccessMessage(null), 3000);
         }
       } else {
-        if (!silent) alert(`Failed to save draft: ${data.error || 'Unknown error'}`);
+        if (!silent) {
+          setValidationError(`Failed to save draft: ${data.error || 'Unknown error'}`);
+        }
       }
     } catch (error) {
       console.error('[EmailComposeV3] Draft save error:', error);
-      if (!silent) alert('Failed to save draft. Please try again.');
+      if (!silent) {
+        setValidationError('Failed to save draft. Please try again.');
+      }
     } finally {
       setIsSavingDraft(false);
     }
@@ -439,6 +447,23 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
     }, 30000);
 
     return () => clearInterval(autoSaveInterval);
+  }, [isOpen, isDirty, accountId, handleSaveDraft]);
+
+  // Save draft on browser close/navigation
+  useEffect(() => {
+    if (!isOpen || !isDirty || !accountId) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Save draft synchronously using sendBeacon or fetch with keepalive
+      if (isDirty && accountId) {
+        handleSaveDraft(true);
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isOpen, isDirty, accountId, handleSaveDraft]);
 
   const handleAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -533,6 +558,7 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
 
   const handleContinueWithoutSignature = () => {
     setShowSignaturePrompt(false);
+    setSkipSignatureCheck(true);
     handleSend();
   };
 
@@ -960,6 +986,28 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
 
             {/* Footer */}
             <div className="flex flex-col border-t border-border">
+              {/* Success Message */}
+              {successMessage && (
+                <div className="px-3 pt-3">
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start gap-2">
+                    <svg className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm text-green-800 dark:text-green-300 font-medium">
+                        {successMessage}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setSuccessMessage(null)}
+                      className="text-green-500 hover:text-green-700 flex-shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Validation Error */}
               {validationError && (
                 <div className="px-3 pt-3">
