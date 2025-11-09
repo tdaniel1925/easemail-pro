@@ -105,12 +105,17 @@ export async function POST(req: NextRequest) {
     }
 
     // 8. Track AI cost
+    // Estimate token split: typically 30% input, 70% output for email composition
+    const totalTokens = result.metadata.tokensUsed || 0;
+    const estimatedInputTokens = Math.floor(totalTokens * 0.3);
+    const estimatedOutputTokens = Math.floor(totalTokens * 0.7);
+
     await trackAICost({
       userId,
       feature: 'write',
       model: result.metadata.model,
-      inputTokens: result.metadata.inputTokens || 0,
-      outputTokens: result.metadata.outputTokens || 0,
+      inputTokens: estimatedInputTokens,
+      outputTokens: estimatedOutputTokens,
     });
 
     console.log(`✅ Tracked AI cost for user ${userId}: ${result.metadata.tokensUsed} tokens`);
