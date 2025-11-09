@@ -280,7 +280,7 @@ export default function UseCasesPage() {
                 ))}
               </div>
               <Link href="/pricing">
-                <Button size="lg" variant="outline" className="gap-2">
+                <Button size="lg" variant="outline" className="gap-2 mt-5">
                   View Enterprise Pricing
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -316,7 +316,7 @@ export default function UseCasesPage() {
                 ))}
               </div>
               <Link href="/signup">
-                <Button size="lg" className="gap-2">
+                <Button size="lg" className="gap-2 mt-5">
                   Get Started
                   <ArrowRight className="h-4 w-4" />
                 </Button>
