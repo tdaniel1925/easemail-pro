@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { db } from '@/lib/db/drizzle';
-import { users, subscriptions, invoices, billing_transactions } from '@/lib/db/schema';
+import { users, subscriptions, invoices } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia',
+  apiVersion: '2023-10-16',
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -140,8 +140,9 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   // Create or update subscription in database
   await db.insert(subscriptions).values({
     userId: isOrgSubscription ? null : userId,
-    orgId: isOrgSubscription ? user.orgId : null,
+    organizationId: isOrgSubscription ? user.organizationId : null,
     planId,
+    planName: planId.charAt(0).toUpperCase() + planId.slice(1), // Capitalize first letter
     stripeSubscriptionId: subscription.id,
     stripeCustomerId: subscription.customer as string,
     status: subscription.status,

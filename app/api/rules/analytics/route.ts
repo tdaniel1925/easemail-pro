@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const activeRulesCount = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(emailRules)
-      .where(sql`${emailRules.userId} = ${dbUser.id} AND ${emailRules.isEnabled} = true`);
+      .where(sql`${emailRules.userId} = ${dbUser.id} AND ${emailRules.isActive} = true`);
 
     // Get total executions
     const executionsCount = await db
@@ -63,11 +63,11 @@ export async function GET(request: NextRequest) {
       .select({
         ruleId: emailRules.id,
         name: emailRules.name,
-        timesTriggered: emailRules.timesTriggered,
+        timesTriggered: emailRules.executionCount,
       })
       .from(emailRules)
       .where(eq(emailRules.userId, dbUser.id))
-      .orderBy(desc(emailRules.timesTriggered))
+      .orderBy(desc(emailRules.executionCount))
       .limit(10);
 
     // Get recent executions

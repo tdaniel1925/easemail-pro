@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const userInvoices = await db.query.invoices.findMany({
       where: or(
         eq(invoices.userId, user.id),
-        dbUser.orgId ? eq(invoices.orgId, dbUser.orgId) : undefined
+        dbUser.organizationId ? eq(invoices.organizationId, dbUser.organizationId) : undefined
       ),
       orderBy: [desc(invoices.createdAt)],
       limit: 50,

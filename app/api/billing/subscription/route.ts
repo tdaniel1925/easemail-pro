@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const subscription = await db.query.subscriptions.findFirst({
       where: or(
         eq(subscriptions.userId, user.id),
-        dbUser.orgId ? eq(subscriptions.orgId, dbUser.orgId) : undefined
+        dbUser.organizationId ? eq(subscriptions.organizationId, dbUser.organizationId) : undefined
       ),
       orderBy: (subscriptions, { desc }) => [desc(subscriptions.createdAt)],
     });

@@ -74,7 +74,7 @@ export async function POST(
       success: true,
       matched,
       conditionsEvaluated: [], // TODO: Add detailed condition results
-      actionsToExecute: matched ? rule.actions.map((a: any) => a.type) : [],
+      actionsToExecute: matched ? (rule.actions as any[]).map((a: any) => a.type) : [],
     };
 
     return NextResponse.json(response);

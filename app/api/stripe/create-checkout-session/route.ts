@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia',
+  apiVersion: '2023-10-16',
 });
 
 export const dynamic = 'force-dynamic';
@@ -75,7 +75,12 @@ export async function POST(request: NextRequest) {
     const totalAmount = pricePerSeat * seats;
 
     // Create or retrieve Stripe customer
-    let customerId = dbUser.stripeCustomerId;
+    // Check if user has an existing subscription with a Stripe customer ID
+    const existingSubscription = await db.query.subscriptions.findFirst({
+      where: eq(subscriptions.userId, dbUser.id),
+    });
+
+    let customerId = existingSubscription?.stripeCustomerId;
 
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -86,11 +91,6 @@ export async function POST(request: NextRequest) {
         },
       });
       customerId = customer.id;
-
-      // Update user with Stripe customer ID
-      await db.update(users)
-        .set({ stripeCustomerId: customerId })
-        .where(eq(users.id, dbUser.id));
     }
 
     // Create checkout session
