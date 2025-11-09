@@ -580,17 +580,52 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   // Ctrl+Enter to send
   useEffect(() => {
     if (!isOpen) return;
-    
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
         handleSend();
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, to, subject, body, accountId, attachments]);
+
+  // Save draft before browser navigation/close
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty && accountId) {
+        // Attempt to save draft using sendBeacon (works even after page unload starts)
+        const draftData = {
+          accountId,
+          to: to.map(r => r.email).join(', '),
+          cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
+          bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
+          subject,
+          bodyText: body,
+          bodyHtml: body,
+          attachments: [],
+          replyToEmailId: replyTo?.messageId,
+          replyType: type,
+        };
+
+        // Use sendBeacon for reliable delivery during page unload
+        const blob = new Blob([JSON.stringify(draftData)], { type: 'application/json' });
+        navigator.sendBeacon('/api/nylas/drafts', blob);
+
+        // Show browser confirmation dialog
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isOpen, isDirty, accountId, to, cc, bcc, subject, body, replyTo, type]);
 
   const handleInsertLink = () => {
     setShowURLDialog(true);

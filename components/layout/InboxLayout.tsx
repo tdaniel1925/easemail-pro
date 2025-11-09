@@ -667,36 +667,6 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
           </div>
         </div>
 
-        {/* Communication Section */}
-        <div className="border-t border-border/50 mt-2 pt-2 px-2">
-          <h3 className="px-3 text-xs font-semibold text-muted-foreground mb-2">
-            COMMUNICATION
-          </h3>
-          <button
-            onClick={() => router.push('/sms')}
-            className={cn(
-              "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
-              pathname === '/sms'
-                ? "bg-primary text-primary-foreground font-medium shadow-sm"
-                : "hover:bg-accent hover:shadow-sm text-muted-foreground"
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <MessageSquare className="h-4 w-4" />
-              <span>Text Messages</span>
-            </div>
-            {smsUnreadCount > 0 && (
-              <span className={cn(
-                "px-2 py-0.5 text-xs rounded-full flex-shrink-0 font-medium",
-                pathname === '/sms'
-                  ? "bg-primary-foreground text-primary"
-                  : "bg-green-500 text-white"
-              )}>
-                {smsUnreadCount}
-              </span>
-            )}
-          </button>
-        </div>
 
         {/* Quick Access - Sticky at bottom */}
         <div className="border-t border-border/50 bg-card">

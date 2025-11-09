@@ -16,6 +16,11 @@ import { helpCategories, helpArticles, type HelpArticle, type HelpCategory } fro
 import ConnectEmailArticle from './articles/ConnectEmailArticle';
 import AIWriteArticle from './articles/AIWriteArticle';
 import VoiceDictationArticle from './articles/VoiceDictationArticle';
+import EmailRulesArticle from './articles/EmailRulesArticle';
+import TroubleshootingArticle from './articles/TroubleshootingArticle';
+import QuickStartGuide from './QuickStartGuide';
+import FAQSection from './FAQSection';
+import InteractiveSetupWizard from './InteractiveSetupWizard';
 
 const iconMap: Record<string, any> = {
   PlayCircle, Mail, Zap, Users, Calendar, MessageSquare, Settings, HelpCircle
@@ -272,6 +277,10 @@ function getArticleComponent(articleId: string) {
     'connect-email-account': ConnectEmailArticle,
     'ai-write-emails': AIWriteArticle,
     'voice-dictation': VoiceDictationArticle,
+    'email-rules-guide': EmailRulesArticle,
+    'troubleshooting-guide': TroubleshootingArticle,
+    'quick-start': QuickStartGuide,
+    'faq': FAQSection,
   };
   return components[articleId];
 }

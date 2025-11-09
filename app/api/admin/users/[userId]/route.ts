@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     const body = await request.json();
-    const { role, suspended, fullName, email } = body;
+    const { role, suspended, fullName, email, subscriptionTier } = body;
 
     // Build update object
     const updateData: any = {
@@ -67,6 +67,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     // Add full name if provided
     if (fullName !== undefined) {
       updateData.fullName = fullName;
+    }
+
+    // Add subscription tier if provided
+    if (subscriptionTier !== undefined) {
+      const validTiers = ['free', 'starter', 'pro', 'enterprise', 'beta'];
+      if (!validTiers.includes(subscriptionTier)) {
+        return NextResponse.json({ error: 'Invalid subscription tier' }, { status: 400 });
+      }
+      updateData.subscriptionTier = subscriptionTier;
     }
 
     // Add email if provided (requires validation)

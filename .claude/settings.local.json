@@ -38,7 +38,8 @@
       "Bash(powershell -Command:*)",
       "Bash(git log:*)",
       "Bash(npx drizzle-kit generate:*)",
-      "Bash(npx drizzle-kit:*)"
+      "Bash(npx drizzle-kit:*)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": []

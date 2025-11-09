@@ -41,7 +41,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useEmailSummary } from '@/lib/hooks/useEmailSummary';
 import { ThreadSummaryPanelV3 } from './thread-summary-panel-v3';
-import DOMPurify from 'isomorphic-dompurify';
+import SMSNotificationBell from '@/components/sms/SMSNotificationBell';
 
 interface EmailMessage {
   id: string;
@@ -95,6 +95,7 @@ export function EmailListEnhancedV3({
   const [showAISummaries, setShowAISummaries] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [locallyRemovedEmails, setLocallyRemovedEmails] = useState<Set<string>>(new Set());
+  const [smsUnreadCount, setSmsUnreadCount] = useState(0);
   const [undoStack, setUndoStack] = useState<{
     action: string;
     emailIds: string[];
@@ -103,6 +104,22 @@ export function EmailListEnhancedV3({
 
   // Intersection observer for infinite scroll
   const observerTarget = useRef<HTMLDivElement>(null);
+
+  // Safe HTML sanitization (client-side only)
+  const sanitizeHTML = (html: string) => {
+    if (typeof window === 'undefined') return html; // Skip on server
+
+    // Dynamically import DOMPurify only on client
+    const DOMPurify = require('isomorphic-dompurify');
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: [
+        'p', 'br', 'strong', 'em', 'u', 'a', 'img', 'ul', 'ol', 'li',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre',
+        'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div', 'span', 'hr',
+      ],
+      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style', 'target'],
+    });
+  };
 
   // Filter messages: remove locally deleted + apply search
   const visibleMessages = messages
@@ -160,6 +177,27 @@ export function EmailListEnhancedV3({
       unsubscribe();
     };
   }, [accountId]);
+
+  // Fetch SMS unread count on mount and periodically
+  useEffect(() => {
+    const fetchSMSCount = async () => {
+      try {
+        const response = await fetch('/api/sms/inbox');
+        if (response.ok) {
+          const data = await response.json();
+          const unreadCount = data.messages?.filter((msg: any) => !msg.isRead).length || 0;
+          setSmsUnreadCount(unreadCount);
+        }
+      } catch (error) {
+        console.error('Failed to fetch SMS count:', error);
+      }
+    };
+
+    fetchSMSCount();
+    const interval = setInterval(fetchSMSCount, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Set up intersection observer for infinite scroll
   useEffect(() => {
@@ -493,6 +531,12 @@ export function EmailListEnhancedV3({
               />
             </div>
 
+            {/* SMS Notification Bell */}
+            <SMSNotificationBell
+              unreadCount={smsUnreadCount}
+              onCountUpdate={(count) => setSmsUnreadCount(count)}
+            />
+
             <button
               onClick={handleRefresh}
               disabled={loading}
@@ -771,7 +815,7 @@ function EmailCard({
 
           {/* Email Preview Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2 mb-1.5">
+            <div className="flex items-start justify-between gap-2 mb-1">
               <div className="flex-1 min-w-0">
                 <p className={cn('text-sm', message.unread && 'font-semibold')}>
                   {sender.name || sender.email}
@@ -790,9 +834,19 @@ function EmailCard({
               </div>
             </div>
 
+            {/* Subject Line - Always Show */}
+            {!isExpanded && (
+              <p className={cn(
+                'text-sm mb-1.5 truncate',
+                message.unread ? 'font-semibold text-foreground' : 'font-medium text-foreground/90'
+              )}>
+                {message.subject || '(no subject)'}
+              </p>
+            )}
+
             {!isExpanded && (
               <>
-                {/* AI Summary */}
+                {/* AI Summary or Email Preview */}
                 <div className="flex items-start gap-2 pr-2 mb-3">
                   {isSummaryLoading && (
                     <Loader2 className="h-3 w-3 animate-spin text-muted-foreground mt-1 flex-shrink-0" />
@@ -1009,39 +1063,7 @@ function EmailCard({
                   <div
                     className="email-content break-words whitespace-pre-wrap"
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(displayEmail.body, {
-                        ALLOWED_TAGS: [
-                          'p',
-                          'br',
-                          'strong',
-                          'em',
-                          'u',
-                          'a',
-                          'img',
-                          'div',
-                          'span',
-                          'h1',
-                          'h2',
-                          'h3',
-                          'h4',
-                          'h5',
-                          'h6',
-                          'ul',
-                          'ol',
-                          'li',
-                          'blockquote',
-                          'pre',
-                          'code',
-                          'table',
-                          'thead',
-                          'tbody',
-                          'tr',
-                          'th',
-                          'td',
-                        ],
-                        ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style', 'target', 'rel'],
-                        ALLOW_DATA_ATTR: false,
-                      }),
+                      __html: sanitizeHTML(displayEmail.body),
                     }}
                   />
                 ) : (

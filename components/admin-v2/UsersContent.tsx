@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Mail, Shield, Trash2, Search, MoreVertical, Ban, Key, UserX, CheckCircle, Edit, X, Plus } from 'lucide-react';
+import { Users, Mail, Shield, Trash2, Search, MoreVertical, Ban, Key, UserX, CheckCircle, Edit, X, Plus, Crown, Zap, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatDate } from '@/lib/utils';
@@ -38,6 +38,7 @@ interface User {
   email: string;
   fullName: string | null;
   role: string;
+  subscriptionTier?: string;
   createdAt: Date;
   updatedAt: Date;
   suspended?: boolean;
@@ -56,18 +57,19 @@ export default function UsersContent() {
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
-  
+
   // Confirmation dialog
   const { confirm, Dialog: ConfirmDialog } = useConfirm();
-  
+
   // Inline message state
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
-  
+
   // Form state for editing
   const [editForm, setEditForm] = useState({
     fullName: '',
     email: '',
     role: '',
+    subscriptionTier: '',
   });
 
   // Form state for adding new user
@@ -76,6 +78,23 @@ export default function UsersContent() {
     fullName: '',
     role: 'org_user',
   });
+
+  // Helper function to get subscription tier badge
+  const getSubscriptionBadge = (tier?: string) => {
+    switch(tier) {
+      case 'beta':
+        return { label: 'Beta', color: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30', icon: Sparkles };
+      case 'enterprise':
+        return { label: 'Enterprise', color: 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30', icon: Shield };
+      case 'pro':
+        return { label: 'Pro', color: 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/30', icon: Crown };
+      case 'starter':
+        return { label: 'Starter', color: 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30', icon: Zap };
+      case 'free':
+      default:
+        return { label: 'Free', color: 'bg-gray-500/20 text-gray-600 dark:text-gray-400 border-gray-500/30', icon: Mail };
+    }
+  };
 
   // Show inline message
   const showMessage = (type: 'success' | 'error' | 'info', text: string) => {
@@ -195,6 +214,7 @@ export default function UsersContent() {
       fullName: user.fullName || '',
       email: user.email,
       role: user.role,
+      subscriptionTier: user.subscriptionTier || 'free',
     });
     setEditModalOpen(true);
   };
@@ -217,6 +237,7 @@ export default function UsersContent() {
           fullName: editForm.fullName,
           email: editForm.email,
           role: editForm.role,
+          subscriptionTier: editForm.subscriptionTier,
         }),
       });
 
@@ -406,14 +427,26 @@ export default function UsersContent() {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {/* Subscription Tier Badge */}
+                        {(() => {
+                          const badge = getSubscriptionBadge(user.subscriptionTier);
+                          const BadgeIcon = badge.icon;
+                          return (
+                            <span className={`text-xs px-2 py-0.5 rounded border flex items-center gap-1 ${badge.color}`}>
+                              <BadgeIcon className="h-3 w-3" />
+                              {badge.label}
+                            </span>
+                          );
+                        })()}
+
                         <Button
                           variant="outline"
                           size="sm"
                           className={user.role === 'platform_admin' ? 'bg-primary/10 text-primary hover:bg-primary/20' : ''}
                         >
                           <Shield className="h-3.5 w-3.5 mr-1.5" />
-                          {user.role === 'platform_admin' ? 'Platform Admin' : 
-                           user.role === 'org_admin' ? 'Org Admin' : 
+                          {user.role === 'platform_admin' ? 'Platform Admin' :
+                           user.role === 'org_admin' ? 'Org Admin' :
                            user.role === 'org_user' ? 'Org User' : 'Individual'}
                         </Button>
 
@@ -527,6 +560,60 @@ export default function UsersContent() {
               </Select>
               <p className="text-xs text-muted-foreground">
                 Defines user permissions and access level
+              </p>
+            </div>
+
+            {/* Subscription Tier */}
+            <div className="space-y-2">
+              <Label htmlFor="subscriptionTier">Subscription Plan</Label>
+              <Select
+                value={editForm.subscriptionTier}
+                onValueChange={(value) => setEditForm({ ...editForm, subscriptionTier: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select subscription tier" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span>Free</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="starter">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-blue-500" />
+                      <span>Starter</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="pro">
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-4 w-4 text-purple-500" />
+                      <span>Pro</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="enterprise">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-orange-500" />
+                      <span>Enterprise</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="beta">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-yellow-500" />
+                      <span>Beta User (Unlimited)</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {editForm.subscriptionTier === 'beta' ? (
+                  <span className="text-yellow-600 dark:text-yellow-400 font-medium">
+                    Beta users have unlimited access to all features
+                  </span>
+                ) : (
+                  'Controls feature access and usage limits'
+                )}
               </p>
             </div>
 

@@ -412,10 +412,23 @@ export function VoiceMessageRecorderModal({
               <audio
                 ref={audioRef}
                 src={audioUrl}
+                preload="auto"
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
+                onError={(e) => {
+                  console.error('Audio playback error:', e);
+                  setError('Unable to play audio. The format may not be supported.');
+                }}
               />
+              {/* Fallback: Show native audio controls for testing/debugging */}
+              <div className="mt-2">
+                <audio
+                  src={audioUrl}
+                  controls
+                  className="w-full"
+                />
+              </div>
             </div>
           )}
 
