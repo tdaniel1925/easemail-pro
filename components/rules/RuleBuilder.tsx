@@ -18,9 +18,10 @@ import type {
   ActionType,
   ConditionLogic,
 } from '@/lib/rules/types';
+import type { SimpleEmailRule } from '@/lib/rules/types-simple';
 
 interface RuleBuilderProps {
-  rule: EmailRule | null;
+  rule: SimpleEmailRule | EmailRule | null;
   onClose: () => void;
   onSave: (ruleData: any) => void;
 }
@@ -28,15 +29,22 @@ interface RuleBuilderProps {
 export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps) {
   const [name, setName] = useState(rule?.name || '');
   const [description, setDescription] = useState(rule?.description || '');
-  const [isEnabled, setIsEnabled] = useState(rule?.isEnabled ?? true);
-  const [conditionLogic, setConditionLogic] = useState<ConditionLogic>(rule?.conditions.logic || 'AND');
+  const [isEnabled, setIsEnabled] = useState(
+    rule && 'isActive' in rule ? rule.isActive : rule && 'isEnabled' in rule ? rule.isEnabled : true
+  );
+
+  // Handle different condition structures (SimpleEmailRule vs EmailRule)
+  const ruleConditions = rule?.conditions;
+  const [conditionLogic, setConditionLogic] = useState<ConditionLogic>(
+    ruleConditions && Array.isArray(ruleConditions) ? 'AND' : (ruleConditions as any)?.logic || 'AND'
+  );
   const [conditions, setConditions] = useState<RuleCondition[]>(
-    rule?.conditions.conditions || [
+    ruleConditions && Array.isArray(ruleConditions) ? ruleConditions : (ruleConditions as any)?.conditions || [
       { field: 'subject', operator: 'contains', value: '' },
     ]
   );
   const [actions, setActions] = useState<RuleAction[]>(
-    rule?.actions || [{ type: 'mark_as_read' }]
+    (rule?.actions as RuleAction[]) || [{ type: 'mark_as_read' }]
   );
   const [stopProcessing, setStopProcessing] = useState(rule?.stopProcessing ?? false);
   const [saving, setSaving] = useState(false);

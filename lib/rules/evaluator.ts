@@ -229,7 +229,7 @@ export function describeRule(rule: SimpleEmailRule): string {
       case 'mark_read': return 'Mark as read';
       case 'star': return 'Star message';
       case 'delete': return 'Delete';
-      default: return a.type;
+      default: return (a as any).type || 'Unknown action';
     }
   }).join(', ');
 

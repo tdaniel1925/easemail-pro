@@ -36,7 +36,9 @@
       "Bash(powershell -Command \"(Get-Content ''001_add_performance_indexes.sql'') -replace ''CREATE INDEX CONCURRENTLY'', ''CREATE INDEX'' | Set-Content ''001_add_performance_indexes_no_concurrent.sql''\")",
       "Bash(powershell -Command \"(Get-Content ''001_add_performance_indexes_no_concurrent.sql'') -replace ''CREATE INDEX IF NOT EXISTS idx_email_rules_grant_id ON email_rules\\(grant_id\\);'', ''-- idx_email_rules_grant already exists in schema (line removed due to column name mismatch)'' | Set-Content ''001_add_performance_indexes_no_concurrent.sql''\")",
       "Bash(powershell -Command:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npx drizzle-kit generate:*)",
+      "Bash(npx drizzle-kit:*)"
     ],
     "deny": [],
     "ask": []

@@ -26,13 +26,13 @@ export default function SettingsMenu({ onLogout, onNavigate, userRole: propUserR
     fetchUser();
   }, []);
 
+  // Use prop if provided, otherwise use local state
+  const userRole = propUserRole || localUserRole;
+
   // Debug: Log user role changes
   useEffect(() => {
     console.log('[SettingsMenu] User role:', userRole, '(prop:', propUserRole, ', local:', localUserRole, ')');
   }, [userRole, propUserRole, localUserRole]);
-
-  // Use prop if provided, otherwise use local state
-  const userRole = propUserRole || localUserRole;
 
   const fetchUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();

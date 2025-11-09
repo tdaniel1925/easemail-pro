@@ -58,9 +58,8 @@ export class RuleEngine {
       const rules = await db.query.emailRules.findMany({
         where: and(
           eq(emailRules.userId, userId),
-          eq(emailRules.isEnabled, true)
+          eq(emailRules.isActive, true)
         ),
-        orderBy: [sql`${emailRules.priority} ASC`], // Lower priority number = higher priority
       });
 
       console.log(`📋 Processing ${rules.length} rules for email ${email.id}`);

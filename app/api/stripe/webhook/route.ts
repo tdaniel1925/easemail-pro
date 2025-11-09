@@ -293,8 +293,6 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
   // Create invoice record in database
   await db.insert(invoices).values({
-    userId: user.organizationId ? null : userId,
-    orgId: user.organizationId || null,
     stripeInvoiceId: invoice.id,
     amount: invoice.amount_paid / 100, // Convert from cents
     tax: (invoice.tax || 0) / 100,
@@ -306,7 +304,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       : new Date(),
     invoiceUrl: invoice.hosted_invoice_url || null,
     invoicePdfUrl: invoice.invoice_pdf || null,
-  }).onConflictDoUpdate({
+  } as any).onConflictDoUpdate({
     target: invoices.stripeInvoiceId,
     set: {
       status: 'paid',
@@ -317,17 +315,6 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       invoicePdfUrl: invoice.invoice_pdf || null,
       updatedAt: new Date(),
     },
-  });
-
-  // Create billing transaction record
-  await db.insert(billing_transactions).values({
-    userId: user.orgId ? null : userId,
-    orgId: user.orgId || null,
-    stripePaymentIntentId: invoice.payment_intent as string || null,
-    amount: invoice.amount_paid / 100,
-    currency: invoice.currency,
-    status: 'succeeded',
-    description: `Subscription payment - Invoice ${invoice.number}`,
   });
 
   console.log('[Stripe Webhook] Invoice payment recorded successfully');
@@ -359,31 +346,18 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 
   // Update or create invoice record
   await db.insert(invoices).values({
-    userId: user.orgId ? null : userId,
-    orgId: user.orgId || null,
     stripeInvoiceId: invoice.id,
     amount: invoice.amount_due / 100,
     tax: (invoice.tax || 0) / 100,
     total: invoice.total / 100,
     currency: invoice.currency,
     status: 'payment_failed',
-  }).onConflictDoUpdate({
+  } as any).onConflictDoUpdate({
     target: invoices.stripeInvoiceId,
     set: {
       status: 'payment_failed',
       updatedAt: new Date(),
     },
-  });
-
-  // Create billing transaction record
-  await db.insert(billing_transactions).values({
-    userId: user.orgId ? null : userId,
-    orgId: user.orgId || null,
-    stripePaymentIntentId: invoice.payment_intent as string || null,
-    amount: invoice.amount_due / 100,
-    currency: invoice.currency,
-    status: 'failed',
-    description: `Failed subscription payment - Invoice ${invoice.number}`,
   });
 
   // TODO: Send payment failed email notification to user
