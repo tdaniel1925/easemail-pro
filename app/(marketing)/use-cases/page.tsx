@@ -68,7 +68,7 @@ export default function UseCasesPage() {
                 ))}
               </div>
               <Link href="/signup">
-                <Button size="lg" className="gap-2">
+                <Button size="lg" className="gap-2 mt-5">
                   Start Free Trial
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -161,7 +161,7 @@ export default function UseCasesPage() {
                 ))}
               </div>
               <Link href="/signup">
-                <Button size="lg" className="gap-2">
+                <Button size="lg" className="gap-2 mt-5">
                   Start Free Trial
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -197,7 +197,7 @@ export default function UseCasesPage() {
                 ))}
               </div>
               <Link href="/signup">
-                <Button size="lg" className="gap-2">
+                <Button size="lg" className="gap-2 mt-5">
                   Start Free Trial
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -363,13 +363,13 @@ export default function UseCasesPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/signup">
-                <Button size="lg" variant="secondary" className="text-lg px-8">
+                <Button size="lg" variant="secondary" className="text-lg px-8 mt-5">
                   Start Free Trial
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <Link href="/pricing">
-                <Button size="lg" variant="outline" className="text-lg px-8 bg-white/10 border-white/20 hover:bg-white/20 text-white">
+                <Button size="lg" variant="outline" className="text-lg px-8 bg-white/10 border-white/20 hover:bg-white/20 text-white mt-5">
                   View Pricing
                 </Button>
               </Link>
