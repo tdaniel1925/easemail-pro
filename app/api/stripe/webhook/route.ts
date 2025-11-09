@@ -171,7 +171,7 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
     await db.update(users)
       .set({ role: 'individual' })
       .where(eq(users.id, userId));
-  } else if (planId === 'team' && user.orgId) {
+  } else if (planId === 'team' && user.organizationId) {
     // User is part of a team, update to org_user if not already
     if (user.role === 'user') {
       await db.update(users)
