@@ -6,10 +6,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MessageSquare, Phone, User, Clock, Loader2, RefreshCw, Send } from 'lucide-react';
+import { MessageSquare, Phone, User, Clock, Loader2, RefreshCw, Send, ArrowLeft } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { cn, getInitials, generateAvatarColor } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 interface SMSMessage {
   id: string;
@@ -37,6 +38,7 @@ interface Conversation {
 }
 
 export function SMSInbox() {
+  const router = useRouter();
   const [messages, setMessages] = useState<SMSMessage[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -148,6 +150,14 @@ export function SMSInbox() {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => router.push('/inbox-v3')}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
             <MessageSquare className="h-5 w-5 text-primary" />
             <h2 className="font-semibold">Messages</h2>
             <span className="text-xs text-muted-foreground">
