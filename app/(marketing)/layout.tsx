@@ -21,18 +21,24 @@ export default function MarketingLayout({
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-6">
             <Link href="/" className="text-sm font-medium hover:text-primary transition-colors">
               Home
             </Link>
             <Link href="/features" className="text-sm font-medium hover:text-primary transition-colors">
               Features
             </Link>
+            <Link href="/ai-features" className="text-sm font-medium hover:text-primary transition-colors">
+              AI Features
+            </Link>
+            <Link href="/use-cases" className="text-sm font-medium hover:text-primary transition-colors">
+              Use Cases
+            </Link>
+            <Link href="/ai-security" className="text-sm font-medium hover:text-primary transition-colors">
+              Security
+            </Link>
             <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
               Pricing
-            </Link>
-            <Link href="/about" className="text-sm font-medium hover:text-primary transition-colors">
-              About
             </Link>
           </nav>
 
@@ -84,13 +90,23 @@ export default function MarketingLayout({
                   </Link>
                 </li>
                 <li>
-                  <Link href="/pricing" className="hover:text-primary transition-colors">
-                    Pricing
+                  <Link href="/ai-features" className="hover:text-primary transition-colors">
+                    AI Features
                   </Link>
                 </li>
                 <li>
-                  <Link href="/about" className="hover:text-primary transition-colors">
-                    About
+                  <Link href="/use-cases" className="hover:text-primary transition-colors">
+                    Use Cases
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/ai-security" className="hover:text-primary transition-colors">
+                    Security
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/pricing" className="hover:text-primary transition-colors">
+                    Pricing
                   </Link>
                 </li>
               </ul>
