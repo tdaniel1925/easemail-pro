@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +51,7 @@ export function SignatureEditorModal({
   const [showHtml, setShowHtml] = useState(false);
   const [showURLDialog, setShowURLDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   // Initialize form with signature data
   useEffect(() => {
@@ -75,6 +76,17 @@ export function SignatureEditorModal({
     setShowPreview(false);
     setShowHtml(false);
   }, [signature, isOpen]);
+
+  // Sync editor content when contentHtml changes externally (not from typing)
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== contentHtml) {
+      // Only update if the content is different and the editor is not focused
+      const isEditorFocused = document.activeElement === editorRef.current;
+      if (!isEditorFocused) {
+        editorRef.current.innerHTML = contentHtml;
+      }
+    }
+  }, [contentHtml]);
 
   const handleSave = async () => {
     if (!name.trim() || !contentHtml.trim()) {
@@ -103,12 +115,40 @@ export function SignatureEditorModal({
   };
 
   const insertVariable = (variable: string) => {
-    // Insert at cursor position or end
-    setContentHtml(prev => prev + variable);
+    if (editorRef.current) {
+      editorRef.current.focus();
+
+      // Get current selection
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+
+        // Insert the variable text
+        const textNode = document.createTextNode(variable);
+        range.insertNode(textNode);
+
+        // Move cursor after inserted text
+        range.setStartAfter(textNode);
+        range.setEndAfter(textNode);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } else {
+        // Fallback: append to end
+        editorRef.current.innerHTML += variable;
+      }
+
+      // Update state
+      setContentHtml(editorRef.current.innerHTML);
+    }
   };
 
   const applyFormatting = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
+    if (editorRef.current) {
+      editorRef.current.focus();
+      document.execCommand(command, false, value);
+      setContentHtml(editorRef.current.innerHTML);
+    }
   };
 
   const handleURLSubmit = (url: string) => {
@@ -252,11 +292,12 @@ export function SignatureEditorModal({
 
                 {/* Editor */}
                 <div
+                  ref={editorRef}
                   contentEditable
                   onInput={(e) => setContentHtml(e.currentTarget.innerHTML)}
-                  dangerouslySetInnerHTML={{ __html: contentHtml }}
                   className="min-h-[200px] p-4 focus:outline-none"
                   style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px' }}
+                  suppressContentEditableWarning
                 />
               </div>
             )}

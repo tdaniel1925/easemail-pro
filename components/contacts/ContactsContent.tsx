@@ -309,9 +309,9 @@ export default function ContactsContent() {
   ];
 
   return (
-    <div className="flex w-full h-full">
+    <div className="flex w-full h-screen">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-card p-4 overflow-y-auto flex-shrink-0">
+      <aside className="w-64 border-r border-border bg-card p-4 overflow-y-auto flex-shrink-0 h-full">
         <div className="mb-6">
           <h2 className="text-xl font-bold mb-3 text-foreground">Contacts</h2>
           <a 
@@ -454,7 +454,7 @@ export default function ContactsContent() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto bg-background">
+      <main className="flex-1 overflow-y-auto bg-background h-full">
         <div className="p-8">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">

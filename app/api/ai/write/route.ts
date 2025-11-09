@@ -11,6 +11,9 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { emailSignatures, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { trackAICost } from '@/lib/utils/cost-tracking';
+import { aiRateLimit, enforceRateLimit } from '@/lib/security/rate-limiter';
+import { checkAILimit } from '@/lib/billing/plan-limits';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +33,7 @@ export async function POST(req: NextRequest) {
     // 3. Authenticate user
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -40,20 +43,35 @@ export async function POST(req: NextRequest) {
 
     const userId = user.id;
 
-    // 4. Check usage limits (TODO: integrate with your usage tracking)
-    const canUse = await checkAIWriteUsage(userId);
-    if (!canUse) {
+    // 4. Check rate limit
+    const rateLimitResult = await enforceRateLimit(aiRateLimit, userId);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        {
+          status: 429,
+          headers: rateLimitResult.headers
+        }
+      );
+    }
+
+    // 5. Check usage limits
+    const limitCheck = await checkAILimit(userId);
+    if (!limitCheck.allowed) {
       return NextResponse.json(
         {
           error: 'Usage limit reached',
-          message: 'Upgrade to Pro for more AI Write generations',
-          upgradeUrl: '/pricing',
+          message: limitCheck.message,
+          upgradeUrl: limitCheck.upgradeUrl,
+          tier: limitCheck.tier,
+          used: limitCheck.used,
+          limit: limitCheck.limit,
         },
         { status: 429 }
       );
     }
 
-    // 5. Generate email
+    // 6. Generate email
     console.log(`🤖 AI Write request from user ${userId}`);
     const result = await aiWriteService.generateEmail({
       ...body,
@@ -86,8 +104,16 @@ export async function POST(req: NextRequest) {
       console.log('✅ Appended signature to AI-generated email');
     }
 
-    // 8. Track usage
-    await trackAIWriteUsage(userId, result.metadata.tokensUsed);
+    // 8. Track AI cost
+    await trackAICost({
+      userId,
+      feature: 'write',
+      model: result.metadata.model,
+      inputTokens: result.metadata.inputTokens || 0,
+      outputTokens: result.metadata.outputTokens || 0,
+    });
+
+    console.log(`✅ Tracked AI cost for user ${userId}: ${result.metadata.tokensUsed} tokens`);
 
     // 9. Return result
     return NextResponse.json({
@@ -127,18 +153,4 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ============================================================================
-// Helper Functions (TODO: Move to database service)
-// ============================================================================
-
-async function checkAIWriteUsage(userId: string): Promise<boolean> {
-  // TODO: Query your database for user's usage
-  // For now, allow all requests
-  return true;
-}
-
-async function trackAIWriteUsage(userId: string, tokensUsed: number): Promise<void> {
-  // TODO: Update your database with usage
-  console.log(`📊 Tracked ${tokensUsed} tokens for user ${userId}`);
-}
 

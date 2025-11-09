@@ -180,6 +180,25 @@ export default function UserBillingContent() {
     }
   };
 
+  const handleManageSubscription = async () => {
+    try {
+      const res = await fetch('/api/stripe/customer-portal', {
+        method: 'POST',
+      });
+
+      if (res.ok) {
+        const { url } = await res.json();
+        window.location.href = url;
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Failed to open customer portal');
+      }
+    } catch (error) {
+      console.error('Portal error:', error);
+      alert('Failed to open customer portal');
+    }
+  };
+
   const formatDate = (date: Date | string) => {
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -189,9 +208,9 @@ export default function UserBillingContent() {
   };
 
   return (
-    <div className="flex w-full h-full">
+    <div className="flex w-full h-screen">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-card p-4 overflow-y-auto flex-shrink-0">
+      <aside className="w-64 border-r border-border bg-background p-4 overflow-y-auto flex-shrink-0">
         <div className="mb-6">
           <h2 className="text-xl font-bold mb-3 text-foreground">Billing & Usage</h2>
           <a 
@@ -450,10 +469,10 @@ export default function UserBillingContent() {
                         <div className="h-px bg-border"></div>
                         
                         <div className="flex gap-2">
-                          <Button variant="default" className="flex-1" onClick={() => alert('Plan upgrades coming soon!')}>
+                          <Button variant="default" className="flex-1" onClick={() => window.location.href = '/pricing'}>
                             Upgrade Plan
                           </Button>
-                          <Button variant="outline" className="flex-1" onClick={() => alert('Subscription management coming soon!')}>
+                          <Button variant="outline" className="flex-1" onClick={handleManageSubscription}>
                             Manage Subscription
                           </Button>
                         </div>
@@ -466,7 +485,7 @@ export default function UserBillingContent() {
                         <CardDescription>Choose a plan to get started</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <Button onClick={() => alert('Plan selection coming soon!')}>Browse Plans</Button>
+                        <Button onClick={() => window.location.href = '/pricing'}>Browse Plans</Button>
                       </CardContent>
                     </Card>
                   )}

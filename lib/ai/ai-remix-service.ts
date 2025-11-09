@@ -33,6 +33,12 @@ export interface RemixedEmail {
   body: string;
   changes: string[];
   confidence: number;
+  metadata?: {
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
 }
 
 // ============================================================================
@@ -73,6 +79,12 @@ export class AIRemixService {
         body: formattedContent,
         changes: this.identifyChanges(options),
         confidence: 0.9,
+        metadata: {
+          model: completion.model,
+          inputTokens: completion.usage?.prompt_tokens || 0,
+          outputTokens: completion.usage?.completion_tokens || 0,
+          totalTokens: completion.usage?.total_tokens || 0,
+        },
       };
     } catch (error: any) {
       console.error('AI Remix error:', error);

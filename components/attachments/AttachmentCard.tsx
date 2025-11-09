@@ -60,7 +60,7 @@ export function AttachmentCard({
       {/* Thumbnail / Icon */}
       <button
         onClick={onPreview}
-        className="flex h-40 w-full items-center justify-center overflow-hidden"
+        className="flex h-32 w-full items-center justify-center overflow-hidden"
         style={{ backgroundColor: `${color}15` }}
       >
         {attachment.thumbnailPath && !imageError ? (
@@ -72,8 +72,8 @@ export function AttachmentCard({
           />
         ) : (
           <div className="flex flex-col items-center">
-            <PaperClipIcon className="h-16 w-16" style={{ color }} size={64} />
-            <span className="mt-2 text-sm font-semibold" style={{ color }}>
+            <PaperClipIcon className="h-12 w-12" style={{ color }} size={48} />
+            <span className="mt-1 text-xs font-semibold" style={{ color }}>
               {ext}
             </span>
           </div>
@@ -81,7 +81,7 @@ export function AttachmentCard({
       </button>
 
       {/* Content */}
-      <div className="p-4">
+      <div className="p-3">
         {/* Document Type Badge */}
         {attachment.documentType && attachment.documentType !== 'other' && (
           <span className="mb-2 inline-block rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 capitalize">
@@ -96,14 +96,14 @@ export function AttachmentCard({
 
         {/* Filename */}
         <h3
-          className="mb-1 truncate font-medium text-gray-900"
+          className="mb-1 truncate text-sm font-medium text-gray-900"
           title={attachment.filename}
         >
-          {truncateFilename(attachment.filename, 30)}
+          {truncateFilename(attachment.filename, 25)}
         </h3>
 
         {/* File Info */}
-        <p className="text-sm text-gray-500">
+        <p className="text-xs text-gray-500">
           {formatFileSize(attachment.fileSizeBytes)} • {ext}
         </p>
 
@@ -120,9 +120,9 @@ export function AttachmentCard({
 
         {/* Sender */}
         {attachment.senderName && (
-          <div className="mt-3 border-t pt-3">
+          <div className="mt-2 border-t pt-2">
             <p className="text-xs text-gray-500">From</p>
-            <p className="truncate text-sm font-medium text-gray-700" title={attachment.senderEmail || ''}>
+            <p className="truncate text-xs font-medium text-gray-700" title={attachment.senderEmail || ''}>
               {attachment.senderName}
             </p>
           </div>
@@ -157,27 +157,27 @@ export function AttachmentCard({
         )}
 
         {/* Actions */}
-        <div className="mt-4 flex gap-2">
+        <div className="mt-3 flex gap-1">
           <button
             onClick={onPreview}
-            className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="flex-1 rounded-lg bg-blue-600 px-2 py-1.5 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
-            <EyeIcon className="inline h-4 w-4 mr-1" size={16} />
+            <EyeIcon className="inline h-3 w-3 mr-1" size={12} />
             Preview
           </button>
           <button
             onClick={onDownload}
-            className="rounded-lg border border-gray-300 p-2 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="rounded-lg border border-gray-300 p-1.5 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             title="Download"
           >
-            <ArrowDownTrayIcon className="h-5 w-5 text-gray-600" size={20} />
+            <ArrowDownTrayIcon className="h-4 w-4 text-gray-600" size={16} />
           </button>
           <button
             onClick={onOpenEmail}
-            className="rounded-lg border border-gray-300 p-2 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="rounded-lg border border-gray-300 p-1.5 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             title="Open Email"
           >
-            <EnvelopeIcon className="h-5 w-5 text-gray-600" size={20} />
+            <EnvelopeIcon className="h-4 w-4 text-gray-600" size={16} />
           </button>
         </div>
       </div>

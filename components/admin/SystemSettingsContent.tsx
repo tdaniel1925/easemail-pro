@@ -97,9 +97,9 @@ export default function SystemSettingsContent() {
   };
 
   return (
-    <div className="flex w-full h-full">
+    <div className="flex w-full h-screen">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-card p-4 overflow-y-auto flex-shrink-0">
+      <aside className="w-64 border-r border-border bg-background p-4 overflow-y-auto flex-shrink-0">
         <div className="mb-6">
           <h2 className="text-xl font-bold mb-3 text-foreground">System Settings</h2>
           <a 

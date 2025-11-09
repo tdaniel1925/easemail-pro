@@ -9,7 +9,7 @@ export default function WelcomeScreen() {
   const router = useRouter();
 
   const handleGetStarted = () => {
-    router.push('/accounts');
+    router.push('/accounts-v3');
   };
 
   return (

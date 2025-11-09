@@ -1,45 +1,99 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Star, Archive, Mail, Clock, Sparkles, TrendingUp } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Star, Archive, Mail, Clock, Sparkles, TrendingUp, Newspaper } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { RuleTemplate, TemplateCategory } from '@/lib/rules/types';
+import type { SimpleRuleTemplate, TemplateCategory } from '@/lib/rules/types-simple';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface RuleTemplatesProps {
-  templates: RuleTemplate[];
+  templates: SimpleRuleTemplate[];
   onUseTemplate: (templateId: string) => void;
 }
 
 const categoryIcons: Record<TemplateCategory, any> = {
-  productivity: Clock,
-  organization: Archive,
-  vip: Star,
+  newsletters: Newspaper,
+  work: Archive,
   cleanup: TrendingUp,
-  automation: Sparkles,
 };
 
 const categoryColors: Record<TemplateCategory, string> = {
-  productivity: 'text-blue-500',
-  organization: 'text-green-500',
-  vip: 'text-yellow-500',
+  newsletters: 'text-blue-500',
+  work: 'text-green-500',
   cleanup: 'text-purple-500',
-  automation: 'text-pink-500',
 };
 
 export default function RuleTemplates({ templates, onUseTemplate }: RuleTemplatesProps) {
-  const handleUseTemplate = async (templateId: string) => {
+  const [selectedTemplate, setSelectedTemplate] = useState<SimpleRuleTemplate | null>(null);
+  const [customName, setCustomName] = useState('');
+  const [customValue, setCustomValue] = useState('');
+  const [grantId, setGrantId] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Fetch user's grant ID
+  useEffect(() => {
+    const fetchGrantId = async () => {
+      try {
+        const response = await fetch('/api/nylas/grants');
+        const data = await response.json();
+        if (data.grants && data.grants.length > 0) {
+          setGrantId(data.grants[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching grant ID:', error);
+      }
+    };
+    fetchGrantId();
+  }, []);
+
+  const handleUseTemplate = async () => {
+    if (!selectedTemplate || !grantId) return;
+
+    setLoading(true);
     try {
+      const customizations: any = {};
+
+      if (customName) {
+        customizations.name = customName;
+      }
+
+      // Apply custom value to first condition if provided
+      if (customValue && selectedTemplate.conditions.length > 0) {
+        customizations.conditions = [{
+          ...selectedTemplate.conditions[0],
+          value: customValue,
+        }];
+      }
+
       const response = await fetch('/api/rules/templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateId }),
+        body: JSON.stringify({
+          templateId: selectedTemplate.id,
+          grantId,
+          customizations,
+        }),
       });
 
       if (response.ok) {
-        onUseTemplate(templateId);
+        setSelectedTemplate(null);
+        setCustomName('');
+        setCustomValue('');
+        onUseTemplate(selectedTemplate.id);
       }
     } catch (error) {
       console.error('Error using template:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -50,7 +104,7 @@ export default function RuleTemplates({ templates, onUseTemplate }: RuleTemplate
     }
     acc[template.category].push(template);
     return acc;
-  }, {} as Record<TemplateCategory, RuleTemplate[]>);
+  }, {} as Record<TemplateCategory, SimpleRuleTemplate[]>);
 
   return (
     <div className="space-y-8">
@@ -76,28 +130,19 @@ export default function RuleTemplates({ templates, onUseTemplate }: RuleTemplate
                       <span className="text-2xl">{template.icon}</span>
                       <h3 className="font-semibold">{template.name}</h3>
                     </div>
-                    {template.isPopular && (
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
-                        Popular
-                      </span>
-                    )}
                   </div>
 
                   <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
                     {template.description}
                   </p>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      Used {template.timesUsed} times
-                    </span>
-                    <Button
-                      size="sm"
-                      onClick={() => handleUseTemplate(template.id)}
-                    >
-                      Use Template
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setSelectedTemplate(template)}
+                  >
+                    Use Template
+                  </Button>
                 </div>
               ))}
             </div>
@@ -114,6 +159,64 @@ export default function RuleTemplates({ templates, onUseTemplate }: RuleTemplate
           </p>
         </div>
       )}
+
+      {/* Customization Dialog */}
+      <Dialog open={!!selectedTemplate} onOpenChange={() => setSelectedTemplate(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Customize Rule Template</DialogTitle>
+            <DialogDescription>
+              {selectedTemplate?.description}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Rule Name (Optional)</Label>
+              <Input
+                id="name"
+                placeholder={selectedTemplate?.name || ''}
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+              />
+            </div>
+
+            {selectedTemplate && selectedTemplate.conditions.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="value">
+                  {selectedTemplate.conditions[0].type === 'from' ? 'Email or Domain' : 'Value'}
+                </Label>
+                <Input
+                  id="value"
+                  placeholder={String(selectedTemplate.conditions[0].value)}
+                  value={customValue}
+                  onChange={(e) => setCustomValue(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Current: {String(selectedTemplate.conditions[0].value)}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setSelectedTemplate(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleUseTemplate}
+              disabled={loading || !grantId}
+            >
+              {loading ? 'Creating...' : 'Create Rule'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

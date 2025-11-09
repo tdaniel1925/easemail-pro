@@ -10,6 +10,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { createClient } from '@/lib/supabase/server';
+import { trackAICost } from '@/lib/utils/cost-tracking';
+import { aiRateLimit, enforceRateLimit } from '@/lib/security/rate-limiter';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -34,17 +37,32 @@ const RATE_LIMITS = {
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Authentication check
-    // TODO: Replace with your auth system
-    const userId = req.headers.get('x-user-id');
-    if (!userId) {
+    // 1. Authenticate user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    // 2. Get user tier and check limits
+    const userId = user.id;
+
+    // 2. Check rate limit
+    const rateLimitResult = await enforceRateLimit(aiRateLimit, userId);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        {
+          status: 429,
+          headers: rateLimitResult.headers
+        }
+      );
+    }
+
+    // 3. Get user tier and check limits
     // TODO: Replace with your database query
     const userTier = await getUserTier(userId);
     const usage = await getDictationUsage(userId);
@@ -61,7 +79,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Parse request
+    // 4. Parse request
     const formData = await req.formData();
     const audioFile = formData.get('file') as File;
     const language = (formData.get('language') as string) || 'en';
@@ -74,7 +92,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Validate file
+    // 5. Validate file
     const maxSize = 25 * 1024 * 1024; // 25 MB (Whisper limit)
     if (audioFile.size > maxSize) {
       return NextResponse.json(
@@ -91,7 +109,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. Call OpenAI Whisper API
+    // 6. Call OpenAI Whisper API
     console.log(`🎤 Transcribing audio for user ${userId}...`);
     const startTime = Date.now();
 
@@ -106,14 +124,25 @@ export async function POST(req: NextRequest) {
     const processingTime = Date.now() - startTime;
     console.log(`✅ Transcription complete in ${processingTime}ms`);
 
-    // 6. Track usage
+    // 7. Track AI cost (Whisper charges per duration, not tokens)
     const durationMinutes = Math.ceil(transcription.duration / 60);
-    await trackWhisperUsage(userId, durationMinutes);
 
-    // 7. Calculate cost (for internal tracking)
+    // Whisper doesn't use tokens, so we track duration-based cost
+    // Convert duration to pseudo-tokens for consistent tracking (1 minute = 1000 "tokens")
+    const pseudoTokens = durationMinutes * 1000;
+    await trackAICost({
+      userId,
+      feature: 'transcribe',
+      model: 'whisper-1',
+      inputTokens: pseudoTokens,
+      outputTokens: 0,
+    });
+
+    // 8. Calculate cost (for internal tracking)
     const cost = (transcription.duration / 60) * 0.006; // $0.006 per minute
+    console.log(`✅ Tracked Whisper cost for user ${userId}: ${durationMinutes} minutes ($${cost.toFixed(4)})`);
 
-    // 8. Return result
+    // 9. Return result
     return NextResponse.json({
       success: true,
       text: transcription.text,
@@ -195,10 +224,6 @@ function canUseWhisper(
   return true;
 }
 
-async function trackWhisperUsage(userId: string, minutes: number): Promise<void> {
-  // TODO: Update your database
-  console.log(`📊 Tracked ${minutes} minutes for user ${userId}`);
-}
 
 // ============================================================================
 // Optional: Enhancement Endpoint

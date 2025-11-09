@@ -1,29 +1,37 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Users, 
-  Building2, 
-  DollarSign, 
-  Key, 
-  Settings, 
-  ArrowLeft, 
+import {
+  Users,
+  Building2,
+  DollarSign,
+  Key,
+  Settings,
+  ArrowLeft,
   LogOut,
-  Shield
+  Shield,
+  TrendingUp
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import UsersContent from './UsersContent';
 import OrganizationsContent from './OrganizationsContent';
-import PricingContentSimple from './PricingContentSimple';
+import PricingIntelligenceContent from './PricingIntelligenceContent';
 import ApiKeysContent from './ApiKeysContent';
 import SettingsContent from './SettingsContent';
+import CostCenterContent from './CostCenterContent';
 
-type Section = 'users' | 'organizations' | 'pricing' | 'api-keys' | 'settings';
+type Section = 'users' | 'organizations' | 'pricing' | 'cost-center' | 'api-keys' | 'settings';
 
 export default function AdminContent() {
-  const [activeSection, setActiveSection] = useState<Section>('users');
+  const searchParams = useSearchParams();
+  const [activeSection, setActiveSection] = useState<Section>(() => {
+    const section = searchParams.get('section') as Section;
+    return section && ['users', 'organizations', 'pricing', 'cost-center', 'api-keys', 'settings'].includes(section)
+      ? section
+      : 'users';
+  });
   const [userEmail, setUserEmail] = useState('');
   const router = useRouter();
   const supabase = createClient();
@@ -44,10 +52,16 @@ export default function AdminContent() {
     router.push('/login');
   };
 
+  const handleSectionChange = (section: Section) => {
+    setActiveSection(section);
+    router.push(`/admin-v2?section=${section}`, { scroll: false });
+  };
+
   const sections = [
     { id: 'users' as Section, name: 'User Management', icon: Users },
     { id: 'organizations' as Section, name: 'Organizations', icon: Building2 },
     { id: 'pricing' as Section, name: 'Pricing & Plans', icon: DollarSign },
+    { id: 'cost-center' as Section, name: 'Cost Center', icon: TrendingUp },
     { id: 'api-keys' as Section, name: 'API Keys', icon: Key },
     { id: 'settings' as Section, name: 'System Settings', icon: Settings },
   ];
@@ -55,7 +69,7 @@ export default function AdminContent() {
   return (
     <div className="flex w-full h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-card overflow-y-auto flex-shrink-0">
+      <aside className="w-64 border-r border-border bg-background overflow-y-auto flex-shrink-0">
         <div className="p-4">
           {/* Header */}
           <div className="mb-6">
@@ -81,7 +95,7 @@ export default function AdminContent() {
               return (
                 <button
                   key={section.id}
-                  onClick={() => setActiveSection(section.id)}
+                  onClick={() => handleSectionChange(section.id)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
                     activeSection === section.id
@@ -117,7 +131,8 @@ export default function AdminContent() {
       <main className="flex-1 overflow-hidden">
         {activeSection === 'users' && <UsersContent />}
         {activeSection === 'organizations' && <OrganizationsContent />}
-              {activeSection === 'pricing' && <PricingContentSimple />}
+        {activeSection === 'pricing' && <PricingIntelligenceContent />}
+        {activeSection === 'cost-center' && <CostCenterContent />}
         {activeSection === 'api-keys' && <ApiKeysContent />}
         {activeSection === 'settings' && <SettingsContent />}
       </main>

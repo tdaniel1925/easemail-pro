@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { buildSystemContext, QUICK_ACTIONS } from '@/lib/ai/system-knowledge';
+import { createClient } from '@/lib/supabase/server';
+import { trackAICost } from '@/lib/utils/cost-tracking';
+import { aiRateLimit, enforceRateLimit } from '@/lib/security/rate-limiter';
+import { checkAILimit } from '@/lib/billing/plan-limits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,6 +19,44 @@ function getOpenAIClient(): OpenAI {
 
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({
+        success: false,
+        error: 'Unauthorized',
+      }, { status: 401 });
+    }
+
+    const userId = user.id;
+
+    // Check rate limit
+    const rateLimitResult = await enforceRateLimit(aiRateLimit, userId);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json({
+        success: false,
+        error: rateLimitResult.error,
+      }, {
+        status: 429,
+        headers: rateLimitResult.headers
+      });
+    }
+
+    // Check usage limits
+    const limitCheck = await checkAILimit(userId);
+    if (!limitCheck.allowed) {
+      return NextResponse.json({
+        success: false,
+        error: limitCheck.message,
+        upgradeUrl: limitCheck.upgradeUrl,
+        tier: limitCheck.tier,
+        used: limitCheck.used,
+        limit: limitCheck.limit,
+      }, { status: 429 });
+    }
+
     const { message, conversationHistory, currentPage } = await request.json();
 
     if (!message || message.trim() === '') {
@@ -56,6 +98,15 @@ export async function POST(request: NextRequest) {
     });
 
     const responseText = completion.choices[0].message.content || 'I apologize, but I could not generate a response. Please try again.';
+
+    // Track AI cost
+    await trackAICost({
+      userId,
+      feature: 'assistant',
+      model: 'gpt-4-turbo-preview',
+      inputTokens: completion.usage?.prompt_tokens || 0,
+      outputTokens: completion.usage?.completion_tokens || 0,
+    });
 
     // Parse response to extract action buttons
     const actions = extractActions(responseText, message);

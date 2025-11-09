@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import EmailCompose from '@/components/email/EmailCompose';
 import ProviderSelector from '@/components/email/ProviderSelector';
 import InlineMessage from '@/components/ui/inline-message';
-import SettingsMenu from '@/components/layout/SettingsMenu';
+import SettingsMenuNew from '@/components/layout/SettingsMenuNew';
 import EaseMailLogoFull from '@/components/ui/EaseMailLogoFull';
 import { FolderSkeleton } from '@/components/ui/skeleton';
 import { buildFolderTree, flattenFolderTree } from '@/lib/email/folder-tree';
@@ -47,6 +47,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [recentFolders, setRecentFolders] = useState<string[]>([]); // ? PHASE 3: Recently used folders
   const [isOnline, setIsOnline] = useState(true); // ? PHASE 4: Online status
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [smsUnreadCount, setSmsUnreadCount] = useState(0); // SMS unread count
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -111,11 +112,26 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     }
   }, [searchParams]);
 
+  // Fetch SMS unread count
+  const fetchSMSCount = async () => {
+    try {
+      const response = await fetch('/api/sms/inbox');
+      const data = await response.json();
+      if (data.success && data.messages) {
+        // Count unread messages (you can add a 'read' field to SMS schema later)
+        setSmsUnreadCount(data.messages.length);
+      }
+    } catch (error) {
+      console.error('Failed to fetch SMS count:', error);
+    }
+  };
+
   // Fetch accounts on mount
   useEffect(() => {
     fetchAccounts();
     fetchUserContext(); // NEW: Fetch user role and org status
-    
+    fetchSMSCount(); // Fetch SMS count
+
     // ✅ FIX: Check initial online status
     setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
     
@@ -461,9 +477,9 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const hasMoreFolders = customFolders.length > 5;
 
   // ✅ FIX #2: Use lowercase folder names to match database values
+  // ✅ SMS REMOVED: SMS is now in Communication section, not a folder
   const defaultFolders = [
     { name: 'inbox', icon: Mail, count: 0, href: '/inbox-v3', active: true, displayName: 'Inbox' },
-    { name: 'sms', icon: MessageSquare, count: 0, href: '/inbox-v3', displayName: 'SMS', isSMS: true },
     { name: 'starred', icon: Star, count: 0, href: '/inbox-v3', displayName: 'Starred' },
     { name: 'snoozed', icon: Clock, count: 0, href: '/inbox-v3', displayName: 'Snoozed' },
     { name: 'sent', icon: Send, count: 0, href: '/inbox-v3', displayName: 'Sent' },
@@ -651,6 +667,37 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
           </div>
         </div>
 
+        {/* Communication Section */}
+        <div className="border-t border-border/50 mt-2 pt-2 px-2">
+          <h3 className="px-3 text-xs font-semibold text-muted-foreground mb-2">
+            COMMUNICATION
+          </h3>
+          <button
+            onClick={() => router.push('/sms')}
+            className={cn(
+              "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all",
+              pathname === '/sms'
+                ? "bg-primary text-primary-foreground font-medium shadow-sm"
+                : "hover:bg-accent hover:shadow-sm text-muted-foreground"
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <MessageSquare className="h-4 w-4" />
+              <span>Text Messages</span>
+            </div>
+            {smsUnreadCount > 0 && (
+              <span className={cn(
+                "px-2 py-0.5 text-xs rounded-full flex-shrink-0 font-medium",
+                pathname === '/sms'
+                  ? "bg-primary-foreground text-primary"
+                  : "bg-green-500 text-white"
+              )}>
+                {smsUnreadCount}
+              </span>
+            )}
+          </button>
+        </div>
+
         {/* Quick Access - Sticky at bottom */}
         <div className="border-t border-border/50 bg-card">
           <div className="px-2 py-3 space-y-0.5">
@@ -658,7 +705,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
               onClick={() => router.push('/calendar')}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all",
-                pathname === '/calendar' 
+                pathname === '/calendar'
                   ? "bg-primary text-primary-foreground font-medium shadow-sm"
                   : "hover:bg-accent hover:shadow-sm text-muted-foreground"
               )}
@@ -691,11 +738,9 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
 
         {/* User Menu */}
         <div className="p-2.5 border-t border-border space-y-1">
-          <SettingsMenu 
+          <SettingsMenuNew
             onLogout={handleLogout}
             onNavigate={(path) => router.push(path)}
-            userRole={userRole}
-            hasOrganization={hasOrganization}
           />
           
           {/* Account Selector Dropdown */}

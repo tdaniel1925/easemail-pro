@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, User, Sparkles, HelpCircle } from 'lucide-react';
+import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, User, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,8 +11,9 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { SignatureEditorModal } from '@/components/signatures/SignatureEditorModal';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import ThemeSelector from '@/components/theme/ThemeSelector';
 
-type SettingsSection = 'general' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'help';
+type SettingsSection = 'general' | 'sync' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'help';
 
 export default function SettingsContent() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function SettingsContent() {
 
   const sections = [
     { id: 'general' as const, name: 'General', icon: User },
+    { id: 'sync' as const, name: 'Sync Status', icon: RefreshCw },
     { id: 'signatures' as const, name: 'Signatures', icon: PenTool },
     { id: 'preferences' as const, name: 'Preferences', icon: Sliders },
     { id: 'notifications' as const, name: 'Notifications', icon: Bell },
@@ -29,9 +31,9 @@ export default function SettingsContent() {
   ];
 
   return (
-    <div className="flex w-full h-full">
+    <div className="flex w-full h-screen">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-card p-4 overflow-y-auto flex-shrink-0">
+      <aside className="w-64 border-r border-border bg-background p-4 overflow-y-auto flex-shrink-0">
         <div className="mb-6">
           <h2 className="text-xl font-bold mb-3 text-foreground">Settings</h2>
           <a 
@@ -70,6 +72,7 @@ export default function SettingsContent() {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
         {activeSection === 'general' && <GeneralSettings />}
+        {activeSection === 'sync' && <SyncStatusSettings />}
         {activeSection === 'signatures' && <SignaturesSettings />}
         {activeSection === 'preferences' && <PreferencesSettings />}
         {activeSection === 'notifications' && <NotificationsSettings />}
@@ -78,6 +81,320 @@ export default function SettingsContent() {
         {activeSection === 'help' && <HelpSupportSettings />}
       </main>
     </div>
+  );
+}
+
+function SyncStatusSettings() {
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadAccounts();
+
+    // Auto-refresh every 5 seconds
+    const interval = setInterval(() => {
+      loadAccounts();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadAccounts = async () => {
+    try {
+      const response = await fetch('/api/nylas/accounts');
+      const data = await response.json();
+      setAccounts(data.accounts || []);
+    } catch (error) {
+      console.error('Error loading accounts:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleManualRefresh = () => {
+    setRefreshing(true);
+    loadAccounts();
+  };
+
+  const formatNumber = (num: number) => {
+    return num.toLocaleString();
+  };
+
+  const formatDate = (date: string | null) => {
+    if (!date) return 'Never';
+    const d = new Date(date);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    return d.toLocaleDateString();
+  };
+
+  const getSyncStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'syncing':
+        return <RefreshCw className="h-5 w-5 text-blue-500 animate-spin" />;
+      case 'error':
+        return <AlertCircle className="h-5 w-5 text-red-500" />;
+      default:
+        return <Clock className="h-5 w-5 text-gray-400" />;
+    }
+  };
+
+  const getSyncStatusText = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'Sync Complete';
+      case 'syncing':
+        return 'Syncing...';
+      case 'error':
+        return 'Sync Error';
+      case 'pending':
+        return 'Pending';
+      default:
+        return 'Unknown';
+    }
+  };
+
+  return (
+    <>
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Email Sync Status</h1>
+            <p className="text-sm text-muted-foreground mt-1">Monitor your email synchronization progress</p>
+          </div>
+          <Button onClick={handleManualRefresh} disabled={refreshing} size="sm">
+            <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-6">
+        <div className="w-full space-y-6">
+          {/* Overview Card */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Database className="h-5 w-5 text-primary" />
+                <CardTitle>Sync Overview</CardTitle>
+              </div>
+              <CardDescription>
+                Real-time statistics about your email database
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Total Accounts</p>
+                  <p className="text-3xl font-bold">{accounts.length}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Total Emails Synced</p>
+                  <p className="text-3xl font-bold">
+                    {formatNumber(accounts.reduce((sum, acc) => sum + (acc.syncedEmailCount || 0), 0))}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Active Syncs</p>
+                  <p className="text-3xl font-bold">
+                    {accounts.filter(acc => acc.syncStatus === 'syncing').length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Info Card */}
+          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900">
+            <CardContent className="pt-6">
+              <div className="flex gap-3">
+                <Database className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="space-y-2">
+                  <p className="font-medium text-blue-900 dark:text-blue-100">
+                    Understanding Email Sync
+                  </p>
+                  <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                    <p><strong>In Database:</strong> Emails already downloaded and stored locally - these are immediately searchable and viewable.</p>
+                    <p><strong>Total in Mailbox:</strong> Complete count of emails in your email provider's servers.</p>
+                    <p><strong>Progress:</strong> Percentage of emails that have been downloaded from the server to your local database.</p>
+                    <p><strong>Sync Speed:</strong> How many emails per minute are being processed during synchronization.</p>
+                  </div>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 pt-2">
+                    Syncs run automatically in the background. You can use the app while syncing continues.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Account Details */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Account Details</h2>
+
+            {loading ? (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  Loading sync status...
+                </CardContent>
+              </Card>
+            ) : accounts.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Mail className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground mb-4">No email accounts connected</p>
+                </CardContent>
+              </Card>
+            ) : (
+              accounts.map((account) => {
+                // If totalEmailCount is 0 (not fetched yet), use syncedEmailCount as display value
+                const totalEmailsFromNylas = account.totalEmailCount || 0;
+                const syncedEmails = account.syncedEmailCount || 0;
+
+                // Display total: prefer Nylas total, fallback to synced count if total not available yet
+                const totalEmails = totalEmailsFromNylas > 0 ? totalEmailsFromNylas : syncedEmails;
+
+                const progress = account.syncProgress || 0;
+                const metadata = account.metadata || {};
+                const emailsPerMinute = metadata.emailsPerMinute || 0;
+                const remainingEmails = Math.max(0, totalEmails - syncedEmails);
+                const estimatedMinutes = emailsPerMinute > 0 && remainingEmails > 0 ? Math.ceil(remainingEmails / emailsPerMinute) : 0;
+
+                return (
+                  <Card key={account.id}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            {getSyncStatusIcon(account.syncStatus)}
+                            <div>
+                              <CardTitle className="text-lg">{account.emailAddress}</CardTitle>
+                              <CardDescription>{getSyncStatusText(account.syncStatus)}</CardDescription>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold">{progress}%</div>
+                          <div className="text-xs text-muted-foreground">Complete</div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Progress Bar */}
+                      <div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="text-muted-foreground">Sync Progress</span>
+                          <span className="font-medium">{formatNumber(syncedEmails)} / {formatNumber(totalEmails)} emails</span>
+                        </div>
+                        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full transition-all duration-500",
+                              account.syncStatus === 'completed' ? 'bg-green-500' :
+                              account.syncStatus === 'syncing' ? 'bg-blue-500' :
+                              account.syncStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
+                            )}
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">In Database</p>
+                          <p className="text-lg font-semibold">{formatNumber(syncedEmails)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Total in Mailbox</p>
+                          <p className="text-lg font-semibold">{formatNumber(totalEmails)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Remaining</p>
+                          <p className="text-lg font-semibold">{formatNumber(remainingEmails)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Sync Speed</p>
+                          <p className="text-lg font-semibold">{emailsPerMinute}/min</p>
+                        </div>
+                      </div>
+
+                      {/* Additional Info */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Last Synced:</span>
+                          <span className="ml-2 font-medium">{formatDate(account.lastSyncedAt)}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Provider:</span>
+                          <span className="ml-2 font-medium capitalize">{account.provider || 'Unknown'}</span>
+                        </div>
+                        {account.syncStatus === 'syncing' && estimatedMinutes > 0 && (
+                          <div className="md:col-span-2">
+                            <span className="text-muted-foreground">Estimated time remaining:</span>
+                            <span className="ml-2 font-medium">
+                              {estimatedMinutes < 60 ? `~${estimatedMinutes} minutes` : `~${Math.round(estimatedMinutes / 60)} hours`}
+                            </span>
+                          </div>
+                        )}
+                        {account.lastError && (
+                          <div className="md:col-span-2 text-red-600 dark:text-red-400">
+                            <span className="text-muted-foreground">Error:</span>
+                            <span className="ml-2">{account.lastError}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Status Messages */}
+                      {account.syncStatus === 'completed' && progress === 100 && (
+                        <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900 p-3">
+                          <p className="text-sm text-green-800 dark:text-green-200">
+                            <CheckCircle className="inline h-4 w-4 mr-2" />
+                            All emails have been synced! Your mailbox is fully up to date.
+                          </p>
+                        </div>
+                      )}
+                      {account.syncStatus === 'syncing' && (
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900 p-3">
+                          <p className="text-sm text-blue-800 dark:text-blue-200">
+                            <RefreshCw className="inline h-4 w-4 mr-2 animate-spin" />
+                            Sync in progress... You can continue using the app while emails are being downloaded.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
+
+          {/* Help Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HelpCircle className="h-5 w-5 text-primary" />
+                Need Help?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-2">
+              <p><strong>Why is my sync slow?</strong> Sync speed depends on your email provider's rate limits. Google allows faster sync than Microsoft.</p>
+              <p><strong>Will syncing affect performance?</strong> No, syncs run in the background without affecting your ability to read and send emails.</p>
+              <p><strong>How often does it sync?</strong> Initial sync downloads all historical emails. After that, new emails are synced automatically in real-time.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -135,20 +452,20 @@ function GeneralSettings() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Language</Label>
-                  <select className="w-full h-10 px-3 rounded-md border border-input bg-background">
-                    <option>English (US)</option>
-                    <option>Spanish</option>
-                    <option>French</option>
-                    <option>German</option>
+                  <select className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]">
+                    <option className="bg-background text-foreground">English (US)</option>
+                    <option className="bg-background text-foreground">Spanish</option>
+                    <option className="bg-background text-foreground">French</option>
+                    <option className="bg-background text-foreground">German</option>
                   </select>
                 </div>
                 <div className="space-y-2">
                   <Label>Timezone</Label>
-                  <select className="w-full h-10 px-3 rounded-md border border-input bg-background">
-                    <option>Pacific Time (PT)</option>
-                    <option>Mountain Time (MT)</option>
-                    <option>Central Time (CT)</option>
-                    <option>Eastern Time (ET)</option>
+                  <select className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]">
+                    <option className="bg-background text-foreground">Pacific Time (PT)</option>
+                    <option className="bg-background text-foreground">Mountain Time (MT)</option>
+                    <option className="bg-background text-foreground">Central Time (CT)</option>
+                    <option className="bg-background text-foreground">Eastern Time (ET)</option>
                   </select>
                 </div>
               </div>
@@ -381,6 +698,24 @@ function PreferencesSettings() {
         <div className="w-full space-y-6">
           <Card>
             <CardHeader>
+              <CardTitle>Appearance</CardTitle>
+              <CardDescription>Customize the look and feel of your inbox</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="font-medium">Theme</p>
+                  <p className="text-sm text-muted-foreground">Choose between light and dark mode</p>
+                </div>
+                <div className="w-48">
+                  <ThemeSelector />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Reading & Display</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -415,9 +750,9 @@ function PreferencesSettings() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Default Reply Behavior</Label>
-                <select className="w-full h-10 px-3 rounded-md border border-input bg-background">
-                  <option>Reply</option>
-                  <option>Reply All</option>
+                <select className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]">
+                  <option className="bg-background text-foreground">Reply</option>
+                  <option className="bg-background text-foreground">Reply All</option>
                 </select>
               </div>
               <div className="flex items-center justify-between">

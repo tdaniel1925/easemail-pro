@@ -19,33 +19,11 @@ import { eq } from 'drizzle-orm';
 import crypto from 'crypto';
 import { sendEmail } from '@/lib/email/send';
 import { getPasswordResetTemplate, getPasswordResetSubject } from '@/lib/email/templates/password-reset';
+import { authRateLimit, enforceRateLimit } from '@/lib/security/rate-limiter';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
-// Rate limiting map (simple in-memory, production should use Redis)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(identifier: string): { allowed: boolean; retryAfter?: number } {
-  const now = Date.now();
-  const limit = rateLimitMap.get(identifier);
-
-  if (!limit || now > limit.resetAt) {
-    // New window or expired
-    rateLimitMap.set(identifier, { count: 1, resetAt: now + 60000 }); // 1 minute window
-    return { allowed: true };
-  }
-
-  if (limit.count >= 3) {
-    // Max 3 requests per minute
-    const retryAfter = Math.ceil((limit.resetAt - now) / 1000);
-    return { allowed: false, retryAfter };
-  }
-
-  limit.count++;
-  return { allowed: true };
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,20 +38,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Get IP for rate limiting and audit trail
-    const ip = request.headers.get('x-forwarded-for') || 
-                request.headers.get('x-real-ip') || 
+    const ip = request.headers.get('x-forwarded-for') ||
+                request.headers.get('x-real-ip') ||
                 'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
-    // Rate limiting (3 requests per minute per IP)
-    const rateLimit = checkRateLimit(ip);
-    if (!rateLimit.allowed) {
+    // Rate limiting (Upstash Redis - 5 requests per 10 seconds per IP)
+    const rateLimitResult = await enforceRateLimit(authRateLimit, `password-reset:${ip}`);
+    if (!rateLimitResult.allowed) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: `Too many requests. Please try again in ${rateLimit.retryAfter} seconds.` 
+        {
+          success: false,
+          error: rateLimitResult.error
         },
-        { status: 429 }
+        {
+          status: 429,
+          headers: rateLimitResult.headers
+        }
       );
     }
 

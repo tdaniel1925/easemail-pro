@@ -659,22 +659,24 @@ export const smsConversations = pgTable('sms_conversations', {
 export const smsUsage = pgTable('sms_usage', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  
+
   periodStart: timestamp('period_start').notNull(),
   periodEnd: timestamp('period_end').notNull(),
-  
+
   totalMessagesSent: integer('total_messages_sent').default(0),
+  messageCount: integer('message_count').default(0), // Alias for compatibility
   totalCostUsd: varchar('total_cost_usd', { length: 20 }).default('0'),
+  cost: decimal('cost', { precision: 10, scale: 4 }).default('0'), // Alias for compatibility
   totalChargedUsd: varchar('total_charged_usd', { length: 20 }).default('0'),
-  
+
   billingStatus: varchar('billing_status', { length: 50 }).default('pending'),
   invoiceId: varchar('invoice_id', { length: 255 }),
-  
+
   // Billing tracking
   chargedAt: timestamp('charged_at'),
   chargeAmountUsd: decimal('charge_amount_usd', { precision: 10, scale: 2 }),
   transactionId: uuid('transaction_id'),
-  
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -881,14 +883,18 @@ export const organizationMembers = pgTable('organization_members', {
 export const subscriptions = pgTable('subscriptions', {
   id: uuid('id').defaultRandom().primaryKey(),
   organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }), // Alias for compatibility
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
   planName: varchar('plan_name', { length: 50 }).notNull(),
+  planId: varchar('plan_id', { length: 50 }), // For Stripe: 'free', 'individual', 'team', 'enterprise'
   billingCycle: varchar('billing_cycle', { length: 20 }).default('monthly'),
   pricePerMonth: decimal('price_per_month', { precision: 10, scale: 2 }),
   seatsIncluded: integer('seats_included').default(1),
+  seats: integer('seats').default(1), // Alias for compatibility
   seatsUsed: integer('seats_used').default(1),
   status: varchar('status', { length: 50 }).default('active'),
   trialEndsAt: timestamp('trial_ends_at'),
+  trialEnd: timestamp('trial_end'), // Alias for Stripe compatibility
   currentPeriodStart: timestamp('current_period_start'),
   currentPeriodEnd: timestamp('current_period_end'),
   cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false),
@@ -900,6 +906,7 @@ export const subscriptions = pgTable('subscriptions', {
 }, (table) => ({
   orgIdIdx: index('subscriptions_org_id_idx').on(table.organizationId),
   userIdIdx: index('subscriptions_user_id_idx').on(table.userId),
+  stripeSubIdIdx: index('subscriptions_stripe_sub_id_idx').on(table.stripeSubscriptionId),
 }));
 
 // Team Invitations
@@ -924,30 +931,36 @@ export const teamInvitations = pgTable('team_invitations', {
 export const invoices = pgTable('invoices', {
   id: uuid('id').defaultRandom().primaryKey(),
   organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  orgId: uuid('org_id').references(() => organizations.id, { onDelete: 'cascade' }), // Alias for compatibility
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
-  
-  invoiceNumber: varchar('invoice_number', { length: 50 }).unique().notNull(),
-  amountUsd: decimal('amount_usd', { precision: 10, scale: 2 }).notNull(),
+
+  invoiceNumber: varchar('invoice_number', { length: 50 }).unique(),
+  amountUsd: decimal('amount_usd', { precision: 10, scale: 2 }),
+  amount: decimal('amount', { precision: 10, scale: 2 }), // Alias for compatibility
   taxAmountUsd: decimal('tax_amount_usd', { precision: 10, scale: 2 }).default('0'),
-  totalUsd: decimal('total_usd', { precision: 10, scale: 2 }).notNull(),
+  tax: decimal('tax', { precision: 10, scale: 2 }).default('0'), // Alias for compatibility
+  totalUsd: decimal('total_usd', { precision: 10, scale: 2 }),
+  total: decimal('total', { precision: 10, scale: 2 }), // Alias for compatibility
   currency: varchar('currency', { length: 3 }).default('USD'),
-  
+
   status: varchar('status', { length: 50 }).default('draft'),
   dueDate: timestamp('due_date'),
   paidAt: timestamp('paid_at'),
-  periodStart: timestamp('period_start').notNull(),
-  periodEnd: timestamp('period_end').notNull(),
-  
+  periodStart: timestamp('period_start'),
+  periodEnd: timestamp('period_end'),
+
   lineItems: jsonb('line_items').$type<Array<{description: string; quantity: number; unitPrice: number; total: number}>>(),
   paymentMethod: varchar('payment_method', { length: 255 }),
-  
+
   stripeInvoiceId: varchar('stripe_invoice_id', { length: 255 }).unique(),
   stripePaymentIntentId: varchar('stripe_payment_intent_id', { length: 255 }),
-  
+
   pdfUrl: varchar('pdf_url', { length: 500 }),
+  invoiceUrl: varchar('invoice_url', { length: 500 }), // Stripe hosted invoice URL
+  invoicePdfUrl: varchar('invoice_pdf_url', { length: 500 }), // Alias for pdfUrl
   notes: text('notes'),
   metadata: jsonb('metadata').$type<Record<string, any>>(),
-  
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -955,6 +968,7 @@ export const invoices = pgTable('invoices', {
   userIdIdx: index('invoices_user_id_idx').on(table.userId),
   statusIdx: index('invoices_status_idx').on(table.status),
   periodIdx: index('invoices_period_idx').on(table.periodStart, table.periodEnd),
+  stripeInvoiceIdIdx: index('invoices_stripe_invoice_id_idx').on(table.stripeInvoiceId),
 }));
 
 // Payment Methods
@@ -993,24 +1007,25 @@ export const aiUsage = pgTable('ai_usage', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
-  
+
   feature: varchar('feature', { length: 50 }).notNull(),
   requestCount: integer('request_count').default(0),
-  
+
   periodStart: timestamp('period_start').notNull(),
   periodEnd: timestamp('period_end').notNull(),
-  
+
   totalCostUsd: decimal('total_cost_usd', { precision: 10, scale: 2 }).default('0'),
+  cost: decimal('cost', { precision: 10, scale: 4 }).default('0'), // Alias for compatibility
   includedRequests: integer('included_requests').default(0),
   overageRequests: integer('overage_requests').default(0),
-  
+
   metadata: jsonb('metadata').$type<Record<string, any>>(),
-  
+
   // Billing tracking
   chargedAt: timestamp('charged_at'),
   chargeAmountUsd: decimal('charge_amount_usd', { precision: 10, scale: 2 }),
   transactionId: uuid('transaction_id'),
-  
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -1025,21 +1040,23 @@ export const storageUsage = pgTable('storage_usage', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
-  
+
   totalBytes: bigint('total_bytes', { mode: 'number' }).default(0),
+  storageUsed: bigint('storage_used', { mode: 'number' }).default(0), // Alias for totalBytes
   attachmentsBytes: bigint('attachments_bytes', { mode: 'number' }).default(0),
   emailsBytes: bigint('emails_bytes', { mode: 'number' }).default(0),
   otherBytes: bigint('other_bytes', { mode: 'number' }).default(0),
-  
+
   periodStart: timestamp('period_start').notNull(),
   periodEnd: timestamp('period_end').notNull(),
-  
+
   includedGb: decimal('included_gb', { precision: 10, scale: 2 }).default('50'),
   overageGb: decimal('overage_gb', { precision: 10, scale: 2 }).default('0'),
   overageCostUsd: decimal('overage_cost_usd', { precision: 10, scale: 2 }).default('0'),
-  
+  cost: decimal('cost', { precision: 10, scale: 4 }).default('0'), // Alias for compatibility
+
   snapshotDate: timestamp('snapshot_date').defaultNow(),
-  
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -1628,5 +1645,84 @@ export const emailTemplateTestSendsRelations = relations(emailTemplateTestSends,
     references: [users.id],
   }),
 }));
+
+// Email Rules Table (Simplified Outlook-style rules)
+export const emailRules = pgTable('email_rules', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  grantId: varchar('grant_id', { length: 255 }).notNull(), // Nylas grant ID
+
+  // Basic fields
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  isActive: boolean('is_active').default(true).notNull(),
+
+  // Rule configuration (simplified JSON structure)
+  conditions: jsonb('conditions').notNull(), // Array of conditions
+  actions: jsonb('actions').notNull(), // Array of actions
+  matchAll: boolean('match_all').default(true).notNull(), // true = AND, false = OR
+  stopProcessing: boolean('stop_processing').default(false).notNull(),
+
+  // Performance tracking
+  executionCount: integer('execution_count').default(0).notNull(),
+  successCount: integer('success_count').default(0).notNull(),
+  failureCount: integer('failure_count').default(0).notNull(),
+  lastExecutedAt: timestamp('last_executed_at'),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userActiveIdx: index('idx_email_rules_user_active').on(table.userId, table.isActive),
+  grantIdx: index('idx_email_rules_grant').on(table.grantId),
+  uniqueRuleName: unique('unique_rule_name_per_user').on(table.userId, table.name),
+}));
+
+// Rule Activity Log Table (Last 50 executions per rule)
+export const ruleActivity = pgTable('rule_activity', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  ruleId: uuid('rule_id').references(() => emailRules.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+
+  // Email context
+  messageId: varchar('message_id', { length: 255 }).notNull(),
+  messageSubject: text('message_subject'),
+  messageFrom: varchar('message_from', { length: 255 }),
+
+  // Execution result
+  status: varchar('status', { length: 20 }).notNull(), // 'success', 'error'
+  errorMessage: text('error_message'),
+  executionTimeMs: integer('execution_time_ms'),
+
+  executedAt: timestamp('executed_at').defaultNow().notNull(),
+}, (table) => ({
+  ruleIdx: index('idx_rule_activity_rule').on(table.ruleId, table.executedAt),
+  userIdx: index('idx_rule_activity_user').on(table.userId, table.executedAt),
+  statusIdx: index('idx_rule_activity_status').on(table.status),
+}));
+
+// Relations
+export const emailRulesRelations = relations(emailRules, ({ one, many }) => ({
+  user: one(users, {
+    fields: [emailRules.userId],
+    references: [users.id],
+  }),
+  activity: many(ruleActivity),
+}));
+
+export const ruleActivityRelations = relations(ruleActivity, ({ one }) => ({
+  rule: one(emailRules, {
+    fields: [ruleActivity.ruleId],
+    references: [emailRules.id],
+  }),
+  user: one(users, {
+    fields: [ruleActivity.userId],
+    references: [users.id],
+  }),
+}));
+
+// Aliases for snake_case compatibility
+export const sms_usage = smsUsage;
+export const ai_usage = aiUsage;
+export const storage_usage = storageUsage;
 
 

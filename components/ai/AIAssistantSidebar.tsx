@@ -379,6 +379,14 @@ function getQuickSuggestions(pathname: string): string[] {
     ];
   }
 
+  if (pathname === '/sms') {
+    return [
+      'How do I send an SMS?',
+      'How do I view SMS history?',
+      'How do I reply to SMS?',
+    ];
+  }
+
   if (pathname === '/calendar') {
     return [
       'How do I create events?',

@@ -29,7 +29,14 @@
       "Bash(move \"C:\\dev\\EaseMail - The Future\\app\\api\\nylas\\accounts\\[accountId]\\settings_temp\" \"C:\\dev\\EaseMail - The Future\\app\\api\\nylas\\accounts\\[accountId]\\settings\")",
       "Bash(taskkill //F //PID 140924)",
       "Bash(tail:*)",
-      "Bash(taskkill //F //PID 172568)"
+      "Bash(taskkill //F //PID 172568)",
+      "Bash(ls:*)",
+      "Bash(taskkill //F //PID 92332)",
+      "Bash(taskkill:*)",
+      "Bash(powershell -Command \"(Get-Content ''001_add_performance_indexes.sql'') -replace ''CREATE INDEX CONCURRENTLY'', ''CREATE INDEX'' | Set-Content ''001_add_performance_indexes_no_concurrent.sql''\")",
+      "Bash(powershell -Command \"(Get-Content ''001_add_performance_indexes_no_concurrent.sql'') -replace ''CREATE INDEX IF NOT EXISTS idx_email_rules_grant_id ON email_rules\\(grant_id\\);'', ''-- idx_email_rules_grant already exists in schema (line removed due to column name mismatch)'' | Set-Content ''001_add_performance_indexes_no_concurrent.sql''\")",
+      "Bash(powershell -Command:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

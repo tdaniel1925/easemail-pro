@@ -173,6 +173,8 @@ export class AIWriteService {
         metadata: {
           model: completion.model,
           tokensUsed: completion.usage?.total_tokens || 0,
+          inputTokens: completion.usage?.prompt_tokens || 0,
+          outputTokens: completion.usage?.completion_tokens || 0,
           generationTime,
           confidence: 0.85,
         },

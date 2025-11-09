@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { passwordResetTokens, users } from '@/lib/db/schema';
 import { eq, and, isNull, gt } from 'drizzle-orm';
+import { authRateLimit, enforceRateLimit } from '@/lib/security/rate-limiter';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,22 @@ export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const ip = request.headers.get('x-forwarded-for') ||
+               request.headers.get('x-real-ip') ||
+               'unknown';
+
+    const rateLimitResult = await enforceRateLimit(authRateLimit, `validate-token:${ip}`);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { valid: false, error: rateLimitResult.error },
+        {
+          status: 429,
+          headers: rateLimitResult.headers
+        }
+      );
+    }
+
     const body = await request.json();
     const { token } = body;
 

@@ -1,30 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { ruleTemplates, emailRules, users } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
-import type { CreateRuleFromTemplateRequest } from '@/lib/rules/types';
+import { emailRules, users } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import type { CreateRuleFromTemplateRequest } from '@/lib/rules/types-simple';
+import {
+  SIMPLE_RULE_TEMPLATES,
+  getTemplatesByCategory,
+  getTemplateById
+} from '@/lib/rules/templates-simple';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/rules/templates
- * List all rule templates
+ * List all simplified rule templates
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
 
-    let whereClause;
-    if (category) {
-      whereClause = eq(ruleTemplates.category, category);
-    }
-
-    const templates = await db.query.ruleTemplates.findMany({
-      where: whereClause,
-      orderBy: [desc(ruleTemplates.isPopular), desc(ruleTemplates.timesUsed)],
-    });
+    const templates = category
+      ? getTemplatesByCategory(category)
+      : SIMPLE_RULE_TEMPLATES;
 
     return NextResponse.json({
       success: true,
@@ -41,7 +40,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/rules/templates
- * Create a rule from a template
+ * Create a simplified rule from a template
  */
 export async function POST(request: NextRequest) {
   try {
@@ -62,39 +61,51 @@ export async function POST(request: NextRequest) {
 
     const body: CreateRuleFromTemplateRequest = await request.json();
 
+    if (!body.grantId) {
+      return NextResponse.json(
+        { error: 'Missing required field: grantId' },
+        { status: 400 }
+      );
+    }
+
     // Get the template
-    const template = await db.query.ruleTemplates.findFirst({
-      where: eq(ruleTemplates.id, body.templateId),
-    });
+    const template = getTemplateById(body.templateId);
 
     if (!template) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });
     }
 
+    // Merge template with customizations
+    const conditions = body.customizations?.conditions
+      ? template.conditions.map((cond, i) => ({
+          ...cond,
+          ...(body.customizations?.conditions?.[i] || {})
+        }))
+      : template.conditions;
+
+    const actions = body.customizations?.actions
+      ? template.actions.map((action, i) => ({
+          ...action,
+          ...(body.customizations?.actions?.[i] || {})
+        }))
+      : template.actions;
+
     // Create rule from template
     const [newRule] = await db.insert(emailRules).values({
       userId: dbUser.id,
-      accountId: body.accountId || null,
+      grantId: body.grantId,
       name: body.customizations?.name || template.name,
-      description: body.customizations?.description || template.description || null,
-      isEnabled: true,
-      priority: 100,
-      conditions: (body.customizations?.conditions || template.conditions) as any,
-      actions: (body.customizations?.actions || template.actions) as any,
-      applyToExisting: false,
+      description: template.description,
+      isActive: true,
+      conditions,
+      actions,
+      matchAll: template.matchAll,
       stopProcessing: false,
-      runOnServer: true,
-      aiGenerated: false,
-      aiPrompt: null,
-      aiConfidence: null,
-      timesTriggered: 0,
-      lastTriggered: null,
+      executionCount: 0,
+      successCount: 0,
+      failureCount: 0,
+      lastExecutedAt: null,
     }).returning();
-
-    // Increment template usage count
-    await db.update(ruleTemplates)
-      .set({ timesUsed: template.timesUsed + 1 })
-      .where(eq(ruleTemplates.id, template.id));
 
     return NextResponse.json({
       success: true,

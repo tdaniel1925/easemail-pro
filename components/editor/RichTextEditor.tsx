@@ -115,6 +115,7 @@ export function RichTextEditor({
       TableCell,
     ],
     content,
+    immediatelyRender: false,
     editorProps: {
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[300px] p-4',

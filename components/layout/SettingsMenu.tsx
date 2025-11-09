@@ -26,6 +26,11 @@ export default function SettingsMenu({ onLogout, onNavigate, userRole: propUserR
     fetchUser();
   }, []);
 
+  // Debug: Log user role changes
+  useEffect(() => {
+    console.log('[SettingsMenu] User role:', userRole, '(prop:', propUserRole, ', local:', localUserRole, ')');
+  }, [userRole, propUserRole, localUserRole]);
+
   // Use prop if provided, otherwise use local state
   const userRole = propUserRole || localUserRole;
 
@@ -84,7 +89,7 @@ export default function SettingsMenu({ onLogout, onNavigate, userRole: propUserR
           />
           
           {/* Menu */}
-          <div className="absolute bottom-full left-0 mb-1 w-full bg-card border border-border rounded-md shadow-lg z-50 overflow-hidden">
+          <div className="absolute bottom-full left-0 mb-1 w-full bg-card border border-border rounded-md shadow-lg z-50 max-h-[80vh] overflow-y-auto">
             <div className="py-1">
               {showThemeSelector ? (
                 <div className="px-3 py-2">
@@ -116,7 +121,7 @@ export default function SettingsMenu({ onLogout, onNavigate, userRole: propUserR
                   {/* Email Accounts */}
                   <button
                     onClick={() => {
-                      onNavigate?.('/accounts');
+                      onNavigate?.('/accounts-v3');
                       setIsOpen(false);
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent text-muted-foreground transition-colors"

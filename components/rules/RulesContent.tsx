@@ -8,18 +8,18 @@ import { cn } from '@/lib/utils';
 import RuleCard from './RuleCard';
 import RuleTemplates from './RuleTemplates';
 import RuleBuilder from './RuleBuilder';
-import type { EmailRule, RuleTemplate } from '@/lib/rules/types';
+import type { SimpleEmailRule, SimpleRuleTemplate } from '@/lib/rules/types-simple';
 
 type Tab = 'active' | 'templates';
 
 export default function RulesContent() {
   const [activeTab, setActiveTab] = useState<Tab>('active');
-  const [rules, setRules] = useState<EmailRule[]>([]);
-  const [templates, setTemplates] = useState<RuleTemplate[]>([]);
+  const [rules, setRules] = useState<SimpleEmailRule[]>([]);
+  const [templates, setTemplates] = useState<SimpleRuleTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showBuilder, setShowBuilder] = useState(false);
-  const [editingRule, setEditingRule] = useState<EmailRule | null>(null);
+  const [editingRule, setEditingRule] = useState<SimpleEmailRule | null>(null);
   const [filterEnabled, setFilterEnabled] = useState<boolean | null>(null);
 
   // Fetch rules
@@ -76,7 +76,7 @@ export default function RulesContent() {
     setShowBuilder(true);
   };
 
-  const handleEditRule = (rule: EmailRule) => {
+  const handleEditRule = (rule: SimpleEmailRule) => {
     setEditingRule(rule);
     setShowBuilder(true);
   };
@@ -106,7 +106,7 @@ export default function RulesContent() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ enabled }),
+        body: JSON.stringify({ isActive: enabled }),
       });
 
       if (response.ok) {
@@ -117,7 +117,7 @@ export default function RulesContent() {
     }
   };
 
-  const handleSaveRule = async (ruleData: Partial<EmailRule>) => {
+  const handleSaveRule = async (ruleData: Partial<SimpleEmailRule>) => {
     try {
       const url = editingRule ? `/api/rules/${editingRule.id}` : '/api/rules';
       const method = editingRule ? 'PUT' : 'POST';
@@ -158,9 +158,9 @@ export default function RulesContent() {
 
   return (
     <>
-      <div className="flex w-full h-full">
+      <div className="flex w-full h-screen">
         {/* Sidebar */}
-        <aside className="w-64 border-r border-border bg-card p-4 overflow-y-auto flex-shrink-0">
+        <aside className="w-64 border-r border-border bg-card p-4 overflow-y-auto flex-shrink-0 h-screen">
           <div className="mb-6">
             <h2 className="text-xl font-bold mb-3 text-foreground">Rules & Automation</h2>
             <a 

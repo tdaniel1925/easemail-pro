@@ -101,9 +101,28 @@ export function AIWriteModal({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (method === 'bullets' && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const textarea = e.currentTarget;
+      const cursorPosition = textarea.selectionStart;
+      const textBeforeCursor = content.substring(0, cursorPosition);
+      const textAfterCursor = content.substring(cursorPosition);
+
+      // Add new bullet point
+      const newContent = textBeforeCursor + '\n• ' + textAfterCursor;
+      setContent(newContent);
+
+      // Set cursor position after the bullet
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = cursorPosition + 3; // \n + • + space
+      }, 0);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl p-0 overflow-hidden [&>button]:hidden">
+      <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-hidden [&>button]:hidden flex flex-col">
         <VisuallyHidden>
           <DialogTitle>AI Write - Generate Email</DialogTitle>
           <DialogDescription>
@@ -132,7 +151,7 @@ export function AIWriteModal({
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto flex-1">
           {/* Method Selection */}
           <div>
             <label className="block text-sm font-medium mb-3">How would you like to create your email?</label>
@@ -195,6 +214,7 @@ export function AIWriteModal({
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              onKeyDown={handleKeyDown}
               className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               placeholder={
                 method === 'prompt'

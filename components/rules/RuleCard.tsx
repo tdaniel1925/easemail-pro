@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Edit2, Trash2, ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { EmailRule } from '@/lib/rules/types';
+import type { SimpleEmailRule } from '@/lib/rules/types-simple';
 import { formatDistanceToNow } from 'date-fns';
 
 interface RuleCardProps {
-  rule: EmailRule;
-  onEdit: (rule: EmailRule) => void;
+  rule: SimpleEmailRule;
+  onEdit: (rule: SimpleEmailRule) => void;
   onDelete: (ruleId: string) => void;
   onToggle: (ruleId: string, isEnabled: boolean) => void;
 }
@@ -29,31 +29,31 @@ export default function RuleCard({ rule, onEdit, onDelete, onToggle }: RuleCardP
               <span
                 className={cn(
                   'px-2 py-0.5 text-xs rounded-full',
-                  rule.isEnabled
+                  rule.isActive
                     ? 'bg-green-500/10 text-green-600'
                     : 'bg-gray-500/10 text-gray-600'
                 )}
               >
-                {rule.isEnabled ? 'Active' : 'Disabled'}
+                {rule.isActive ? 'Active' : 'Disabled'}
               </span>
             </div>
-            
+
             {rule.description && (
               <p className="text-sm text-muted-foreground mb-2">{rule.description}</p>
             )}
 
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span>Triggered {rule.timesTriggered} times</span>
-              {rule.lastTriggered && (
-                <span>Last: {formatDistanceToNow(new Date(rule.lastTriggered))} ago</span>
+              <span>Executed {rule.executionCount} times</span>
+              {rule.lastExecutedAt && (
+                <span>Last: {formatDistanceToNow(new Date(rule.lastExecutedAt))} ago</span>
               )}
-              <span>Priority: {rule.priority}</span>
+              <span>Success: {rule.successCount}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
             <Switch
-              checked={rule.isEnabled}
+              checked={rule.isActive}
               onCheckedChange={(checked) => onToggle(rule.id, checked)}
             />
             <Button
@@ -91,11 +91,13 @@ export default function RuleCard({ rule, onEdit, onDelete, onToggle }: RuleCardP
           <div className="grid grid-cols-2 gap-4">
             {/* Conditions */}
             <div>
-              <h4 className="text-sm font-semibold mb-2">Conditions ({rule.conditions.logic})</h4>
+              <h4 className="text-sm font-semibold mb-2">
+                Conditions ({rule.matchAll ? 'ALL' : 'ANY'})
+              </h4>
               <div className="space-y-2">
-                {rule.conditions.conditions.map((condition, index) => (
+                {rule.conditions.map((condition, index) => (
                   <div key={index} className="text-sm bg-muted/50 rounded p-2">
-                    <span className="font-medium">{condition.field}</span>
+                    <span className="font-medium">{condition.type}</span>
                     <span className="text-muted-foreground mx-2">{condition.operator}</span>
                     <span className="text-primary">{String(condition.value)}</span>
                   </div>
@@ -110,11 +112,8 @@ export default function RuleCard({ rule, onEdit, onDelete, onToggle }: RuleCardP
                 {rule.actions.map((action, index) => (
                   <div key={index} className="text-sm bg-primary/10 rounded p-2">
                     <span className="font-medium">{action.type.replace(/_/g, ' ')}</span>
-                    {(action as any).folder && (
-                      <span className="text-muted-foreground ml-2">→ {(action as any).folder}</span>
-                    )}
-                    {(action as any).label && (
-                      <span className="text-muted-foreground ml-2">"{(action as any).label}"</span>
+                    {(action as any).folderName && (
+                      <span className="text-muted-foreground ml-2">→ {(action as any).folderName}</span>
                     )}
                   </div>
                 ))}
@@ -125,8 +124,9 @@ export default function RuleCard({ rule, onEdit, onDelete, onToggle }: RuleCardP
           {/* Options */}
           <div className="mt-4 flex gap-4 text-xs text-muted-foreground">
             {rule.stopProcessing && <span>✓ Stop processing after this</span>}
-            {rule.runOnServer && <span>✓ Run on server</span>}
-            {rule.aiGenerated && <span>🤖 AI Generated</span>}
+            {rule.failureCount > 0 && (
+              <span className="text-red-500">⚠ {rule.failureCount} failures</span>
+            )}
           </div>
         </div>
       )}

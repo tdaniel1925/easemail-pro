@@ -91,15 +91,15 @@ export function ContactPanel({ email, activeTab: externalActiveTab, onTabChange 
           </button>
           <button
             className={cn(
-              'px-3 py-2 text-sm rounded-sm transition-colors',
+              'px-3 py-2 text-sm rounded-sm transition-colors flex flex-col items-center gap-1',
               activeTab === 'ai'
                 ? 'text-primary font-bold'
                 : 'text-muted-foreground font-medium hover:text-foreground'
             )}
             onClick={() => handleTabChange('ai')}
           >
-            <Bot className="h-4 w-4 inline mr-2" />
-            AI
+            <Bot className="h-4 w-4" />
+            <span>AI Chat</span>
           </button>
           <button
             className={cn(

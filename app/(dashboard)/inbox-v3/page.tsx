@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Pencil, MessageSquare, Users, Calendar, Paperclip, Search, Settings, ChevronUp, Mail } from 'lucide-react';
+import { Pencil, MessageSquare, Users, Calendar, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FolderSidebarV3 } from '@/components/nylas-v3/folder-sidebar-v3';
 import { EmailListEnhancedV3 } from '@/components/nylas-v3/email-list-enhanced-v3';
@@ -17,10 +17,15 @@ import { SMSInboxV3 } from '@/components/nylas-v3/sms-inbox-v3';
 import { ContactPanelV3 } from '@/components/nylas-v3/contact-panel-v3';
 import { useAccounts } from '@/lib/hooks/use-accounts';
 import EaseMailLogoFull from '@/components/ui/EaseMailLogoFull';
+import SettingsMenuNew from '@/components/layout/SettingsMenuNew';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 export default function InboxV3Page() {
   const searchParams = useSearchParams();
   const folderParam = searchParams?.get('folder');
+  const router = useRouter();
+  const supabase = createClient();
 
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -31,10 +36,14 @@ export default function InboxV3Page() {
   const [composeReplyTo, setComposeReplyTo] = useState<any>(null);
   const [composeType, setComposeType] = useState<'compose' | 'reply' | 'reply-all' | 'forward'>('compose');
   const [rightPanelTab, setRightPanelTab] = useState<'contact' | 'calendar' | 'ai' | 'sms'>('calendar');
-  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
 
   // Get accounts
   const { accounts, loading: accountsLoading } = useAccounts();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
 
   // Auto-select first account if none selected
   if (!selectedAccountId && accounts.length > 0 && !accountsLoading) {
@@ -107,7 +116,7 @@ export default function InboxV3Page() {
       {/* Folder Sidebar - Fixed width with independent scroll */}
       <div className="w-64 border-r border-border flex flex-col overflow-hidden">
         {/* Sidebar Header - Fixed */}
-        <div className="flex-shrink-0 h-16 px-5 flex items-center justify-center border-b border-border">
+        <div className="flex-shrink-0 h-14 px-5 flex items-center justify-center border-b border-border">
           <EaseMailLogoFull className="h-8" />
         </div>
 
@@ -144,10 +153,10 @@ export default function InboxV3Page() {
                 setSelectedAccountId(e.target.value);
                 setSelectedFolderId(null);
               }}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
+              className="w-full px-3 py-2 border rounded-lg text-sm bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]"
             >
               {accounts.map((account: any) => (
-                <option key={account.id} value={account.id}>
+                <option key={account.id} value={account.id} className="bg-background text-foreground">
                   {account.emailAddress}
                 </option>
               ))}
@@ -191,50 +200,11 @@ export default function InboxV3Page() {
               Attachments
             </a>
 
-            {/* Settings Drop-up Menu */}
-            <div className="relative">
-              {/* Settings Menu Popup */}
-              {isSettingsMenuOpen && (
-                <>
-                  {/* Backdrop to close menu */}
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setIsSettingsMenuOpen(false)}
-                  />
-                  {/* Menu */}
-                  <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-lg shadow-lg z-20 overflow-hidden">
-                    <a
-                      href="/accounts-v3"
-                      className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
-                      onClick={() => setIsSettingsMenuOpen(false)}
-                    >
-                      <Mail className="h-4 w-4" />
-                      Email Accounts
-                    </a>
-                    <a
-                      href="/settings"
-                      className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
-                      onClick={() => setIsSettingsMenuOpen(false)}
-                    >
-                      <Settings className="h-4 w-4" />
-                      Settings
-                    </a>
-                  </div>
-                </>
-              )}
-
-              {/* Settings Button */}
-              <button
-                onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)}
-                className="flex items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-accent rounded-lg transition-colors w-full"
-              >
-                <div className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </div>
-                <ChevronUp className={`h-4 w-4 transition-transform ${isSettingsMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-            </div>
+            {/* Settings Menu */}
+            <SettingsMenuNew
+              onLogout={handleLogout}
+              onNavigate={(path) => router.push(path)}
+            />
           </div>
         </div>
       </div>

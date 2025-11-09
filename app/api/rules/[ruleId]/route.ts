@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { emailRules, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import type { UpdateRuleRequest } from '@/lib/rules/types';
+import type { UpdateSimpleRuleRequest } from '@/lib/rules/types-simple';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,7 +62,7 @@ export async function GET(
 
 /**
  * PUT /api/rules/[ruleId]
- * Update a rule
+ * Update a simplified rule
  */
 export async function PUT(
   request: NextRequest,
@@ -85,7 +85,7 @@ export async function PUT(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const body: Partial<UpdateRuleRequest> = await request.json();
+    const body: Partial<UpdateSimpleRuleRequest> = await request.json();
 
     // Verify ownership
     const existingRule = await db.query.emailRules.findFirst({
@@ -106,14 +106,11 @@ export async function PUT(
 
     if (body.name !== undefined) updateData.name = body.name;
     if (body.description !== undefined) updateData.description = body.description;
-    if (body.isEnabled !== undefined) updateData.isEnabled = body.isEnabled;
-    if (body.priority !== undefined) updateData.priority = body.priority;
+    if (body.isActive !== undefined) updateData.isActive = body.isActive;
     if (body.conditions !== undefined) updateData.conditions = body.conditions;
     if (body.actions !== undefined) updateData.actions = body.actions;
-    if (body.applyToExisting !== undefined) updateData.applyToExisting = body.applyToExisting;
+    if (body.matchAll !== undefined) updateData.matchAll = body.matchAll;
     if (body.stopProcessing !== undefined) updateData.stopProcessing = body.stopProcessing;
-    if (body.runOnServer !== undefined) updateData.runOnServer = body.runOnServer;
-    if (body.accountId !== undefined) updateData.accountId = body.accountId;
 
     const [updatedRule] = await db.update(emailRules)
       .set(updateData)

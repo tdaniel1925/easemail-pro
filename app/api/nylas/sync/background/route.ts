@@ -160,12 +160,28 @@ async function performBackgroundSync(
       const elapsed = Date.now() - startTime;
       if (elapsed > TIMEOUT_MS) {
         console.log(`⏰ Approaching Vercel timeout (${Math.round(elapsed/1000)}s elapsed) - saving progress and re-queuing`);
-        
+
+        // Get account to check totalEmailCount
+        const timeoutAccount = await db.query.emailAccounts.findFirst({
+          where: eq(emailAccounts.id, accountId),
+        });
+        const totalEmailCount = timeoutAccount?.totalEmailCount || 0;
+
+        // Calculate progress accurately
+        let timeoutProgress: number;
+        if (totalEmailCount > 0 && syncedCount > 0) {
+          timeoutProgress = Math.min(Math.round((syncedCount / totalEmailCount) * 100), 99);
+        } else if (syncedCount > 0) {
+          timeoutProgress = Math.min(Math.round((syncedCount / 10000) * 100), 99);
+        } else {
+          timeoutProgress = Math.min(Math.round((currentPage / maxPages) * 100), 99);
+        }
+
         // Save current state with cursor for resume
         await db.update(emailAccounts)
           .set({
             syncStatus: 'background_syncing', // Keep as syncing
-            syncProgress: Math.min(Math.round((syncedCount / 50000) * 100), 99), // Estimate progress
+            syncProgress: timeoutProgress,
             syncCursor: pageToken || null, // Save position for resume
             syncedEmailCount: syncedCount,
             lastSyncedAt: new Date(),
@@ -364,10 +380,25 @@ async function performBackgroundSync(
         }
 
         // Update sync progress with detailed metrics
-        // ✅ FIX #5: Better progress calculation and logging
-        const estimatedProgress = syncedCount > 0
-          ? Math.min(Math.round((syncedCount / 50000) * 100), 99) // Estimate based on 50K assumption
-          : Math.min(Math.round((currentPage / maxPages) * 100), 99); // Fallback to page-based
+        // ✅ FIX: Use actual total email count for accurate progress
+        const currentAccount = await db.query.emailAccounts.findFirst({
+          where: eq(emailAccounts.id, accountId),
+        });
+
+        const totalEmailCount = currentAccount?.totalEmailCount || 0;
+
+        // Calculate progress based on actual total or estimate
+        let estimatedProgress: number;
+        if (totalEmailCount > 0 && syncedCount > 0) {
+          // Use actual total for accurate progress
+          estimatedProgress = Math.min(Math.round((syncedCount / totalEmailCount) * 100), 99);
+        } else if (syncedCount > 0) {
+          // Estimate based on 10K default if no total available
+          estimatedProgress = Math.min(Math.round((syncedCount / 10000) * 100), 99);
+        } else {
+          // Fallback to page-based
+          estimatedProgress = Math.min(Math.round((currentPage / maxPages) * 100), 99);
+        }
 
         // Calculate sync rate (emails per minute)
         const elapsedMinutes = (Date.now() - startTime) / (1000 * 60);
@@ -385,6 +416,7 @@ async function performBackgroundSync(
               maxPages,
               emailsPerMinute,
               lastBatchSize: messages.length,
+              totalEmailCount: totalEmailCount || null,
             },
           })
           .where(eq(emailAccounts.id, accountId));

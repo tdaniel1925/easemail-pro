@@ -10,6 +10,10 @@ import OpenAI from 'openai';
 import { db } from '@/lib/db/drizzle';
 import { emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { createClient } from '@/lib/supabase/server';
+import { trackAICost } from '@/lib/utils/cost-tracking';
+import { aiRateLimit, enforceRateLimit } from '@/lib/security/rate-limiter';
+import { checkAILimit } from '@/lib/billing/plan-limits';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -29,6 +33,47 @@ interface SummaryRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const userId = user.id;
+
+    // Check rate limit
+    const rateLimitResult = await enforceRateLimit(aiRateLimit, userId);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        {
+          status: 429,
+          headers: rateLimitResult.headers
+        }
+      );
+    }
+
+    // Check usage limits
+    const limitCheck = await checkAILimit(userId);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: 'Usage limit reached',
+          message: limitCheck.message,
+          upgradeUrl: limitCheck.upgradeUrl,
+          tier: limitCheck.tier,
+          used: limitCheck.used,
+          limit: limitCheck.limit,
+        },
+        { status: 429 }
+      );
+    }
+
     const { emailId, subject, snippet, fromName, bodyText }: SummaryRequest = await request.json();
 
     // Log the request for debugging
@@ -147,6 +192,15 @@ ${content}`
     });
 
     const summary = completion.choices[0]?.message?.content?.trim() || snippet || 'No summary available';
+
+    // Track AI cost
+    await trackAICost({
+      userId,
+      feature: 'summarize',
+      model: 'gpt-3.5-turbo',
+      inputTokens: completion.usage?.prompt_tokens || 0,
+      outputTokens: completion.usage?.completion_tokens || 0,
+    });
 
     // 🔥 SAVE TO IN-MEMORY CACHE (for v3 messages)
     summaryCache.set(emailId, { summary, timestamp: Date.now() });
