@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { getInitials, generateAvatarColor, cn } from '@/lib/utils';
 import { MiniCalendar } from '@/components/calendar/MiniCalendar';
 import { AIAssistantSidebar } from '@/components/ai/AIAssistantSidebar';
-import { SMSPanelTab } from '@/components/sms/SMSPanelTab';
 import ContactModal from '@/components/contacts/ContactModal';
 import { SMSModal } from '@/components/sms/SMSModal';
 import { ContactNotes } from '@/components/contacts/ContactNotes';
@@ -29,18 +28,18 @@ interface EmailMessage {
 
 interface ContactPanelV3Props {
   email?: EmailMessage;
-  activeTab?: 'contact' | 'calendar' | 'ai' | 'sms';
-  onTabChange?: (tab: 'contact' | 'calendar' | 'ai' | 'sms') => void;
+  activeTab?: 'contact' | 'calendar' | 'ai';
+  onTabChange?: (tab: 'contact' | 'calendar' | 'ai') => void;
 }
 
 export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChange }: ContactPanelV3Props) {
-  const [internalActiveTab, setInternalActiveTab] = useState<'contact' | 'calendar' | 'ai' | 'sms'>('calendar');
+  const [internalActiveTab, setInternalActiveTab] = useState<'contact' | 'calendar' | 'ai'>('calendar');
 
   // Use external activeTab if provided, otherwise use internal
   const activeTab = externalActiveTab !== undefined ? externalActiveTab : internalActiveTab;
 
   // Handle tab change
-  const handleTabChange = (tab: 'contact' | 'calendar' | 'ai' | 'sms') => {
+  const handleTabChange = (tab: 'contact' | 'calendar' | 'ai') => {
     if (onTabChange) {
       onTabChange(tab);
     } else {
@@ -54,8 +53,8 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
       // Email selected → switch to Contact tab
       handleTabChange('contact');
     } else {
-      // No email selected → switch to Calendar tab (unless on AI or SMS tab)
-      if (activeTab !== 'ai' && activeTab !== 'sms') {
+      // No email selected → switch to Calendar tab (unless on AI tab)
+      if (activeTab !== 'ai') {
         handleTabChange('calendar');
       }
     }
@@ -105,18 +104,6 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
             <Bot className="h-4 w-4 inline mr-2" />
             AI
           </button>
-          <button
-            className={cn(
-              'px-3 py-2 text-sm rounded-sm transition-colors',
-              activeTab === 'sms'
-                ? 'text-primary font-bold'
-                : 'text-muted-foreground font-medium hover:text-foreground'
-            )}
-            onClick={() => handleTabChange('sms')}
-          >
-            <MessageSquare className="h-4 w-4 inline mr-2" />
-            SMS
-          </button>
         </div>
       </div>
 
@@ -135,8 +122,6 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
           )
         ) : activeTab === 'calendar' ? (
           <MiniCalendar />
-        ) : activeTab === 'sms' ? (
-          <SMSPanelTab />
         ) : (
           <div className="h-full">
             <AIAssistantSidebar
