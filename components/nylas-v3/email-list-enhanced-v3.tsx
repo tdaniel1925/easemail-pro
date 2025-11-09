@@ -1063,7 +1063,7 @@ function EmailCard({
                   <div
                     className="email-content break-words whitespace-pre-wrap"
                     dangerouslySetInnerHTML={{
-                      __html: sanitizeHTML(displayEmail.body),
+                      __html: displayEmail.body,
                     }}
                   />
                 ) : (
