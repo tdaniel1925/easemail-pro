@@ -293,8 +293,8 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
   // Create invoice record in database
   await db.insert(invoices).values({
-    userId: user.orgId ? null : userId,
-    orgId: user.orgId || null,
+    userId: user.organizationId ? null : userId,
+    orgId: user.organizationId || null,
     stripeInvoiceId: invoice.id,
     amount: invoice.amount_paid / 100, // Convert from cents
     tax: (invoice.tax || 0) / 100,
