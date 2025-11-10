@@ -39,6 +39,13 @@ interface EmailComposeProps {
     subject: string;
     messageId: string;
     body?: string;
+    attachments?: Array<{
+      id: string;
+      filename: string;
+      size: number;
+      contentType: string;
+      url?: string;
+    }>;
   };
   type?: 'compose' | 'reply' | 'reply-all' | 'forward';
   accountId?: string;
@@ -157,89 +164,105 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     }
   }, [isOpen, draft, isInitialized]);
 
+  // Load attachments when forwarding an email with attachments
+  useEffect(() => {
+    const loadForwardAttachments = async () => {
+      if (isOpen && type === 'forward' && replyTo?.attachments && replyTo.attachments.length > 0 && attachments.length === 0) {
+        console.log('[EmailCompose] Loading attachments for forward:', replyTo.attachments);
+
+        // Download each attachment and add to attachments array
+        const downloadedFiles: File[] = [];
+
+        for (const attachment of replyTo.attachments) {
+          try {
+            // Fetch the attachment from the API
+            const response = await fetch(`/api/nylas/messages/${replyTo.messageId}/attachments/${attachment.id}`);
+
+            if (response.ok) {
+              const blob = await response.blob();
+              const file = new File([blob], attachment.filename, { type: attachment.contentType });
+              downloadedFiles.push(file);
+              console.log('[EmailCompose] Downloaded attachment:', attachment.filename);
+            } else {
+              console.error('[EmailCompose] Failed to download attachment:', attachment.filename);
+            }
+          } catch (error) {
+            console.error('[EmailCompose] Error downloading attachment:', attachment.filename, error);
+          }
+        }
+
+        if (downloadedFiles.length > 0) {
+          setAttachments(downloadedFiles);
+          console.log('[EmailCompose] Loaded', downloadedFiles.length, 'attachments for forward');
+        }
+      }
+    };
+
+    loadForwardAttachments();
+  }, [isOpen, type, replyTo, attachments.length]);
+
   // Initialize body with quoted content for reply/forward
   useEffect(() => {
     if (isOpen && !isInitialized && replyTo && type !== 'compose') {
-      let quotedBody = '\n\n'; // Start with 2 blank lines for typing
-      
-      // Helper function to strip HTML and convert to plain text
-      const stripHtml = (html: string) => {
-        if (!html) return '';
-        
-        // Create a temporary div to parse HTML
-        const tmp = document.createElement('div');
-        tmp.innerHTML = html;
-        
-        // Remove script and style tags completely (including their content)
-        const scripts = tmp.querySelectorAll('script, style');
-        scripts.forEach(script => script.remove());
-        
-        // Get text content and preserve line breaks
-        let text = tmp.textContent || tmp.innerText || '';
-        
-        // Clean up excessive whitespace
-        text = text.replace(/\n\s*\n\s*\n/g, '\n\n'); // Max 2 consecutive newlines
-        text = text.trim();
-        
-        return text;
-      };
-      
-      // Get plain text version of the original message
-      let originalMessageText = '';
-      if (replyTo.body) {
-        // Check if it's HTML or plain text
-        if (replyTo.body.includes('<html') || replyTo.body.includes('<body') || replyTo.body.includes('<div')) {
-          originalMessageText = stripHtml(replyTo.body);
-        } else {
-          originalMessageText = replyTo.body;
-        }
-      }
-      
+      // Start with 2 blank lines for typing space
+      let quotedBody = '<div><br/></div><div><br/></div>';
+
       if (type === 'reply' || type === 'reply-all') {
-        // Add signature before quoted content for replies
+        // Add signature on the 3rd line (after 2 blank lines)
         if (useSignature) {
           const applicableSignature = getApplicableSignature(type, accountId);
           if (applicableSignature) {
             setSelectedSignatureId(applicableSignature.id);
             const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to[0]?.email || '' });
-            quotedBody += renderedSignature + '\n\n';
+            quotedBody += `<div>${renderedSignature}</div>`;
           }
         }
-        
-        // Format as quoted reply
-        quotedBody += '------- Original Message -------\n';
-        quotedBody += `From: ${replyTo.to}\n`;
-        quotedBody += `Subject: ${replyTo.subject}\n\n`;
-        
-        if (originalMessageText) {
-          // Add '>' before each line for traditional email quoting
-          const quotedLines = originalMessageText
-            .split('\n')
-            .map(line => `> ${line}`)
-            .join('\n');
-          quotedBody += quotedLines;
+
+        // Add spacing before quoted content
+        quotedBody += '<div><br/></div><div><br/></div>';
+
+        // Format as quoted reply with HTML preserved
+        quotedBody += '<div style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 5px; color: #666;">';
+        quotedBody += '<div style="font-weight: bold; margin-bottom: 10px;">------- Original Message -------</div>';
+        quotedBody += `<div><strong>From:</strong> ${replyTo.to}</div>`;
+        quotedBody += `<div><strong>Subject:</strong> ${replyTo.subject}</div>`;
+        quotedBody += '<div><br/></div>';
+
+        // Keep original HTML formatting
+        if (replyTo.body) {
+          quotedBody += `<div>${replyTo.body}</div>`;
         }
+
+        quotedBody += '</div>'; // Close blockquote div
       } else if (type === 'forward') {
-        // Format as forwarded message
-        quotedBody += '---------- Forwarded message ---------\n';
-        quotedBody += `From: ${replyTo.to}\n`;
-        quotedBody += `Subject: ${replyTo.subject}\n\n`;
-        
-        if (originalMessageText) {
-          quotedBody += originalMessageText;
-        }
-        
-        // Add signature at bottom for forwards
+        // Add signature on the 3rd line (after 2 blank lines)
         if (useSignature) {
           const applicableSignature = getApplicableSignature(type, accountId);
           if (applicableSignature) {
             setSelectedSignatureId(applicableSignature.id);
             const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to[0]?.email || '' });
-            quotedBody += '\n\n' + renderedSignature;
+            quotedBody += `<div>${renderedSignature}</div>`;
           }
         }
+
+        // Add spacing before forwarded content
+        quotedBody += '<div><br/></div><div><br/></div>';
+
+        // Format as forwarded message with HTML preserved
+        quotedBody += '<div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px; background-color: #f9f9f9;">';
+        quotedBody += '<div style="font-weight: bold; margin-bottom: 10px; color: #333;">---------- Forwarded message ---------</div>';
+        quotedBody += `<div><strong>From:</strong> ${replyTo.to}</div>`;
+        quotedBody += `<div><strong>Subject:</strong> ${replyTo.subject}</div>`;
+        quotedBody += '<div><br/></div>';
+
+        // Keep original HTML formatting
+        if (replyTo.body) {
+          quotedBody += `<div>${replyTo.body}</div>`;
+        }
+
+        quotedBody += '</div>'; // Close forward div
       }
-      
+
       setBody(quotedBody);
       setIsInitialized(true);
     }
