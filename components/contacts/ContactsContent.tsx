@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Search, 
-  Plus, 
-  Download, 
-  Upload, 
-  Users, 
+import {
+  Search,
+  Plus,
+  Download,
+  Upload,
+  Users,
   Tag as TagIcon,
   FolderOpen,
   Star,
@@ -20,7 +20,8 @@ import {
   Edit,
   Trash2,
   MessageSquare,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,7 @@ import ContactDetailModal from './ContactDetailModal';
 import ImportModal from './ImportModal';
 import TagManager from './TagManager';
 import GroupManager from './GroupManager';
+import SyncContactsModal from './SyncContactsModal';
 import { SMSModal } from '@/components/sms/SMSModal';
 import {
   DropdownMenu,
@@ -102,6 +104,7 @@ export default function ContactsContent() {
   const [smsContact, setSMSContact] = useState<{id: string; name: string; phoneNumber: string} | null>(null);
   const [showTagManager, setShowTagManager] = useState(false);
   const [showGroupManager, setShowGroupManager] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   useEffect(() => {
     fetchContacts();
@@ -473,6 +476,10 @@ export default function ContactsContent() {
               </p>
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsSyncModalOpen(true)}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Sync Contacts
+              </Button>
               <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
                 <Upload className="h-4 w-4 mr-2" />
                 Import
@@ -764,6 +771,12 @@ export default function ContactsContent() {
           }}
         />
       )}
+
+      <SyncContactsModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        onSuccess={fetchContacts}
+      />
 
       {/* Confirmation Dialog */}
       <ConfirmDialog />
