@@ -15,14 +15,16 @@ export function sanitizeEmailHTML(html: string, showImages: boolean = false): st
       'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'a', 'img', 'div', 'span',
       'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote',
       'pre', 'code', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr',
-      'dl', 'dt', 'dd', 'sub', 'sup', 'small', 'mark', 'del', 'ins'
+      'dl', 'dt', 'dd', 'sub', 'sup', 'small', 'mark', 'del', 'ins', 'font',
+      'center', 'article', 'section', 'header', 'footer'
     ],
     ALLOWED_ATTR: [
       'href', 'src', 'alt', 'title', 'class', 'style', 'target', 'rel',
-      'width', 'height', 'align', 'valign', 'border', 'cellpadding', 'cellspacing'
+      'width', 'height', 'align', 'valign', 'border', 'cellpadding', 'cellspacing',
+      'bgcolor', 'color', 'face', 'size'
     ],
     ALLOW_DATA_ATTR: false,
-    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|data|blob):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
     // Add hooks to sanitize styles
     ADD_TAGS: [],
     ADD_ATTR: [],
@@ -52,8 +54,8 @@ function blockExternalImages(html: string): string {
   return html.replace(
     /<img\s+[^>]*src=["']([^"']*)["'][^>]*>/gi,
     (match, src) => {
-      // Keep data URIs (inline images)
-      if (src.startsWith('data:')) {
+      // Keep data URIs (inline images), cid: (Content-ID inline images), and blob: URLs
+      if (src.startsWith('data:') || src.startsWith('cid:') || src.startsWith('blob:')) {
         return match;
       }
       // Replace external images with placeholder
@@ -82,9 +84,12 @@ function applyEmailFormatting(html: string): string {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-size: 14px;
     line-height: 1.6;
-    color: inherit;
+    color: #1f2937;
   ">
     <style>
+      .email-content {
+        color: #1f2937 !important;
+      }
       .email-content * {
         max-width: 100% !important;
         box-sizing: border-box !important;
@@ -103,11 +108,11 @@ function applyEmailFormatting(html: string): string {
         vertical-align: top;
       }
       .email-content a {
-        color: #3b82f6;
+        color: #3b82f6 !important;
         text-decoration: underline;
       }
       .email-content a:hover {
-        color: #2563eb;
+        color: #2563eb !important;
       }
       .email-content pre {
         background: #f3f4f6;
@@ -121,6 +126,15 @@ function applyEmailFormatting(html: string): string {
         padding-left: 16px;
         margin: 16px 0;
         color: #6b7280;
+      }
+      /* Force readable text color for email content, but respect inline styles */
+      .email-content p:not([style*="color"]),
+      .email-content div:not([style*="color"]):not([bgcolor]),
+      .email-content span:not([style*="color"]),
+      .email-content td:not([style*="color"]):not([bgcolor]),
+      .email-content th:not([style*="color"]):not([bgcolor]),
+      .email-content li:not([style*="color"]) {
+        color: #1f2937 !important;
       }
     </style>
     <div class="email-content">
