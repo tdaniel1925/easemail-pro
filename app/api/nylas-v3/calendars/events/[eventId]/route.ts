@@ -64,7 +64,7 @@ export async function GET(
 
     const queryParams: any = {};
     if (calendarId) {
-      queryParams.calendar_id = calendarId;
+      queryParams.calendarId = calendarId;
     }
 
     const event = await nylas.events.find({
@@ -196,7 +196,7 @@ export async function PUT(
 
     const queryParams: any = {};
     if (calendarId) {
-      queryParams.calendar_id = calendarId;
+      queryParams.calendarId = calendarId;
     }
 
     const response = await nylas.events.update({
@@ -280,7 +280,7 @@ export async function DELETE(
 
     const queryParams: any = {};
     if (calendarId) {
-      queryParams.calendar_id = calendarId;
+      queryParams.calendarId = calendarId;
     }
 
     await nylas.events.destroy({

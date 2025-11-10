@@ -93,7 +93,7 @@ async function handleCalendarEventWebhook(type: string, data: any) {
             identifier: grant_id,
             eventId: object.id,
             queryParams: {
-              calendar_id: object.calendar_id,
+              calendarId: object.calendar_id,
             },
           });
 

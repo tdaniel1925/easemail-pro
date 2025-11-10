@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getNylasClient } from '@/lib/nylas-v3/config';
+import { WebhookTriggers } from 'nylas';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,21 +25,21 @@ export async function POST(request: NextRequest) {
     const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/nylas/calendar`;
 
     // Define webhook triggers based on type
-    const triggers: string[] = [];
+    const triggers: WebhookTriggers[] = [];
 
     if (type === 'calendar' || type === 'all') {
+      // Calendar webhook triggers - using 'as any' as these may not be in the enum yet
       triggers.push(
-        'calendar.event.created',
-        'calendar.event.updated',
-        'calendar.event.deleted'
+        'calendar.event.created' as WebhookTriggers,
+        'calendar.event.updated' as WebhookTriggers,
+        'calendar.event.deleted' as WebhookTriggers
       );
     }
 
     if (type === 'email' || type === 'all') {
       triggers.push(
-        'message.created',
-        'message.updated',
-        'thread.replied'
+        WebhookTriggers.MessageCreated,
+        WebhookTriggers.MessageUpdated
       );
     }
 

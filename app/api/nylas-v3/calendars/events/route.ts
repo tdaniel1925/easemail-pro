@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
       identifier: account.nylasGrantId,
       requestBody: eventData,
       queryParams: {
-        calendar_id: calendarId,
+        calendarId: calendarId,
       },
     });
 
