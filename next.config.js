@@ -60,7 +60,7 @@ const nextConfig = {
               "img-src 'self' data: https: blob:",
               "font-src 'self' data:",
               "media-src 'self' blob: data:",
-              "connect-src 'self' https://api.nylas.com https://api.openai.com https://*.supabase.co https://api.stripe.com https://o*.ingest.sentry.io wss://*.supabase.co",
+              "connect-src 'self' https://api.nylas.com https://api.openai.com https://*.supabase.co https://api.stripe.com https://*.ingest.sentry.io wss://*.supabase.co",
               "frame-src 'self' https://js.stripe.com",
               "object-src 'none'",
               "base-uri 'self'",
