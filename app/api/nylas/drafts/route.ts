@@ -7,6 +7,16 @@ import { getNylasClient } from '@/lib/nylas-v3/config';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Fix bare newlines in email HTML by ensuring CRLF line endings
+ * Email providers (IMAP/SMTP) require CRLF (\r\n) instead of just LF (\n)
+ */
+function fixBareNewlines(html: string): string {
+  if (!html) return html;
+  // Replace all LF with CRLF, then deduplicate any double CRLF
+  return html.replace(/\r?\n/g, '\r\n').replace(/\r\r\n/g, '\r\n');
+}
+
 // GET: Fetch drafts for an account
 export async function GET(request: NextRequest) {
   try {
@@ -109,7 +119,7 @@ export async function POST(request: NextRequest) {
         // Prepare draft data for Nylas
         const draftData: any = {
           subject: subject || '(No Subject)',
-          body: bodyHtml || bodyText || '',
+          body: fixBareNewlines(bodyHtml || bodyText || ''),
         };
 
         // Format recipients for Nylas v3
@@ -265,7 +275,7 @@ export async function PUT(request: NextRequest) {
         // Prepare draft data for Nylas
         const draftData: any = {
           subject: subject || '(No Subject)',
-          body: bodyHtml || bodyText || '',
+          body: fixBareNewlines(bodyHtml || bodyText || ''),
         };
 
         // Format recipients for Nylas v3

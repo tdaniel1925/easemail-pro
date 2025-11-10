@@ -10,7 +10,10 @@
     "lint": "next lint",
     "diagnose": "tsx scripts/diagnose-nylas.ts",
     "fix-folders": "tsx scripts/fix-folder-assignments.ts",
-    "monitor-folders": "tsx scripts/folder-sync-monitor.ts"
+    "monitor-folders": "tsx scripts/folder-sync-monitor.ts",
+    "check-webhooks": "tsx scripts/check-webhooks.ts",
+    "setup-webhooks": "tsx scripts/setup-webhooks.ts",
+    "cleanup-webhooks": "tsx scripts/cleanup-webhooks.ts"
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",

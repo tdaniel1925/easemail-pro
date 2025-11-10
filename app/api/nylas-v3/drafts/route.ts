@@ -11,6 +11,16 @@ import { eq } from 'drizzle-orm';
 import { getNylasClient } from '@/lib/nylas-v3/config';
 import { handleNylasError } from '@/lib/nylas-v3/errors';
 
+/**
+ * Fix bare newlines in email HTML by ensuring CRLF line endings
+ * Email providers (IMAP/SMTP) require CRLF (\r\n) instead of just LF (\n)
+ */
+function fixBareNewlines(html: string): string {
+  if (!html) return html;
+  // Replace all LF with CRLF, then deduplicate any double CRLF
+  return html.replace(/\r?\n/g, '\r\n').replace(/\r\r\n/g, '\r\n');
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -45,8 +55,8 @@ export async function POST(request: NextRequest) {
     const nylas = getNylasClient();
 
     const draftData: any = {
-      subject: subject || '(No Subject)',
-      body: emailBody || '',
+      subject: fixBareNewlines(subject || '(No Subject)'),
+      body: fixBareNewlines(emailBody || ''),
     };
 
     // Format recipients for Nylas v3
@@ -91,6 +101,9 @@ export async function POST(request: NextRequest) {
     console.log('[Draft] Creating draft via Nylas v3:', {
       grantId: account.nylasGrantId,
       subject: draftData.subject,
+      bodyPreview: draftData.body ? draftData.body.substring(0, 100) + '...' : '(empty)',
+      bodyHasLF: draftData.body ? draftData.body.includes('\n') : false,
+      bodyHasCR: draftData.body ? draftData.body.includes('\r') : false,
     });
 
     // 4. Create draft via Nylas v3
