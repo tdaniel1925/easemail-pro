@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, lazy, useCallback } from 'react';
-import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code } from 'lucide-react';
+import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,7 @@ import EmailAutocomplete from '@/components/email/EmailAutocomplete';
 import { URLInputDialog } from '@/components/ui/url-input-dialog';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { SignaturePromptModal } from '@/components/email/SignaturePromptModal';
+import { ScheduleSendDialog } from '@/components/email/ScheduleSendDialog';
 
 // Lazy load the AI toolbar to prevent SSR issues
 const UnifiedAIToolbar = lazy(() =>
@@ -42,6 +43,7 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
   const [showURLDialog, setShowURLDialog] = useState(false);
+  const [showScheduleSendDialog, setShowScheduleSendDialog] = useState(false);
 
   // Form state
   const [to, setTo] = useState<Array<{ email: string; name?: string }>>(
@@ -373,6 +375,59 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       setValidationError('Failed to send email. Please check your connection and try again.');
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleScheduleSend = async (scheduledTime: Date) => {
+    setValidationError(null);
+    setSuccessMessage(null);
+
+    // Basic validation
+    if (to.length === 0 && cc.length === 0 && bcc.length === 0) {
+      setValidationError('Please enter at least one recipient');
+      return;
+    }
+
+    if (!accountId) {
+      setValidationError('No email account selected');
+      return;
+    }
+
+    try {
+      console.log('[EmailComposeV3] Scheduling email for', scheduledTime);
+
+      const response = await fetch('/api/emails/scheduled', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accountId,
+          toRecipients: to.map(r => ({ email: r.email, name: r.name })),
+          cc: cc.length > 0 ? cc.map(r => ({ email: r.email, name: r.name })) : undefined,
+          bcc: bcc.length > 0 ? bcc.map(r => ({ email: r.email, name: r.name })) : undefined,
+          subject,
+          bodyHtml: body,
+          scheduledFor: scheduledTime.toISOString(),
+          trackOpens: true,
+          trackClicks: true,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSuccessMessage(`Email scheduled for ${scheduledTime.toLocaleString()}`);
+        setTimeout(() => {
+          resetForm();
+          onClose();
+        }, 2000);
+      } else {
+        setValidationError(data.error || 'Failed to schedule email');
+      }
+    } catch (error) {
+      console.error('[EmailComposeV3] Schedule send error:', error);
+      setValidationError('Failed to schedule email. Please try again.');
     }
   };
 
@@ -1036,6 +1091,15 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
                     <Send className="h-4 w-4" />
                     {isSending ? 'Sending...' : 'Send'}
                   </Button>
+                  <Button
+                    onClick={() => setShowScheduleSendDialog(true)}
+                    variant="outline"
+                    className="gap-2"
+                    disabled={isSending || !accountId}
+                  >
+                    <Clock className="h-4 w-4" />
+                    Schedule
+                  </Button>
                 <label>
                   <input
                     type="file"
@@ -1085,6 +1149,13 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       onClose={() => setShowSignaturePrompt(false)}
       onContinueWithoutSignature={handleContinueWithoutSignature}
       onNeverShowAgain={handleNeverShowSignaturePrompt}
+    />
+
+    {/* Schedule Send Dialog */}
+    <ScheduleSendDialog
+      isOpen={showScheduleSendDialog}
+      onClose={() => setShowScheduleSendDialog(false)}
+      onSchedule={handleScheduleSend}
     />
     </>
   );

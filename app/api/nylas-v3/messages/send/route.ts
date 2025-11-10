@@ -10,11 +10,12 @@ import { emailAccounts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getNylasClient } from '@/lib/nylas-v3/config';
 import { handleNylasError } from '@/lib/nylas-v3/errors';
+import { processEmailForTracking } from '@/lib/email-tracking';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { accountId, to, cc, bcc, subject, body: emailBody, attachments, replyToMessageId } = body;
+    const { accountId, to, cc, bcc, subject, body: emailBody, attachments, replyToMessageId, trackOpens = true, trackClicks = true, draftId } = body;
 
     // 1. Verify user authentication
     const supabase = await createClient();
@@ -99,13 +100,45 @@ export async function POST(request: NextRequest) {
       }));
     }
 
+    // 4. Add tracking if enabled and body is HTML
+    let trackingId: string | undefined;
+    if ((trackOpens || trackClicks) && emailBody && emailBody.includes('<')) {
+      // Get first recipient for tracking (for multi-recipient, each gets unique tracking)
+      const firstRecipient = messageData.to?.[0];
+
+      if (firstRecipient) {
+        try {
+          const trackingResult = await processEmailForTracking({
+            userId: user.id,
+            recipientEmail: firstRecipient.email,
+            subject: messageData.subject,
+            htmlBody: emailBody,
+            draftId: draftId || undefined,
+            trackingOptions: {
+              trackOpens,
+              trackClicks,
+            },
+          });
+
+          messageData.body = trackingResult.htmlWithTracking;
+          trackingId = trackingResult.trackingId;
+
+          console.log('[Send] Added tracking:', trackingId);
+        } catch (trackingError) {
+          console.error('[Send] Tracking failed, sending without tracking:', trackingError);
+          // Continue sending without tracking if it fails
+        }
+      }
+    }
+
     console.log('[Send] Sending message via Nylas v3:', {
       grantId: account.nylasGrantId,
       to: messageData.to,
       subject: messageData.subject,
+      tracked: !!trackingId,
     });
 
-    // 4. Send message via Nylas v3
+    // 5. Send message via Nylas v3
     const response = await nylas.messages.send({
       identifier: account.nylasGrantId,
       requestBody: messageData,
@@ -116,6 +149,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       messageId: response.data.id,
+      trackingId: trackingId || undefined,
       data: response.data,
     });
   } catch (error) {

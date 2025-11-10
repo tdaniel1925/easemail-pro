@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         await db
           .update(scheduledEmails)
           .set({
-            status: scheduled.retryCount >= (scheduled.maxRetries || 3) ? 'failed' : 'pending',
+            status: (scheduled.retryCount || 0) >= (scheduled.maxRetries || 3) ? 'failed' : 'pending',
             retryCount: (scheduled.retryCount || 0) + 1,
             errorMessage: errorMessage,
             updatedAt: new Date(),
