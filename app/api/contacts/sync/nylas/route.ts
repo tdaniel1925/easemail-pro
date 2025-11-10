@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     const { grantId } = await request.json();
 
     if (!grantId) {
+      console.error('❌ No grant ID provided in request');
       return NextResponse.json(
         { error: 'Grant ID is required' },
         { status: 400 }

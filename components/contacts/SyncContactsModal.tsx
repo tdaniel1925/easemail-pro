@@ -60,6 +60,28 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
     try {
       setSyncing({ ...syncing, [account.id]: true });
 
+      console.log('🔄 Syncing account:', {
+        id: account.id,
+        email: account.emailAddress,
+        grantId: account.nylasGrantId,
+      });
+
+      if (!account.nylasGrantId) {
+        console.error('❌ No Nylas grant ID for account:', account.emailAddress);
+        setResults({
+          ...results,
+          [account.id]: {
+            success: false,
+            total: 0,
+            imported: 0,
+            skipped: 0,
+            errors: 1,
+          },
+        });
+        setSyncing({ ...syncing, [account.id]: false });
+        return;
+      }
+
       const response = await fetch('/api/contacts/sync/nylas', {
         method: 'POST',
         headers: {
