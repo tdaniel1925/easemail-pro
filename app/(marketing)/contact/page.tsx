@@ -22,13 +22,13 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
+
     setSubmitted(true);
     setIsSubmitting(false);
-    
+
     // Reset form after 3 seconds
     setTimeout(() => {
       setSubmitted(false);
@@ -80,8 +80,8 @@ export default function ContactPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Our support team typically responds within 24 hours
             </p>
-            <a 
-              href="mailto:support@easemail.app" 
+            <a
+              href="mailto:support@easemail.app"
               className="text-primary hover:underline font-medium"
             >
               support@easemail.app
@@ -97,8 +97,8 @@ export default function ContactPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Questions about pricing or enterprise plans?
             </p>
-            <a 
-              href="mailto:sales@easemail.app" 
+            <a
+              href="mailto:sales@easemail.app"
               className="text-primary hover:underline font-medium"
             >
               sales@easemail.app
@@ -114,7 +114,7 @@ export default function ContactPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Free: 24-48 hours<br />
               Paid: 4-8 hours<br />
-              Enterprise: <2 hours
+              Enterprise: &lt;2 hours
             </p>
           </Card>
         </div>
@@ -123,7 +123,7 @@ export default function ContactPage() {
         <div className="max-w-2xl mx-auto">
           <Card className="p-8">
             <h2 className="text-2xl font-bold mb-6">Send us a message</h2>
-            
+
             {submitted ? (
               <div className="text-center py-12">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -226,9 +226,9 @@ export default function ContactPage() {
                 </div>
 
                 {/* Submit Button */}
-                <Button 
-                  type="submit" 
-                  size="lg" 
+                <Button
+                  type="submit"
+                  size="lg"
                   className="w-full"
                   disabled={isSubmitting}
                 >
@@ -338,4 +338,3 @@ export default function ContactPage() {
     </div>
   );
 }
-
