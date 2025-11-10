@@ -84,12 +84,8 @@ function applyEmailFormatting(html: string): string {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-size: 14px;
     line-height: 1.6;
-    color: #1f2937;
   ">
     <style>
-      .email-content {
-        color: #1f2937 !important;
-      }
       .email-content * {
         max-width: 100% !important;
         box-sizing: border-box !important;
@@ -127,13 +123,13 @@ function applyEmailFormatting(html: string): string {
         margin: 16px 0;
         color: #6b7280;
       }
-      /* Force readable text color for email content, but respect inline styles */
-      .email-content p:not([style*="color"]),
-      .email-content div:not([style*="color"]):not([bgcolor]),
-      .email-content span:not([style*="color"]),
-      .email-content td:not([style*="color"]):not([bgcolor]),
-      .email-content th:not([style*="color"]):not([bgcolor]),
-      .email-content li:not([style*="color"]) {
+      /* Force readable text color ONLY for elements without color/bgcolor inline styles */
+      .email-content p:not([style*="color"]):not([style*="background"]),
+      .email-content div:not([style*="color"]):not([style*="background"]):not([bgcolor]),
+      .email-content span:not([style*="color"]):not([style*="background"]),
+      .email-content td:not([style*="color"]):not([style*="background"]):not([bgcolor]),
+      .email-content th:not([style*="color"]):not([style*="background"]):not([bgcolor]),
+      .email-content li:not([style*="color"]):not([style*="background"]) {
         color: #1f2937 !important;
       }
     </style>
