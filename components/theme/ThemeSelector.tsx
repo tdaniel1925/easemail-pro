@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Sparkles } from 'lucide-react';
 import { useThemeStore } from '@/lib/stores/theme-store';
 import { themes } from '@/lib/themes';
 import { cn } from '@/lib/utils';
@@ -12,22 +12,22 @@ export default function ThemeSelector() {
   // Apply theme immediately on mount from localStorage (prevents flash)
   useEffect(() => {
     const savedThemeId = localStorage.getItem('easemail-theme');
-    const validThemeIds = themes.map(t => t.id); // ['light-grey', 'charcoal']
-    
+    const validThemeIds = themes.map(t => t.id);
+
     // Validate saved theme is one of the valid themes
-    let themeToApply = savedThemeId && validThemeIds.includes(savedThemeId) 
-      ? savedThemeId 
+    let themeToApply = savedThemeId && validThemeIds.includes(savedThemeId)
+      ? savedThemeId
       : 'light-grey'; // Default to Corporate Grey
-    
+
     const themeToUse = themes.find(t => t.id === themeToApply);
-    
+
     if (themeToUse) {
       // Apply immediately before React renders
       Object.entries(themeToUse.colors).forEach(([key, value]) => {
         const cssVar = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
         document.documentElement.style.setProperty(cssVar, value);
       });
-      
+
       // Update store and localStorage with valid theme
       setTheme(themeToApply);
     } else {
@@ -37,12 +37,8 @@ export default function ThemeSelector() {
     }
   }, []);
 
-  const isLight = currentTheme.id === 'light-grey';
-  const isDark = currentTheme.id === 'charcoal';
-
-  const toggleTheme = () => {
-    const newThemeId = isLight ? 'charcoal' : 'light-grey';
-    setTheme(newThemeId);
+  const handleThemeChange = (themeId: string) => {
+    setTheme(themeId);
   };
 
   return (
@@ -50,45 +46,97 @@ export default function ThemeSelector() {
       <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
         Theme
       </div>
-      
-      {/* Toggle Switch */}
-      <button
-        onClick={toggleTheme}
-        className={cn(
-          "relative w-full h-12 rounded-lg transition-colors",
-          "flex items-center justify-around px-4",
-          "border border-border hover:bg-accent/50"
-        )}
-      >
-        {/* Light Mode Icon */}
-        <div className={cn(
-          "flex items-center justify-center transition-all z-10",
-          isLight ? "text-foreground scale-110" : "text-muted-foreground scale-90"
-        )}>
-          <Sun className="h-5 w-5" />
-        </div>
 
-        {/* Dark Mode Icon */}
-        <div className={cn(
-          "flex items-center justify-center transition-all z-10",
-          isDark ? "text-foreground scale-110" : "text-muted-foreground scale-90"
-        )}>
-          <Moon className="h-5 w-5" />
-        </div>
-
-        {/* Active Indicator */}
-        <div 
+      {/* Theme Options */}
+      <div className="flex items-center gap-2">
+        {/* Light Theme Button */}
+        <button
+          onClick={() => handleThemeChange('light-grey')}
           className={cn(
-            "absolute top-1.5 bottom-1.5 w-[calc(50%-8px)] rounded-md",
-            "bg-primary/10 border border-primary/20 transition-all duration-200",
-            isLight ? "left-1.5" : "right-1.5"
+            "flex-1 flex flex-col items-center justify-center gap-2 h-20 rounded-lg transition-all",
+            "border hover:bg-accent/50",
+            currentTheme.id === 'light-grey'
+              ? "border-primary bg-primary/5 shadow-sm"
+              : "border-border"
           )}
-        />
-      </button>
+          aria-label="Corporate Grey theme"
+        >
+          <Sun className={cn(
+            "h-5 w-5 transition-all",
+            currentTheme.id === 'light-grey'
+              ? "text-primary scale-110"
+              : "text-muted-foreground"
+          )} />
+          <span className={cn(
+            "text-xs font-medium transition-colors",
+            currentTheme.id === 'light-grey'
+              ? "text-foreground"
+              : "text-muted-foreground"
+          )}>
+            Light
+          </span>
+        </button>
+
+        {/* Dark Theme Button */}
+        <button
+          onClick={() => handleThemeChange('charcoal')}
+          className={cn(
+            "flex-1 flex flex-col items-center justify-center gap-2 h-20 rounded-lg transition-all",
+            "border hover:bg-accent/50",
+            currentTheme.id === 'charcoal'
+              ? "border-primary bg-primary/5 shadow-sm"
+              : "border-border"
+          )}
+          aria-label="Charcoal Dark theme"
+        >
+          <Moon className={cn(
+            "h-5 w-5 transition-all",
+            currentTheme.id === 'charcoal'
+              ? "text-primary scale-110"
+              : "text-muted-foreground"
+          )} />
+          <span className={cn(
+            "text-xs font-medium transition-colors",
+            currentTheme.id === 'charcoal'
+              ? "text-foreground"
+              : "text-muted-foreground"
+          )}>
+            Dark
+          </span>
+        </button>
+
+        {/* Relaxed Theme Button */}
+        <button
+          onClick={() => handleThemeChange('relaxed')}
+          className={cn(
+            "flex-1 flex flex-col items-center justify-center gap-2 h-20 rounded-lg transition-all",
+            "border hover:bg-accent/50",
+            currentTheme.id === 'relaxed'
+              ? "border-primary bg-primary/5 shadow-sm"
+              : "border-border"
+          )}
+          aria-label="Relaxed View theme"
+        >
+          <Sparkles className={cn(
+            "h-5 w-5 transition-all",
+            currentTheme.id === 'relaxed'
+              ? "text-primary scale-110"
+              : "text-muted-foreground"
+          )} />
+          <span className={cn(
+            "text-xs font-medium transition-colors",
+            currentTheme.id === 'relaxed'
+              ? "text-foreground"
+              : "text-muted-foreground"
+          )}>
+            Relaxed
+          </span>
+        </button>
+      </div>
 
       {/* Current Theme Description */}
       <div className="text-xs text-muted-foreground text-center">
-        {currentTheme.name}
+        {currentTheme.description}
       </div>
     </div>
   );

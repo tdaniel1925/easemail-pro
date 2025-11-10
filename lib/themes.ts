@@ -80,6 +80,33 @@ export const themes: Theme[] = [
       ring: '215 50% 55%',
     },
   },
+  // Relaxed Theme
+  {
+    id: 'relaxed',
+    name: 'Relaxed View',
+    description: 'Soft, calming colors with warm neutrals and gentle accents - Easy on the eyes',
+    colors: {
+      background: '40 25% 97%',
+      foreground: '30 8% 25%',
+      card: '0 0% 100%',
+      cardForeground: '30 8% 25%',
+      popover: '0 0% 100%',
+      popoverForeground: '30 8% 25%',
+      primary: '150 30% 50%',
+      primaryForeground: '0 0% 100%',
+      secondary: '40 20% 93%',
+      secondaryForeground: '30 8% 25%',
+      muted: '40 20% 93%',
+      mutedForeground: '30 8% 50%',
+      accent: '150 25% 90%',
+      accentForeground: '30 8% 25%',
+      destructive: '0 72% 65%',
+      destructiveForeground: '0 0% 100%',
+      border: '40 15% 88%',
+      input: '40 15% 88%',
+      ring: '150 30% 50%',
+    },
+  },
 ];
 
 export const defaultTheme = themes[0]; // Corporate Grey as default
