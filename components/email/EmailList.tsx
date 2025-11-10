@@ -14,7 +14,7 @@ import { ThreadSummaryPanel } from '@/components/email/ThreadSummaryPanel';
 import { LabelManager } from '@/components/email/LabelManager';
 import { LabelPicker } from '@/components/email/LabelPicker';
 import { SnoozePicker } from '@/components/email/SnoozePicker';
-import DOMPurify from 'isomorphic-dompurify';
+import { sanitizeEmailHTML } from '@/lib/utils/email-html';
 
 interface Email {
   id: string;
@@ -57,11 +57,12 @@ interface EmailListProps {
 export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailClick, searchQuery = '', onSearchChange, onRefresh, currentFolder = null, onSMSBellClick }: EmailListProps) {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
-  const { toasts, closeToast, success, error, info } = useToast();
-  
-  // AI Summary Toggle
+  const { toasts, closeToast, success, error, info} = useToast();
+
+  // User Preferences
   const [showAISummaries, setShowAISummaries] = useState(true);
-  
+  const [showImages, setShowImages] = useState(false); // Default to blocking external images
+
   // SMS Notifications
   const [unreadSMSCount, setUnreadSMSCount] = useState(0);
   const [showSMSDropdown, setShowSMSDropdown] = useState(false);
@@ -97,20 +98,21 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
     }
   }, [undoStack]);
   
-  // Load AI Summary preference
+  // Load user preferences (AI summaries and image loading)
   useEffect(() => {
-    const loadPreference = async () => {
+    const loadPreferences = async () => {
       try {
         const response = await fetch('/api/user/preferences');
         const data = await response.json();
         if (data.success && data.preferences) {
           setShowAISummaries(data.preferences.showAISummaries ?? true);
+          setShowImages(data.preferences.showImages ?? false);
         }
       } catch (error) {
-        console.error('Failed to load AI summary preference:', error);
+        console.error('Failed to load user preferences:', error);
       }
     };
-    loadPreference();
+    loadPreferences();
   }, []);
   
   // Fetch unread SMS count
@@ -572,6 +574,7 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
             isChecked={selectedEmails.has(email.id)}
             selectMode={selectMode}
             showAISummaries={showAISummaries}
+            showImages={showImages}
             onSelect={(e) => handleSelectEmail(email.id, e)}
             onClick={() => onEmailClick(email.id)}
             showToast={(type, message) => {
@@ -586,7 +589,7 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
                 next.add(emailId);
                 return next;
               });
-              
+
               // Set undo stack
               setUndoStack({
                 action,
@@ -645,13 +648,14 @@ interface EmailCardProps {
   isChecked: boolean;
   selectMode: boolean;
   showAISummaries: boolean;
+  showImages: boolean; // NEW: Control external image loading
   onSelect: (e: React.MouseEvent) => void;
   onClick: () => void;
   showToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
   onRemove: (emailId: string, action: 'delete' | 'archive') => void;
 }
 
-function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showAISummaries, onSelect, onClick, showToast, onRemove }: EmailCardProps) {
+function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showAISummaries, showImages, onSelect, onClick, showToast, onRemove }: EmailCardProps) {
   const avatarColor = generateAvatarColor(email.fromEmail || 'unknown@example.com');
   const [mounted, setMounted] = useState(false);
   const [fullEmail, setFullEmail] = useState<Email | null>(null);
@@ -1134,23 +1138,18 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
                     <span className="ml-2 text-sm text-muted-foreground">Loading full email...</span>
                   </div>
                 ) : (
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-sm break-words overflow-wrap-anywhere">
+                  <div className="max-w-none text-sm">
                     {displayEmail.bodyHtml ? (
-                      <div 
-                        className="email-content break-words"
-                        dangerouslySetInnerHTML={{ 
-                          __html: DOMPurify.sanitize(displayEmail.bodyHtml, {
-                            ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'img', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
-                            ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style', 'target', 'rel'],
-                            ALLOW_DATA_ATTR: false,
-                            ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-                          })
+                      <div
+                        className="email-body-wrapper"
+                        dangerouslySetInnerHTML={{
+                          __html: sanitizeEmailHTML(displayEmail.bodyHtml, showImages)
                         }}
                       />
                     ) : displayEmail.bodyText ? (
-                      <div className="whitespace-pre-wrap break-words">{displayEmail.bodyText}</div>
+                      <div className="whitespace-pre-wrap break-words font-sans leading-relaxed">{displayEmail.bodyText}</div>
                     ) : (
-                      <div className="whitespace-pre-wrap break-words">{displayEmail.snippet || '(No content)'}</div>
+                      <div className="whitespace-pre-wrap break-words text-muted-foreground">{displayEmail.snippet || '(No content)'}</div>
                     )}
                   </div>
                 )}
