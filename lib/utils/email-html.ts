@@ -28,8 +28,8 @@ export function sanitizeEmailHTML(html: string, showImages: boolean = false): st
     ADD_ATTR: [],
   };
 
-  // Sanitize the HTML
-  let sanitized = DOMPurify.sanitize(html, config);
+  // Sanitize the HTML and convert to string
+  let sanitized = String(DOMPurify.sanitize(html, config));
 
   // Block external images if showImages is false
   if (!showImages) {
