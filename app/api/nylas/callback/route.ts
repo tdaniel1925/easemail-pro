@@ -7,6 +7,63 @@ import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Convert technical error messages to user-friendly messages
+ */
+function getUserFriendlyError(error: any, provider?: string): string {
+  const errorMessage = error?.message?.toLowerCase() || String(error).toLowerCase();
+
+  // IMAP-specific errors
+  if (provider === 'imap') {
+    if (errorMessage.includes('authentication') || errorMessage.includes('auth failed') || errorMessage.includes('invalid credentials')) {
+      return 'IMAP authentication failed. Please verify your email address and password are correct.';
+    }
+    if (errorMessage.includes('connection') || errorMessage.includes('connect') || errorMessage.includes('timeout')) {
+      return 'Unable to connect to your IMAP server. Please check your server address and port settings.';
+    }
+    if (errorMessage.includes('ssl') || errorMessage.includes('tls') || errorMessage.includes('certificate')) {
+      return 'SSL/TLS connection error. Please verify your security settings (SSL/TLS) are correct.';
+    }
+    if (errorMessage.includes('port')) {
+      return 'Invalid IMAP port. Common ports are 993 (SSL) or 143 (STARTTLS).';
+    }
+  }
+
+  // Google-specific errors
+  if (provider === 'google') {
+    if (errorMessage.includes('access_denied') || errorMessage.includes('consent')) {
+      return 'Gmail access was denied. Please grant all required permissions to sync your emails.';
+    }
+    if (errorMessage.includes('scope') || errorMessage.includes('permission')) {
+      return 'Insufficient Gmail permissions. Please re-authorize with all required scopes.';
+    }
+  }
+
+  // Microsoft-specific errors
+  if (provider === 'microsoft') {
+    if (errorMessage.includes('access_denied') || errorMessage.includes('consent')) {
+      return 'Outlook access was denied. Please grant all required permissions to sync your emails.';
+    }
+    if (errorMessage.includes('scope') || errorMessage.includes('permission')) {
+      return 'Insufficient Outlook permissions. Please re-authorize with all required scopes.';
+    }
+  }
+
+  // Generic Nylas errors
+  if (errorMessage.includes('grant') || errorMessage.includes('authorization')) {
+    return 'Authorization failed. Please try reconnecting your email account.';
+  }
+  if (errorMessage.includes('rate limit') || errorMessage.includes('too many requests')) {
+    return 'Too many connection attempts. Please wait a few minutes and try again.';
+  }
+  if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+    return 'Network connection error. Please check your internet connection and try again.';
+  }
+
+  // Default fallback
+  return 'Failed to connect your email account. Please try again or contact support if the issue persists.';
+}
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
   const state = request.nextUrl.searchParams.get('state');
@@ -161,7 +218,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('❌ OAuth callback error:', error);
     console.error('Error details:', JSON.stringify(error, null, 2));
-    
+
     // If it's a Nylas error, log more details
     if (error && typeof error === 'object' && 'message' in error) {
       console.error('Error message:', (error as any).message);
@@ -172,8 +229,12 @@ export async function GET(request: NextRequest) {
     if (error && typeof error === 'object' && 'body' in error) {
       console.error('Response body:', (error as any).body);
     }
-    
-    return NextResponse.redirect(new URL('/inbox?error=connection_failed', request.url));
+
+    // Get user-friendly error message
+    const userFriendlyError = getUserFriendlyError(error);
+    const encodedError = encodeURIComponent(userFriendlyError);
+
+    return NextResponse.redirect(new URL(`/inbox?error=${encodedError}`, request.url));
   }
 }
 

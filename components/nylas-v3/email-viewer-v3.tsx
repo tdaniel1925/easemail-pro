@@ -7,11 +7,12 @@
 
 import { useState, useEffect } from 'react';
 import { formatDate, formatFileSize, getInitials, generateAvatarColor } from '@/lib/utils';
-import { X, Reply, ReplyAll, Forward, MoreVertical, Download, Star, Archive, Trash2, Loader2, Calendar } from 'lucide-react';
+import { X, Reply, ReplyAll, Forward, MoreVertical, Download, Star, Archive, Trash2, Loader2, Calendar, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { EmailTrackingDashboard } from '@/components/email/EmailTrackingDashboard';
 import { EventDialog } from '@/components/calendar/EventDialog';
+import { printEmail } from '@/lib/utils/print';
 
 interface EmailMessage {
   id: string;
@@ -197,6 +198,28 @@ export function EmailViewerV3({
     }
   };
 
+  const handlePrint = () => {
+    if (!message) return;
+
+    printEmail({
+      subject: message.subject || '(No Subject)',
+      from: {
+        name: message.from[0].name || message.from[0].email,
+        email: message.from[0].email,
+      },
+      to: message.to,
+      cc: message.cc,
+      date: new Date(message.date),
+      body: message.body,
+      attachments: message.attachments?.map(att => ({
+        filename: att.filename,
+        size: att.size,
+      })),
+      includeHeaders: true,
+      includeAttachments: true,
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col h-full items-center justify-center bg-card">
@@ -233,6 +256,9 @@ export function EmailViewerV3({
               className={cn(isStarred && 'text-yellow-500')}
             >
               <Star className={cn('h-4 w-4', isStarred && 'fill-yellow-500')} />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handlePrint} title="Print email">
+              <Printer className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon" onClick={handleArchive}>
               <Archive className="h-4 w-4" />

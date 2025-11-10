@@ -1,9 +1,10 @@
 'use client';
 
 import { formatDate, formatFileSize, getInitials, generateAvatarColor } from '@/lib/utils';
-import { X, Reply, ReplyAll, Forward, MoreVertical, Download, Star, Archive, Trash2 } from 'lucide-react';
+import { X, Reply, ReplyAll, Forward, MoreVertical, Download, Star, Archive, Trash2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { printEmail } from '@/lib/utils/print';
 
 interface Email {
   id: string;
@@ -30,6 +31,18 @@ interface EmailViewerProps {
 export function EmailViewer({ email, onClose, onTogglePanel }: EmailViewerProps) {
   const avatarColor = generateAvatarColor(email.from.email);
 
+  const handlePrint = () => {
+    printEmail({
+      subject: email.subject,
+      from: email.from,
+      date: email.receivedAt,
+      body: email.body,
+      attachments: email.attachments,
+      includeHeaders: true,
+      includeAttachments: true,
+    });
+  };
+
   return (
     <div className="flex flex-col h-full bg-card">
       {/* Header */}
@@ -37,6 +50,9 @@ export function EmailViewer({ email, onClose, onTogglePanel }: EmailViewerProps)
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">{email.subject}</h2>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={handlePrint} title="Print email">
+              <Printer className="h-4 w-4" />
+            </Button>
             <Button variant="ghost" size="icon">
               <Archive className="h-4 w-4" />
             </Button>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Check, ChevronDown, Plus, Mail } from 'lucide-react';
+import { Check, ChevronDown, Plus, Mail, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -20,6 +20,10 @@ interface EmailAccount {
   syncStatus: string;
   isDefault: boolean;
   nylasProvider?: string;
+  nylasGrantId?: string;
+  lastError?: string;
+  syncedEmailCount?: number;
+  totalEmailCount?: number;
 }
 
 interface AccountSelectorProps {
@@ -30,6 +34,7 @@ export default function AccountSelector({ onAccountChange }: AccountSelectorProp
   const [accounts, setAccounts] = useState<EmailAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<EmailAccount | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAccounts();
@@ -59,6 +64,33 @@ export default function AccountSelector({ onAccountChange }: AccountSelectorProp
   const handleAccountSelect = (account: EmailAccount) => {
     setSelectedAccount(account);
     onAccountChange?.(account.id);
+  };
+
+  const handleManualSync = async (accountId: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent dropdown from closing
+
+    try {
+      setSyncingAccountId(accountId);
+
+      const response = await fetch(`/api/nylas/accounts/${accountId}/sync`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh accounts to get updated sync status
+        await fetchAccounts();
+      } else {
+        console.error('Sync failed:', data.error);
+        // TODO: Show error toast notification
+      }
+    } catch (error) {
+      console.error('Manual sync error:', error);
+      // TODO: Show error toast notification
+    } finally {
+      setSyncingAccountId(null);
+    }
   };
 
   const handleAddAccount = () => {
@@ -130,33 +162,52 @@ export default function AccountSelector({ onAccountChange }: AccountSelectorProp
             onClick={() => handleAccountSelect(account)}
             className="cursor-pointer"
           >
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between w-full gap-2">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white flex-shrink-0"
                   style={{ backgroundColor: generateAvatarColor(account.emailAddress) }}
                 >
                   {getInitials(account.emailAddress)}
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">{account.emailAddress}</span>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-sm font-medium truncate">{account.emailAddress}</span>
                   <div className="flex items-center gap-2">
                     <div
-                      className="w-2 h-2 rounded-full"
+                      className="w-2 h-2 rounded-full flex-shrink-0"
                       style={{ backgroundColor: getProviderColor(account.nylasProvider) }}
                     />
                     <span className="text-xs text-muted-foreground capitalize">
                       {account.emailProvider || account.nylasProvider}
                     </span>
                     {account.syncStatus === 'syncing' && (
-                      <span className="text-xs text-blue-500">● Syncing</span>
+                      <span className="text-xs text-blue-500 flex items-center gap-1">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        Syncing
+                      </span>
+                    )}
+                    {account.lastError && (
+                      <AlertCircle className="h-3 w-3 text-red-500" title={account.lastError} />
                     )}
                   </div>
                 </div>
               </div>
-              {selectedAccount?.id === account.id && (
-                <Check className="h-4 w-4 text-primary" />
-              )}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {syncingAccountId === account.id ? (
+                  <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
+                ) : (
+                  <button
+                    onClick={(e) => handleManualSync(account.id, e)}
+                    className="p-1 hover:bg-accent rounded-sm transition-colors"
+                    title="Sync account"
+                  >
+                    <RefreshCw className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                  </button>
+                )}
+                {selectedAccount?.id === account.id && (
+                  <Check className="h-4 w-4 text-primary" />
+                )}
+              </div>
             </div>
           </DropdownMenuItem>
         ))}
