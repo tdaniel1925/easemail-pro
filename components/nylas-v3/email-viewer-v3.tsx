@@ -7,10 +7,11 @@
 
 import { useState, useEffect } from 'react';
 import { formatDate, formatFileSize, getInitials, generateAvatarColor } from '@/lib/utils';
-import { X, Reply, ReplyAll, Forward, MoreVertical, Download, Star, Archive, Trash2, Loader2 } from 'lucide-react';
+import { X, Reply, ReplyAll, Forward, MoreVertical, Download, Star, Archive, Trash2, Loader2, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { EmailTrackingDashboard } from '@/components/email/EmailTrackingDashboard';
+import { EventDialog } from '@/components/calendar/EventDialog';
 
 interface EmailMessage {
   id: string;
@@ -54,10 +55,30 @@ export function EmailViewerV3({
   const [error, setError] = useState<string | null>(null);
   const [isStarred, setIsStarred] = useState(false);
   const [trackingId, setTrackingId] = useState<string | undefined>();
+  const [showEventDialog, setShowEventDialog] = useState(false);
+  const [calendars, setCalendars] = useState<any[]>([]);
+  const [selectedCalendar, setSelectedCalendar] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMessage();
+    fetchCalendars();
   }, [messageId, accountId]);
+
+  const fetchCalendars = async () => {
+    try {
+      const response = await fetch(`/api/nylas-v3/calendars?accountId=${accountId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setCalendars(data.calendars || []);
+        if (data.calendars && data.calendars.length > 0) {
+          // Select first calendar by default
+          setSelectedCalendar(data.calendars[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching calendars:', err);
+    }
+  };
 
   const fetchMessage = async () => {
     try {
@@ -259,6 +280,12 @@ export function EmailViewerV3({
               <Forward className="h-4 w-4 mr-2" />
               Forward
             </Button>
+            {calendars.length > 0 && selectedCalendar && (
+              <Button variant="outline" size="sm" onClick={() => setShowEventDialog(true)}>
+                <Calendar className="h-4 w-4 mr-2" />
+                Create Event
+              </Button>
+            )}
           </div>
         </div>
 
@@ -369,6 +396,18 @@ export function EmailViewerV3({
           </Button>
         </div>
       </div>
+
+      {/* Event Dialog */}
+      {showEventDialog && selectedCalendar && (
+        <EventDialog
+          accountId={accountId}
+          calendarId={selectedCalendar}
+          onClose={() => setShowEventDialog(false)}
+          onSave={() => {
+            setShowEventDialog(false);
+          }}
+        />
+      )}
     </div>
   );
 }
