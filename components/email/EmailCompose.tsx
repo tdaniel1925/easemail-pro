@@ -67,6 +67,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null); // Draft save indicator
   const [isDirty, setIsDirty] = useState(false); // Track if compose has unsaved changes
+  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null); // Track current draft ID for deletion after send
 
   // Text formatting state - REMOVED (they don't actually work)
   const [isHtmlMode, setIsHtmlMode] = useState(true); // HTML vs Plain text mode
@@ -136,6 +137,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   useEffect(() => {
     if (isOpen && draft && !isInitialized) {
       console.log('[EmailCompose] Loading draft:', draft);
+
+      // Store draft ID for deletion after send
+      setCurrentDraftId(draft.id);
 
       // Pre-populate all form fields from draft
       setTo(draft.toRecipients || []);
@@ -325,6 +329,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     setLastSaved(null);
     setShowCc(false);
     setShowBcc(false);
+    setCurrentDraftId(null); // Clear draft ID
   };
 
   const handleSend = async () => {
@@ -441,6 +446,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           body,
           attachments: uploadedAttachments,
           replyToEmailId: replyTo?.messageId,
+          draftId: currentDraftId, // Pass draft ID for deletion after send
         }),
       });
 
@@ -489,35 +495,49 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
     try {
       if (!silent) console.log('💾 Saving draft...');
-      
+
+      // Use PUT if we have a draft ID (update), otherwise POST (create)
+      const method = currentDraftId ? 'PUT' : 'POST';
+      const requestBody: any = {
+        accountId,
+        to: to.map(r => r.email).join(', ') || '', // Allow empty recipients
+        cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
+        bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
+        subject,
+        bodyText: body,
+        bodyHtml: body, // Could be enhanced with HTML conversion
+        attachments: [],
+        replyToEmailId: replyTo?.messageId,
+        replyType: type,
+      };
+
+      // Add draft ID for PUT requests
+      if (currentDraftId) {
+        requestBody.draftId = currentDraftId;
+      }
+
       const response = await fetch('/api/nylas/drafts', {
-        method: 'POST',
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          accountId,
-          to: to.map(r => r.email).join(', ') || '', // Allow empty recipients
-          cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
-          bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
-          subject,
-          bodyText: body,
-          bodyHtml: body, // Could be enhanced with HTML conversion
-          attachments: [],
-          replyToEmailId: replyTo?.messageId,
-          replyType: type,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
 
       if (data.success) {
         if (!silent) console.log('[Draft] Draft saved:', data.draftId);
-        
+
+        // Store draft ID for future updates
+        if (!currentDraftId && data.draftId) {
+          setCurrentDraftId(data.draftId);
+        }
+
         // Update last saved time
         setLastSaved(new Date());
         setIsDirty(false);
-        
+
         if (!silent) {
           // Show success message for manual saves
           const successMessage = document.createElement('div');

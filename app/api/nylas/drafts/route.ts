@@ -193,6 +193,174 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PUT: Update existing draft
+export async function PUT(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const {
+      draftId,
+      accountId,
+      to,
+      cc,
+      bcc,
+      subject,
+      bodyText,
+      bodyHtml,
+      attachments,
+      replyToEmailId,
+      replyType
+    } = body;
+
+    if (!draftId) {
+      return NextResponse.json({ error: 'Draft ID required' }, { status: 400 });
+    }
+
+    // Verify draft belongs to user
+    const existingDraft = await db.query.emailDrafts.findFirst({
+      where: eq(emailDrafts.id, draftId),
+    });
+
+    if (!existingDraft || existingDraft.userId !== user.id) {
+      return NextResponse.json({ error: 'Draft not found or unauthorized' }, { status: 404 });
+    }
+
+    // Get account for Nylas sync
+    const account = await db.query.emailAccounts.findFirst({
+      where: eq(emailAccounts.id, accountId || existingDraft.accountId),
+    });
+
+    if (!account || account.userId !== user.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    // Parse recipients
+    const parseRecipients = (recipients: any) => {
+      if (!recipients) return [];
+      if (typeof recipients === 'string') {
+        return recipients.split(',').map((email: string) => ({ email: email.trim() }));
+      }
+      if (Array.isArray(recipients)) {
+        return recipients.map((r: any) => typeof r === 'string' ? { email: r } : r);
+      }
+      return [];
+    };
+
+    const parsedTo = parseRecipients(to);
+    const parsedCc = parseRecipients(cc);
+    const parsedBcc = parseRecipients(bcc);
+
+    // Update in Nylas if synced
+    let nylasDraftId = existingDraft.providerDraftId;
+    if (account.nylasGrantId) {
+      try {
+        const nylas = getNylasClient();
+
+        // Prepare draft data for Nylas
+        const draftData: any = {
+          subject: subject || '(No Subject)',
+          body: bodyHtml || bodyText || '',
+        };
+
+        // Format recipients for Nylas v3
+        if (parsedTo && parsedTo.length > 0) {
+          draftData.to = parsedTo.map((r: any) => ({
+            email: r.email,
+            name: r.name || undefined,
+          }));
+        }
+
+        if (parsedCc && parsedCc.length > 0) {
+          draftData.cc = parsedCc.map((r: any) => ({
+            email: r.email,
+            name: r.name || undefined,
+          }));
+        }
+
+        if (parsedBcc && parsedBcc.length > 0) {
+          draftData.bcc = parsedBcc.map((r: any) => ({
+            email: r.email,
+            name: r.name || undefined,
+          }));
+        }
+
+        if (replyToEmailId) {
+          draftData.reply_to_message_id = replyToEmailId;
+        }
+
+        console.log('[Draft] Updating draft in Nylas:', {
+          grantId: account.nylasGrantId,
+          draftId: nylasDraftId,
+          subject: draftData.subject,
+        });
+
+        // Update or create draft in Nylas
+        if (nylasDraftId) {
+          // Update existing Nylas draft
+          const response = await nylas.drafts.update({
+            identifier: account.nylasGrantId,
+            draftId: nylasDraftId,
+            requestBody: draftData,
+          });
+          nylasDraftId = response.data.id;
+        } else {
+          // Create new Nylas draft if none exists
+          const response = await nylas.drafts.create({
+            identifier: account.nylasGrantId,
+            requestBody: draftData,
+          });
+          nylasDraftId = response.data.id;
+        }
+
+        console.log('[Draft] ✅ Updated in Nylas:', nylasDraftId);
+      } catch (nylasError: any) {
+        console.error('[Draft] ⚠️ Failed to update in Nylas:', nylasError.message);
+        // Continue with local update even if Nylas sync fails
+      }
+    }
+
+    // Update draft in local DB
+    const [updatedDraft] = await db.update(emailDrafts)
+      .set({
+        toRecipients: parsedTo,
+        cc: parsedCc,
+        bcc: parsedBcc,
+        subject: subject || '',
+        bodyText: bodyText || '',
+        bodyHtml: bodyHtml || bodyText || '',
+        attachments: attachments || [],
+        replyToEmailId: replyToEmailId || null,
+        replyType: replyType || null,
+        providerDraftId: nylasDraftId,
+        updatedAt: new Date(),
+      })
+      .where(eq(emailDrafts.id, draftId))
+      .returning();
+
+    console.log('✅ Draft updated in DB:', draftId);
+
+    return NextResponse.json({
+      success: true,
+      message: nylasDraftId ? 'Draft updated and synced to email provider' : 'Draft updated locally',
+      draftId: updatedDraft.id,
+      providerDraftId: nylasDraftId,
+      draft: updatedDraft,
+    });
+  } catch (error: any) {
+    console.error('Update draft error:', error);
+    return NextResponse.json({
+      error: 'Failed to update draft',
+      details: error.message
+    }, { status: 500 });
+  }
+}
+
 // DELETE: Delete a draft
 export async function DELETE(request: NextRequest) {
   try {

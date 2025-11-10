@@ -21,15 +21,16 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse request body
     const body = await request.json();
-    const { 
-      accountId, 
-      to, 
-      cc, 
-      bcc, 
-      subject, 
-      body: emailBody, 
+    const {
+      accountId,
+      to,
+      cc,
+      bcc,
+      subject,
+      body: emailBody,
       replyToEmailId,
-      attachments 
+      attachments,
+      draftId // Extract draft ID for deletion after send
     } = body;
 
     // Validation
@@ -266,7 +267,50 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Email saved to database in Sent folder:', savedEmail.id);
 
-    // 7. Return success
+    // 7. Delete draft if this was sent from a resumed draft
+    if (draftId) {
+      try {
+        console.log('[Send] Deleting draft after successful send:', draftId);
+
+        // Get draft details first (for Nylas provider draft ID)
+        const { emailDrafts } = await import('@/lib/db/schema');
+        const draft = await db.query.emailDrafts.findFirst({
+          where: eq(emailDrafts.id, draftId),
+        });
+
+        if (draft) {
+          // Delete from Nylas provider if it was synced
+          if (draft.providerDraftId && account.nylasGrantId) {
+            try {
+              const nylas = (await import('@/lib/nylas-v3/config')).getNylasClient();
+
+              console.log('[Send] Deleting draft from Nylas:', draft.providerDraftId);
+
+              await nylas.drafts.destroy({
+                identifier: account.nylasGrantId,
+                draftId: draft.providerDraftId,
+              });
+
+              console.log('[Send] ✅ Draft deleted from Nylas');
+            } catch (nylasError: any) {
+              console.error('[Send] ⚠️ Failed to delete draft from Nylas:', nylasError.message);
+              // Continue with local deletion even if Nylas deletion fails
+            }
+          }
+
+          // Delete from local database
+          await db.delete(emailDrafts).where(eq(emailDrafts.id, draftId));
+          console.log('[Send] ✅ Draft deleted from local database');
+        } else {
+          console.warn('[Send] Draft not found:', draftId);
+        }
+      } catch (deleteError: any) {
+        console.error('[Send] Failed to delete draft:', deleteError.message);
+        // Non-critical error - email was sent successfully, so don't fail the request
+      }
+    }
+
+    // 8. Return success
     return NextResponse.json({
       success: true,
       message: 'Email sent successfully',
