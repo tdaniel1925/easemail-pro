@@ -187,7 +187,9 @@ export default function AccountSelector({ onAccountChange }: AccountSelectorProp
                       </span>
                     )}
                     {account.lastError && (
-                      <AlertCircle className="h-3 w-3 text-red-500" title={account.lastError} />
+                      <span title={account.lastError}>
+                        <AlertCircle className="h-3 w-3 text-red-500" />
+                      </span>
                     )}
                   </div>
                 </div>

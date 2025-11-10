@@ -107,22 +107,22 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     console.log('[EmailCompose] Signatures loaded:', signatures.length, signatures);
   }, [signatures]);
 
-  // Auto-insert signature when compose opens (for new compose only)
+  // Auto-insert signature when compose opens
   useEffect(() => {
-    if (isOpen && useSignature && !body && type === 'compose' && !replyTo) {
+    if (isOpen && useSignature && !body && !isInitialized) {
       const applicableSignature = getApplicableSignature(type, accountId);
       if (applicableSignature) {
         setSelectedSignatureId(applicableSignature.id);
-        
+
         // Render signature with template variables
         const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to[0]?.email || '' });
-        
+
         // Add 2 blank lines at the top for typing space, then signature
         setBody('\n\n' + renderedSignature);
         setIsInitialized(true);
       }
     }
-  }, [isOpen, type, accountId, useSignature]);
+  }, [isOpen, type, accountId, useSignature, body, isInitialized, getApplicableSignature, renderSignature, to]);
 
   // Track dirty state for unsaved changes warning
   useEffect(() => {

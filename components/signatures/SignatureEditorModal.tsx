@@ -14,6 +14,7 @@ import { X, Save, Eye, Code, Type, Bold, Italic, Underline, Link as LinkIcon, Pa
 import { cn } from '@/lib/utils';
 import type { EmailSignature } from '@/lib/signatures/types';
 import { URLInputDialog } from '@/components/ui/url-input-dialog';
+import { useToast, ToastContainer } from '@/components/ui/toast';
 
 interface SignatureEditorModalProps {
   isOpen: boolean;
@@ -52,6 +53,7 @@ export function SignatureEditorModal({
   const [showURLDialog, setShowURLDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const toast = useToast();
 
   // Initialize form with signature data
   useEffect(() => {
@@ -90,7 +92,7 @@ export function SignatureEditorModal({
 
   const handleSave = async () => {
     if (!name.trim() || !contentHtml.trim()) {
-      alert('Please provide a name and content for the signature');
+      toast.error('Please provide a name and content for the signature');
       return;
     }
 
@@ -105,41 +107,13 @@ export function SignatureEditorModal({
         useForReplies,
         useForForwards,
       });
+      toast.success('Signature saved successfully');
       onClose();
     } catch (error) {
       console.error('Error saving signature:', error);
-      alert('Failed to save signature. Please try again.');
+      toast.error('Failed to save signature. Please try again.');
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const insertVariable = (variable: string) => {
-    if (editorRef.current) {
-      editorRef.current.focus();
-
-      // Get current selection
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        range.deleteContents();
-
-        // Insert the variable text
-        const textNode = document.createTextNode(variable);
-        range.insertNode(textNode);
-
-        // Move cursor after inserted text
-        range.setStartAfter(textNode);
-        range.setEndAfter(textNode);
-        selection.removeAllRanges();
-        selection.addRange(range);
-      } else {
-        // Fallback: append to end
-        editorRef.current.innerHTML += variable;
-      }
-
-      // Update state
-      setContentHtml(editorRef.current.innerHTML);
     }
   };
 
@@ -164,7 +138,7 @@ export function SignatureEditorModal({
             {signature ? 'Edit Signature' : 'Create New Signature'}
           </DialogTitle>
           <DialogDescription>
-            Create a professional email signature with template variables
+            Create a professional email signature
           </DialogDescription>
         </DialogHeader>
 
@@ -199,31 +173,6 @@ export function SignatureEditorModal({
             </select>
           </div>
 
-          {/* Template Variables */}
-          <div>
-            <Label>Template Variables (click to insert)</Label>
-            <div className="mt-1.5 flex flex-wrap gap-2">
-              {[
-                '{{fullName}}',
-                '{{email}}',
-                '{{title}}',
-                '{{company}}',
-                '{{phone}}',
-                '{{website}}',
-              ].map(variable => (
-                <Button
-                  key={variable}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => insertVariable(variable)}
-                  className="text-xs"
-                >
-                  {variable}
-                </Button>
-              ))}
-            </div>
-          </div>
 
           {/* Editor Toolbar */}
           <div>
@@ -295,7 +244,7 @@ export function SignatureEditorModal({
                   ref={editorRef}
                   contentEditable
                   onInput={(e) => setContentHtml(e.currentTarget.innerHTML)}
-                  className="min-h-[200px] p-4 focus:outline-none"
+                  className="min-h-[200px] p-4 focus:outline-none text-foreground"
                   style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px' }}
                   suppressContentEditableWarning
                 />
@@ -384,19 +333,22 @@ export function SignatureEditorModal({
       title="Insert Link"
       placeholder="https://example.com"
     />
+
+    {/* Toast notifications */}
+    <ToastContainer toasts={toast.toasts} onClose={toast.closeToast} />
     </>
   );
 }
 
 function getDefaultSignatureHtml(): string {
-  return `<div style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
-  <p style="margin: 0 0 8px 0;"><strong>{{fullName}}</strong></p>
-  <p style="margin: 0 0 4px 0; font-size: 13px; color: #666;">{{title}}</p>
-  <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">{{company}}</p>
-  <p style="margin: 0; font-size: 12px; color: #666;">
-    📧 <a href="mailto:{{email}}" style="color: #0066cc; text-decoration: none;">{{email}}</a> | 📞 {{phone}}
+  return `<div style="font-family: Arial, sans-serif; font-size: 14px;">
+  <p style="margin: 0 0 8px 0;"><strong>Your Name</strong></p>
+  <p style="margin: 0 0 4px 0; font-size: 13px; opacity: 0.8;">Title</p>
+  <p style="margin: 0 0 12px 0; font-size: 13px; opacity: 0.8;">Company Name</p>
+  <p style="margin: 0; font-size: 12px; opacity: 0.8;">
+    📧 <a href="mailto:email@example.com" style="color: #0066cc; text-decoration: none;">email@example.com</a> | 📞 (123) 456-7890
   </p>
-  <p style="margin: 4px 0 0 0; font-size: 12px; color: #666;">🌐 <a href="{{website}}" style="color: #0066cc; text-decoration: none;">{{website}}</a></p>
+  <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.8;">🌐 <a href="https://example.com" style="color: #0066cc; text-decoration: none;">example.com</a></p>
 </div>`;
 }
 
