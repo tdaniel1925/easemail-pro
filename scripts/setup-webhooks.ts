@@ -39,7 +39,7 @@ async function setupWebhooks() {
       // Email events (most important for real-time sync)
       WebhookTriggers.MessageCreated,
       WebhookTriggers.MessageUpdated,
-      WebhookTriggers.MessageDeleted,
+      // Note: MessageDeleted doesn't exist - deletions are tracked via folder changes
 
       // Folder events
       WebhookTriggers.FolderCreated,
