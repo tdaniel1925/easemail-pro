@@ -8,9 +8,9 @@ import { cn } from '@/lib/utils';
 
 interface Account {
   id: string;
-  grantId: string;
-  email: string;
-  provider: string;
+  nylasGrantId: string;
+  emailAddress: string;
+  emailProvider: string;
   isActive: boolean;
 }
 
@@ -65,7 +65,7 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ grantId: account.grantId }),
+        body: JSON.stringify({ grantId: account.nylasGrantId }),
       });
 
       const data = await response.json();
@@ -168,11 +168,11 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
-                        <div className="text-2xl">{getProviderIcon(account.provider)}</div>
+                        <div className="text-2xl">{getProviderIcon(account.emailProvider)}</div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium truncate">{account.email}</h4>
+                          <h4 className="font-medium truncate">{account.emailAddress}</h4>
                           <p className="text-xs text-muted-foreground capitalize">
-                            {account.provider} Account
+                            {account.emailProvider} Account
                           </p>
                         </div>
                       </div>
