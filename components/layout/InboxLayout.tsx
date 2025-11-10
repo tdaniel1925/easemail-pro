@@ -18,6 +18,7 @@ import { FolderSearch } from '@/components/email/FolderSearch';
 import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop';
 import { folderCache } from '@/lib/cache/folder-cache';
 import { registerServiceWorker, setupOnlineListeners } from '@/lib/utils/service-worker';
+import { DraftsView } from '@/components/email/DraftsView';
 // AI Assistant is now integrated into ContactPanel tabs
 
 interface InboxLayoutProps {
@@ -28,6 +29,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [composeData, setComposeData] = useState<any>(null);
+  const [composeDraft, setComposeDraft] = useState<any>(null);
   const [isProviderSelectorOpen, setIsProviderSelectorOpen] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -804,29 +806,42 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             </div>
           )}
           <div className="flex-1 overflow-hidden">
-            {/* ? FIX #1: Pass selectedAccountId to children */}
-            {React.Children.map(children, child => {
-              if (React.isValidElement(child)) {
-                return React.cloneElement(child as any, { 
-                  accountId: selectedAccountId,
-                  activeFolder: activeFolder 
-                });
-              }
-              return child;
-            })}
+            {/* Show DraftsView when drafts folder is selected */}
+            {activeFolder === 'drafts' && selectedAccountId ? (
+              <DraftsView
+                accountId={selectedAccountId}
+                onResumeDraft={(draft) => {
+                  setComposeDraft(draft);
+                  setIsComposeOpen(true);
+                }}
+              />
+            ) : (
+              /* ? FIX #1: Pass selectedAccountId to children */
+              React.Children.map(children, child => {
+                if (React.isValidElement(child)) {
+                  return React.cloneElement(child as any, {
+                    accountId: selectedAccountId,
+                    activeFolder: activeFolder
+                  });
+                }
+                return child;
+              })
+            )}
           </div>
         </main>
       </div>
       
       {/* Email Compose Window */}
-      <EmailCompose 
-        isOpen={isComposeOpen} 
+      <EmailCompose
+        isOpen={isComposeOpen}
         onClose={() => {
           setIsComposeOpen(false);
           setComposeData(null);
+          setComposeDraft(null);
         }}
         type={composeData?.type || 'compose'}
         accountId={selectedAccountId || undefined}
+        draft={composeDraft}
         replyTo={composeData ? (composeData.type && composeData.email?.fromEmail ? {
           to: composeData.type === 'replyAll' 
             ? [

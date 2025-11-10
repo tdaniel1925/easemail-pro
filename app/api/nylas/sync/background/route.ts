@@ -325,7 +325,14 @@ async function performBackgroundSync(
             
             // SAFE folder assignment - prevents the bug where everything goes to inbox
             const assignedFolder = assignEmailFolder(message.folders);
-            
+
+            // ✅ FIX: Skip trash and spam emails during background sync
+            // This prevents deleted emails from being re-inserted into local DB
+            if (assignedFolder === 'trash' || assignedFolder === 'spam') {
+              console.log(`⏭️ Skipping ${assignedFolder} email: ${message.id}`);
+              continue;
+            }
+
             // VALIDATION: Ensure folder assignment is working correctly
             try {
               validateFolderAssignment(message.folders, assignedFolder);

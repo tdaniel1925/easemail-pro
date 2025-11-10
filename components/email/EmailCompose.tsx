@@ -14,9 +14,22 @@ import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { SignaturePromptModal } from '@/components/email/SignaturePromptModal';
 
 // Lazy load the AI toolbar to prevent SSR issues
-const UnifiedAIToolbar = lazy(() => 
+const UnifiedAIToolbar = lazy(() =>
   import('@/components/ai/UnifiedAIToolbar').then(mod => ({ default: mod.UnifiedAIToolbar }))
 );
+
+interface Draft {
+  id: string;
+  toRecipients: Array<{ email: string; name?: string }>;
+  cc?: Array<{ email: string; name?: string }>;
+  bcc?: Array<{ email: string; name?: string }>;
+  subject: string;
+  bodyText: string;
+  bodyHtml: string;
+  attachments?: any[];
+  replyToEmailId?: string | null;
+  replyType?: string | null;
+}
 
 interface EmailComposeProps {
   isOpen: boolean;
@@ -29,9 +42,10 @@ interface EmailComposeProps {
   };
   type?: 'compose' | 'reply' | 'reply-all' | 'forward';
   accountId?: string;
+  draft?: Draft;
 }
 
-export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose', accountId }: EmailComposeProps) {
+export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose', accountId, draft }: EmailComposeProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showCc, setShowCc] = useState(false);
@@ -117,6 +131,27 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       setIsDirty(false);
     }
   }, [to, subject, body]);
+
+  // Load draft data when resuming a draft
+  useEffect(() => {
+    if (isOpen && draft && !isInitialized) {
+      console.log('[EmailCompose] Loading draft:', draft);
+
+      // Pre-populate all form fields from draft
+      setTo(draft.toRecipients || []);
+      setCc(draft.cc || []);
+      setBcc(draft.bcc || []);
+      setSubject(draft.subject || '');
+      setBody(draft.bodyHtml || draft.bodyText || '');
+
+      // Show CC/BCC fields if they have data
+      setShowCc(Boolean(draft.cc && draft.cc.length > 0));
+      setShowBcc(Boolean(draft.bcc && draft.bcc.length > 0));
+
+      setIsInitialized(true);
+      console.log('[EmailCompose] Draft loaded successfully');
+    }
+  }, [isOpen, draft, isInitialized]);
 
   // Initialize body with quoted content for reply/forward
   useEffect(() => {

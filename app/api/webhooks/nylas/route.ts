@@ -322,15 +322,13 @@ async function handleMessageUpdated(message: any) {
 
 async function handleMessageDeleted(message: any) {
   try {
-    // Mark as trashed or delete
-    await db.update(emails)
-      .set({
-        isTrashed: true,
-        updatedAt: new Date(),
-      })
+    // ✅ FIX: Actually delete the message from local DB instead of just marking as trashed
+    // This prevents deleted emails from reappearing when background sync runs
+    // The email is already moved to trash in the email provider (Gmail/Outlook)
+    const result = await db.delete(emails)
       .where(eq(emails.providerMessageId, message.id));
-    
-    console.log(`✅ Deleted message ${message.id}`);
+
+    console.log(`✅ Deleted message ${message.id} from local database`);
   } catch (error: any) {
     console.error(`❌ Failed to delete message ${message.id}:`, error.message || error);
     throw error;

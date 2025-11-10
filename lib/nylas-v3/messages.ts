@@ -13,6 +13,7 @@ export interface FetchMessagesParams {
   limit?: number;
   pageToken?: string;
   unread?: boolean;
+  includeTrash?: boolean; // Whether to include trash folder messages (default: false)
 }
 
 export interface FetchMessagesResponse {
@@ -31,6 +32,7 @@ export async function fetchMessages({
   limit = PAGINATION.DEFAULT_PAGE_SIZE,
   pageToken,
   unread,
+  includeTrash = false,
 }: FetchMessagesParams): Promise<FetchMessagesResponse> {
   const nylas = getNylasClient();
 
@@ -68,6 +70,7 @@ export async function fetchMessages({
       limit,
       hasPageToken: !!pageToken,
       unread,
+      includeTrash,
     });
 
     const response = await retryWithBackoff(
@@ -84,10 +87,32 @@ export async function fetchMessages({
       }
     );
 
-    console.log(`✅ Fetched ${response.data.length} messages, hasMore: ${!!response.nextCursor}`);
+    // ✅ FIX: Filter out trashed messages client-side if not explicitly including trash
+    // This prevents deleted emails from reappearing in inbox after refresh
+    let filteredMessages = response.data;
+    if (!includeTrash && !folderId) {
+      // Import folder utils to check for trash folders
+      const { normalizeFolderToCanonical } = await import('../email/folder-utils');
+
+      filteredMessages = response.data.filter((message: any) => {
+        const folders = message.folders || [];
+        const messageFolder = folders[0] || 'inbox';
+        const normalizedFolder = normalizeFolderToCanonical(messageFolder);
+
+        // Exclude trash and spam folders
+        return normalizedFolder !== 'trash' && normalizedFolder !== 'spam';
+      });
+
+      const filteredCount = response.data.length - filteredMessages.length;
+      if (filteredCount > 0) {
+        console.log(`🗑️ Filtered out ${filteredCount} trashed/spam messages`);
+      }
+    }
+
+    console.log(`✅ Fetched ${filteredMessages.length} messages, hasMore: ${!!response.nextCursor}`);
 
     return {
-      messages: response.data,
+      messages: filteredMessages,
       nextCursor: response.nextCursor || null,
       hasMore: !!response.nextCursor,
     };
