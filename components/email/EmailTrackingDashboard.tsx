@@ -103,7 +103,7 @@ export function EmailTrackingDashboard({ trackingId }: EmailTrackingDashboardPro
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Email Tracking Overview</span>
-            <Badge variant={stats.opened ? "success" : stats.bounced ? "destructive" : "secondary"}>
+            <Badge variant={stats.bounced ? "destructive" : stats.opened ? "default" : "secondary"}>
               {stats.bounced ? 'Bounced' : stats.opened ? 'Opened' : 'Sent'}
             </Badge>
           </CardTitle>
@@ -234,7 +234,7 @@ export function EmailTrackingDashboard({ trackingId }: EmailTrackingDashboardPro
         <CardContent className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm">Delivered</span>
-            <Badge variant={stats.delivered ? "success" : "secondary"}>
+            <Badge variant={stats.delivered ? "default" : "secondary"}>
               {stats.delivered ? 'Yes' : 'Pending'}
             </Badge>
           </div>
