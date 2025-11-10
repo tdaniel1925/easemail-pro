@@ -6,10 +6,11 @@
 'use client';
 
 import { useState, useEffect, Suspense, lazy, useCallback } from 'react';
-import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code, Clock } from 'lucide-react';
+import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code, Clock, Eye, MousePointerClick } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useSignatures } from '@/lib/hooks/useSignatures';
 import { SignatureService } from '@/lib/signatures/signature-service';
@@ -63,6 +64,10 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
   const [isDirty, setIsDirty] = useState(false);
 
   const [isHtmlMode, setIsHtmlMode] = useState(true);
+
+  // Email tracking options
+  const [trackOpens, setTrackOpens] = useState(true);
+  const [trackClicks, setTrackClicks] = useState(true);
 
   // Signature state
   const { signatures, getApplicableSignature, renderSignature } = useSignatures();
@@ -353,6 +358,8 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
           body,
           attachments: uploadedAttachments,
           replyToMessageId: replyTo?.messageId,
+          trackOpens,
+          trackClicks,
         }),
       });
 
@@ -409,8 +416,8 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
           subject,
           bodyHtml: body,
           scheduledFor: scheduledTime.toISOString(),
-          trackOpens: true,
-          trackClicks: true,
+          trackOpens,
+          trackClicks,
         }),
       });
 
@@ -1084,6 +1091,40 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
                   </div>
                 </div>
               )}
+
+              {/* Email Tracking Options */}
+              <div className="flex items-center gap-4 px-3 py-2 border-t border-border bg-muted/30">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="track-opens"
+                      checked={trackOpens}
+                      onCheckedChange={(checked) => setTrackOpens(checked === true)}
+                    />
+                    <label
+                      htmlFor="track-opens"
+                      className="text-sm font-medium flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      Track Opens
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="track-clicks"
+                      checked={trackClicks}
+                      onCheckedChange={(checked) => setTrackClicks(checked === true)}
+                    />
+                    <label
+                      htmlFor="track-clicks"
+                      className="text-sm font-medium flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <MousePointerClick className="h-3.5 w-3.5" />
+                      Track Clicks
+                    </label>
+                  </div>
+                </div>
+              </div>
 
               <div className="flex items-center justify-between p-3">
                 <div className="flex items-center gap-2">
