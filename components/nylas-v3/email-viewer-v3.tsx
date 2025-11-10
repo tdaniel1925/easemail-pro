@@ -10,6 +10,7 @@ import { formatDate, formatFileSize, getInitials, generateAvatarColor } from '@/
 import { X, Reply, ReplyAll, Forward, MoreVertical, Download, Star, Archive, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { EmailTrackingDashboard } from '@/components/email/EmailTrackingDashboard';
 
 interface EmailMessage {
   id: string;
@@ -52,6 +53,7 @@ export function EmailViewerV3({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isStarred, setIsStarred] = useState(false);
+  const [trackingId, setTrackingId] = useState<string | undefined>();
 
   useEffect(() => {
     fetchMessage();
@@ -73,6 +75,7 @@ export function EmailViewerV3({
       const data = await response.json();
       setMessage(data.message);
       setIsStarred(data.message.starred || false);
+      setTrackingId(data.trackingId);
 
       // Mark as read if unread
       if (data.message.unread) {
@@ -338,6 +341,13 @@ export function EmailViewerV3({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Email Tracking Dashboard */}
+        {trackingId && (
+          <div className="mt-6 pt-6 border-t border-border">
+            <EmailTrackingDashboard trackingId={trackingId} />
           </div>
         )}
       </div>

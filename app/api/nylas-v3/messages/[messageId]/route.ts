@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
-import { emailAccounts } from '@/lib/db/schema';
+import { emailAccounts, emailTrackingEvents } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getNylasClient } from '@/lib/nylas-v3/config';
 import { handleNylasError } from '@/lib/nylas-v3/errors';
@@ -68,9 +68,26 @@ export async function GET(
 
     console.log('[Message] Fetched message:', messageId);
 
+    // 4. Check if this message has tracking data
+    let trackingId: string | undefined;
+    try {
+      const trackingEvent = await db.query.emailTrackingEvents.findFirst({
+        where: eq(emailTrackingEvents.emailId, messageId),
+      });
+
+      if (trackingEvent) {
+        trackingId = trackingEvent.trackingId;
+        console.log('[Message] Found tracking for message:', trackingId);
+      }
+    } catch (trackingError) {
+      console.error('[Message] Error fetching tracking data:', trackingError);
+      // Non-critical, continue without tracking
+    }
+
     return NextResponse.json({
       success: true,
       message: message.data,
+      trackingId: trackingId || undefined,
     });
   } catch (error) {
     console.error('[Message] Error fetching message:', error);

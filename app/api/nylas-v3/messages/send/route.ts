@@ -146,6 +146,23 @@ export async function POST(request: NextRequest) {
 
     console.log('[Send] Message sent successfully:', response.data.id);
 
+    // 6. Update tracking event with message ID if tracking was added
+    if (trackingId) {
+      try {
+        const { emailTrackingEvents } = await import('@/lib/db/schema');
+        const { eq } = await import('drizzle-orm');
+
+        await db.update(emailTrackingEvents)
+          .set({ emailId: response.data.id })
+          .where(eq(emailTrackingEvents.trackingId, trackingId));
+
+        console.log('[Send] Updated tracking event with message ID:', response.data.id);
+      } catch (updateError) {
+        console.error('[Send] Failed to update tracking with message ID:', updateError);
+        // Non-critical error, continue
+      }
+    }
+
     return NextResponse.json({
       success: true,
       messageId: response.data.id,
