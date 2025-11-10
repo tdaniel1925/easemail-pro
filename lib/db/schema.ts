@@ -1720,6 +1720,193 @@ export const ruleActivityRelations = relations(ruleActivity, ({ one }) => ({
   }),
 }));
 
+// ============================================================================
+// EMAIL TRACKING SYSTEM
+// ============================================================================
+
+// Email Tracking Events
+export const emailTrackingEvents = pgTable('email_tracking_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  emailId: uuid('email_id').references(() => emails.id, { onDelete: 'cascade' }),
+  draftId: uuid('draft_id').references(() => emailDrafts.id, { onDelete: 'cascade' }),
+
+  // Tracking ID (unique for each sent email)
+  trackingId: varchar('tracking_id', { length: 255 }).notNull().unique(),
+
+  // Email details
+  recipientEmail: varchar('recipient_email', { length: 255 }).notNull(),
+  subject: text('subject'),
+
+  // Tracking data
+  opened: boolean('opened').default(false),
+  openCount: integer('open_count').default(0),
+  firstOpenedAt: timestamp('first_opened_at'),
+  lastOpenedAt: timestamp('last_opened_at'),
+
+  clickCount: integer('click_count').default(0),
+  firstClickedAt: timestamp('first_clicked_at'),
+  lastClickedAt: timestamp('last_clicked_at'),
+
+  delivered: boolean('delivered').default(false),
+  deliveredAt: timestamp('delivered_at'),
+
+  bounced: boolean('bounced').default(false),
+  bouncedAt: timestamp('bounced_at'),
+  bounceReason: text('bounce_reason'),
+
+  // Metadata
+  userAgent: text('user_agent'),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  location: jsonb('location').$type<{
+    city?: string;
+    region?: string;
+    country?: string;
+  }>(),
+  device: jsonb('device').$type<{
+    type?: string;
+    browser?: string;
+    os?: string;
+  }>(),
+
+  sentAt: timestamp('sent_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('email_tracking_user_id_idx').on(table.userId),
+  emailIdIdx: index('email_tracking_email_id_idx').on(table.emailId),
+  trackingIdIdx: index('email_tracking_tracking_id_idx').on(table.trackingId),
+  recipientIdx: index('email_tracking_recipient_idx').on(table.recipientEmail),
+  sentAtIdx: index('email_tracking_sent_at_idx').on(table.sentAt),
+}));
+
+// Link Click Tracking
+export const emailLinkClicks = pgTable('email_link_clicks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  trackingEventId: uuid('tracking_event_id').references(() => emailTrackingEvents.id, { onDelete: 'cascade' }).notNull(),
+
+  // Link details
+  linkUrl: text('link_url').notNull(),
+  linkText: text('link_text'),
+  linkIndex: integer('link_index').notNull(),
+
+  // Click data
+  clickedAt: timestamp('clicked_at').defaultNow().notNull(),
+  userAgent: text('user_agent'),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  referrer: text('referrer'),
+
+  // Location & device
+  location: jsonb('location').$type<{
+    city?: string;
+    region?: string;
+    country?: string;
+  }>(),
+  device: jsonb('device').$type<{
+    type?: string;
+    browser?: string;
+    os?: string;
+  }>(),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  trackingEventIdx: index('email_link_clicks_tracking_event_idx').on(table.trackingEventId),
+  linkUrlIdx: index('email_link_clicks_link_url_idx').on(table.linkUrl),
+  clickedAtIdx: index('email_link_clicks_clicked_at_idx').on(table.clickedAt),
+}));
+
+// Scheduled Emails
+export const scheduledEmails = pgTable('scheduled_emails', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  accountId: uuid('account_id').references(() => emailAccounts.id, { onDelete: 'cascade' }).notNull(),
+  draftId: uuid('draft_id').references(() => emailDrafts.id, { onDelete: 'set null' }),
+
+  // Recipients
+  toRecipients: jsonb('to_recipients').$type<Array<{ email: string; name?: string }>>().notNull(),
+  cc: jsonb('cc').$type<Array<{ email: string; name?: string }>>(),
+  bcc: jsonb('bcc').$type<Array<{ email: string; name?: string }>>(),
+
+  // Content
+  subject: text('subject'),
+  bodyHtml: text('body_html'),
+  bodyText: text('body_text'),
+
+  // Attachments
+  attachments: jsonb('attachments').$type<Array<{
+    filename: string;
+    size: number;
+    contentType: string;
+    url: string;
+  }>>(),
+
+  // Scheduling
+  scheduledFor: timestamp('scheduled_for').notNull(),
+  timezone: varchar('timezone', { length: 50 }).default('UTC'),
+
+  // Tracking options
+  trackOpens: boolean('track_opens').default(true),
+  trackClicks: boolean('track_clicks').default(true),
+
+  // Status
+  status: varchar('status', { length: 50 }).default('pending'), // 'pending', 'sent', 'failed', 'cancelled'
+  sentAt: timestamp('sent_at'),
+  providerMessageId: varchar('provider_message_id', { length: 255 }),
+
+  // Error handling
+  errorMessage: text('error_message'),
+  retryCount: integer('retry_count').default(0),
+  maxRetries: integer('max_retries').default(3),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('scheduled_emails_user_id_idx').on(table.userId),
+  accountIdIdx: index('scheduled_emails_account_id_idx').on(table.accountId),
+  scheduledForIdx: index('scheduled_emails_scheduled_for_idx').on(table.scheduledFor),
+  statusIdx: index('scheduled_emails_status_idx').on(table.status),
+  pendingIdx: index('scheduled_emails_pending_idx').on(table.status, table.scheduledFor),
+}));
+
+// Relations
+export const emailTrackingEventsRelations = relations(emailTrackingEvents, ({ one, many }) => ({
+  user: one(users, {
+    fields: [emailTrackingEvents.userId],
+    references: [users.id],
+  }),
+  email: one(emails, {
+    fields: [emailTrackingEvents.emailId],
+    references: [emails.id],
+  }),
+  draft: one(emailDrafts, {
+    fields: [emailTrackingEvents.draftId],
+    references: [emailDrafts.id],
+  }),
+  linkClicks: many(emailLinkClicks),
+}));
+
+export const emailLinkClicksRelations = relations(emailLinkClicks, ({ one }) => ({
+  trackingEvent: one(emailTrackingEvents, {
+    fields: [emailLinkClicks.trackingEventId],
+    references: [emailTrackingEvents.id],
+  }),
+}));
+
+export const scheduledEmailsRelations = relations(scheduledEmails, ({ one }) => ({
+  user: one(users, {
+    fields: [scheduledEmails.userId],
+    references: [users.id],
+  }),
+  account: one(emailAccounts, {
+    fields: [scheduledEmails.accountId],
+    references: [emailAccounts.id],
+  }),
+  draft: one(emailDrafts, {
+    fields: [scheduledEmails.draftId],
+    references: [emailDrafts.id],
+  }),
+}));
+
 // Aliases for snake_case compatibility
 export const sms_usage = smsUsage;
 export const ai_usage = aiUsage;
