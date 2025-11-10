@@ -39,7 +39,8 @@
       "Bash(git log:*)",
       "Bash(npx drizzle-kit generate:*)",
       "Bash(npx drizzle-kit:*)",
-      "Bash(nul)"
+      "Bash(nul)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []

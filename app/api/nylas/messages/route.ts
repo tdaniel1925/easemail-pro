@@ -296,10 +296,17 @@ export async function POST(request: NextRequest) {
 
           // ✅ FIX: Normalize folder using comprehensive utility
           const rawFolder = message.folders?.[0] || 'inbox';
-          const normalizedFolder = normalizeFolderToCanonical(rawFolder);
+          let normalizedFolder = normalizeFolderToCanonical(rawFolder);
 
           // Check if this is a sent message (from account owner)
           const isFromAccountOwner = message.from?.[0]?.email?.toLowerCase() === account.emailAddress?.toLowerCase();
+
+          // ✅ FIX: Override folder to 'sent' if email is from account owner
+          // This handles emails sent from external clients that may not be in the Sent folder
+          if (isFromAccountOwner && normalizedFolder !== 'sent' && normalizedFolder !== 'drafts') {
+            console.log(`📤 Overriding folder "${normalizedFolder}" → "sent" for email from account owner`);
+            normalizedFolder = 'sent';
+          }
 
           console.log(`📧 Message analysis:`, {
             from: message.from?.[0]?.email,
