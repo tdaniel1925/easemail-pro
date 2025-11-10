@@ -34,11 +34,14 @@ export default function MarketingLayout({
             <Link href="/use-cases" className="text-sm font-medium hover:text-primary transition-colors">
               Use Cases
             </Link>
-            <Link href="/ai-security" className="text-sm font-medium hover:text-primary transition-colors">
-              Security
-            </Link>
             <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
               Pricing
+            </Link>
+            <Link href="/faq" className="text-sm font-medium hover:text-primary transition-colors">
+              FAQ
+            </Link>
+            <Link href="/contact" className="text-sm font-medium hover:text-primary transition-colors">
+              Contact
             </Link>
           </nav>
 
@@ -100,14 +103,31 @@ export default function MarketingLayout({
                   </Link>
                 </li>
                 <li>
-                  <Link href="/ai-security" className="hover:text-primary transition-colors">
-                    Security
-                  </Link>
-                </li>
-                <li>
                   <Link href="/pricing" className="hover:text-primary transition-colors">
                     Pricing
                   </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Support Column */}
+            <div>
+              <h3 className="font-semibold mb-4">Support</h3>
+              <ul className="space-y-3 text-sm text-muted-foreground">
+                <li>
+                  <Link href="/faq" className="hover:text-primary transition-colors">
+                    FAQ
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="hover:text-primary transition-colors">
+                    Contact Us
+                  </Link>
+                </li>
+                <li>
+                  <a href="mailto:support@easemail.app" className="hover:text-primary transition-colors">
+                    Email Support
+                  </a>
                 </li>
               </ul>
             </div>
@@ -117,31 +137,14 @@ export default function MarketingLayout({
               <h3 className="font-semibold mb-4">Legal</h3>
               <ul className="space-y-3 text-sm text-muted-foreground">
                 <li>
-                  <Link href="/privacy" className="hover:text-primary transition-colors">
+                  <Link href="/legal/privacy" className="hover:text-primary transition-colors">
                     Privacy Policy
                   </Link>
                 </li>
                 <li>
-                  <Link href="/terms" className="hover:text-primary transition-colors">
+                  <Link href="/legal/terms" className="hover:text-primary transition-colors">
                     Terms of Service
                   </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Contact Column */}
-            <div>
-              <h3 className="font-semibold mb-4">Connect</h3>
-              <ul className="space-y-3 text-sm text-muted-foreground">
-                <li>
-                  <a href="mailto:support@easemail.app" className="hover:text-primary transition-colors">
-                    Support
-                  </a>
-                </li>
-                <li>
-                  <a href="mailto:sales@easemail.app" className="hover:text-primary transition-colors">
-                    Sales
-                  </a>
                 </li>
               </ul>
             </div>
@@ -151,11 +154,14 @@ export default function MarketingLayout({
           <div className="border-t pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
             <p>© {new Date().getFullYear()} EaseMail. All rights reserved.</p>
             <div className="flex gap-6">
-              <Link href="/privacy" className="hover:text-primary transition-colors">
+              <Link href="/legal/privacy" className="hover:text-primary transition-colors">
                 Privacy
               </Link>
-              <Link href="/terms" className="hover:text-primary transition-colors">
+              <Link href="/legal/terms" className="hover:text-primary transition-colors">
                 Terms
+              </Link>
+              <Link href="/contact" className="hover:text-primary transition-colors">
+                Contact
               </Link>
             </div>
           </div>
