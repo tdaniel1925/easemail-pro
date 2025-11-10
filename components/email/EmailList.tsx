@@ -29,12 +29,12 @@ interface Email {
   isRead: boolean;
   isStarred: boolean;
   hasAttachments: boolean;
-  attachments: Array<{
+  attachments?: Array<{
     id: string;
     filename: string;
     size: number;
     contentType: string;
-  }>;
+  }> | null; // Make optional to handle old emails without attachments
   labels: string[];
   threadId?: string | null;
   threadEmailCount?: number | null;
@@ -1011,7 +1011,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
                 {email.hasAttachments && email.attachments && email.attachments.length > 0 && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
                     <Paperclip className="h-3.5 w-3.5" />
-                    <span>{email.attachments.length} attachment{email.attachments.length > 1 ? 's' : ''}</span>
+                    <span>{email.attachments?.length || 0} attachment{(email.attachments?.length || 0) > 1 ? 's' : ''}</span>
                   </div>
                 )}
                 
@@ -1155,13 +1155,13 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
                 )}
 
                 {/* Attachments */}
-                {email.hasAttachments && email.attachments.length > 0 && (
+                {email.hasAttachments && email.attachments && email.attachments.length > 0 && (
                   <div className="mt-5 pt-5 border-t border-border">
                     <h4 className="text-sm font-medium mb-3">
-                      Attachments ({email.attachments.length})
+                      Attachments ({email.attachments?.length || 0})
                     </h4>
                     <div className="space-y-2">
-                      {email.attachments.map((attachment) => (
+                      {(email.attachments || []).map((attachment) => (
                         <div
                           key={attachment.id}
                           className="flex items-center justify-between p-2.5 border border-border rounded-lg hover:bg-accent transition-colors"

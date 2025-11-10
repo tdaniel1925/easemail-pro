@@ -91,7 +91,13 @@ export async function GET(request: NextRequest) {
       offset,
       orderBy: [desc(sortByDate)],
     });
-    
+
+    // ✅ FIX: Ensure attachments is always an array (handle null/undefined for old emails)
+    const normalizedMessages = messages.map(msg => ({
+      ...msg,
+      attachments: msg.attachments || [],
+    }));
+
     console.log(`📧 Fetched ${messages.length} emails for account ${accountId}${folder ? ` in folder ${folder}` : ' (inbox, excluding trash/archive)'}`);
     console.log(`📅 Sorting by: ${isSentFolder ? 'sentAt' : 'receivedAt'}`);
     if (messages.length > 0) {
@@ -101,8 +107,8 @@ export async function GET(request: NextRequest) {
         oldest: messages[messages.length - 1][dateField]
       });
     }
-    
-    return NextResponse.json({ success: true, messages });
+
+    return NextResponse.json({ success: true, messages: normalizedMessages });
   } catch (error) {
     console.error('Messages fetch error:', error);
     return NextResponse.json({ error: 'Fetch failed' }, { status: 500 });
