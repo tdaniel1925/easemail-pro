@@ -87,25 +87,39 @@ export async function fetchMessages({
       }
     );
 
-    // ✅ FIX: Filter out trashed messages client-side if not explicitly including trash
-    // This prevents deleted emails from reappearing in inbox after refresh
+    // ✅ FIX: Filter out non-inbox messages client-side when no folder is specified
+    // This prevents sent/trash/spam emails from appearing in inbox
     let filteredMessages = response.data;
-    if (!includeTrash && !folderId) {
-      // Import folder utils to check for trash folders
-      const { normalizeFolderToCanonical } = await import('../email/folder-utils');
-
+    if (!folderId) {
+      // When no folder is specified, only show inbox messages
+      // Filter using Nylas folder metadata (messages have a 'folders' array with folder IDs)
       filteredMessages = response.data.filter((message: any) => {
         const folders = message.folders || [];
-        const messageFolder = folders[0] || 'inbox';
-        const normalizedFolder = normalizeFolderToCanonical(messageFolder);
 
-        // Exclude trash and spam folders
-        return normalizedFolder !== 'trash' && normalizedFolder !== 'spam';
+        // Check each folder the message is in
+        for (const folderId of folders) {
+          const folderName = (folderId as string).toLowerCase();
+
+          // Exclude messages in sent, trash, spam, drafts folders
+          // These patterns match common IMAP folder names across providers
+          if (
+            folderName.includes('sent') ||
+            folderName.includes('trash') ||
+            folderName.includes('spam') ||
+            folderName.includes('junk') ||
+            folderName.includes('draft') ||
+            folderName.includes('deleted')
+          ) {
+            return false;
+          }
+        }
+
+        return true;
       });
 
       const filteredCount = response.data.length - filteredMessages.length;
       if (filteredCount > 0) {
-        console.log(`🗑️ Filtered out ${filteredCount} trashed/spam messages`);
+        console.log(`🗑️ Filtered out ${filteredCount} sent/trash/spam/draft messages`);
       }
     }
 
