@@ -46,6 +46,11 @@ export function EmailRendererV3({
   const [downloadingAttachments, setDownloadingAttachments] = useState<Set<string>>(new Set());
   const [attachmentErrors, setAttachmentErrors] = useState<Map<string, string>>(new Map());
 
+  // Log when V3 renderer mounts
+  useEffect(() => {
+    console.log('✨ V3 Email Renderer Active', { emailId, accountId });
+  }, [emailId, accountId]);
+
   // Update iframe content when email changes
   useEffect(() => {
     if (!iframeRef.current) return;
