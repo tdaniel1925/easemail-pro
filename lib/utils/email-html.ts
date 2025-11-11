@@ -76,66 +76,42 @@ function blockExternalImages(html: string): string {
  * @returns Formatted HTML
  */
 function applyEmailFormatting(html: string): string {
-  // Wrap content in a constrained div with proper styling
-  return `<div style="
-    max-width: 100%;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.6;
-  ">
+  // Minimal wrapper - let the email control its own layout
+  return `<div class="email-content-wrapper">
     <style>
-      .email-content * {
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-      }
-      .email-content img {
-        height: auto !important;
-        max-height: 500px !important;
-      }
-      .email-content table {
-        border-collapse: collapse;
+      .email-content-wrapper {
         max-width: 100%;
+        overflow-x: auto;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
       }
-      .email-content table td,
-      .email-content table th {
-        padding: 8px;
-        vertical-align: top;
+      /* Only constrain images to prevent overflow */
+      .email-content-wrapper img {
+        max-width: 100% !important;
+        height: auto !important;
       }
-      .email-content a {
-        color: #3b82f6 !important;
+      /* Keep links styled */
+      .email-content-wrapper a {
+        color: #3b82f6;
         text-decoration: underline;
       }
-      .email-content a:hover {
-        color: #2563eb !important;
+      .email-content-wrapper a:hover {
+        color: #2563eb;
       }
-      .email-content pre {
-        background: #f3f4f6;
-        padding: 12px;
-        border-radius: 4px;
+      /* Basic pre/code styling */
+      .email-content-wrapper pre {
         overflow-x: auto;
-        font-size: 13px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
       }
-      .email-content blockquote {
+      /* Basic blockquote styling */
+      .email-content-wrapper blockquote {
         border-left: 3px solid #e5e7eb;
         padding-left: 16px;
         margin: 16px 0;
-        color: #6b7280;
-      }
-      /* Force readable text color ONLY for elements without color/bgcolor inline styles */
-      .email-content p:not([style*="color"]):not([style*="background"]),
-      .email-content div:not([style*="color"]):not([style*="background"]):not([bgcolor]),
-      .email-content span:not([style*="color"]):not([style*="background"]),
-      .email-content td:not([style*="color"]):not([style*="background"]):not([bgcolor]),
-      .email-content th:not([style*="color"]):not([style*="background"]):not([bgcolor]),
-      .email-content li:not([style*="color"]):not([style*="background"]) {
-        color: #1f2937 !important;
       }
     </style>
-    <div class="email-content">
-      ${html}
-    </div>
+    ${html}
   </div>`;
 }
 
