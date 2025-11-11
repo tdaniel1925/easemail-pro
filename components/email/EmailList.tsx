@@ -64,7 +64,7 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
 
   // User Preferences
   const [showAISummaries, setShowAISummaries] = useState(true);
-  const [showImages, setShowImages] = useState(false); // Default to blocking external images
+  const [showImages, setShowImages] = useState(true); // Default to showing images automatically
 
   // SMS Notifications
   const [unreadSMSCount, setUnreadSMSCount] = useState(0);
@@ -1144,7 +1144,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     <span className="ml-2 text-sm text-muted-foreground">Loading full email...</span>
                   </div>
-                ) : useEmailRendererV3 ? (
+                ) : true ? ( // FORCE V3 renderer - always use it
                   <EmailRendererV3
                     emailId={email.id}
                     accountId={email.accountId || ''}

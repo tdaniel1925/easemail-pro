@@ -17,7 +17,7 @@ interface FeatureFlagStore extends FeatureFlags {
 }
 
 const defaultFlags: FeatureFlags = {
-  useEmailRendererV3: false, // Start with V2 by default for safety
+  useEmailRendererV3: true, // Use V3 renderer with SimpleEmailViewer
 };
 
 export const useFeatureFlags = create<FeatureFlagStore>()(

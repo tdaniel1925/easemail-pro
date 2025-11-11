@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Download, Paperclip, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { useState } from 'react';
+import { Download, Paperclip, AlertCircle, Loader2, Eye, EyeOff, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatFileSize } from '@/lib/utils';
-import DOMPurify from 'isomorphic-dompurify';
+import { SimpleEmailViewer } from '@/components/email/SimpleEmailViewer';
 
 interface Attachment {
   id: string;
@@ -25,14 +25,13 @@ interface EmailRendererV3Props {
 }
 
 /**
- * V3 Email Renderer
+ * V3 Email Renderer - SIMPLIFIED
  *
- * Key improvements:
- * 1. Iframe-based rendering for complete CSS isolation
- * 2. No CSS conflicts with parent application
- * 3. Secure sandbox with restricted permissions
- * 4. Better attachment handling with progress tracking
- * 5. Proper error handling and user feedback
+ * Following the guide's recommendations:
+ * 1. Simple HTML rendering without over-engineering
+ * 2. Just display emails as-is (like Gmail/Outlook)
+ * 3. Basic XSS protection only
+ * 4. Let email control its own layout
  */
 export function EmailRendererV3({
   emailId,
@@ -40,227 +39,30 @@ export function EmailRendererV3({
   bodyHtml,
   bodyText,
   attachments,
-  showImages = false,
+  showImages = true,
   onShowImagesToggle,
   className = '',
 }: EmailRendererV3Props) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [iframeHeight, setIframeHeight] = useState<number>(400);
   const [downloadingAttachments, setDownloadingAttachments] = useState<Set<string>>(new Set());
   const [attachmentErrors, setAttachmentErrors] = useState<Map<string, string>>(new Map());
+  const [showHtmlSource, setShowHtmlSource] = useState(false);
 
-  // Production-safe debugging: Add data attribute to component for verification
-  // This persists even when console.logs are stripped in production builds
-  const [isV3Active, setIsV3Active] = useState(false);
+  // Debug logging to track what we're receiving
+  console.log('📧 EmailRendererV3 received:', {
+    emailId,
+    hasBodyHtml: !!bodyHtml,
+    hasBodyText: !!bodyText,
+    bodyHtmlLength: bodyHtml?.length || 0,
+    bodyTextLength: bodyText?.length || 0,
+    bodyHtmlPreview: bodyHtml?.substring(0, 200) || 'No HTML',
+  });
 
-  useEffect(() => {
-    // Mark V3 as active on mount
-    setIsV3Active(true);
-    // Only log in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('✨ V3 Email Renderer Active', { emailId, accountId });
-    }
-  }, [emailId, accountId]);
+  // Get the content to display
+  const content = bodyHtml || bodyText || '';
 
-  // Update iframe content when email changes
-  useEffect(() => {
-    if (!iframeRef.current) return;
-
-    const iframe = iframeRef.current;
-    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-
-    if (!iframeDoc) return;
-
-    // CRITICAL SECURITY FIX: Sanitize HTML before rendering
-    // This prevents XSS attacks while preserving email formatting
-    const sanitizeHTML = (html: string): string => {
-      if (!html) return '';
-
-      return DOMPurify.sanitize(html, {
-        ALLOWED_TAGS: [
-          'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'a', 'img', 'div', 'span',
-          'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote',
-          'pre', 'code', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr',
-          'dl', 'dt', 'dd', 'sub', 'sup', 'small', 'mark', 'del', 'ins', 'strike',
-          's', 'font', 'center', 'article', 'section'
-        ],
-        ALLOWED_ATTR: [
-          'href', 'src', 'alt', 'title', 'class', 'style', 'target', 'rel',
-          'width', 'height', 'align', 'valign', 'border', 'cellpadding', 'cellspacing',
-          'bgcolor', 'color', 'face', 'size', 'colspan', 'rowspan'
-        ],
-        ALLOW_DATA_ATTR: false,
-        // Block external images by removing src if showImages is false
-        FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'button'],
-        FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
-      });
-    };
-
-    // Prepare HTML content with proper sanitization
-    let htmlContent: string;
-    if (bodyHtml) {
-      // Sanitize HTML email
-      let sanitized = sanitizeHTML(bodyHtml);
-
-      // If images are blocked, replace external images with placeholder divs
-      if (!showImages) {
-        sanitized = sanitized.replace(
-          /<img\s+([^>]*)src=["']([^"']*)["']([^>]*)>/gi,
-          (match, before, src, after) => {
-            // Keep data URIs, cid:, and blob: URLs (safe inline content)
-            if (src.startsWith('data:') || src.startsWith('cid:') || src.startsWith('blob:')) {
-              return match;
-            }
-            // Replace external images with placeholder div (prevents tracking pixel requests)
-            return `<div class="blocked-image-placeholder" data-blocked-src="${src}" style="display: inline-block; min-width: 200px; min-height: 100px; background: #f3f4f6; border: 2px dashed #e5e7eb; border-radius: 6px; padding: 20px; text-align: center; color: #6b7280; font-size: 13px; vertical-align: middle; margin: 4px 0;">
-              <div style="font-size: 32px; margin-bottom: 8px;">🖼️</div>
-              <div>External image blocked for privacy</div>
-            </div>`;
-          }
-        );
-      }
-
-      htmlContent = sanitized;
-    } else {
-      // Plain text fallback
-      const escapedText = (bodyText || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-      htmlContent = `<pre style="white-space: pre-wrap; font-family: inherit;">${escapedText}</pre>`;
-    }
-
-    // Create complete HTML document with base styles
-    const fullHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      padding: 16px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      font-size: 14px;
-      line-height: 1.6;
-      color: #1f2937;
-      background: transparent;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-    }
-
-    /* Only constrain images to prevent horizontal overflow */
-    img {
-      max-width: 100% !important;
-      height: auto !important;
-    }
-
-    /* Keep data URIs, Content-ID, and blob URLs */
-    img[src^="data:"],
-    img[src^="cid:"],
-    img[src^="blob:"] {
-      display: inline-block !important;
-    }
-
-    /* Basic link styling */
-    a {
-      color: #3b82f6;
-      text-decoration: underline;
-    }
-
-    a:hover {
-      color: #2563eb;
-    }
-
-    /* Code blocks */
-    pre {
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      background: #f3f4f6;
-      padding: 12px;
-      border-radius: 4px;
-    }
-
-    code {
-      font-family: 'Courier New', monospace;
-      background: #f3f4f6;
-      padding: 2px 4px;
-      border-radius: 2px;
-    }
-
-    /* Blockquotes */
-    blockquote {
-      border-left: 3px solid #e5e7eb;
-      padding-left: 16px;
-      margin: 16px 0;
-      color: #6b7280;
-    }
-
-    /* Tables - let them be responsive but don't force layouts */
-    table {
-      border-collapse: collapse;
-      max-width: 100%;
-    }
-
-    table td,
-    table th {
-      padding: 8px;
-    }
-  </style>
-</head>
-<body>
-  ${htmlContent}
-
-  <script>
-    // Auto-resize iframe to content height
-    function updateHeight() {
-      const height = document.body.scrollHeight;
-      window.parent.postMessage({ type: 'resize', height }, '*');
-    }
-
-    // Update height on load and when content changes
-    updateHeight();
-
-    // Watch for dynamic content changes
-    const observer = new MutationObserver(updateHeight);
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-    });
-
-    // Update on images loading
-    document.querySelectorAll('img').forEach(img => {
-      img.addEventListener('load', updateHeight);
-    });
-  </script>
-</body>
-</html>
-    `;
-
-    // Write to iframe
-    iframeDoc.open();
-    iframeDoc.write(fullHtml);
-    iframeDoc.close();
-  }, [bodyHtml, bodyText, showImages]);
-
-  // Listen for resize messages from iframe
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'resize' && typeof event.data.height === 'number') {
-        setIframeHeight(event.data.height);
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  if (!content) {
+    console.warn('⚠️ No email content to display!', { emailId, bodyHtml, bodyText });
+  }
 
   /**
    * V3 Attachment Download Handler
@@ -343,67 +145,79 @@ export function EmailRendererV3({
   return (
     <div
       className={`email-renderer-v3 relative ${className}`}
-      data-renderer="v3"
-      data-v3-active={isV3Active}
+      data-renderer="v3-simple"
     >
-      {/* V3 Active Indicator - Visible in production for debugging */}
-      {isV3Active && (
-        <div
-          className="absolute top-0 right-0 bg-green-500 text-white text-xs px-2 py-1 rounded-bl z-50"
-          title="Email Renderer V3 is active"
-        >
-          V3
+      {/* Control Bar - Image Toggle & HTML View */}
+      <div className="mb-3 flex items-center justify-between gap-2 p-2 bg-secondary/30 border border-border/50 rounded-lg">
+        <div className="flex items-center gap-2 text-sm">
+          {showImages ? (
+            <Eye className="h-4 w-4 text-primary" />
+          ) : (
+            <EyeOff className="h-4 w-4 text-muted-foreground" />
+          )}
+          <span className="text-muted-foreground">
+            {showImages
+              ? 'External images are showing'
+              : 'External images are blocked'}
+          </span>
         </div>
-      )}
-
-      {/* Image Toggle Button - Only show if callback provided */}
-      {onShowImagesToggle && (
-        <div className="mb-3 flex items-center justify-between gap-2 p-2 bg-secondary/30 border border-border/50 rounded-lg">
-          <div className="flex items-center gap-2 text-sm">
-            {showImages ? (
-              <Eye className="h-4 w-4 text-primary" />
-            ) : (
-              <EyeOff className="h-4 w-4 text-muted-foreground" />
-            )}
-            <span className="text-muted-foreground">
-              {showImages
-                ? 'External images are showing (tracking enabled)'
-                : 'External images are blocked for privacy'}
-            </span>
-          </div>
+        <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={onShowImagesToggle}
+            onClick={() => setShowHtmlSource(!showHtmlSource)}
             className="h-8"
+            title={showHtmlSource ? 'Hide HTML Source' : 'View HTML Source'}
           >
-            {showImages ? (
-              <>
-                <EyeOff className="h-4 w-4 mr-2" />
-                Block Images
-              </>
-            ) : (
-              <>
-                <Eye className="h-4 w-4 mr-2" />
-                Show Images
-              </>
-            )}
+            <Code className="h-4 w-4 mr-2" />
+            {showHtmlSource ? 'Hide HTML' : 'View HTML'}
           </Button>
+          {onShowImagesToggle && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onShowImagesToggle}
+              className="h-8"
+            >
+              {showImages ? (
+                <>
+                  <EyeOff className="h-4 w-4 mr-2" />
+                  Block Images
+                </>
+              ) : (
+                <>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Show Images
+                </>
+              )}
+            </Button>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Email Body */}
-      <iframe
-        ref={iframeRef}
-        sandbox="allow-same-origin"
-        style={{
-          width: '100%',
-          height: `${iframeHeight}px`,
-          border: 'none',
-          overflow: 'hidden',
-        }}
-        title="Email content"
-      />
+      {/* Email Body or HTML Source */}
+      {showHtmlSource ? (
+        <div className="border border-border rounded-lg overflow-hidden">
+          <div className="bg-muted px-3 py-2 border-b border-border flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">HTML Source Code</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs"
+              onClick={() => {
+                navigator.clipboard.writeText(bodyHtml || bodyText || '');
+              }}
+            >
+              Copy
+            </Button>
+          </div>
+          <pre className="p-4 overflow-auto max-h-[600px] text-xs font-mono bg-card">
+            <code>{bodyHtml || bodyText || 'No content'}</code>
+          </pre>
+        </div>
+      ) : (
+        <SimpleEmailViewer body={bodyHtml || ''} bodyText={bodyText} />
+      )}
 
       {/* Attachments */}
       {hasAttachments && (

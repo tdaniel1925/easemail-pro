@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { EmailTrackingDashboard } from '@/components/email/EmailTrackingDashboard';
 import { EventDialog } from '@/components/calendar/EventDialog';
 import { printEmail } from '@/lib/utils/print';
+import { EmailRendererV3 } from '@/components/email/EmailRendererV3';
 
 interface EmailMessage {
   id: string;
@@ -343,15 +344,21 @@ export function EmailViewerV3({
 
       {/* Email Body - Scrollable */}
       <div className="flex-1 overflow-y-auto p-6 min-h-0">
-        <div className="prose prose-sm dark:prose-invert max-w-none">
-          <div
-            className="whitespace-pre-wrap"
-            dangerouslySetInnerHTML={{ __html: message.body || message.snippet }}
-          />
-        </div>
+        <EmailRendererV3
+          emailId={messageId}
+          accountId={accountId}
+          bodyHtml={message.body}
+          bodyText={message.snippet}
+          attachments={message.attachments?.map(att => ({
+            id: att.id,
+            filename: att.filename,
+            size: att.size,
+            contentType: att.content_type
+          })) || null}
+        />
 
-        {/* Attachments */}
-        {message.attachments && message.attachments.length > 0 && (
+        {/* Attachments - Kept for backward compatibility but EmailRendererV3 will handle them */}
+        {false && message.attachments && message.attachments.length > 0 && (
           <div className="mt-6 pt-6 border-t border-border">
             <h3 className="text-sm font-medium mb-3">
               Attachments ({message.attachments.length})
@@ -384,9 +391,35 @@ export function EmailViewerV3({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => {
-                      // TODO: Implement attachment download
-                      console.log('Download attachment:', attachment.id);
+                    onClick={async () => {
+                      try {
+                        // Download attachment via API
+                        const response = await fetch(
+                          `/api/nylas/messages/${message.id}/attachments/${attachment.id}?accountId=${accountId}`
+                        );
+
+                        if (!response.ok) {
+                          throw new Error('Failed to download attachment');
+                        }
+
+                        // Get the blob from the response
+                        const blob = await response.blob();
+
+                        // Create a download link and trigger it
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = attachment.filename || 'download';
+                        document.body.appendChild(a);
+                        a.click();
+
+                        // Clean up
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                      } catch (error) {
+                        console.error('Error downloading attachment:', error);
+                        alert('Failed to download attachment. Please try again.');
+                      }
                     }}
                   >
                     <Download className="h-4 w-4" />

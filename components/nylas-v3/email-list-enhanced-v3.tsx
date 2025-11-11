@@ -37,6 +37,7 @@ import {
 import { cn, formatDate, getInitials, generateAvatarColor, formatFileSize } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { EmailRendererV3 } from '@/components/email/EmailRendererV3';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useEmailSummary } from '@/lib/hooks/useEmailSummary';
@@ -1058,24 +1059,22 @@ function EmailCard({
                 <span className="ml-2 text-sm text-muted-foreground">Loading full email...</span>
               </div>
             ) : (
-              <div className="prose prose-sm dark:prose-invert max-w-none text-sm break-words overflow-wrap-anywhere">
-                {displayEmail.body ? (
-                  <div
-                    className="email-content break-words whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{
-                      __html: displayEmail.body,
-                    }}
-                  />
-                ) : (
-                  <div className="whitespace-pre-wrap break-words">
-                    {displayEmail.snippet || '(No content)'}
-                  </div>
-                )}
-              </div>
+              <EmailRendererV3
+                emailId={message.id}
+                accountId={accountId}
+                bodyHtml={displayEmail.body}
+                bodyText={displayEmail.snippet}
+                attachments={message.attachments?.map(att => ({
+                  id: att.id,
+                  filename: att.filename,
+                  size: att.size,
+                  contentType: att.content_type
+                })) || null}
+              />
             )}
 
-            {/* Attachments */}
-            {message.hasAttachments && message.attachments && message.attachments.length > 0 && (
+            {/* Attachments - Disabled because EmailRendererV3 handles them */}
+            {false && message.hasAttachments && message.attachments && message.attachments.length > 0 && (
               <div className="mt-5 pt-5 border-t border-border">
                 <h4 className="text-sm font-medium mb-3">Attachments ({message.attachments.length})</h4>
                 <div className="space-y-2">
