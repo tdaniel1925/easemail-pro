@@ -578,6 +578,7 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
             selectMode={selectMode}
             showAISummaries={showAISummaries}
             showImages={showImages}
+            useEmailRendererV3={useEmailRendererV3}
             onSelect={(e) => handleSelectEmail(email.id, e)}
             onClick={() => onEmailClick(email.id)}
             showToast={(type, message) => {
@@ -652,13 +653,14 @@ interface EmailCardProps {
   selectMode: boolean;
   showAISummaries: boolean;
   showImages: boolean; // NEW: Control external image loading
+  useEmailRendererV3: boolean; // V3 renderer feature flag
   onSelect: (e: React.MouseEvent) => void;
   onClick: () => void;
   showToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
   onRemove: (emailId: string, action: 'delete' | 'archive') => void;
 }
 
-function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showAISummaries, showImages, onSelect, onClick, showToast, onRemove }: EmailCardProps) {
+function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showAISummaries, showImages, useEmailRendererV3, onSelect, onClick, showToast, onRemove }: EmailCardProps) {
   const avatarColor = generateAvatarColor(email.fromEmail || 'unknown@example.com');
   const [mounted, setMounted] = useState(false);
   const [fullEmail, setFullEmail] = useState<Email | null>(null);
