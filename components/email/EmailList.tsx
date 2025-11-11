@@ -586,6 +586,7 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
               else if (type === 'error') error(message);
               else if (type === 'info') info(message);
             }}
+            onShowImagesToggle={() => setShowImages(!showImages)}
             onRemove={(emailId, action) => {
               // Optimistically remove from UI
               setLocallyRemovedEmails(prev => {
@@ -658,9 +659,10 @@ interface EmailCardProps {
   onClick: () => void;
   showToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
   onRemove: (emailId: string, action: 'delete' | 'archive') => void;
+  onShowImagesToggle: () => void; // Toggle image loading
 }
 
-function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showAISummaries, showImages, useEmailRendererV3, onSelect, onClick, showToast, onRemove }: EmailCardProps) {
+function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showAISummaries, showImages, useEmailRendererV3, onSelect, onClick, showToast, onRemove, onShowImagesToggle }: EmailCardProps) {
   const avatarColor = generateAvatarColor(email.fromEmail || 'unknown@example.com');
   const [mounted, setMounted] = useState(false);
   const [fullEmail, setFullEmail] = useState<Email | null>(null);
@@ -1150,7 +1152,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
                     bodyText={displayEmail.bodyText}
                     attachments={email.attachments}
                     showImages={showImages}
-                    onShowImagesToggle={() => setShowImages(!showImages)}
+                    onShowImagesToggle={onShowImagesToggle}
                   />
                 ) : (
                   <div className="max-w-none text-sm">
