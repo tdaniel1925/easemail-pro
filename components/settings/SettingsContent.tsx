@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, User, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench } from 'lucide-react';
+import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, User, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,8 +13,9 @@ import { SignatureEditorModal } from '@/components/signatures/SignatureEditorMod
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import ThemeSelector from '@/components/theme/ThemeSelector';
 import { UtilitiesContent } from '@/components/settings/UtilitiesContent';
+import { FeatureFlagsContent } from '@/components/settings/FeatureFlagsContent';
 
-type SettingsSection = 'general' | 'sync' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'utilities' | 'help';
+type SettingsSection = 'general' | 'sync' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'utilities' | 'features' | 'help';
 
 export default function SettingsContent() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function SettingsContent() {
     { id: 'privacy' as const, name: 'Privacy & Security', icon: Shield },
     { id: 'integrations' as const, name: 'Integrations', icon: Plug },
     { id: 'utilities' as const, name: 'Utilities', icon: Wrench },
+    { id: 'features' as const, name: 'Feature Flags', icon: Beaker },
     { id: 'help' as const, name: 'Help & Support', icon: HelpCircle },
   ];
 
@@ -81,6 +83,7 @@ export default function SettingsContent() {
         {activeSection === 'privacy' && <PrivacySettings />}
         {activeSection === 'integrations' && <IntegrationsSettings />}
         {activeSection === 'utilities' && <UtilitiesContent />}
+        {activeSection === 'features' && <FeatureFlagsContent />}
         {activeSection === 'help' && <HelpSupportSettings />}
       </main>
     </div>

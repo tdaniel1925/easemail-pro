@@ -15,6 +15,8 @@ import { LabelManager } from '@/components/email/LabelManager';
 import { LabelPicker } from '@/components/email/LabelPicker';
 import { SnoozePicker } from '@/components/email/SnoozePicker';
 import { sanitizeEmailHTML } from '@/lib/utils/email-html';
+import { EmailRendererV3 } from '@/components/email/EmailRendererV3';
+import { useFeatureFlags } from '@/lib/stores/useFeatureFlags';
 
 interface Email {
   id: string;
@@ -58,6 +60,7 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const { toasts, closeToast, success, error, info} = useToast();
+  const { useEmailRendererV3 } = useFeatureFlags();
 
   // User Preferences
   const [showAISummaries, setShowAISummaries] = useState(true);
@@ -1137,6 +1140,15 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     <span className="ml-2 text-sm text-muted-foreground">Loading full email...</span>
                   </div>
+                ) : useEmailRendererV3 ? (
+                  <EmailRendererV3
+                    emailId={email.id}
+                    accountId={email.accountId || ''}
+                    bodyHtml={displayEmail.bodyHtml}
+                    bodyText={displayEmail.bodyText}
+                    attachments={email.attachments}
+                    showImages={showImages}
+                  />
                 ) : (
                   <div className="max-w-none text-sm">
                     {displayEmail.bodyHtml ? (
@@ -1154,8 +1166,8 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
                   </div>
                 )}
 
-                {/* Attachments */}
-                {email.hasAttachments && email.attachments && email.attachments.length > 0 && (
+                {/* Attachments (V2 only - V3 handles its own attachments) */}
+                {!useEmailRendererV3 && email.hasAttachments && email.attachments && email.attachments.length > 0 && (
                   <div className="mt-5 pt-5 border-t border-border">
                     <h4 className="text-sm font-medium mb-3">
                       Attachments ({email.attachments?.length || 0})
