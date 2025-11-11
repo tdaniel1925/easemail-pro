@@ -395,7 +395,7 @@ export function EmailViewerV3({
                       try {
                         // Download attachment via API
                         const response = await fetch(
-                          `/api/nylas/messages/${message.id}/attachments/${attachment.id}?accountId=${accountId}`
+                          `/api/nylas/messages/${message?.id}/attachments/${attachment.id}?accountId=${accountId}`
                         );
 
                         if (!response.ok) {
