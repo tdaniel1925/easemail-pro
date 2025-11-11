@@ -51,6 +51,9 @@ export function EmailRendererV3({
     console.log('✨ V3 Email Renderer Active', { emailId, accountId });
   }, [emailId, accountId]);
 
+  // Log on every render to debug
+  console.log('🔧 V3 Renderer rendering...', { emailId, accountId });
+
   // Update iframe content when email changes
   useEffect(() => {
     if (!iframeRef.current) return;
