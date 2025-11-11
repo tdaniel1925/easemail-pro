@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Download, Paperclip, AlertCircle, Loader2 } from 'lucide-react';
+import { Download, Paperclip, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatFileSize } from '@/lib/utils';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface Attachment {
   id: string;
@@ -19,6 +20,7 @@ interface EmailRendererV3Props {
   bodyText?: string;
   attachments?: Attachment[] | null;
   showImages?: boolean;
+  onShowImagesToggle?: () => void; // Callback when user toggles image loading
   className?: string;
 }
 
@@ -39,6 +41,7 @@ export function EmailRendererV3({
   bodyText,
   attachments,
   showImages = false,
+  onShowImagesToggle,
   className = '',
 }: EmailRendererV3Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -68,8 +71,61 @@ export function EmailRendererV3({
 
     if (!iframeDoc) return;
 
-    // Prepare HTML content
-    const htmlContent = bodyHtml || `<pre style="white-space: pre-wrap; font-family: inherit;">${bodyText || ''}</pre>`;
+    // CRITICAL SECURITY FIX: Sanitize HTML before rendering
+    // This prevents XSS attacks while preserving email formatting
+    const sanitizeHTML = (html: string): string => {
+      if (!html) return '';
+
+      return DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: [
+          'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'a', 'img', 'div', 'span',
+          'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote',
+          'pre', 'code', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr',
+          'dl', 'dt', 'dd', 'sub', 'sup', 'small', 'mark', 'del', 'ins', 'strike',
+          's', 'font', 'center', 'article', 'section'
+        ],
+        ALLOWED_ATTR: [
+          'href', 'src', 'alt', 'title', 'class', 'style', 'target', 'rel',
+          'width', 'height', 'align', 'valign', 'border', 'cellpadding', 'cellspacing',
+          'bgcolor', 'color', 'face', 'size', 'colspan', 'rowspan'
+        ],
+        ALLOW_DATA_ATTR: false,
+        // Block external images by removing src if showImages is false
+        FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'button'],
+        FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+      });
+    };
+
+    // Prepare HTML content with proper sanitization
+    let htmlContent: string;
+    if (bodyHtml) {
+      // Sanitize HTML email
+      let sanitized = sanitizeHTML(bodyHtml);
+
+      // If images are blocked, remove external image sources to prevent tracking
+      if (!showImages) {
+        sanitized = sanitized.replace(
+          /<img\s+([^>]*)src=["']([^"']*)["']([^>]*)>/gi,
+          (match, before, src, after) => {
+            // Keep data URIs, cid:, and blob: URLs (safe inline content)
+            if (src.startsWith('data:') || src.startsWith('cid:') || src.startsWith('blob:')) {
+              return match;
+            }
+            // Remove src for external images (prevents tracking pixel requests)
+            return `<img ${before} data-blocked-src="${src}" alt="[Image blocked for privacy]" ${after}>`;
+          }
+        );
+      }
+
+      htmlContent = sanitized;
+    } else {
+      // Plain text fallback
+      const escapedText = (bodyText || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      htmlContent = `<pre style="white-space: pre-wrap; font-family: inherit;">${escapedText}</pre>`;
+    }
 
     // Create complete HTML document with base styles
     const fullHtml = `
@@ -102,22 +158,32 @@ export function EmailRendererV3({
     }
 
     ${!showImages ? `
-    /* Block external images for privacy */
-    img[src^="http"],
-    img[src^="https"] {
-      display: none;
+    /* Blocked images - show placeholder */
+    img[data-blocked-src] {
+      display: inline-block !important;
+      min-width: 200px;
+      min-height: 100px;
+      background: #f3f4f6;
+      border: 2px dashed #e5e7eb;
+      border-radius: 6px;
+      padding: 20px;
+      text-align: center;
+      position: relative;
+      font-size: 13px;
+      color: #6b7280;
     }
 
-    img[src^="http"]::before,
-    img[src^="https"]::before {
-      content: "🖼️ External image blocked for privacy";
+    img[data-blocked-src]::before {
+      content: "🖼️";
       display: block;
-      padding: 12px;
-      background: #f3f4f6;
-      border: 1px solid #e5e7eb;
-      border-radius: 4px;
-      color: #6b7280;
-      text-align: center;
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    img[data-blocked-src]::after {
+      content: "External image blocked for privacy";
+      display: block;
+      font-size: 13px;
     }
     ` : ''}
 
@@ -314,6 +380,42 @@ export function EmailRendererV3({
           title="Email Renderer V3 is active"
         >
           V3
+        </div>
+      )}
+
+      {/* Image Toggle Button - Only show if callback provided */}
+      {onShowImagesToggle && (
+        <div className="mb-3 flex items-center justify-between gap-2 p-2 bg-secondary/30 border border-border/50 rounded-lg">
+          <div className="flex items-center gap-2 text-sm">
+            {showImages ? (
+              <Eye className="h-4 w-4 text-primary" />
+            ) : (
+              <EyeOff className="h-4 w-4 text-muted-foreground" />
+            )}
+            <span className="text-muted-foreground">
+              {showImages
+                ? 'External images are showing (tracking enabled)'
+                : 'External images are blocked for privacy'}
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onShowImagesToggle}
+            className="h-8"
+          >
+            {showImages ? (
+              <>
+                <EyeOff className="h-4 w-4 mr-2" />
+                Block Images
+              </>
+            ) : (
+              <>
+                <Eye className="h-4 w-4 mr-2" />
+                Show Images
+              </>
+            )}
+          </Button>
         </div>
       )}
 

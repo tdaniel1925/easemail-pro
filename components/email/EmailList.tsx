@@ -1150,6 +1150,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
                     bodyText={displayEmail.bodyText}
                     attachments={email.attachments}
                     showImages={showImages}
+                    onShowImagesToggle={() => setShowImages(!showImages)}
                   />
                 ) : (
                   <div className="max-w-none text-sm">
