@@ -361,10 +361,10 @@ export function EmailViewerV3({
         {false && (message?.attachments?.length ?? 0) > 0 && (
           <div className="mt-6 pt-6 border-t border-border">
             <h3 className="text-sm font-medium mb-3">
-              Attachments ({message.attachments?.length})
+              Attachments ({message?.attachments?.length})
             </h3>
             <div className="space-y-2">
-              {message.attachments?.map((attachment) => (
+              {message?.attachments?.map((attachment) => (
                 <div
                   key={attachment.id}
                   className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent transition-colors"
