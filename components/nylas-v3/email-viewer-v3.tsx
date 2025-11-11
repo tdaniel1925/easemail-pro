@@ -358,7 +358,7 @@ export function EmailViewerV3({
         />
 
         {/* Attachments - Kept for backward compatibility but EmailRendererV3 will handle them */}
-        {false && message.attachments && message.attachments.length > 0 && (
+        {false && message?.attachments && message.attachments.length > 0 && (
           <div className="mt-6 pt-6 border-t border-border">
             <h3 className="text-sm font-medium mb-3">
               Attachments ({message.attachments.length})
