@@ -1160,7 +1160,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
                       <div
                         className="email-body-wrapper"
                         dangerouslySetInnerHTML={{
-                          __html: sanitizeEmailHTML(displayEmail.bodyHtml, showImages)
+                          __html: sanitizeEmailHTML(displayEmail.bodyHtml || '', showImages)
                         }}
                       />
                     ) : displayEmail.bodyText ? (
