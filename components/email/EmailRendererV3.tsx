@@ -46,13 +46,18 @@ export function EmailRendererV3({
   const [downloadingAttachments, setDownloadingAttachments] = useState<Set<string>>(new Set());
   const [attachmentErrors, setAttachmentErrors] = useState<Map<string, string>>(new Map());
 
-  // Log when V3 renderer mounts
-  useEffect(() => {
-    console.log('✨ V3 Email Renderer Active', { emailId, accountId });
-  }, [emailId, accountId]);
+  // Production-safe debugging: Add data attribute to component for verification
+  // This persists even when console.logs are stripped in production builds
+  const [isV3Active, setIsV3Active] = useState(false);
 
-  // Log on every render to debug
-  console.log('🔧 V3 Renderer rendering...', { emailId, accountId });
+  useEffect(() => {
+    // Mark V3 as active on mount
+    setIsV3Active(true);
+    // Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✨ V3 Email Renderer Active', { emailId, accountId });
+    }
+  }, [emailId, accountId]);
 
   // Update iframe content when email changes
   useEffect(() => {
@@ -297,7 +302,21 @@ export function EmailRendererV3({
   const hasAttachments = attachments && attachments.length > 0;
 
   return (
-    <div className={`email-renderer-v3 ${className}`}>
+    <div
+      className={`email-renderer-v3 relative ${className}`}
+      data-renderer="v3"
+      data-v3-active={isV3Active}
+    >
+      {/* V3 Active Indicator - Visible in production for debugging */}
+      {isV3Active && (
+        <div
+          className="absolute top-0 right-0 bg-green-500 text-white text-xs px-2 py-1 rounded-bl z-50"
+          title="Email Renderer V3 is active"
+        >
+          V3
+        </div>
+      )}
+
       {/* Email Body */}
       <iframe
         ref={iframeRef}
