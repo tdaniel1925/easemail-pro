@@ -1074,7 +1074,7 @@ function EmailCard({
             )}
 
             {/* Attachments - Disabled because EmailRendererV3 handles them */}
-            {false && message.hasAttachments && message.attachments && message.attachments?.length > 0 && (
+            {false && message.hasAttachments && message.attachments?.length && message.attachments.length > 0 && (
               <div className="mt-5 pt-5 border-t border-border">
                 <h4 className="text-sm font-medium mb-3">Attachments ({message.attachments?.length})</h4>
                 <div className="space-y-2">
