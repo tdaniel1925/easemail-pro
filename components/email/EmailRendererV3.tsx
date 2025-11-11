@@ -102,7 +102,7 @@ export function EmailRendererV3({
       // Sanitize HTML email
       let sanitized = sanitizeHTML(bodyHtml);
 
-      // If images are blocked, remove external image sources to prevent tracking
+      // If images are blocked, replace external images with placeholder divs
       if (!showImages) {
         sanitized = sanitized.replace(
           /<img\s+([^>]*)src=["']([^"']*)["']([^>]*)>/gi,
@@ -111,8 +111,11 @@ export function EmailRendererV3({
             if (src.startsWith('data:') || src.startsWith('cid:') || src.startsWith('blob:')) {
               return match;
             }
-            // Remove src for external images (prevents tracking pixel requests)
-            return `<img ${before} data-blocked-src="${src}" alt="[Image blocked for privacy]" ${after}>`;
+            // Replace external images with placeholder div (prevents tracking pixel requests)
+            return `<div class="blocked-image-placeholder" data-blocked-src="${src}" style="display: inline-block; min-width: 200px; min-height: 100px; background: #f3f4f6; border: 2px dashed #e5e7eb; border-radius: 6px; padding: 20px; text-align: center; color: #6b7280; font-size: 13px; vertical-align: middle; margin: 4px 0;">
+              <div style="font-size: 32px; margin-bottom: 8px;">🖼️</div>
+              <div>External image blocked for privacy</div>
+            </div>`;
           }
         );
       }
@@ -156,36 +159,6 @@ export function EmailRendererV3({
       max-width: 100% !important;
       height: auto !important;
     }
-
-    ${!showImages ? `
-    /* Blocked images - show placeholder */
-    img[data-blocked-src] {
-      display: inline-block !important;
-      min-width: 200px;
-      min-height: 100px;
-      background: #f3f4f6;
-      border: 2px dashed #e5e7eb;
-      border-radius: 6px;
-      padding: 20px;
-      text-align: center;
-      position: relative;
-      font-size: 13px;
-      color: #6b7280;
-    }
-
-    img[data-blocked-src]::before {
-      content: "🖼️";
-      display: block;
-      font-size: 32px;
-      margin-bottom: 8px;
-    }
-
-    img[data-blocked-src]::after {
-      content: "External image blocked for privacy";
-      display: block;
-      font-size: 13px;
-    }
-    ` : ''}
 
     /* Keep data URIs, Content-ID, and blob URLs */
     img[src^="data:"],
