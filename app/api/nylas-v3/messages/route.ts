@@ -44,8 +44,9 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Get account and verify ownership
+    // accountId is actually the nylasGrantId, not the database id
     const account = await db.query.emailAccounts.findFirst({
-      where: eq(emailAccounts.id, accountId),
+      where: eq(emailAccounts.nylasGrantId, accountId),
     });
 
     if (!account) {

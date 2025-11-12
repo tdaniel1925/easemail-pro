@@ -36,8 +36,9 @@ export async function GET(
     }
 
     // 2. Verify account ownership
+    // Note: accountId is the Nylas grant ID, not the database ID
     const account = await db.query.emailAccounts.findFirst({
-      where: eq(emailAccounts.id, accountId),
+      where: eq(emailAccounts.nylasGrantId, accountId),
     });
 
     if (!account) {
@@ -130,8 +131,9 @@ export async function PUT(
     }
 
     // 2. Verify account ownership
+    // Note: accountId is the Nylas grant ID, not the database ID
     const account = await db.query.emailAccounts.findFirst({
-      where: eq(emailAccounts.id, accountId),
+      where: eq(emailAccounts.nylasGrantId, accountId),
     });
 
     if (!account) {
@@ -222,8 +224,9 @@ export async function DELETE(
     }
 
     // 2. Verify account ownership
+    // Note: accountId is the Nylas grant ID, not the database ID
     const account = await db.query.emailAccounts.findFirst({
-      where: eq(emailAccounts.id, accountId),
+      where: eq(emailAccounts.nylasGrantId, accountId),
     });
 
     if (!account) {

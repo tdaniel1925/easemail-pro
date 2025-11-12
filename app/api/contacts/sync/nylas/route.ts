@@ -76,24 +76,30 @@ export async function POST(request: NextRequest) {
         const primaryEmail = nylasContact.emails?.find((e: any) => e.type === 'work' || e.type === 'personal')?.email
           || nylasContact.emails?.[0]?.email;
 
-        // Skip if no email
-        if (!primaryEmail) {
-          skipped.push({ contact: nylasContact, reason: 'No email address' });
-          continue;
-        }
+        // Generate a fallback email for contacts without one (using Nylas ID)
+        const emailLower = primaryEmail
+          ? primaryEmail.toLowerCase()
+          : `no-email-${nylasContact.id}@placeholder.local`.toLowerCase();
 
-        const emailLower = primaryEmail.toLowerCase();
+        // Check if contact already exists by provider ID or email
+        const existingByProvider = await db.query.contacts.findFirst({
+          where: and(
+            eq(contacts.userId, user.id),
+            eq(contacts.providerContactId, nylasContact.id)
+          ),
+        });
 
-        // Check if contact already exists
-        const existing = await db.query.contacts.findFirst({
+        const existingByEmail = !existingByProvider && primaryEmail ? await db.query.contacts.findFirst({
           where: and(
             eq(contacts.userId, user.id),
             eq(contacts.email, emailLower)
           ),
-        });
+        }) : null;
+
+        const existing = existingByProvider || existingByEmail;
 
         if (existing) {
-          skipped.push({ contact: nylasContact, reason: 'Already exists' });
+          skipped.push({ contact: nylasContact, reason: 'Already exists', existingId: existing.id });
           continue;
         }
 

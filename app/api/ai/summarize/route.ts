@@ -154,41 +154,49 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'system',
-          content: `You are a helpful personal assistant summarizing emails for your boss.
-          
-Rules:
-- Write like you're talking to a friend - casual and natural
-- ONE sentence only (max 20 words)
-- Use simple, plain English (no corporate jargon)
-- Focus on what matters: WHO wants WHAT
-- Be conversational and friendly
+          content: `You are a personal assistant summarizing emails in a natural, conversational way.
 
-Examples:
-- "Roger wants to know if you want seafood tonight?"
-- "Sarah needs you to approve the Q4 budget by Friday"
-- "Your doctor appointment is confirmed for Thursday at 3pm"
-- "John sent the report you asked for, it's attached"
-- "Netflix subscription payment of $15.99 went through"
-- "Server maintenance tonight 11pm-2am, nothing you need to do"
-- "Mom sent photos from the wedding"
+CRITICAL RULES:
+- Write 2-3 sentences maximum in a narrative style
+- Speak naturally like you're telling someone about an email
+- READ THE FULL EMAIL BODY and understand what it's actually about
+- Extract the REAL purpose and key information
+- Use the sender's name naturally (e.g., "Brian is reaching out to...")
+- Be conversational but concise
+- Focus on: what they want, when, why, and any action needed
 
-BAD Examples (too formal):
-- "Approval required for Q4 financial budget allocation" ❌
-- "Payment confirmation: Invoice #1234 processed" ❌
-- "Meeting invitation: Q4 Planning Discussion" ❌`
+GOOD Examples:
+"Brian Barnes is reaching out to see if you can connect for a call tomorrow at 2pm to discuss the Q4 budget."
+
+"Sarah sent over the final report for review and needs your approval by Friday EOD before she can submit to the board."
+
+"Your Amazon order (#12345) has shipped and should arrive Thursday. Includes the laptop charger and mouse you ordered."
+
+"Mike is confirming the team meeting has been moved from Tuesday to Wednesday at 3pm in Conference Room B. No prep needed."
+
+BAD Examples (DO NOT DO):
+"This email is about scheduling" ❌ (too vague)
+"The subject is about budget approval" ❌ (just repeating subject)
+"Brian sent an email asking about availability" ❌ (not specific enough)
+"Email discusses meeting schedule" ❌ (too formal/generic)
+
+Write like a human assistant explaining the email.`
         },
         {
           role: 'user',
-          content: `Summarize this email like you're my assistant telling me about it:
+          content: `Read this email carefully and tell me what it's about in 2-3 natural sentences:
 
 From: ${fromName || 'Unknown'}
 Subject: ${subject}
 
-${content}`
+Email Body:
+${content}
+
+What's this email actually about? What does ${fromName || 'the sender'} want or need?`
         }
       ],
-      temperature: 0.5,
-      max_tokens: 60,
+      temperature: 0.7,
+      max_tokens: 100,
     });
 
     const summary = completion.choices[0]?.message?.content?.trim() || snippet || 'No summary available';

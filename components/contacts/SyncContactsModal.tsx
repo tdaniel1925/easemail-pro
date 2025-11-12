@@ -68,6 +68,8 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
 
       if (!account.nylasGrantId) {
         console.error('❌ No Nylas grant ID for account:', account.emailAddress);
+        console.error('Account data:', account);
+        alert(`Cannot sync ${account.emailAddress}: This account is not properly connected to Nylas. Please reconnect it in Settings.`);
         setResults({
           ...results,
           [account.id]: {
@@ -146,7 +148,7 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl" aria-describedby="sync-contacts-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5" />
@@ -155,7 +157,7 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
-          <p className="text-sm text-muted-foreground">
+          <p id="sync-contacts-description" className="text-sm text-muted-foreground">
             Sync contacts from your connected Gmail and Outlook accounts. Existing contacts will be skipped.
           </p>
 

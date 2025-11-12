@@ -36,6 +36,7 @@ export default function InboxV3Page() {
   const [composeReplyTo, setComposeReplyTo] = useState<any>(null);
   const [composeType, setComposeType] = useState<'compose' | 'reply' | 'reply-all' | 'forward'>('compose');
   const [rightPanelTab, setRightPanelTab] = useState<'contact' | 'calendar' | 'ai'>('calendar');
+  const [aiReplyText, setAiReplyText] = useState<string | null>(null);
 
   // Get accounts
   const { accounts, loading: accountsLoading } = useAccounts();
@@ -47,7 +48,16 @@ export default function InboxV3Page() {
 
   // Auto-select first account if none selected
   if (!selectedAccountId && accounts.length > 0 && !accountsLoading) {
-    setSelectedAccountId(accounts[0].id);
+    // Use nylasGrantId (the Nylas grant ID) instead of id (database UUID)
+    const firstValidAccount = accounts.find(acc => acc.nylasGrantId);
+    if (firstValidAccount) {
+      setSelectedAccountId(firstValidAccount.nylasGrantId);
+    } else {
+      console.error('❌ No accounts with valid Nylas grant ID found.');
+      console.error('Please reconnect your email account in Settings.');
+      // Still set something to prevent infinite loop, but log the error
+      setSelectedAccountId(accounts[0].id);
+    }
   }
 
   const handleFolderSelect = (folderId: string, folderName: string) => {
@@ -60,7 +70,7 @@ export default function InboxV3Page() {
     setSelectedMessageId(messageId);
   };
 
-  const handleCompose = (type: 'reply' | 'reply-all' | 'forward', email: any) => {
+  const handleCompose = (type: 'reply' | 'reply-all' | 'forward', email: any, generatedReply?: string) => {
     const sender = email.from?.[0];
     const senderEmail = sender?.email || '';
     const senderName = sender?.name || senderEmail;
@@ -68,6 +78,13 @@ export default function InboxV3Page() {
     // Store selected message for contact panel first
     setSelectedMessage(email);
     setRightPanelTab('contact'); // Auto-switch to contact tab
+
+    // Store AI-generated reply if provided
+    if (generatedReply) {
+      setAiReplyText(generatedReply);
+    } else {
+      setAiReplyText(null);
+    }
 
     if (type === 'reply') {
       setComposeReplyTo({
@@ -133,7 +150,7 @@ export default function InboxV3Page() {
         </div>
 
         {/* Account Selector - Fixed */}
-        {accounts.length > 1 && (
+        {accounts.length > 0 && (
           <div className="flex-shrink-0 p-3 border-b border-border">
             <select
               value={selectedAccountId || ''}
@@ -144,7 +161,7 @@ export default function InboxV3Page() {
               className="w-full px-3 py-2 border rounded-lg text-sm bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]"
             >
               {accounts.map((account: any) => (
-                <option key={account.id} value={account.id} className="bg-background text-foreground">
+                <option key={account.id} value={account.nylasGrantId || account.id} className="bg-background text-foreground">
                   {account.emailAddress}
                 </option>
               ))}
@@ -214,12 +231,15 @@ export default function InboxV3Page() {
             onCompose={handleCompose}
           />
         ) : selectedMessageId && selectedAccountId ? (
-          <EmailViewerV3
-            messageId={selectedMessageId}
-            accountId={selectedAccountId}
-            onClose={() => setSelectedMessageId(null)}
-            onReply={handleReply}
-          />
+          <>
+            {console.log('🎯 Page passing to EmailViewerV3:', { selectedMessageId, selectedAccountId })}
+            <EmailViewerV3
+              messageId={selectedMessageId}
+              accountId={selectedAccountId}
+              onClose={() => setSelectedMessageId(null)}
+              onReply={handleReply}
+            />
+          </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
@@ -249,10 +269,12 @@ export default function InboxV3Page() {
         setIsComposeOpen(false);
         setComposeReplyTo(null);
         setComposeType('compose');
+        setAiReplyText(null);
       }}
       type={composeType}
       replyTo={composeReplyTo}
       accountId={selectedAccountId || undefined}
+      aiGeneratedReply={aiReplyText}
     />
     </>
   );

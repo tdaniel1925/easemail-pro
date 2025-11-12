@@ -1,0 +1,203 @@
+'use client';
+
+import { memo } from 'react';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Star,
+  Paperclip,
+  ArchiveX,
+  Trash2,
+  MessageSquare,
+} from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+
+interface EmailCardProps {
+  email: {
+    id: string;
+    subject: string | null;
+    snippet: string | null;
+    fromEmail: string | null;
+    fromName: string | null;
+    receivedAt: Date | string;
+    isRead: boolean | null;
+    isStarred: boolean | null;
+    hasAttachments: boolean | null;
+    attachmentsCount: number | null;
+  };
+  isSelected: boolean;
+  isActive: boolean;
+  onSelect: (id: string) => void;
+  onClick: (email: any) => void;
+  threadCount?: number;
+}
+
+function EmailCard({
+  email,
+  isSelected,
+  isActive,
+  onSelect,
+  onClick,
+  threadCount = 0,
+}: EmailCardProps) {
+  const getInitial = (name: string | null, email: string | null) => {
+    if (name) return name.charAt(0).toUpperCase();
+    if (email) return email.charAt(0).toUpperCase();
+    return '?';
+  };
+
+  const formatDate = (date: Date | string) => {
+    try {
+      const d = typeof date === 'string' ? new Date(date) : date;
+      return formatDistanceToNow(d, { addSuffix: true });
+    } catch {
+      return '';
+    }
+  };
+
+  const truncate = (text: string | null, length: number) => {
+    if (!text) return '';
+    return text.length > length ? text.substring(0, length) + '...' : text;
+  };
+
+  return (
+    <div
+      className={cn(
+        'relative border-b border-gray-200 dark:border-gray-700 p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group',
+        isActive && 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500',
+        !email.isRead && 'bg-blue-50/30 dark:bg-blue-950/20'
+      )}
+      onClick={() => onClick(email)}
+    >
+      <div className="flex items-start gap-3">
+        {/* Checkbox */}
+        <div
+          className="pt-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(email.id);
+          }}
+        >
+          <Checkbox checked={isSelected} />
+        </div>
+
+        {/* Avatar */}
+        <div
+          className={cn(
+            'flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold text-sm',
+            email.isRead
+              ? 'bg-gray-400 dark:bg-gray-600'
+              : 'bg-blue-500 dark:bg-blue-600'
+          )}
+        >
+          {getInitial(email.fromName, email.fromEmail)}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <div className="flex-1 min-w-0">
+              <p
+                className={cn(
+                  'text-sm truncate',
+                  email.isRead
+                    ? 'text-gray-600 dark:text-gray-400'
+                    : 'text-gray-900 dark:text-gray-100 font-semibold'
+                )}
+              >
+                {email.fromName || email.fromEmail || 'Unknown Sender'}
+              </p>
+            </div>
+
+            {/* Date and Star */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {formatDate(email.receivedAt)}
+              </span>
+              <button
+                className={cn(
+                  'opacity-0 group-hover:opacity-100 transition-opacity',
+                  email.isStarred && 'opacity-100'
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Handle star toggle
+                }}
+              >
+                <Star
+                  className={cn(
+                    'h-4 w-4',
+                    email.isStarred
+                      ? 'fill-yellow-400 text-yellow-400'
+                      : 'text-gray-400'
+                  )}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Subject */}
+          <p
+            className={cn(
+              'text-sm mb-1 truncate',
+              email.isRead
+                ? 'text-gray-700 dark:text-gray-300'
+                : 'text-gray-900 dark:text-gray-100 font-semibold'
+            )}
+          >
+            {email.subject || '(No subject)'}
+          </p>
+
+          {/* Snippet */}
+          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+            {truncate(email.snippet, 150)}
+          </p>
+
+          {/* Footer Badges */}
+          <div className="flex items-center gap-2 mt-2">
+            {threadCount > 1 && (
+              <Badge variant="secondary" className="text-xs">
+                <MessageSquare className="h-3 w-3 mr-1" />
+                {threadCount}
+              </Badge>
+            )}
+            {email.hasAttachments && (
+              <Badge variant="secondary" className="text-xs">
+                <Paperclip className="h-3 w-3 mr-1" />
+                {email.attachmentsCount || 1}
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Actions (on hover) */}
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+          <button
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Handle archive
+            }}
+            title="Archive"
+          >
+            <ArchiveX className="h-4 w-4 text-gray-500" />
+          </button>
+          <button
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Handle delete
+            }}
+            title="Delete"
+          >
+            <Trash2 className="h-4 w-4 text-gray-500" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default memo(EmailCard);
