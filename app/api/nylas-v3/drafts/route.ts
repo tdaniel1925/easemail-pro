@@ -252,6 +252,39 @@ export async function POST(request: NextRequest) {
     console.error(`[Draft] Error type:`, typeof error);
     console.error(`[Draft] Error object:`, JSON.stringify(error, null, 2));
     console.error(`[Draft] Full error:`, error);
+
+    // FALLBACK: Check for bare newlines error here since inner catch may not execute
+    const isBareNewlines = isBareNewlinesError(error);
+    const aurinkoEnabled = isAurinkoEnabled();
+    console.error(`[Draft] 🔍 OUTER CATCH - isBareNewlines: ${isBareNewlines}, aurinkoEnabled: ${aurinkoEnabled}`);
+
+    if (isBareNewlines && aurinkoEnabled && account) {
+      console.error('[Draft] 🔄 OUTER CATCH - Trying Aurinko fallback...');
+
+      try {
+        const aurinkoResult = await createAurinkoDraft(account.nylasGrantId, {
+          subject: draftData.subject,
+          body: draftData.body,
+          to: draftData.to || [],
+          cc: draftData.cc,
+          bcc: draftData.bcc,
+          replyToMessageId: replyToMessageId,
+        });
+
+        if (aurinkoResult.success) {
+          console.error(`[Draft] ✅ OUTER CATCH - Aurinko fallback succeeded!`);
+          return NextResponse.json({
+            success: true,
+            draftId: aurinkoResult.draftId,
+            method: 'aurinko_fallback',
+            timing: { total: Date.now() - startTime },
+          });
+        }
+      } catch (aurinkoError) {
+        console.error('[Draft] ❌ OUTER CATCH - Aurinko also failed:', aurinkoError);
+      }
+    }
+
     const nylasError = handleNylasError(error);
 
     return NextResponse.json({
