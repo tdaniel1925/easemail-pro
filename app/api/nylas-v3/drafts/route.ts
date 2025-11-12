@@ -256,7 +256,17 @@ export async function POST(request: NextRequest) {
     const totalElapsed = Date.now() - startTime;
     console.error(`[Draft] ===== ERROR after ${totalElapsed}ms =====`);
     console.error(`[Draft] Error type:`, typeof error);
-    console.error(`[Draft] Error object:`, JSON.stringify(error, null, 2));
+    console.error(`[Draft] Error constructor:`, error?.constructor?.name);
+
+    // Log all possible error message locations
+    console.error(`[Draft] error.message:`, (error as any)?.message);
+    console.error(`[Draft] error.error:`, (error as any)?.error);
+    console.error(`[Draft] error.providerError:`, (error as any)?.providerError);
+    console.error(`[Draft] error.providerError?.error:`, (error as any)?.providerError?.error);
+    console.error(`[Draft] error.providerError?.error?.message:`, (error as any)?.providerError?.error?.message);
+    console.error(`[Draft] error.statusCode:`, (error as any)?.statusCode);
+    console.error(`[Draft] error.status:`, (error as any)?.status);
+
     console.error(`[Draft] Full error:`, error);
 
     // FALLBACK: Check for bare newlines error here since inner catch may not execute
