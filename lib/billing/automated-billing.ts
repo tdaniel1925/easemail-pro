@@ -28,9 +28,12 @@ import {
   sendChargeFailureEmail,
 } from './email-notifications';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16',
-});
+// Only initialize Stripe if the secret key is available
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2023-10-16',
+    })
+  : null;
 
 export interface BillingConfig {
   enabled: boolean;
@@ -275,7 +278,11 @@ async function chargePaymentMethod(
     if (!pm || !pm.stripePaymentMethodId) {
       return { success: false, error: 'Payment method not found' };
     }
-    
+
+    if (!stripe) {
+      return { success: false, error: 'Stripe is not configured' };
+    }
+
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
