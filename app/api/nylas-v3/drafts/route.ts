@@ -15,15 +15,15 @@ import { handleNylasError } from '@/lib/nylas-v3/errors';
 export const maxDuration = 60;
 
 /**
- * Fix bare newlines in email HTML by ensuring CRLF line endings
- * Email providers (IMAP/SMTP) require CRLF (\r\n) instead of just LF (\n)
+ * Fix bare newlines by removing ALL newlines from HTML
+ * HTML doesn't need newlines - they're just for human readability
+ * This prevents "Message contains bare newlines" errors from email providers
  */
 function fixBareNewlines(html: string): string {
   if (!html) return html;
-  // First normalize all line endings to LF only
-  const normalized = html.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  // Then convert all LF to CRLF
-  return normalized.replace(/\n/g, '\r\n');
+  // Strip ALL newlines and carriage returns - HTML doesn't need them
+  // This is the most reliable way to avoid bare newline errors
+  return html.replace(/\r?\n/g, '');
 }
 
 export async function POST(request: NextRequest) {
