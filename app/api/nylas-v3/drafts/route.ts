@@ -46,15 +46,25 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Verify account ownership
-    // Note: accountId is the Nylas grant ID, not the database ID
+    // Note: accountId can be either the Nylas grant ID OR the database ID
+    // Try both to handle edge cases where grant ID might not be set
     const dbStart = Date.now();
-    const account = await db.query.emailAccounts.findFirst({
+    let account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.nylasGrantId, accountId),
     });
+
+    // If not found by grant ID, try database ID (fallback for accounts without grant ID)
+    if (!account) {
+      console.log('[Draft] Not found by grant ID, trying database ID...');
+      account = await db.query.emailAccounts.findFirst({
+        where: eq(emailAccounts.id, accountId),
+      });
+    }
     console.log(`[Draft] Database query took ${Date.now() - dbStart}ms`);
 
     if (!account) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+      console.error('[Draft] Account not found with either grant ID or database ID:', accountId);
+      return NextResponse.json({ error: 'Account not found. Please reconnect your email account.' }, { status: 404 });
     }
 
     if (account.userId !== user.id) {
