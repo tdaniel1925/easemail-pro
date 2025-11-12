@@ -21,13 +21,54 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('query')?.toLowerCase() || '';
+    const showRecent = searchParams.get('recent') === 'true';
+
+    const suggestions: Suggestion[] = [];
+    const seenEmails = new Set<string>();
+
+    // If no query and recent flag is set, show most recently emailed contacts
+    if (!query && showRecent) {
+      const { data: recentSentEmails } = await supabase
+        .from('emails')
+        .select('to_emails, cc_emails, sent_at')
+        .eq('folder', 'sent')
+        .order('sent_at', { ascending: false })
+        .limit(20);
+
+      if (recentSentEmails) {
+        for (const email of recentSentEmails) {
+          const toEmails = Array.isArray(email.to_emails) ? email.to_emails : [];
+          const ccEmails = Array.isArray(email.cc_emails) ? email.cc_emails : [];
+          const allRecipients = [...toEmails, ...ccEmails];
+
+          for (const recipient of allRecipients) {
+            if (!recipient || typeof recipient !== 'object') continue;
+            const recipientEmail = recipient.email?.toLowerCase();
+            if (!recipientEmail || seenEmails.has(recipientEmail)) continue;
+
+            seenEmails.add(recipientEmail);
+            suggestions.push({
+              email: recipient.email,
+              name: recipient.name || undefined,
+              source: 'recent',
+            });
+
+            if (suggestions.length >= 8) break;
+          }
+
+          if (suggestions.length >= 8) break;
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        suggestions: suggestions.slice(0, 8),
+      });
+    }
 
     if (query.length < 2) {
       return NextResponse.json({ suggestions: [] });
     }
-
-    const suggestions: Suggestion[] = [];
-    const seenEmails = new Set<string>();
 
     // 1. Search contacts first (higher priority)
     const { data: contacts } = await supabase
@@ -52,29 +93,35 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 2. Search recent email recipients (to/cc/bcc from sent emails)
+    // 2. Search recipients from SENT emails (folder = 'sent')
     const { data: sentEmails } = await supabase
       .from('emails')
-      .select('to_emails, cc_emails, from_email, from_name')
-      .eq('account_id', user.id)
-      .or(`to_emails::text.ilike.%${query}%,cc_emails::text.ilike.%${query}%,from_email.ilike.%${query}%`)
+      .select('to_emails, cc_emails, bcc_emails, sent_at')
+      .eq('folder', 'sent')
+      .or(`to_emails::text.ilike.%${query}%,cc_emails::text.ilike.%${query}%,bcc_emails::text.ilike.%${query}%`)
       .order('sent_at', { ascending: false })
-      .limit(20);
+      .limit(50); // Check more sent emails for better history
 
     if (sentEmails) {
       for (const email of sentEmails) {
-        // Extract recipients from to_emails
+        // Extract recipients from to_emails, cc_emails, bcc_emails
         const toEmails = Array.isArray(email.to_emails) ? email.to_emails : [];
         const ccEmails = Array.isArray(email.cc_emails) ? email.cc_emails : [];
-        const allRecipients = [...toEmails, ...ccEmails];
+        const bccEmails = Array.isArray(email.bcc_emails) ? email.bcc_emails : [];
+        const allRecipients = [...toEmails, ...ccEmails, ...bccEmails];
 
         for (const recipient of allRecipients) {
           if (!recipient || typeof recipient !== 'object') continue;
-          
+
           const recipientEmail = recipient.email?.toLowerCase();
           if (!recipientEmail) continue;
           if (seenEmails.has(recipientEmail)) continue;
-          if (!recipientEmail.includes(query.toLowerCase())) continue;
+
+          // Check if email or name matches query
+          const recipientName = recipient.name?.toLowerCase() || '';
+          if (!recipientEmail.includes(query.toLowerCase()) && !recipientName.includes(query.toLowerCase())) {
+            continue;
+          }
 
           seenEmails.add(recipientEmail);
           suggestions.push({
@@ -86,20 +133,35 @@ export async function GET(request: NextRequest) {
           if (suggestions.length >= 15) break;
         }
 
-        // Also check from_email for received emails
-        if (email.from_email && !seenEmails.has(email.from_email.toLowerCase())) {
-          const fromEmailLower = email.from_email.toLowerCase();
-          if (fromEmailLower.includes(query.toLowerCase())) {
-            seenEmails.add(fromEmailLower);
-            suggestions.push({
-              email: email.from_email,
-              name: email.from_name || undefined,
-              source: 'recent',
-            });
-          }
-        }
-
         if (suggestions.length >= 15) break;
+      }
+    }
+
+    // 3. Also check FROM addresses in received emails (people who emailed you)
+    if (suggestions.length < 15) {
+      const { data: receivedEmails } = await supabase
+        .from('emails')
+        .select('from_email, from_name')
+        .neq('folder', 'sent') // Not sent emails
+        .or(`from_email.ilike.%${query}%,from_name.ilike.%${query}%`)
+        .order('received_at', { ascending: false })
+        .limit(20);
+
+      if (receivedEmails) {
+        for (const email of receivedEmails) {
+          if (!email.from_email) continue;
+          const fromEmailLower = email.from_email.toLowerCase();
+          if (seenEmails.has(fromEmailLower)) continue;
+
+          seenEmails.add(fromEmailLower);
+          suggestions.push({
+            email: email.from_email,
+            name: email.from_name || undefined,
+            source: 'recent',
+          });
+
+          if (suggestions.length >= 15) break;
+        }
       }
     }
 

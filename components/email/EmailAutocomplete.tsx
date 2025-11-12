@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 
 interface EmailRecipient {
   email: string;
@@ -29,6 +29,7 @@ export default function EmailAutocomplete({
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -60,20 +61,26 @@ export default function EmailAutocomplete({
 
     const fetchSuggestions = async () => {
       try {
+        setIsLoading(true);
         const response = await fetch(`/api/emails/suggestions?query=${encodeURIComponent(input)}`);
         if (!response.ok) return;
 
         const data = await response.json();
         setSuggestions(data.suggestions || []);
-        setShowSuggestions(true);
+        setShowSuggestions(data.suggestions && data.suggestions.length > 0);
         setSelectedIndex(0);
       } catch (error) {
         console.error('Error fetching email suggestions:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     const debounce = setTimeout(fetchSuggestions, 200);
-    return () => clearTimeout(debounce);
+    return () => {
+      clearTimeout(debounce);
+      setIsLoading(false);
+    };
   }, [input]);
 
   // Close suggestions when clicking outside
@@ -192,7 +199,7 @@ export default function EmailAutocomplete({
         </label>
       )}
 
-      <div className="flex flex-wrap gap-2 p-2 border border-border rounded-lg bg-background min-h-[42px] focus-within:ring-2 focus-within:ring-primary/20">
+      <div className="flex flex-wrap gap-2 p-2 border border-border rounded-lg bg-background min-h-[42px] focus-within:ring-2 focus-within:ring-primary/20 relative">
         {value.map((recipient, index) => (
           <div
             key={index}
@@ -220,18 +227,23 @@ export default function EmailAutocomplete({
           </div>
         ))}
 
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          placeholder={value.length === 0 ? placeholder : ''}
-          className="flex-1 min-w-[200px] outline-none bg-transparent text-sm"
-        />
+        <div className="flex-1 min-w-[200px] relative flex items-center">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            placeholder={value.length === 0 ? placeholder : ''}
+            className="flex-1 outline-none bg-transparent text-sm pr-6"
+          />
+          {isLoading && (
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground absolute right-0" />
+          )}
+        </div>
       </div>
 
       {showSuggestions && suggestions.length > 0 && (
@@ -246,17 +258,21 @@ export default function EmailAutocomplete({
                 index === selectedIndex ? 'bg-accent' : ''
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
                   {suggestion.name && (
-                    <div className="font-medium text-sm">{suggestion.name}</div>
+                    <div className="font-medium text-sm truncate">{suggestion.name}</div>
                   )}
-                  <div className={`text-sm ${suggestion.name ? 'text-muted-foreground' : ''}`}>
+                  <div className={`text-sm truncate ${suggestion.name ? 'text-muted-foreground' : ''}`}>
                     {suggestion.email}
                   </div>
                 </div>
-                <div className="text-xs text-muted-foreground capitalize">
-                  {suggestion.source}
+                <div className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                  suggestion.source === 'contact'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                }`}>
+                  {suggestion.source === 'contact' ? 'Contact' : 'Recent'}
                 </div>
               </div>
             </button>

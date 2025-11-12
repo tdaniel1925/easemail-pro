@@ -344,8 +344,10 @@ export function EmailViewerV3({
 
       {/* Email Body - Scrollable */}
       <div className="flex-1 overflow-y-auto p-6 min-h-0">
+        {console.log('📤 EmailViewerV3 passing to EmailRendererV3:', { messageId, accountId, attachmentCount: message.attachments?.length || 0 })}
         <EmailRendererV3
           emailId={messageId}
+          messageId={messageId}
           accountId={accountId}
           bodyHtml={message.body}
           bodyText={message.snippet}
@@ -393,9 +395,14 @@ export function EmailViewerV3({
                     size="icon"
                     onClick={async () => {
                       try {
-                        // Download attachment via API
+                        // Download attachment via v3 API with query parameters
+                        const params = new URLSearchParams({
+                          accountId: accountId,
+                          messageId: message?.id || '',
+                          attachmentId: attachment.id,
+                        });
                         const response = await fetch(
-                          `/api/nylas/messages/${message?.id}/attachments/${attachment.id}?accountId=${accountId}`
+                          `/api/nylas-v3/messages/download/attachment?${params.toString()}`
                         );
 
                         if (!response.ok) {

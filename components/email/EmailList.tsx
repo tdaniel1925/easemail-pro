@@ -828,8 +828,13 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
       console.log('📥 Downloading:', attachment.filename);
       showToast('info', `Downloading ${attachment.filename}...`);
 
+      const params = new URLSearchParams({
+        accountId: accountId,
+        messageId: emailId,
+        attachmentId: attachment.id,
+      });
       const response = await fetch(
-        `/api/nylas/messages/${emailId}/attachments/${attachment.id}?accountId=${accountId}`
+        `/api/nylas-v3/messages/download/attachment?${params.toString()}`
       );
 
       if (!response.ok) {
@@ -1147,6 +1152,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
                 ) : true ? ( // FORCE V3 renderer - always use it
                   <EmailRendererV3
                     emailId={email.id}
+                    messageId={email.id}
                     accountId={email.accountId || ''}
                     bodyHtml={displayEmail.bodyHtml}
                     bodyText={displayEmail.bodyText}

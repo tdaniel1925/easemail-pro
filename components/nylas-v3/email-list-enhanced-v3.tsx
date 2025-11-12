@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useInView } from 'react-intersection-observer';
 import {
   Loader2,
@@ -511,7 +512,7 @@ export function EmailListEnhancedV3({
               <h2 className="text-sm font-medium capitalize">{folderName}</h2>
             </div>
 
-            {/* AI Summary Toggle */}
+            {/* AI Summary Toggle - Moved to left of search */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
                 <Switch checked={showAISummaries} onCheckedChange={handleAISummaryToggle} />
@@ -647,7 +648,6 @@ function EmailCard({
   isExpanded,
   isSelected,
   isChecked,
-  selectMode,
   showAISummaries,
   onSelect,
   onClick,
@@ -659,34 +659,109 @@ function EmailCard({
   const [fullEmail, setFullEmail] = useState<EmailMessage | null>(null);
   const [loadingFullEmail, setLoadingFullEmail] = useState(false);
   const [showThread, setShowThread] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Viewport detection for AI summary
+  // Viewport detection for previews
   const { ref, inView } = useInView({
     threshold: 0.5,
     triggerOnce: true,
   });
 
-  // Convert to format expected by useEmailSummary hook
-  const emailForSummary = {
-    id: message.id,
-    fromEmail: sender.email,
-    fromName: sender.name,
-    subject: message.subject,
-    snippet: message.snippet,
-    receivedAt: new Date(message.date * 1000),
-    isRead: !message.unread,
-    isStarred: message.starred,
-    hasAttachments: message.hasAttachments || false,
-    attachments: message.attachments || [],
-    labels: message.labels || [],
-    threadId: message.threadId,
+  // Smart preview extraction - get first 2-3 lines from snippet/body
+  const extractSmartPreview = (text: string, maxLines: number = 3): string => {
+    if (!text) return '';
+
+    // Remove extra whitespace and newlines
+    const cleaned = text.replace(/\s+/g, ' ').trim();
+
+    // Split into sentences
+    const sentences = cleaned.split(/[.!?]+\s+/).filter(s => s.trim().length > 0);
+
+    // Take first 2-3 sentences or up to 300 characters
+    const preview = sentences.slice(0, maxLines).join('. ');
+
+    return preview.length > 300 ? preview.substring(0, 300) + '...' : preview + (sentences.length > 0 ? '.' : '');
   };
 
-  const shouldFetchSummary = inView && showAISummaries;
-  const { data: summaryData, isLoading: isSummaryLoading } = useEmailSummary(
-    emailForSummary,
-    shouldFetchSummary
-  );
+  // Highlight dates, names, and important keywords
+  const highlightText = (text: string): JSX.Element => {
+    // Regex patterns
+    const datePattern = /\b(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}-\d{1,2}-\d{2,4}|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/gi;
+    const timePattern = /\b\d{1,2}:\d{2}\s*(am|pm|AM|PM)?\b/g;
+    const urlPattern = /(https?:\/\/[^\s]+)/g;
+
+    let result = text;
+    const highlights: { start: number; end: number; type: string }[] = [];
+
+    // Find all matches
+    let match;
+    while ((match = datePattern.exec(text)) !== null) {
+      highlights.push({ start: match.index, end: match.index + match[0].length, type: 'date' });
+    }
+    while ((match = timePattern.exec(text)) !== null) {
+      highlights.push({ start: match.index, end: match.index + match[0].length, type: 'time' });
+    }
+    while ((match = urlPattern.exec(text)) !== null) {
+      highlights.push({ start: match.index, end: match.index + match[0].length, type: 'url' });
+    }
+
+    // Sort highlights by position
+    highlights.sort((a, b) => a.start - b.start);
+
+    // Build JSX with highlights
+    if (highlights.length === 0) {
+      return <>{text}</>;
+    }
+
+    const elements: JSX.Element[] = [];
+    let lastEnd = 0;
+
+    highlights.forEach((h, idx) => {
+      // Add text before highlight
+      if (h.start > lastEnd) {
+        elements.push(<span key={`text-${idx}`}>{text.substring(lastEnd, h.start)}</span>);
+      }
+
+      // Add highlighted text
+      const highlightClass = h.type === 'date' ? 'text-blue-600 dark:text-blue-400 font-medium' :
+                            h.type === 'time' ? 'text-green-600 dark:text-green-400 font-medium' :
+                            'text-purple-600 dark:text-purple-400 underline';
+
+      elements.push(
+        <span key={`highlight-${idx}`} className={highlightClass}>
+          {text.substring(h.start, h.end)}
+        </span>
+      );
+
+      lastEnd = h.end;
+    });
+
+    // Add remaining text
+    if (lastEnd < text.length) {
+      elements.push(<span key="text-end">{text.substring(lastEnd)}</span>);
+    }
+
+    return <>{elements}</>;
+  };
+
+  const smartPreview = extractSmartPreview(message.snippet || message.body || '');
+
+  // Handle hover for popup
+  const handleMouseEnter = () => {
+    if (showAISummaries) {
+      setShowPopup(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setShowPopup(false);
+  };
+
+  // Mount detection for portal (SSR safety)
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Fetch full email body when expanded
   useEffect(() => {
@@ -710,8 +785,8 @@ function EmailCard({
   }, [isExpanded, message.id, message.body, fullEmail, accountId]);
 
   const displayEmail = fullEmail || message;
-  const displayText = (showAISummaries && summaryData?.summary) || message.snippet;
-  const hasAISummary = showAISummaries && !!(summaryData && summaryData.summary);
+  const displayText = smartPreview || message.snippet;
+  const showSmartPreview = showAISummaries && !!smartPreview;
 
   const handleAction = async (e: React.MouseEvent, action: string) => {
     e.stopPropagation();
@@ -773,13 +848,203 @@ function EmailCard({
     <div
       ref={ref}
       className={cn(
-        'border border-border/50 rounded-lg transition-all bg-card overflow-hidden cursor-pointer',
+        'border border-border/50 rounded-lg transition-all bg-card overflow-hidden cursor-pointer relative',
         'hover:shadow-md hover:-translate-y-0.5',
         !message.unread && 'bg-card',
         message.unread && 'bg-accent/30',
         isSelected && 'ring-2 ring-primary ring-offset-1'
       )}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
+      {/* AI Summary Popup - Rendered via Portal */}
+      {showPopup && isMounted && createPortal(
+        <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] w-[480px] bg-popover border-2 border-primary rounded-xl shadow-2xl overflow-hidden">
+          {/* Header with Sender Info */}
+          <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4 border-b border-border">
+            <div className="flex items-start gap-3">
+              {/* Sender Avatar */}
+              <div
+                className="h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold text-white flex-shrink-0"
+                style={{
+                  backgroundColor: generateAvatarColor(
+                    message.from[0]?.email || message.from[0]?.name || 'Unknown'
+                  ),
+                }}
+              >
+                {getInitials(message.from[0]?.name || message.from[0]?.email || 'U')}
+              </div>
+
+              {/* Sender Details */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-semibold truncate">
+                    {message.from[0]?.name || message.from[0]?.email}
+                  </h4>
+                  {/* Priority Badge */}
+                  {message.unread && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-700 dark:text-orange-300 text-[10px] font-medium">
+                      <Bell className="h-2.5 w-2.5" />
+                      Priority
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground truncate">
+                  {message.from[0]?.email}
+                </p>
+                {message.hasAttachments && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Paperclip className="h-3 w-3" />
+                      {message.attachments?.length || 1} attachment{message.attachments?.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Category Tags */}
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              {/* Auto-detect categories based on email content */}
+              {message.from[0]?.email?.includes('noreply') || message.from[0]?.email?.includes('newsletter') ? (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] font-medium">
+                  <Tag className="h-2.5 w-2.5" />
+                  Newsletter
+                </span>
+              ) : message.subject?.toLowerCase().includes('invoice') || message.subject?.toLowerCase().includes('receipt') ? (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/20 text-green-700 dark:text-green-300 text-[10px] font-medium">
+                  <Tag className="h-2.5 w-2.5" />
+                  Finance
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[10px] font-medium">
+                  <Tag className="h-2.5 w-2.5" />
+                  Work
+                </span>
+              )}
+
+            </div>
+          </div>
+
+          {/* Smart Preview Section */}
+          <div className="p-4 border-b border-border">
+            <div className="flex items-start gap-2 mb-2">
+              <MailIcon className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+              <h4 className="text-sm font-semibold">Email Preview</h4>
+            </div>
+            {smartPreview ? (
+              <p className="text-sm text-foreground leading-relaxed">
+                {highlightText(smartPreview)}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No preview available
+              </p>
+            )}
+            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                Dates
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+                Times
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-purple-500"></span>
+                Links
+              </span>
+            </div>
+          </div>
+
+          {/* Attachment Previews */}
+          {message.hasAttachments && message.attachments && message.attachments.length > 0 && (
+            <div className="p-4 border-b border-border">
+              <h4 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
+                <Paperclip className="h-3 w-3" />
+                Attachments ({message.attachments.length})
+              </h4>
+              <div className="flex gap-2 flex-wrap">
+                {message.attachments.slice(0, 3).map((attachment: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 px-2 py-1.5 bg-accent rounded-md text-xs max-w-[140px]"
+                  >
+                    <Paperclip className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    <span className="truncate">{attachment.filename || `Attachment ${idx + 1}`}</span>
+                  </div>
+                ))}
+                {message.attachments.length > 3 && (
+                  <span className="text-xs text-muted-foreground px-2 py-1.5">
+                    +{message.attachments.length - 3} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Actions */}
+          <div className="p-4 bg-accent/30">
+            <h4 className="text-xs font-semibold text-muted-foreground mb-3">Quick Actions</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-xs h-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPopup(false);
+                  onCompose?.('reply', message);
+                }}
+              >
+                <Reply className="h-3 w-3 mr-1.5" />
+                Reply
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-xs h-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPopup(false);
+                  onCompose?.('forward', message);
+                }}
+              >
+                <Forward className="h-3 w-3 mr-1.5" />
+                Forward
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-xs h-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPopup(false);
+                  handleAction(e, 'markRead');
+                }}
+              >
+                <MailOpen className="h-3 w-3 mr-1.5" />
+                Mark Read
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="w-full justify-start text-xs h-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPopup(false);
+                  handleAction(e, 'delete');
+                }}
+              >
+                <Trash2 className="h-3 w-3 mr-1.5" />
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Email Preview - Always Visible */}
       <div
         className={cn('p-4 transition-colors', isExpanded && 'bg-accent/50')}
@@ -847,18 +1112,15 @@ function EmailCard({
 
             {!isExpanded && (
               <>
-                {/* AI Summary or Email Preview */}
+                {/* Smart Preview or Email Snippet */}
                 <div className="flex items-start gap-2 pr-2 mb-3">
-                  {isSummaryLoading && (
-                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground mt-1 flex-shrink-0" />
-                  )}
-                  {hasAISummary && !isSummaryLoading && (
-                    <Sparkles className="h-3 w-3 text-primary mt-1 flex-shrink-0" />
+                  {showSmartPreview && (
+                    <MailIcon className="h-3 w-3 text-primary mt-1 flex-shrink-0" />
                   )}
                   <p
                     className={cn(
                       'text-sm line-clamp-3 flex-1 leading-relaxed',
-                      hasAISummary ? 'text-foreground' : 'text-muted-foreground',
+                      showSmartPreview ? 'text-foreground' : 'text-muted-foreground',
                       message.unread && 'font-medium'
                     )}
                   >
@@ -1061,6 +1323,7 @@ function EmailCard({
             ) : (
               <EmailRendererV3
                 emailId={message.id}
+                messageId={message.id}
                 accountId={accountId}
                 bodyHtml={displayEmail.body}
                 bodyText={displayEmail.snippet}
@@ -1105,9 +1368,22 @@ function EmailCard({
                         onClick={async (e) => {
                           e.stopPropagation();
                           try {
+                            // Pass IDs as query parameters to avoid URL encoding issues with special characters
+                            const params = new URLSearchParams({
+                              accountId: accountId,
+                              messageId: message.id,
+                              attachmentId: attachment.id,
+                            });
+
                             const response = await fetch(
-                              `/api/nylas-v3/messages/${message.id}/attachments/${attachment.id}?accountId=${accountId}`
+                              `/api/nylas-v3/messages/download/attachment?${params.toString()}`
                             );
+
+                            if (!response.ok) {
+                              const errorData = await response.json();
+                              throw new Error(errorData.details || 'Failed to download attachment');
+                            }
+
                             const blob = await response.blob();
                             const url = window.URL.createObjectURL(blob);
                             const a = document.createElement('a');
@@ -1119,6 +1395,7 @@ function EmailCard({
                             document.body.removeChild(a);
                           } catch (error) {
                             console.error('Download error:', error);
+                            alert(`Failed to download attachment: ${error instanceof Error ? error.message : 'Unknown error'}`);
                           }
                         }}
                       >

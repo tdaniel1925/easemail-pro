@@ -15,6 +15,7 @@ interface Attachment {
 
 interface EmailRendererV3Props {
   emailId: string;
+  messageId?: string; // Provider message ID required for attachment downloads
   accountId: string;
   bodyHtml?: string;
   bodyText?: string;
@@ -35,6 +36,7 @@ interface EmailRendererV3Props {
  */
 export function EmailRendererV3({
   emailId,
+  messageId,
   accountId,
   bodyHtml,
   bodyText,
@@ -50,6 +52,7 @@ export function EmailRendererV3({
   // Debug logging to track what we're receiving
   console.log('📧 EmailRendererV3 received:', {
     emailId,
+    accountId,
     hasBodyHtml: !!bodyHtml,
     hasBodyText: !!bodyText,
     bodyHtmlLength: bodyHtml?.length || 0,
@@ -84,24 +87,44 @@ export function EmailRendererV3({
 
     try {
       console.log('📥 V3 Downloading:', attachment.filename);
+      console.log('📥 Using accountId (grant ID):', accountId);
+      console.log('📥 Using messageId:', messageId);
+      console.log('📥 Using emailId:', emailId);
+
+      // Use simpler v3 attachments endpoint with grantId, messageId, and filename
+      const params = new URLSearchParams({
+        grantId: accountId,  // accountId IS the grant ID in Nylas v3
+        attachmentId: attachment.id,
+        messageId: messageId || emailId, // Use provider messageId, fallback to emailId
+        filename: attachment.filename,
+      });
+
+      console.log('📥 Download URL:', `/api/nylas-v3/attachments/download?${params.toString()}`);
 
       const response = await fetch(
-        `/api/nylas/messages/${emailId}/attachments/${attachment.id}?accountId=${accountId}`,
+        `/api/nylas-v3/attachments/download?${params.toString()}`,
         {
           method: 'GET',
-          headers: {
-            'Accept': attachment.contentType || 'application/octet-stream',
-          },
         }
       );
 
       if (!response.ok) {
         const contentType = response.headers.get('content-type');
         let errorMessage = 'Download failed';
+        let errorDetails = null;
+
+        console.error('❌ API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          contentType,
+          url: response.url
+        });
 
         if (contentType?.includes('application/json')) {
           const data = await response.json();
+          console.error('❌ API Error Data:', data);
           errorMessage = data.error || data.details || errorMessage;
+          errorDetails = data;
         } else {
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
