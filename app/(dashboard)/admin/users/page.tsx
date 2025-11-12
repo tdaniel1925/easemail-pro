@@ -54,6 +54,8 @@ export default function UsersManagement() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
+  const [impersonateConfirm, setImpersonateConfirm] = useState<{ userId: string; userEmail: string } | null>(null);
+  const [impersonating, setImpersonating] = useState(false);
 
   // Toast notification state
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -180,54 +182,63 @@ export default function UsersManagement() {
     }
   };
 
-  const handleImpersonateUser = async (userId: string, userEmail: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to impersonate ${userEmail}?\n\n` +
-      `This will log you in as this user. All actions will be logged for audit purposes.`
-    );
+  const handleImpersonateUser = async () => {
+    if (!impersonateConfirm) return;
 
-    if (!confirmed) return;
+    const { userId, userEmail } = impersonateConfirm;
+    setImpersonating(true);
 
     try {
-      showToast('info', 'Creating impersonation session...');
+      console.log(`[Impersonate] Starting impersonation for user ${userId} (${userEmail})`);
 
       const response = await fetch(`/api/admin/users/${userId}/impersonate`, {
         method: 'POST',
       });
 
+      console.log(`[Impersonate] Response status: ${response.status}`);
       const data = await response.json();
+      console.log(`[Impersonate] Response data:`, data);
 
       if (response.ok && data.success) {
-        showToast('success', `Logging in as ${userEmail}...`);
+        console.log(`[Impersonate] Success, setting session...`);
 
-        // Use Supabase to set the session with the tokens
-        const { createBrowserClient } = await import('@supabase/ssr');
-        const supabase = createBrowserClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        );
+        // Use Supabase client to set the session with the tokens
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
 
-        const { error: sessionError } = await supabase.auth.setSession({
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
         });
 
+        console.log(`[Impersonate] Session set result:`, { sessionData, sessionError });
+
         if (sessionError) {
-          console.error('Session error:', sessionError);
+          console.error('[Impersonate] Session error:', sessionError);
           showToast('error', 'Failed to set session: ' + sessionError.message);
+          setImpersonating(false);
+          setImpersonateConfirm(null);
           return;
         }
 
+        console.log(`[Impersonate] Session created successfully, redirecting...`);
+        showToast('success', `Logging in as ${userEmail}...`);
+
         // Redirect to inbox after successful session creation
         setTimeout(() => {
-          window.location.href = '/inbox';
-        }, 500);
+          window.location.href = '/inbox-v3';
+        }, 1000);
       } else {
+        console.error('[Impersonate] API error:', data);
         showToast('error', data.error || 'Failed to impersonate user');
+        setImpersonating(false);
+        setImpersonateConfirm(null);
       }
     } catch (error) {
-      console.error('Failed to impersonate user:', error);
+      console.error('[Impersonate] Exception:', error);
       showToast('error', 'Failed to impersonate user');
+      setImpersonating(false);
+      setImpersonateConfirm(null);
     }
   };
 
@@ -477,7 +488,7 @@ export default function UsersManagement() {
                               Reset Password
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem onClick={() => handleImpersonateUser(user.id, user.email)}>
+                            <DropdownMenuItem onClick={() => setImpersonateConfirm({ userId: user.id, userEmail: user.email })}>
                               <UserCog className="h-4 w-4 mr-2 text-blue-500" />
                               <span className="text-blue-500">Impersonate User</span>
                             </DropdownMenuItem>
@@ -688,6 +699,57 @@ export default function UsersManagement() {
               disabled={saving}
             >
               {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Impersonate User Confirmation Dialog */}
+      <Dialog open={!!impersonateConfirm} onOpenChange={(open) => !open && setImpersonateConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCog className="h-5 w-5 text-blue-500" />
+              Impersonate User
+            </DialogTitle>
+            <DialogDescription>
+              You are about to log in as another user. This action will be logged for audit purposes.
+            </DialogDescription>
+          </DialogHeader>
+
+          {impersonateConfirm && (
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <div className="text-sm font-medium mb-1">Target User:</div>
+                <div className="text-sm text-muted-foreground">{impersonateConfirm.userEmail}</div>
+              </div>
+
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Shield className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-muted-foreground">
+                    <strong>Important:</strong> All actions you perform while impersonating this user will be recorded in the audit log.
+                    You will be logged out of your current session and logged in as this user.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setImpersonateConfirm(null)}
+              disabled={impersonating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImpersonateUser}
+              disabled={impersonating}
+              className="bg-blue-500 hover:bg-blue-600"
+            >
+              {impersonating ? 'Impersonating...' : 'Confirm Impersonation'}
             </Button>
           </DialogFooter>
         </DialogContent>
