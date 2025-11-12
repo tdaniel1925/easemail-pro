@@ -344,7 +344,6 @@ export function EmailViewerV3({
 
       {/* Email Body - Scrollable */}
       <div className="flex-1 overflow-y-auto p-6 min-h-0">
-        {console.log('📤 EmailViewerV3 passing to EmailRendererV3:', { messageId, accountId, attachmentCount: message.attachments?.length || 0 })}
         <EmailRendererV3
           emailId={messageId}
           messageId={messageId}
