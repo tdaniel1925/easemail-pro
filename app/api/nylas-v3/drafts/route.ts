@@ -17,8 +17,10 @@ import { handleNylasError } from '@/lib/nylas-v3/errors';
  */
 function fixBareNewlines(html: string): string {
   if (!html) return html;
-  // Replace all LF with CRLF, then deduplicate any double CRLF
-  return html.replace(/\r?\n/g, '\r\n').replace(/\r\r\n/g, '\r\n');
+  // First normalize all line endings to LF only
+  const normalized = html.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // Then convert all LF to CRLF
+  return normalized.replace(/\n/g, '\r\n');
 }
 
 export async function POST(request: NextRequest) {
@@ -35,8 +37,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Verify account ownership
+    // Note: accountId is the Nylas grant ID, not the database ID
     const account = await db.query.emailAccounts.findFirst({
-      where: eq(emailAccounts.id, accountId),
+      where: eq(emailAccounts.nylasGrantId, accountId),
     });
 
     if (!account) {
@@ -150,8 +153,9 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Verify account ownership
+    // Note: accountId is the Nylas grant ID, not the database ID
     const account = await db.query.emailAccounts.findFirst({
-      where: eq(emailAccounts.id, accountId),
+      where: eq(emailAccounts.nylasGrantId, accountId),
     });
 
     if (!account) {
