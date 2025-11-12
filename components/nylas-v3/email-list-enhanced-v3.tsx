@@ -896,7 +896,7 @@ function EmailCard({
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Paperclip className="h-3 w-3" />
-                      {message.attachments?.length || 1} attachment{message.attachments?.length > 1 ? 's' : ''}
+                      {message.attachments?.length || 1} attachment{(message.attachments?.length ?? 0) > 1 ? 's' : ''}
                     </span>
                   </div>
                 )}
