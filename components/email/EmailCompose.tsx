@@ -175,8 +175,14 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
         for (const attachment of replyTo.attachments) {
           try {
-            // Fetch the attachment from the API
-            const response = await fetch(`/api/nylas/messages/${replyTo.messageId}/attachments/${attachment.id}`);
+            // Fetch the attachment from the v3 API with query parameters
+            if (!accountId) continue; // Skip if no account ID
+            const params = new URLSearchParams({
+              accountId: accountId,
+              messageId: replyTo.messageId,
+              attachmentId: attachment.id,
+            });
+            const response = await fetch(`/api/nylas-v3/messages/download/attachment?${params.toString()}`);
 
             if (response.ok) {
               const blob = await response.blob();
