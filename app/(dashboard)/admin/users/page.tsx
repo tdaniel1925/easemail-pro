@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Mail, Shield, Trash2, ArrowLeft, Search, MoreVertical, Ban, Key, UserX, CheckCircle, Edit, X, Crown, Zap, Sparkles } from 'lucide-react';
+import { Users, Mail, Shield, Trash2, ArrowLeft, Search, MoreVertical, Ban, Key, UserX, CheckCircle, Edit, X, Crown, Zap, Sparkles, UserCog } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
@@ -177,6 +177,57 @@ export default function UsersManagement() {
     } catch (error) {
       console.error('Failed to send reset email:', error);
       showToast('error', 'Failed to send password reset email');
+    }
+  };
+
+  const handleImpersonateUser = async (userId: string, userEmail: string) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to impersonate ${userEmail}?\n\n` +
+      `This will log you in as this user. All actions will be logged for audit purposes.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      showToast('info', 'Creating impersonation session...');
+
+      const response = await fetch(`/api/admin/users/${userId}/impersonate`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Store the impersonation tokens and redirect to dashboard
+        // We'll use Supabase's setSession to log in as the user
+        const { createBrowserClient } = await import('@supabase/ssr');
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+
+        if (sessionError) {
+          showToast('error', 'Failed to set session: ' + sessionError.message);
+          return;
+        }
+
+        showToast('success', `Now logged in as ${userEmail}. Redirecting...`);
+
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          window.location.href = '/inbox';
+        }, 1500);
+      } else {
+        showToast('error', data.error || 'Failed to impersonate user');
+      }
+    } catch (error) {
+      console.error('Failed to impersonate user:', error);
+      showToast('error', 'Failed to impersonate user');
     }
   };
 
@@ -425,6 +476,13 @@ export default function UsersManagement() {
                               <Key className="h-4 w-4 mr-2" />
                               Reset Password
                             </DropdownMenuItem>
+
+                            <DropdownMenuItem onClick={() => handleImpersonateUser(user.id, user.email)}>
+                              <UserCog className="h-4 w-4 mr-2 text-blue-500" />
+                              <span className="text-blue-500">Impersonate User</span>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuSeparator />
 
                             {user.suspended ? (
                               <DropdownMenuItem onClick={() => handleSuspendUser(user.id, false)}>

@@ -75,7 +75,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       if (!validTiers.includes(subscriptionTier)) {
         return NextResponse.json({ error: 'Invalid subscription tier' }, { status: 400 });
       }
-      updateData.subscriptionTier = subscriptionTier;
+
+      // If setting to 'beta', set isPromoUser to true and tier to 'free'
+      // Beta users are tracked via isPromoUser flag, not subscription tier
+      if (subscriptionTier === 'beta') {
+        updateData.isPromoUser = true;
+        updateData.subscriptionTier = 'free'; // Store as free, but isPromoUser grants unlimited access
+      } else {
+        updateData.subscriptionTier = subscriptionTier;
+        updateData.isPromoUser = false; // Clear promo flag if setting to a regular tier
+      }
     }
 
     // Add email if provided (requires validation)

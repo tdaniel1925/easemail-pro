@@ -40,6 +40,9 @@ export async function GET() {
         fullName: users.fullName,
         avatarUrl: users.avatarUrl,
         role: users.role,
+        subscriptionTier: users.subscriptionTier,
+        isPromoUser: users.isPromoUser,
+        suspended: users.suspended,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         emailAccountCount: sql<number>`count(${emailAccounts.id})::int`,
@@ -49,9 +52,11 @@ export async function GET() {
       .groupBy(users.id)
       .orderBy(users.createdAt);
 
-    // Transform to include _count
+    // Transform to include _count and map beta users
     const usersWithCounts = allUsers.map(u => ({
       ...u,
+      // Display 'beta' tier if isPromoUser is true, otherwise show actual tier
+      subscriptionTier: u.isPromoUser ? 'beta' : u.subscriptionTier,
       _count: {
         emailAccounts: u.emailAccountCount,
       },
