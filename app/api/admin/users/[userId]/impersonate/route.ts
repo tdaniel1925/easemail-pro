@@ -60,48 +60,33 @@ export async function POST(request: NextRequest, context: RouteContext) {
     console.log(`🎭 Admin ${dbAdmin.email} (${adminUser.id}) impersonating user ${targetUser.email} (${targetUserId})`);
 
     // Create impersonation session using Supabase Admin Client
-    const adminClient = createAdminClient();
+    const adminClient = await createAdminClient();
 
-    // Generate an access token for the target user
-    // We'll use the admin API to create a session token
-    const { data: tokenData, error: tokenError } = await adminClient.auth.admin.generateLink({
-      type: 'magiclink',
-      email: targetUser.email,
+    // Use admin client to directly create a session for the target user
+    // This bypasses magic links and generates proper JWT tokens
+    console.log('[Impersonate] Creating session for user:', targetUserId);
+
+    const { data: sessionData, error: sessionError } = await adminClient.auth.admin.createSession({
+      user_id: targetUserId,
     });
 
-    if (tokenError || !tokenData) {
-      console.error('Failed to generate impersonation token:', tokenError);
+    if (sessionError || !sessionData) {
+      console.error('[Impersonate] Failed to create session:', sessionError);
       return NextResponse.json({
         error: 'Failed to create impersonation session',
-        details: tokenError?.message || 'Unknown error'
+        details: sessionError?.message || 'Session creation failed'
       }, { status: 500 });
     }
 
-    // Extract the hashed token from the email link
-    // The link format is: {redirectTo}#access_token={token}&...
-    // We need to extract just the token part
-    const actionLink = tokenData.properties.action_link;
-    const hashIndex = actionLink.indexOf('#');
-    if (hashIndex === -1) {
-      console.error('Invalid action link format:', actionLink);
-      return NextResponse.json({
-        error: 'Failed to create impersonation session',
-        details: 'Invalid token format'
-      }, { status: 500 });
-    }
+    const accessToken = sessionData.access_token;
+    const refreshToken = sessionData.refresh_token;
 
-    // Parse the hash fragment to get the tokens
-    const hashParams = new URLSearchParams(actionLink.substring(hashIndex + 1));
-    const accessToken = hashParams.get('access_token');
-    const refreshToken = hashParams.get('refresh_token');
-
-    if (!accessToken || !refreshToken) {
-      console.error('Missing tokens in action link');
-      return NextResponse.json({
-        error: 'Failed to create impersonation session',
-        details: 'Missing authentication tokens'
-      }, { status: 500 });
-    }
+    console.log('[Impersonate] Session created successfully:', {
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+      accessTokenLength: accessToken?.length || 0,
+      refreshTokenLength: refreshToken?.length || 0
+    });
 
     // Log the impersonation action in audit logs
     await db.insert(userAuditLogs).values({

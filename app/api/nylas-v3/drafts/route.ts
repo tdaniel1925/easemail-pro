@@ -184,11 +184,21 @@ export async function POST(request: NextRequest) {
     const nylasStart = Date.now();
     console.log('[Draft] Calling Nylas API...');
 
+    // Add timeout protection to prevent 504 errors
+    const NYLAS_TIMEOUT_MS = 20000; // 20 seconds - fail fast for retries
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Nylas API request timeout after 20 seconds')), NYLAS_TIMEOUT_MS);
+    });
+
     try {
-      const response = await nylas.drafts.create({
-        identifier: account.nylasGrantId,
-        requestBody: draftData,
-      });
+      const response = await Promise.race([
+        nylas.drafts.create({
+          identifier: account.nylasGrantId,
+          requestBody: draftData,
+        }),
+        timeoutPromise
+      ]) as any;
+
       const nylasElapsed = Date.now() - nylasStart;
       console.log(`[Draft] ✅ Nylas API succeeded in ${nylasElapsed}ms`);
       console.log('[Draft] Draft ID:', response.data.id);
@@ -353,9 +363,18 @@ export async function GET(request: NextRequest) {
     // 3. Fetch drafts from Nylas v3
     const nylas = getNylasClient();
 
-    const response = await nylas.drafts.list({
-      identifier: account.nylasGrantId,
+    // Add timeout protection
+    const NYLAS_TIMEOUT_MS = 20000; // 20 seconds
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Nylas API request timeout after 20 seconds')), NYLAS_TIMEOUT_MS);
     });
+
+    const response = await Promise.race([
+      nylas.drafts.list({
+        identifier: account.nylasGrantId,
+      }),
+      timeoutPromise
+    ]) as any;
 
     console.log('[Draft] Fetched drafts:', response.data.length);
 
