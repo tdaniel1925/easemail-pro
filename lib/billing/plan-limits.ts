@@ -56,8 +56,14 @@ async function getUserTier(userId: string): Promise<SubscriptionTier> {
   try {
     const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
-      columns: { subscriptionTier: true },
+      columns: { subscriptionTier: true, isPromoUser: true },
     });
+
+    // Promo/beta users get unlimited AI access (enterprise tier)
+    if (user?.isPromoUser) {
+      console.log(`[Plan Limits] User ${userId} is a promo/beta user - granting enterprise access`);
+      return 'enterprise';
+    }
 
     const tier = user?.subscriptionTier as SubscriptionTier | null;
 
