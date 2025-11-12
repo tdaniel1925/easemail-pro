@@ -156,7 +156,7 @@ export default function SettingsMenu({ onLogout, onNavigate, userRole: propUserR
                       </div>
                       <button
                         onClick={() => {
-                          onNavigate?.('/admin-v2');
+                          onNavigate?.('/admin');
                           setIsOpen(false);
                         }}
                         className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-accent text-muted-foreground transition-colors"
