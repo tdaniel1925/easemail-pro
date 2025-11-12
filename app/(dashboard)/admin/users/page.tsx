@@ -202,6 +202,12 @@ export default function UsersManagement() {
       if (response.ok && data.success) {
         console.log(`[Impersonate] Success, setting session...`);
 
+        // Store impersonation metadata in localStorage
+        if (data.impersonation) {
+          localStorage.setItem('impersonation_data', JSON.stringify(data.impersonation));
+          console.log(`[Impersonate] Stored impersonation metadata:`, data.impersonation);
+        }
+
         // Use Supabase client to set the session with the tokens
         const { createClient } = await import('@/lib/supabase/client');
         const supabase = createClient();
@@ -216,6 +222,7 @@ export default function UsersManagement() {
         if (sessionError) {
           console.error('[Impersonate] Session error:', sessionError);
           showToast('error', 'Failed to set session: ' + sessionError.message);
+          localStorage.removeItem('impersonation_data'); // Clean up on error
           setImpersonating(false);
           setImpersonateConfirm(null);
           return;
@@ -225,9 +232,10 @@ export default function UsersManagement() {
         showToast('success', `Logging in as ${userEmail}...`);
 
         // Redirect to inbox after successful session creation
+        // Use a full page reload to ensure all state is refreshed
         setTimeout(() => {
           window.location.href = '/inbox-v3';
-        }, 1000);
+        }, 500);
       } else {
         console.error('[Impersonate] API error:', data);
         showToast('error', data.error || 'Failed to impersonate user');

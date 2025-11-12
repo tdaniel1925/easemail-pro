@@ -134,8 +134,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     console.log(`✅ Impersonation tokens generated successfully`);
 
-    // Return the session tokens that the client will use to set the session
-    return NextResponse.json({
+    // Create response with impersonation metadata
+    const response = NextResponse.json({
       success: true,
       session: {
         access_token: accessToken,
@@ -147,7 +147,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
         fullName: targetUser.fullName,
         role: targetUser.role,
       },
+      impersonation: {
+        adminUserId: adminUser.id,
+        adminEmail: dbAdmin.email,
+        targetUserId: targetUserId,
+        targetEmail: targetUser.email,
+        startedAt: new Date().toISOString(),
+      },
     });
+
+    return response;
   } catch (error) {
     console.error('❌ User impersonation error:', error);
     return NextResponse.json({

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
+import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -37,6 +38,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        <ImpersonationBanner />
         <Providers>{children}</Providers>
         <CookieConsentBanner />
       </body>
