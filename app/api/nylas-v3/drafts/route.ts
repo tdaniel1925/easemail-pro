@@ -17,15 +17,27 @@ import { handleNylasError } from '@/lib/nylas-v3/errors';
 export const maxDuration = 150;
 
 /**
- * Fix bare newlines by removing ALL newlines from HTML
- * HTML doesn't need newlines - they're just for human readability
- * This prevents "Message contains bare newlines" errors from email providers
+ * Fix bare newlines by ensuring proper CRLF line endings
+ * Email protocols (SMTP) require CRLF (\r\n) not bare LF (\n)
+ *
+ * The "Message contains bare newlines" error occurs when:
+ * - HTML contains \n (LF) without preceding \r (CR)
+ * - HTML contains \r (CR) without following \n (LF)
+ *
+ * Solution: Normalize all line endings to CRLF
  */
 function fixBareNewlines(html: string): string {
   if (!html) return html;
-  // Strip ALL newlines and carriage returns - HTML doesn't need them
-  // This is the most reliable way to avoid bare newline errors
-  return html.replace(/\r?\n/g, '');
+
+  // Step 1: First, normalize all existing line endings to LF only
+  // This handles: \r\n -> \n, \r -> \n
+  let normalized = html.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  // Step 2: Now convert all LF to CRLF
+  // This ensures every line ending is properly \r\n
+  normalized = normalized.replace(/\n/g, '\r\n');
+
+  return normalized;
 }
 
 export async function POST(request: NextRequest) {
