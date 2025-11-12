@@ -203,8 +203,13 @@ export async function POST(request: NextRequest) {
       const nylasElapsed = Date.now() - nylasStart;
       console.error(`[Draft] ❌ Nylas failed after ${nylasElapsed}ms:`, nylasError.message || nylasError);
 
+      // Debug: Check bare newlines detection
+      const isBareNewlines = isBareNewlinesError(nylasError);
+      const aurinkoEnabled = isAurinkoEnabled();
+      console.log(`[Draft] 🔍 Debug - isBareNewlines: ${isBareNewlines}, aurinkoEnabled: ${aurinkoEnabled}`);
+
       // Check if this is the "bare newlines" error and Aurinko is enabled
-      if (isBareNewlinesError(nylasError) && isAurinkoEnabled()) {
+      if (isBareNewlines && aurinkoEnabled) {
         console.log('[Draft] 🔄 Detected "bare newlines" error, trying Aurinko fallback...');
 
         const aurinkoStart = Date.now();

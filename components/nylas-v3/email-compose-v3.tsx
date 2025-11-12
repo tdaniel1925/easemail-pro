@@ -477,7 +477,7 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       if (!accountId) {
         console.warn('[EmailComposeV3] Cannot save draft - no account ID');
         setIsSavingDraft(false);
-        setDraftSyncStatus('error');
+        setDraftSyncStatus('failed');
         return;
       }
 
