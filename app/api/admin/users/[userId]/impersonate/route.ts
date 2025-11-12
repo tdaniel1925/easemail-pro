@@ -62,24 +62,51 @@ export async function POST(request: NextRequest, context: RouteContext) {
     // Create impersonation session using Supabase Admin Client
     const adminClient = await createAdminClient();
 
-    // Use admin client to directly create a session for the target user
-    // This bypasses magic links and generates proper JWT tokens
-    console.log('[Impersonate] Creating session for user:', targetUserId);
+    // Generate a magic link and extract the OTP token
+    console.log('[Impersonate] Generating OTP for user:', targetUserId);
 
-    const { data: sessionData, error: sessionError } = await adminClient.auth.admin.createSession({
-      user_id: targetUserId,
+    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+      type: 'magiclink',
+      email: targetUser.email,
     });
 
-    if (sessionError || !sessionData) {
-      console.error('[Impersonate] Failed to create session:', sessionError);
+    if (linkError || !linkData) {
+      console.error('[Impersonate] Failed to generate link:', linkError);
       return NextResponse.json({
         error: 'Failed to create impersonation session',
-        details: sessionError?.message || 'Session creation failed'
+        details: linkError?.message || 'Link generation failed'
       }, { status: 500 });
     }
 
-    const accessToken = sessionData.access_token;
-    const refreshToken = sessionData.refresh_token;
+    // Use the email_otp to verify and create a session
+    const emailOtp = linkData.properties.email_otp;
+
+    if (!emailOtp) {
+      console.error('[Impersonate] No OTP in response');
+      return NextResponse.json({
+        error: 'Failed to create impersonation session',
+        details: 'No OTP generated'
+      }, { status: 500 });
+    }
+
+    // Verify the OTP using the regular client to get a session
+    const regularClient = await createClient();
+    const { data: verifyData, error: verifyError } = await regularClient.auth.verifyOtp({
+      email: targetUser.email,
+      token: emailOtp,
+      type: 'email',
+    });
+
+    if (verifyError || !verifyData?.session) {
+      console.error('[Impersonate] Failed to verify OTP:', verifyError);
+      return NextResponse.json({
+        error: 'Failed to create impersonation session',
+        details: verifyError?.message || 'OTP verification failed'
+      }, { status: 500 });
+    }
+
+    const accessToken = verifyData.session.access_token;
+    const refreshToken = verifyData.session.refresh_token;
 
     console.log('[Impersonate] Session created successfully:', {
       hasAccessToken: !!accessToken,
