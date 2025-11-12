@@ -473,6 +473,14 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
     try {
       if (!silent) console.log('[EmailComposeV3] Saving draft locally (instant)...');
 
+      // Don't save draft if no account ID is available
+      if (!accountId) {
+        console.warn('[EmailComposeV3] Cannot save draft - no account ID');
+        setIsSavingDraft(false);
+        setDraftSyncStatus('error');
+        return;
+      }
+
       // Save draft locally FIRST (instant, no API call)
       const draftId = localDraftId || `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const localDraft = localDraftStorage.create({
