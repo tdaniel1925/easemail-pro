@@ -11,6 +11,9 @@ import { eq } from 'drizzle-orm';
 import { getNylasClient } from '@/lib/nylas-v3/config';
 import { handleNylasError } from '@/lib/nylas-v3/errors';
 
+// Increase timeout for slow Nylas API calls
+export const maxDuration = 60;
+
 /**
  * Fix bare newlines in email HTML by ensuring CRLF line endings
  * Email providers (IMAP/SMTP) require CRLF (\r\n) instead of just LF (\n)
@@ -24,13 +27,19 @@ function fixBareNewlines(html: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  console.log('[Draft] ===== POST Request Started =====');
+
   try {
     const body = await request.json();
     const { accountId, to, cc, bcc, subject, body: emailBody, replyToMessageId } = body;
+    console.log('[Draft] Request body parsed:', { accountId, hasTo: !!to, hasSubject: !!subject, bodyLength: emailBody?.length });
 
     // 1. Verify user authentication
+    const authStart = Date.now();
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
+    console.log(`[Draft] Auth check took ${Date.now() - authStart}ms`);
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -38,9 +47,11 @@ export async function POST(request: NextRequest) {
 
     // 2. Verify account ownership
     // Note: accountId is the Nylas grant ID, not the database ID
+    const dbStart = Date.now();
     const account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.nylasGrantId, accountId),
     });
+    console.log(`[Draft] Database query took ${Date.now() - dbStart}ms`);
 
     if (!account) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 });
@@ -110,26 +121,41 @@ export async function POST(request: NextRequest) {
     });
 
     // 4. Create draft via Nylas v3
+    const nylasStart = Date.now();
+    console.log('[Draft] Calling Nylas API...');
     const response = await nylas.drafts.create({
       identifier: account.nylasGrantId,
       requestBody: draftData,
     });
+    const nylasElapsed = Date.now() - nylasStart;
+    console.log(`[Draft] Nylas API took ${nylasElapsed}ms`);
 
     console.log('[Draft] Draft created successfully:', response.data.id);
+
+    const totalElapsed = Date.now() - startTime;
+    console.log(`[Draft] ===== Total request took ${totalElapsed}ms =====`);
 
     return NextResponse.json({
       success: true,
       draftId: response.data.id,
       data: response.data,
+      timing: {
+        total: totalElapsed,
+        nylas: nylasElapsed,
+      },
     });
   } catch (error) {
-    console.error('[Draft] Error creating draft:', error);
+    const totalElapsed = Date.now() - startTime;
+    console.error(`[Draft] Error after ${totalElapsed}ms:`, error);
     const nylasError = handleNylasError(error);
 
     return NextResponse.json({
       success: false,
       error: nylasError.message,
       code: nylasError.code,
+      timing: {
+        total: totalElapsed,
+      },
     }, { status: nylasError.statusCode || 500 });
   }
 }
