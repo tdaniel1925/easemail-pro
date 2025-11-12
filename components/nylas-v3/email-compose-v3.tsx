@@ -19,7 +19,7 @@ import { URLInputDialog } from '@/components/ui/url-input-dialog';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { SignaturePromptModal } from '@/components/email/SignaturePromptModal';
 import { ScheduleSendDialog } from '@/components/email/ScheduleSendDialog';
-import { draftStorage } from '@/lib/localDraftStorage';
+import { localDraftStorage } from '@/lib/localDraftStorage';
 import { draftSyncService } from '@/lib/draftSyncService';
 
 // Lazy load the AI toolbar to prevent SSR issues
@@ -474,7 +474,9 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       if (!silent) console.log('[EmailComposeV3] Saving draft locally (instant)...');
 
       // Save draft locally FIRST (instant, no API call)
-      const localDraft = draftStorage.save({
+      const draftId = localDraftId || `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const localDraft = localDraftStorage.create({
+        id: draftId,
         grantId: accountId,
         to: to.map(r => ({ email: r.email, name: r.name })),
         cc: cc.length > 0 ? cc.map(r => ({ email: r.email, name: r.name })) : undefined,
