@@ -55,9 +55,15 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
   console.log('[Draft] ===== POST Request Started =====');
 
+  // Declare variables outside try block so they're accessible in catch
+  let account: any = null;
+  let draftData: any = null;
+  let replyToMessageId: string | undefined;
+
   try {
     const body = await request.json();
-    const { accountId, to, cc, bcc, subject, body: emailBody, replyToMessageId } = body;
+    const { accountId, to, cc, bcc, subject, body: emailBody, replyToMessageId: replyToMsg } = body;
+    replyToMessageId = replyToMsg;
     console.log('[Draft] Request body parsed:', { accountId, hasTo: !!to, hasSubject: !!subject, bodyLength: emailBody?.length });
 
     // 1. Verify user authentication
@@ -74,7 +80,7 @@ export async function POST(request: NextRequest) {
     // Note: accountId can be either the Nylas grant ID OR the database ID
     // Try both to handle edge cases where grant ID might not be set
     const dbStart = Date.now();
-    let account = await db.query.emailAccounts.findFirst({
+    account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.nylasGrantId, accountId),
     });
 
@@ -120,7 +126,7 @@ export async function POST(request: NextRequest) {
     console.log('[Draft] Fixed body has CR:', fixedBody.includes('\r'));
     console.log('[Draft] Fixed body has CRLF:', fixedBody.includes('\r\n'));
 
-    const draftData: any = {
+    draftData = {
       subject: fixedSubject,
       body: fixedBody,
     };
