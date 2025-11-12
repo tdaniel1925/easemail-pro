@@ -12,7 +12,6 @@ import { SMSModal } from '@/components/sms/SMSModal';
 import { ContactNotes } from '@/components/contacts/ContactNotes';
 import { CommunicationTimeline } from '@/components/contacts/CommunicationTimeline';
 import { AIAssistantSidebar } from '@/components/ai/AIAssistantSidebar';
-import { SMSPanelTab } from '@/components/sms/SMSPanelTab';
 
 interface Email {
   id: string;
@@ -31,13 +30,13 @@ interface ContactPanelProps {
 }
 
 export function ContactPanel({ email, activeTab: externalActiveTab, onTabChange }: ContactPanelProps) {
-  const [internalActiveTab, setInternalActiveTab] = useState<'contact' | 'calendar' | 'ai' | 'sms'>('calendar'); // Added SMS tab
-  
+  const [internalActiveTab, setInternalActiveTab] = useState<'contact' | 'calendar' | 'ai' | 'sms'>('calendar');
+
   // Use external activeTab if provided, otherwise use internal
   const activeTab = externalActiveTab !== undefined ? externalActiveTab : internalActiveTab;
-  
+
   // Handle tab change
-  const handleTabChange = (tab: 'contact' | 'calendar' | 'ai' | 'sms') => {
+  const handleTabChange = (tab: 'contact' | 'calendar' | 'ai') => {
     if (onTabChange) {
       onTabChange(tab);
     } else {
@@ -51,8 +50,8 @@ export function ContactPanel({ email, activeTab: externalActiveTab, onTabChange 
       // Email selected → switch to Contact tab
       handleTabChange('contact');
     } else {
-      // No email selected → switch to Calendar tab (unless on AI or SMS tab)
-      if (activeTab !== 'ai' && activeTab !== 'sms') {
+      // No email selected → switch to Calendar tab (unless on AI tab)
+      if (activeTab !== 'ai') {
         handleTabChange('calendar');
       }
     }
@@ -101,18 +100,6 @@ export function ContactPanel({ email, activeTab: externalActiveTab, onTabChange 
             <Bot className="h-4 w-4" />
             <span>AI Chat</span>
           </button>
-          <button
-            className={cn(
-              'px-3 py-2 text-sm rounded-sm transition-colors',
-              activeTab === 'sms'
-                ? 'text-primary font-bold'
-                : 'text-muted-foreground font-medium hover:text-foreground'
-            )}
-            onClick={() => handleTabChange('sms')}
-          >
-            <MessageSquare className="h-4 w-4 inline mr-2" />
-            SMS
-          </button>
         </div>
       </div>
 
@@ -131,8 +118,6 @@ export function ContactPanel({ email, activeTab: externalActiveTab, onTabChange 
           )
         ) : activeTab === 'calendar' ? (
           <MiniCalendar />
-        ) : activeTab === 'sms' ? (
-          <SMSPanelTab />
         ) : (
           <div className="h-full">
             <AIAssistantSidebar
