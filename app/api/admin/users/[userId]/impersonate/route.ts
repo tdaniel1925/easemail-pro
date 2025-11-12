@@ -62,17 +62,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
     // Create impersonation session using Supabase Admin Client
     const adminClient = createAdminClient();
 
-    // Generate a session token for the target user
-    // This uses the admin API to create an authenticated session
-    const { data: sessionData, error: sessionError } = await adminClient.auth.admin.createSession({
-      user_id: targetUserId,
+    // Generate a magic link for the target user
+    // This creates a single-use link that automatically logs the user in
+    const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+      type: 'magiclink',
+      email: targetUser.email,
     });
 
-    if (sessionError || !sessionData) {
-      console.error('Failed to create impersonation session:', sessionError);
+    if (linkError || !linkData) {
+      console.error('Failed to generate impersonation link:', linkError);
       return NextResponse.json({
         error: 'Failed to create impersonation session',
-        details: sessionError?.message || 'Unknown error'
+        details: linkError?.message || 'Unknown error'
       }, { status: 500 });
     }
 
@@ -105,16 +106,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
       userAgent: request.headers.get('user-agent') || 'unknown',
     });
 
-    console.log(`✅ Impersonation session created successfully`);
+    console.log(`✅ Impersonation link created successfully`);
 
-    // Return the session tokens
+    // Return the magic link URL
+    // The client will redirect to this URL which will automatically log them in
     return NextResponse.json({
       success: true,
-      session: {
-        access_token: sessionData.session.access_token,
-        refresh_token: sessionData.session.refresh_token,
-        expires_at: sessionData.session.expires_at,
-      },
+      magicLink: linkData.properties.action_link,
       user: {
         id: targetUser.id,
         email: targetUser.email,

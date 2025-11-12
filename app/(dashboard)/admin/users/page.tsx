@@ -198,30 +198,13 @@ export default function UsersManagement() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Store the impersonation tokens and redirect to dashboard
-        // We'll use Supabase's setSession to log in as the user
-        const { createBrowserClient } = await import('@supabase/ssr');
-        const supabase = createBrowserClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        );
+        showToast('success', `Logging in as ${userEmail}...`);
 
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        });
-
-        if (sessionError) {
-          showToast('error', 'Failed to set session: ' + sessionError.message);
-          return;
-        }
-
-        showToast('success', `Now logged in as ${userEmail}. Redirecting...`);
-
-        // Redirect to dashboard after a short delay
+        // Redirect to the magic link which will automatically log us in as the user
+        // The magic link includes authentication tokens
         setTimeout(() => {
-          window.location.href = '/inbox';
-        }, 1500);
+          window.location.href = data.magicLink;
+        }, 500);
       } else {
         showToast('error', data.error || 'Failed to impersonate user');
       }
