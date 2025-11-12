@@ -477,6 +477,7 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       const draftId = localDraftId || `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const localDraft = localDraftStorage.create({
         id: draftId,
+        accountId: accountId, // Include account ID for syncing
         subject,
         body,
         to: to.map(r => ({ email: r.email, name: r.name })),

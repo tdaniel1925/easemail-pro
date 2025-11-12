@@ -196,7 +196,7 @@ class DraftSyncService {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        accountId: draft.grantId,
+        accountId: draft.accountId || draft.grantId, // Support both old and new field names
         to: draft.to,
         cc: draft.cc,
         bcc: draft.bcc,

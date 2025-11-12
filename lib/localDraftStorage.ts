@@ -3,6 +3,7 @@
 export interface Draft {
   id: string;
   nylasId?: string;
+  accountId?: string; // Nylas grant ID for syncing
   subject: string;
   body: string;
   to: Array<{ email: string; name?: string }>;
