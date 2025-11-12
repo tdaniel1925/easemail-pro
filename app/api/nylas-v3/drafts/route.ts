@@ -1,8 +1,6 @@
 /**
  * Nylas v3 - Drafts
- * Create and manage drafts using Nylas v3 API
- * 
- * FIXED: Proper timeout handling to prevent 504 errors
+ * OPTIMIZED FOR IMAP (FastMail, etc.)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,38 +13,39 @@ import { handleNylasError } from '@/lib/nylas-v3/errors';
 import { isAurinkoEnabled } from '@/lib/aurinko/config';
 import { createAurinkoDraft, isBareNewlinesError } from '@/lib/aurinko/draft-service';
 
-// REDUCED: Set to 30 seconds max (was 150)
-// This ensures function fails fast before Vercel's 30-60s timeout
-export const maxDuration = 30;
+// INCREASED: IMAP operations can take 30-60 seconds
+// Especially FastMail, Zoho, and other IMAP providers
+export const maxDuration = 60;
 
 /**
- * Fix bare newlines for Outlook/Exchange SMTP compliance
+ * Fix bare newlines for SMTP compliance
  */
 function fixBareNewlines(html: string): string {
   if (!html) return html;
-
-  let fixed = html
+  return html
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
     .replace(/\n/g, '\r\n');
-
-  console.log('[Draft] Line ending fix applied:', {
-    originalLength: html.length,
-    fixedLength: fixed.length,
-  });
-
-  return fixed;
 }
 
 /**
- * Create a timeout that actually works
+ * Create timeout promise
  */
 function createTimeoutError(ms: number): Promise<never> {
   return new Promise((_, reject) => {
-    setTimeout(() => {
-      reject(new Error(`Request timeout after ${ms}ms`));
-    }, ms);
+    setTimeout(() => reject(new Error(`Request timeout after ${ms}ms`)), ms);
   });
+}
+
+/**
+ * Detect if account is IMAP-based
+ */
+function isIMAPAccount(account: any): boolean {
+  return account.provider === 'imap' ||
+         account.email?.includes('@fastmail.') ||
+         account.email?.includes('@migadu.') ||
+         account.email?.includes('@zoho.') ||
+         !account.provider; // Fallback for legacy accounts
 }
 
 export async function POST(request: NextRequest) {
@@ -61,39 +60,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { accountId, to, cc, bcc, subject, body: emailBody, replyToMessageId: replyToMsg } = body;
     replyToMessageId = replyToMsg;
-    console.log('[Draft] Request body parsed:', { 
-      accountId, 
-      hasTo: !!to, 
-      hasSubject: !!subject, 
-      bodyLength: emailBody?.length 
-    });
 
     // 1. Verify user authentication
-    const authStart = Date.now();
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    console.log(`[Draft] Auth check took ${Date.now() - authStart}ms`);
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // 2. Verify account ownership
-    const dbStart = Date.now();
     account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.nylasGrantId, accountId),
     });
 
     if (!account) {
-      console.log('[Draft] Not found by grant ID, trying database ID...');
       account = await db.query.emailAccounts.findFirst({
         where: eq(emailAccounts.id, accountId),
       });
     }
-    console.log(`[Draft] Database query took ${Date.now() - dbStart}ms`);
 
     if (!account) {
-      console.error('[Draft] Account not found:', accountId);
       return NextResponse.json({ 
         error: 'Account not found. Please reconnect your email account.' 
       }, { status: 404 });
@@ -114,7 +101,6 @@ export async function POST(request: NextRequest) {
     // 3. Prepare draft data
     const nylas = getNylasClient();
 
-    console.log('[Draft] Applying line ending fixes...');
     const fixedSubject = fixBareNewlines(subject || '(No Subject)');
     const fixedBody = fixBareNewlines(emailBody || '');
 
@@ -161,75 +147,78 @@ export async function POST(request: NextRequest) {
       draftData.reply_to_message_id = replyToMessageId;
     }
 
+    // 4. Determine timeout based on account type
+    const isIMAP = isIMAPAccount(account);
+    const NYLAS_TIMEOUT_MS = isIMAP ? 50000 : 25000; // 50s for IMAP, 25s for API-based
+    
     console.log('[Draft] Creating draft via Nylas v3:', {
       grantId: account.nylasGrantId,
-      subject: draftData.subject,
-      bodyPreview: draftData.body ? draftData.body.substring(0, 100) + '...' : '(empty)',
+      provider: account.provider,
+      isIMAP,
+      timeout: NYLAS_TIMEOUT_MS,
+      subject: draftData.subject?.substring(0, 50),
     });
 
-    // 4. Create draft with PROPER timeout protection
-    // CRITICAL FIX: Use 25 seconds to fail before Vercel's 30s timeout
-    const NYLAS_TIMEOUT_MS = 25000;
     const nylasStart = Date.now();
-    console.log(`[Draft] Calling Nylas API with ${NYLAS_TIMEOUT_MS}ms timeout...`);
 
     try {
-      // Create the Nylas API call
       const nylasPromise = nylas.drafts.create({
         identifier: account.nylasGrantId,
         requestBody: draftData,
       });
 
-      // Race against timeout
       const response = await Promise.race([
         nylasPromise,
         createTimeoutError(NYLAS_TIMEOUT_MS)
       ]) as any;
 
       const nylasElapsed = Date.now() - nylasStart;
-      console.log(`[Draft] ✅ Nylas API succeeded in ${nylasElapsed}ms`);
+      console.log(`[Draft] ✅ Nylas API succeeded in ${nylasElapsed}ms (IMAP: ${isIMAP})`);
       console.log('[Draft] Draft ID:', response.data.id);
-
-      const totalElapsed = Date.now() - startTime;
 
       return NextResponse.json({
         success: true,
         draftId: response.data.id,
         data: response.data,
         method: 'nylas',
+        isIMAP,
         timing: {
-          total: totalElapsed,
+          total: Date.now() - startTime,
           nylas: nylasElapsed,
         },
       });
       
     } catch (nylasError: any) {
       const nylasElapsed = Date.now() - nylasStart;
-      console.error(`[Draft] ❌ Nylas failed after ${nylasElapsed}ms:`, nylasError.message || nylasError);
+      console.error(`[Draft] ❌ Nylas failed after ${nylasElapsed}ms:`, nylasError.message);
 
-      // Check if this is a timeout
+      // Check if timeout
       if (nylasError.message?.includes('timeout')) {
-        console.error('[Draft] ⏱️ Request timed out - returning 408 for client retry');
+        console.error('[Draft] ⏱️ Request timed out - returning 408');
+        
+        const errorMessage = isIMAP
+          ? 'IMAP draft save is slow - your draft is saved locally and will retry automatically'
+          : 'Request timeout - please try again';
+        
         return NextResponse.json({
           success: false,
-          error: 'Request timeout - please try again',
+          error: errorMessage,
           code: 'TIMEOUT',
+          isIMAP,
           timing: {
             total: Date.now() - startTime,
             nylas: nylasElapsed,
           },
-        }, { status: 408 }); // 408 Request Timeout - client should retry
+        }, { status: 408 });
       }
 
-      // Check for bare newlines error and try Aurinko fallback
+      // Check for bare newlines and try Aurinko
       const isBareNewlines = isBareNewlinesError(nylasError);
       const aurinkoEnabled = isAurinkoEnabled();
-      console.error(`[Draft] 🔍 Debug - isBareNewlines: ${isBareNewlines}, aurinkoEnabled: ${aurinkoEnabled}`);
 
       if (isBareNewlines && aurinkoEnabled) {
-        console.error('[Draft] 🔄 Detected "bare newlines" error, trying Aurinko fallback...');
+        console.error('[Draft] 🔄 Bare newlines error, trying Aurinko...');
 
-        const aurinkoStart = Date.now();
         try {
           const aurinkoResult = await Promise.race([
             createAurinkoDraft(account.nylasGrantId, {
@@ -240,60 +229,56 @@ export async function POST(request: NextRequest) {
               bcc: draftData.bcc,
               replyToMessageId: replyToMessageId,
             }),
-            createTimeoutError(NYLAS_TIMEOUT_MS) // Same timeout for Aurinko
+            createTimeoutError(NYLAS_TIMEOUT_MS)
           ]);
-          
-          const aurinkoElapsed = Date.now() - aurinkoStart;
 
           if (aurinkoResult.success) {
-            console.error(`[Draft] ✅ Aurinko fallback succeeded in ${aurinkoElapsed}ms`);
-            const totalElapsed = Date.now() - startTime;
-
+            console.error(`[Draft] ✅ Aurinko fallback succeeded`);
             return NextResponse.json({
               success: true,
               draftId: aurinkoResult.draftId,
               method: 'aurinko_fallback',
-              timing: {
-                total: totalElapsed,
-                nylas: nylasElapsed,
-                aurinko: aurinkoElapsed,
-              },
             });
           }
         } catch (aurinkoError) {
-          console.error(`[Draft] ❌ Aurinko fallback also failed:`, aurinkoError);
+          console.error(`[Draft] ❌ Aurinko also failed:`, aurinkoError);
         }
       }
 
-      // If not bare newlines or Aurinko failed, throw the original error
       throw nylasError;
     }
     
   } catch (error) {
     const totalElapsed = Date.now() - startTime;
     console.error(`[Draft] ===== ERROR after ${totalElapsed}ms =====`);
-    console.error(`[Draft] Error:`, error);
 
-    // Check if timeout error
+    // Check if timeout
     if ((error as any)?.message?.includes('timeout')) {
-      console.error('[Draft] ⏱️ Top-level timeout - returning 408');
+      const isIMAP = account ? isIMAPAccount(account) : false;
+      const errorMessage = isIMAP
+        ? 'IMAP draft save is slow - your draft is saved locally and will retry automatically'
+        : 'Request timeout - please try again';
+        
       return NextResponse.json({
         success: false,
-        error: 'Request timeout - please try again',
+        error: errorMessage,
         code: 'TIMEOUT',
-        timing: { total: totalElapsed },
+        isIMAP,
       }, { status: 408 });
     }
 
-    // FALLBACK: Try Aurinko if this looks like bare newlines
+    // Try Aurinko fallback
     const isBareNewlines = isBareNewlinesError(error);
     const aurinkoEnabled = isAurinkoEnabled();
     console.error(`[Draft] 🔍 OUTER CATCH - isBareNewlines: ${isBareNewlines}, aurinkoEnabled: ${aurinkoEnabled}`);
 
     if (isBareNewlines && aurinkoEnabled && account && draftData) {
-      console.error('[Draft] 🔄 OUTER CATCH - Trying Aurinko fallback...');
+      console.error('[Draft] 🔄 OUTER CATCH - Trying Aurinko...');
 
       try {
+        const isIMAP = isIMAPAccount(account);
+        const timeout = isIMAP ? 50000 : 25000;
+        
         const aurinkoResult = await Promise.race([
           createAurinkoDraft(account.nylasGrantId, {
             subject: draftData.subject,
@@ -303,20 +288,19 @@ export async function POST(request: NextRequest) {
             bcc: draftData.bcc,
             replyToMessageId: replyToMessageId,
           }),
-          createTimeoutError(25000)
+          createTimeoutError(timeout)
         ]);
 
         if (aurinkoResult.success) {
-          console.error(`[Draft] ✅ OUTER CATCH - Aurinko fallback succeeded!`);
+          console.error(`[Draft] ✅ OUTER CATCH - Aurinko succeeded`);
           return NextResponse.json({
             success: true,
             draftId: aurinkoResult.draftId,
             method: 'aurinko_fallback',
-            timing: { total: Date.now() - startTime },
           });
         }
       } catch (aurinkoError) {
-        console.error('[Draft] ❌ OUTER CATCH - Aurinko also failed:', aurinkoError);
+        console.error('[Draft] ❌ OUTER CATCH - Aurinko failed:', aurinkoError);
       }
     }
 
@@ -326,12 +310,11 @@ export async function POST(request: NextRequest) {
       success: false,
       error: nylasError.message,
       code: nylasError.code,
-      timing: { total: totalElapsed },
     }, { status: nylasError.statusCode || 500 });
   }
 }
 
-// GET - Fetch drafts for an account
+// GET - Fetch drafts
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -357,24 +340,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (account.userId !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized access to account' }, { status: 403 });
-    }
-
-    if (!account.nylasGrantId) {
-      return NextResponse.json({ error: 'Account not connected to Nylas' }, { status: 400 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     const nylas = getNylasClient();
+    
+    // Use longer timeout for IMAP
+    const isIMAP = isIMAPAccount(account);
+    const timeout = isIMAP ? 50000 : 25000;
 
-    // Add timeout protection
     const response = await Promise.race([
-      nylas.drafts.list({
-        identifier: account.nylasGrantId,
-      }),
-      createTimeoutError(25000)
+      nylas.drafts.list({ identifier: account.nylasGrantId }),
+      createTimeoutError(timeout)
     ]) as any;
-
-    console.log('[Draft] Fetched drafts:', response.data.length);
 
     return NextResponse.json({
       success: true,
@@ -382,9 +360,6 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error('[Draft] Error fetching drafts:', error);
-    
-    // Check for timeout
     if ((error as any)?.message?.includes('timeout')) {
       return NextResponse.json({
         success: false,
@@ -394,7 +369,6 @@ export async function GET(request: NextRequest) {
     }
     
     const nylasError = handleNylasError(error);
-
     return NextResponse.json({
       success: false,
       error: nylasError.message,
