@@ -83,7 +83,7 @@ class DraftSyncService {
     console.log(`[DraftSync] Found ${this.draftsToSync.size} drafts to sync`);
 
     // Process each draft sequentially to avoid overwhelming the API
-    for (const [draftId, draft] of this.draftsToSync.entries()) {
+    for (const [draftId, draft] of Array.from(this.draftsToSync.entries())) {
       // Skip if already being retried
       if (this.retryTimers.has(draftId)) {
         console.log(`[DraftSync] Skipping ${draftId} - retry already scheduled`);
