@@ -7,6 +7,16 @@ interface Suggestion {
   source: 'contact' | 'recent';
 }
 
+/**
+ * Check if email is a placeholder email that should be filtered out
+ * Placeholder emails follow the pattern: no-email-*@placeholder.local
+ */
+function isPlaceholderEmail(email: string): boolean {
+  if (!email) return true;
+  const emailLower = email.toLowerCase();
+  return emailLower.includes('@placeholder.local') || emailLower.startsWith('no-email-');
+}
+
 export const dynamic = 'force-dynamic';
 
 // GET /api/emails/suggestions?query=john
@@ -46,6 +56,9 @@ export async function GET(request: NextRequest) {
             const recipientEmail = recipient.email?.toLowerCase();
             if (!recipientEmail || seenEmails.has(recipientEmail)) continue;
 
+            // Skip placeholder emails
+            if (isPlaceholderEmail(recipientEmail)) continue;
+
             seenEmails.add(recipientEmail);
             suggestions.push({
               email: recipient.email,
@@ -84,6 +97,9 @@ export async function GET(request: NextRequest) {
         const emailLower = contact.email.toLowerCase();
         if (seenEmails.has(emailLower)) continue;
 
+        // Skip placeholder emails
+        if (isPlaceholderEmail(emailLower)) continue;
+
         seenEmails.add(emailLower);
         suggestions.push({
           email: contact.email,
@@ -116,6 +132,9 @@ export async function GET(request: NextRequest) {
           const recipientEmail = recipient.email?.toLowerCase();
           if (!recipientEmail) continue;
           if (seenEmails.has(recipientEmail)) continue;
+
+          // Skip placeholder emails
+          if (isPlaceholderEmail(recipientEmail)) continue;
 
           // Check if email or name matches query
           const recipientName = recipient.name?.toLowerCase() || '';
@@ -152,6 +171,9 @@ export async function GET(request: NextRequest) {
           if (!email.from_email) continue;
           const fromEmailLower = email.from_email.toLowerCase();
           if (seenEmails.has(fromEmailLower)) continue;
+
+          // Skip placeholder emails
+          if (isPlaceholderEmail(fromEmailLower)) continue;
 
           seenEmails.add(fromEmailLower);
           suggestions.push({
