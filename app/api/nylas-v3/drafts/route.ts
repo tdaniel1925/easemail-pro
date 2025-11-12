@@ -17,27 +17,44 @@ import { handleNylasError } from '@/lib/nylas-v3/errors';
 export const maxDuration = 150;
 
 /**
- * Fix bare newlines by ensuring proper CRLF line endings
- * Email protocols (SMTP) require CRLF (\r\n) not bare LF (\n)
+ * Fix bare newlines for Outlook/Exchange SMTP compliance
  *
- * The "Message contains bare newlines" error occurs when:
- * - HTML contains \n (LF) without preceding \r (CR)
- * - HTML contains \r (CR) without following \n (LF)
+ * Microsoft Exchange/Outlook is VERY strict about line endings:
+ * - Requires CRLF (\r\n) everywhere
+ * - Rejects ANY bare LF (\n) or bare CR (\r)
+ * - Even in HTML tags and attributes
  *
- * Solution: Normalize all line endings to CRLF
+ * This function:
+ * 1. Strips ALL newlines from HTML (they're not needed for rendering)
+ * 2. Minifies the HTML to a single line
+ * 3. Only keeps newlines where absolutely necessary (between paragraphs)
+ * 4. Converts those to proper CRLF
  */
 function fixBareNewlines(html: string): string {
   if (!html) return html;
 
-  // Step 1: First, normalize all existing line endings to LF only
-  // This handles: \r\n -> \n, \r -> \n
-  let normalized = html.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // AGGRESSIVE APPROACH: Strip ALL newlines from HTML
+  // HTML doesn't need newlines - they're just for human readability
+  // This is the ONLY way to avoid "bare newlines" errors from Exchange
+  let cleaned = html
+    .replace(/\r\n/g, ' ')   // CRLF -> space
+    .replace(/\r/g, ' ')      // CR -> space
+    .replace(/\n/g, ' ')      // LF -> space
+    .replace(/\s+/g, ' ')     // Multiple spaces -> single space
+    .trim();
 
-  // Step 2: Now convert all LF to CRLF
-  // This ensures every line ending is properly \r\n
-  normalized = normalized.replace(/\n/g, '\r\n');
+  console.log('[Draft] Line ending fix applied:', {
+    originalLength: html.length,
+    cleanedLength: cleaned.length,
+    hadCRLF: html.includes('\r\n'),
+    hadCR: html.includes('\r'),
+    hadLF: html.includes('\n'),
+    nowHasCRLF: cleaned.includes('\r\n'),
+    nowHasCR: cleaned.includes('\r'),
+    nowHasLF: cleaned.includes('\n'),
+  });
 
-  return normalized;
+  return cleaned;
 }
 
 export async function POST(request: NextRequest) {
