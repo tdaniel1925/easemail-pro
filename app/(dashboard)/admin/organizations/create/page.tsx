@@ -137,7 +137,7 @@ export default function CreateOrganizationPage() {
       const data = await response.json();
 
       if (data.success) {
-        router.push('/admin-v2?tab=organizations&success=created');
+        router.push('/admin/organizations?success=created');
       } else {
         setError(data.error || 'Failed to create organization');
       }

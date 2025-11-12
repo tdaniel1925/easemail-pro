@@ -113,7 +113,7 @@ export default function SettingsMenuNew({ onLogout, onNavigate }: SettingsMenuNe
                   </div>
                 </div>
                 <button
-                  onClick={() => handleMenuClick('/admin-v2')}
+                  onClick={() => handleMenuClick('/admin')}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent transition-colors text-left bg-primary/5"
                 >
                   <Shield className="h-4 w-4 text-primary" />
