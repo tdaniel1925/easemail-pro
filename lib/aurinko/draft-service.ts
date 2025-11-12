@@ -101,7 +101,14 @@ export async function createAurinkoDraft(
  * Check if error is the "bare newlines" issue that Aurinko should handle
  */
 export function isBareNewlinesError(error: any): boolean {
-  const errorMessage = (error?.message || error?.error || '').toLowerCase();
+  // Check various error message locations
+  const errorMessage = (
+    error?.message ||
+    error?.error ||
+    error?.providerError?.error?.message ||
+    error?.providerError?.message ||
+    ''
+  ).toLowerCase();
 
   return (
     errorMessage.includes('bare newlines') ||
