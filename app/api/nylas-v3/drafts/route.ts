@@ -343,8 +343,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
+    if (!account.nylasGrantId) {
+      return NextResponse.json({ error: 'Account not connected to Nylas' }, { status: 400 });
+    }
+
     const nylas = getNylasClient();
-    
+
     // Use longer timeout for IMAP
     const isIMAP = isIMAPAccount(account);
     const timeout = isIMAP ? 50000 : 25000;
