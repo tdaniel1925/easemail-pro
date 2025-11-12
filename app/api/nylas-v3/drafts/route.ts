@@ -206,11 +206,11 @@ export async function POST(request: NextRequest) {
       // Debug: Check bare newlines detection
       const isBareNewlines = isBareNewlinesError(nylasError);
       const aurinkoEnabled = isAurinkoEnabled();
-      console.log(`[Draft] 🔍 Debug - isBareNewlines: ${isBareNewlines}, aurinkoEnabled: ${aurinkoEnabled}`);
+      console.error(`[Draft] 🔍 Debug - isBareNewlines: ${isBareNewlines}, aurinkoEnabled: ${aurinkoEnabled}`);
 
       // Check if this is the "bare newlines" error and Aurinko is enabled
       if (isBareNewlines && aurinkoEnabled) {
-        console.log('[Draft] 🔄 Detected "bare newlines" error, trying Aurinko fallback...');
+        console.error('[Draft] 🔄 Detected "bare newlines" error, trying Aurinko fallback...');
 
         const aurinkoStart = Date.now();
         const aurinkoResult = await createAurinkoDraft(account.nylasGrantId, {
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
         const aurinkoElapsed = Date.now() - aurinkoStart;
 
         if (aurinkoResult.success) {
-          console.log(`[Draft] ✅ Aurinko fallback succeeded in ${aurinkoElapsed}ms`);
+          console.error(`[Draft] ✅ Aurinko fallback succeeded in ${aurinkoElapsed}ms`);
           const totalElapsed = Date.now() - startTime;
 
           return NextResponse.json({
