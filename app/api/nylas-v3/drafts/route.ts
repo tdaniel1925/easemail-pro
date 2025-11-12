@@ -12,7 +12,9 @@ import { getNylasClient } from '@/lib/nylas-v3/config';
 import { handleNylasError } from '@/lib/nylas-v3/errors';
 
 // Increase timeout for slow Nylas API calls
-export const maxDuration = 60;
+// Set to 150 seconds to handle slow email providers (e.g., Outlook/Exchange)
+// This is used by background sync service, not by user-facing draft saves
+export const maxDuration = 150;
 
 /**
  * Fix bare newlines by removing ALL newlines from HTML

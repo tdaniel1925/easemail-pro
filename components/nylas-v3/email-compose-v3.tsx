@@ -19,6 +19,8 @@ import { URLInputDialog } from '@/components/ui/url-input-dialog';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { SignaturePromptModal } from '@/components/email/SignaturePromptModal';
 import { ScheduleSendDialog } from '@/components/email/ScheduleSendDialog';
+import { draftStorage } from '@/lib/localDraftStorage';
+import { draftSyncService } from '@/lib/draftSyncService';
 
 // Lazy load the AI toolbar to prevent SSR issues
 const UnifiedAIToolbar = lazy(() =>
@@ -36,9 +38,10 @@ interface EmailComposeV3Props {
   };
   type?: 'compose' | 'reply' | 'reply-all' | 'forward';
   accountId?: string;
+  aiGeneratedReply?: string | null;
 }
 
-export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', accountId }: EmailComposeV3Props) {
+export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', accountId, aiGeneratedReply }: EmailComposeV3Props) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showCc, setShowCc] = useState(false);
@@ -62,6 +65,8 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [localDraftId, setLocalDraftId] = useState<string | null>(null);
+  const [draftSyncStatus, setDraftSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'failed'>('idle');
 
   const [isHtmlMode, setIsHtmlMode] = useState(true);
 
@@ -122,57 +127,71 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
   // Initialize body with quoted content for reply/forward
   useEffect(() => {
     if (isOpen && !isInitialized && replyTo && type !== 'compose') {
-      let quotedBody = '\n\n';
+      let quotedBody = '';
 
-      const stripHtml = (html: string) => {
-        if (!html) return '';
-        const tmp = document.createElement('div');
-        tmp.innerHTML = html;
-        const scripts = tmp.querySelectorAll('script, style');
-        scripts.forEach(script => script.remove());
-        let text = tmp.textContent || tmp.innerText || '';
-        text = text.replace(/\n\s*\n\s*\n/g, '\n\n');
-        text = text.trim();
-        return text;
+      // Helper to create quoted reply header in HTML
+      const createQuotedReplyHeader = (from: string, subject: string) => {
+        return `
+          <div style="border-left: 3px solid #ccc; padding-left: 10px; margin: 10px 0; color: #666;">
+            <div style="font-size: 12px; margin-bottom: 8px;">
+              <strong>------ Original Message -------</strong><br/>
+              From: ${from || 'Unknown'}<br/>
+              Subject: ${subject || '(No Subject)'}
+            </div>
+          </div>
+        `;
       };
 
-      let originalMessageText = '';
-      if (replyTo.body) {
-        if (replyTo.body.includes('<html') || replyTo.body.includes('<body') || replyTo.body.includes('<div')) {
-          originalMessageText = stripHtml(replyTo.body);
-        } else {
-          originalMessageText = replyTo.body;
-        }
-      }
-
       if (type === 'reply' || type === 'reply-all') {
+        // Start with AI-generated reply if provided, otherwise blank space
+        if (aiGeneratedReply) {
+          quotedBody += `<p>${aiGeneratedReply.replace(/\n/g, '<br/>')}</p><br/><br/>`;
+        } else {
+          quotedBody += '<p><br/></p><p><br/></p>';
+        }
+
+        // Add signature if enabled
         if (useSignature) {
           const applicableSignature = getApplicableSignature(type, accountId);
           if (applicableSignature) {
             setSelectedSignatureId(applicableSignature.id);
             const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to[0]?.email || '' });
-            quotedBody += renderedSignature + '\n\n';
+            quotedBody += renderedSignature + '<br/><br/>';
           }
         }
 
-        quotedBody += '------- Original Message -------\n';
-        quotedBody += `From: ${replyTo.to}\n`;
-        quotedBody += `Subject: ${replyTo.subject}\n\n`;
+        // Add quoted reply header
+        quotedBody += createQuotedReplyHeader(replyTo.to, replyTo.subject);
 
-        if (originalMessageText) {
-          const quotedLines = originalMessageText
-            .split('\n')
-            .map(line => `> ${line}`)
-            .join('\n');
-          quotedBody += quotedLines;
+        // Add original message with formatting preserved
+        if (replyTo.body) {
+          // Wrap original body in a blockquote-style div with left border
+          quotedBody += `
+            <div style="border-left: 3px solid #ccc; padding-left: 10px; margin: 10px 0;">
+              ${replyTo.body}
+            </div>
+          `;
         }
       } else if (type === 'forward') {
-        quotedBody += '---------- Forwarded message ---------\n';
-        quotedBody += `From: ${replyTo.to}\n`;
-        quotedBody += `Subject: ${replyTo.subject}\n\n`;
+        // Start with blank space for forwarding message
+        quotedBody += '<p><br/></p><p><br/></p>';
 
-        if (originalMessageText) {
-          quotedBody += originalMessageText;
+        quotedBody += `
+          <div style="border-left: 3px solid #ccc; padding-left: 10px; margin: 10px 0; color: #666;">
+            <div style="font-size: 12px; margin-bottom: 8px;">
+              <strong>---------- Forwarded message ---------</strong><br/>
+              From: ${replyTo.to}<br/>
+              Subject: ${replyTo.subject}
+            </div>
+          </div>
+        `;
+
+        if (replyTo.body) {
+          quotedBody += `
+            <div style="border-left: 3px solid #ccc; padding-left: 10px; margin: 10px 0;">
+              ${replyTo.body}
+            </div>
+          `;
         }
 
         if (useSignature) {
@@ -180,7 +199,7 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
           if (applicableSignature) {
             setSelectedSignatureId(applicableSignature.id);
             const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to[0]?.email || '' });
-            quotedBody += '\n\n' + renderedSignature;
+            quotedBody += '<br/><br/>' + renderedSignature;
           }
         }
       }
@@ -188,7 +207,7 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       setBody(quotedBody);
       setIsInitialized(true);
     }
-  }, [isOpen, replyTo, type, isInitialized, useSignature]);
+  }, [isOpen, replyTo, type, isInitialized, useSignature, aiGeneratedReply]);
 
   const insertSignature = (signature: any) => {
     if (!signature) return;
@@ -452,48 +471,54 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
     setIsSavingDraft(true);
 
     try {
-      if (!silent) console.log('[EmailComposeV3] Saving draft...');
+      if (!silent) console.log('[EmailComposeV3] Saving draft locally (instant)...');
 
-      const response = await fetch('/api/nylas-v3/drafts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          accountId,
-          to: to.map(r => ({ email: r.email, name: r.name })),
-          cc: cc.length > 0 ? cc.map(r => ({ email: r.email, name: r.name })) : undefined,
-          bcc: bcc.length > 0 ? bcc.map(r => ({ email: r.email, name: r.name })) : undefined,
-          subject,
-          body,
-          replyToMessageId: replyTo?.messageId,
-        }),
+      // Save draft locally FIRST (instant, no API call)
+      const localDraft = draftStorage.save({
+        grantId: accountId,
+        to: to.map(r => ({ email: r.email, name: r.name })),
+        cc: cc.length > 0 ? cc.map(r => ({ email: r.email, name: r.name })) : undefined,
+        bcc: bcc.length > 0 ? bcc.map(r => ({ email: r.email, name: r.name })) : undefined,
+        subject,
+        body,
+        replyToMessageId: replyTo?.messageId,
       });
 
-      const data = await response.json();
+      // Track the local draft ID
+      setLocalDraftId(localDraft.id);
+      setLastSaved(new Date());
+      setIsDirty(false);
+      setDraftSyncStatus('syncing');
 
-      if (data.success) {
-        if (!silent) console.log('[EmailComposeV3] Draft saved');
-
-        setLastSaved(new Date());
-        setIsDirty(false);
-
-        // Trigger refresh to update draft folder count
-        window.dispatchEvent(new CustomEvent('refreshEmails'));
-
-        if (!silent) {
-          setSuccessMessage('Draft saved successfully');
-          setTimeout(() => setSuccessMessage(null), 3000);
-        }
-      } else {
-        if (!silent) {
-          setValidationError(`Failed to save draft: ${data.error || 'Unknown error'}`);
-        }
+      if (!silent) {
+        console.log('[EmailComposeV3] ✅ Draft saved locally:', localDraft.id);
+        setSuccessMessage('Draft saved locally, syncing to server...');
       }
+
+      // Queue for background sync to Nylas (non-blocking)
+      draftSyncService.queueForImmediateSync(localDraft.id).then((result) => {
+        if (result.success) {
+          console.log('[EmailComposeV3] ✅ Draft synced to Nylas successfully');
+          setDraftSyncStatus('synced');
+          if (!silent) {
+            setSuccessMessage('Draft saved and synced');
+            setTimeout(() => setSuccessMessage(null), 3000);
+          }
+          // Trigger refresh to update draft folder count
+          window.dispatchEvent(new CustomEvent('refreshEmails'));
+        } else {
+          console.error('[EmailComposeV3] ⚠️ Draft sync failed:', result.error);
+          setDraftSyncStatus('failed');
+          if (!silent) {
+            setSuccessMessage('Draft saved locally (will retry sync)');
+            setTimeout(() => setSuccessMessage(null), 5000);
+          }
+        }
+      });
     } catch (error) {
       console.error('[EmailComposeV3] Draft save error:', error);
       if (!silent) {
-        setValidationError('Failed to save draft. Please try again.');
+        setValidationError('Failed to save draft locally. Please try again.');
       }
     } finally {
       setIsSavingDraft(false);
@@ -664,12 +689,12 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" onClick={handleBackdropClick} />
 
       {/* Centered modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
         <div
           className={cn(
-            'bg-card border border-border shadow-2xl rounded-lg flex flex-col pointer-events-auto transition-all duration-300',
+            'bg-card border border-border shadow-2xl rounded-lg flex flex-col pointer-events-auto transition-all duration-300 my-auto',
             isMinimized && 'h-14 w-96',
-            !isMinimized && !isFullscreen && 'h-[700px] w-[900px]',
+            !isMinimized && !isFullscreen && 'max-h-[90vh] h-[700px] w-[900px]',
             isFullscreen && 'h-[calc(100vh-2rem)] w-[calc(100vw-2rem)]'
           )}
           onClick={(e) => e.stopPropagation()}
