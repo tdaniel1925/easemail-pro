@@ -200,10 +200,27 @@ export default function UsersManagement() {
       if (response.ok && data.success) {
         showToast('success', `Logging in as ${userEmail}...`);
 
-        // Redirect to the magic link which will automatically log us in as the user
-        // The magic link includes authentication tokens
+        // Use Supabase to set the session with the tokens
+        const { createBrowserClient } = await import('@supabase/ssr');
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          showToast('error', 'Failed to set session: ' + sessionError.message);
+          return;
+        }
+
+        // Redirect to inbox after successful session creation
         setTimeout(() => {
-          window.location.href = data.magicLink;
+          window.location.href = '/inbox';
         }, 500);
       } else {
         showToast('error', data.error || 'Failed to impersonate user');
