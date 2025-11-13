@@ -16,6 +16,7 @@ import { Mic, Square, Play, Pause, Check, X, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WaveformVisualizer } from '@/components/audio/WaveformVisualizer';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/use-toast';
 
 interface InlineVoiceMessageWidgetProps {
   onAttach: (file: File, duration: number) => void;
@@ -26,6 +27,7 @@ export function InlineVoiceMessageWidget({
   onAttach,
   onCancel,
 }: InlineVoiceMessageWidgetProps) {
+  const { toast } = useToast();
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
@@ -92,7 +94,11 @@ export function InlineVoiceMessageWidget({
 
     } catch (error) {
       console.error('Failed to start recording:', error);
-      alert('Could not access microphone. Please check permissions.');
+      toast({
+        title: 'Microphone Error',
+        description: 'Could not access microphone. Please check permissions.',
+        variant: 'destructive',
+      });
     }
   };
 

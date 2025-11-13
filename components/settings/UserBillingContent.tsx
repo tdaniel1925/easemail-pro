@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  DollarSign, 
-  TrendingUp, 
+import {
+  DollarSign,
+  TrendingUp,
   FileText,
   CreditCard,
   Download,
@@ -20,6 +20,7 @@ import { InvoicesTable } from '@/components/billing/InvoicesTable';
 import { PaymentMethods } from '@/components/billing/PaymentMethods';
 import { UsageChart } from '@/components/charts/UsageChart';
 import { UsageBarChart } from '@/components/charts/UsageBarChart';
+import { useToast } from '@/components/ui/use-toast';
 
 type Tab = 'overview' | 'subscription' | 'invoices' | 'payment';
 
@@ -57,6 +58,7 @@ interface BillingData {
 }
 
 export default function UserBillingContent() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [billing, setBilling] = useState<BillingData | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
@@ -172,11 +174,19 @@ export default function UserBillingContent() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        alert('Failed to download statement');
+        toast({
+          title: 'Download Failed',
+          description: 'Failed to download statement',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Download error:', error);
-      alert('Failed to download statement');
+      toast({
+        title: 'Download Error',
+        description: 'Failed to download statement',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -191,11 +201,19 @@ export default function UserBillingContent() {
         window.location.href = url;
       } else {
         const error = await res.json();
-        alert(error.error || 'Failed to open customer portal');
+        toast({
+          title: 'Portal Error',
+          description: error.error || 'Failed to open customer portal',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Portal error:', error);
-      alert('Failed to open customer portal');
+      toast({
+        title: 'Portal Error',
+        description: 'Failed to open customer portal',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -501,7 +519,10 @@ export default function UserBillingContent() {
                       window.open(`/billing/invoice/${invoiceId}`, '_blank');
                     }}
                     onDownloadInvoice={async (invoiceId) => {
-                      alert(`Download invoice ${invoiceId} - PDF generation coming soon!`);
+                      toast({
+                        title: 'Coming Soon',
+                        description: `PDF generation for invoice ${invoiceId} coming soon!`,
+                      });
                     }}
                   />
                 </div>
@@ -513,7 +534,10 @@ export default function UserBillingContent() {
                     paymentMethods={paymentMethods}
                     isLoading={loadingPaymentMethods}
                     onAddPaymentMethod={() => {
-                      alert('Add payment method dialog - coming soon!');
+                      toast({
+                        title: 'Coming Soon',
+                        description: 'Add payment method dialog - coming soon!',
+                      });
                     }}
                     onRemovePaymentMethod={async (methodId) => {
                       try {

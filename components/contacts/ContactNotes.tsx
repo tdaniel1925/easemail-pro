@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { StickyNote, Plus, Trash2, Edit2, Save, X, Pin, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface Note {
   id: string;
@@ -23,6 +24,7 @@ interface ContactNotesProps {
 }
 
 export function ContactNotes({ contactId }: ContactNotesProps) {
+  const { confirm, Dialog } = useConfirm();
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
@@ -108,7 +110,13 @@ export function ContactNotes({ contactId }: ContactNotesProps) {
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!confirm('Delete this note?')) return;
+    const confirmed = await confirm({
+      title: 'Delete Note',
+      message: 'Are you sure you want to delete this note? This action cannot be undone.',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/contacts/${contactId}/notes?noteId=${noteId}`, {
@@ -287,6 +295,9 @@ export function ContactNotes({ contactId }: ContactNotesProps) {
           ))
         )}
       </div>
+
+      {/* Confirm Dialog */}
+      <Dialog />
     </div>
   );
 }

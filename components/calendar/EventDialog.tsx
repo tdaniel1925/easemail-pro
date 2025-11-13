@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import EmailAutocomplete from '@/components/email/EmailAutocomplete';
 
 interface EventDialogProps {
@@ -44,6 +45,7 @@ export function EventDialog({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, Dialog } = useConfirm();
 
   useEffect(() => {
     if (event) {
@@ -160,7 +162,17 @@ export function EventDialog({
   };
 
   const handleDelete = async () => {
-    if (!event || !confirm('Are you sure you want to delete this event?')) {
+    if (!event) {
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Delete Event',
+      message: 'Are you sure you want to delete this event? This action cannot be undone.',
+      variant: 'danger',
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -352,6 +364,9 @@ export function EventDialog({
             </Button>
           </div>
         </div>
+
+        {/* Confirm Dialog */}
+        <Dialog />
       </div>
     </div>
   );

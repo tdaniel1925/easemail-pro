@@ -164,9 +164,9 @@ export function VoiceMessageRecorderModal({
       sum += value;
       maxValue = Math.max(maxValue, value);
 
-      // Add minimum height so all bars are visible
-      const minBarHeight = 8;
-      const barHeight = Math.max(minBarHeight, value * height * 0.85);
+      // Add minimum height so all bars are visible - INCREASED for taller bars
+      const minBarHeight = 10; // Increased from 8
+      const barHeight = Math.max(minBarHeight, value * height * 1.1); // Increased from 0.85 to 1.1 for taller bars
       const x = i * (barWidth + gap);
       const y = height - barHeight;
 

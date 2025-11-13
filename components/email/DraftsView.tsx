@@ -9,6 +9,8 @@ import { useState, useEffect } from 'react';
 import { FileEdit, Trash2, Clock, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Draft {
   id: string;
@@ -35,6 +37,8 @@ export function DraftsView({ accountId, onResumeDraft }: DraftsViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
+  const { confirm, Dialog } = useConfirm();
+  const { toast } = useToast();
 
   // Fetch drafts for the account
   const fetchDrafts = async () => {
@@ -67,7 +71,15 @@ export function DraftsView({ accountId, onResumeDraft }: DraftsViewProps) {
   const handleDeleteDraft = async (draftId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering resume
 
-    if (!confirm('Are you sure you want to delete this draft?')) {
+    const confirmed = await confirm({
+      title: 'Delete Draft',
+      message: 'Are you sure you want to delete this draft? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -84,9 +96,14 @@ export function DraftsView({ accountId, onResumeDraft }: DraftsViewProps) {
 
       // Remove draft from state
       setDrafts(drafts.filter((d) => d.id !== draftId));
+      toast({ title: 'Success', description: 'Draft deleted successfully' });
     } catch (err) {
       console.error('Error deleting draft:', err);
-      alert('Failed to delete draft. Please try again.');
+      toast({
+        title: 'Error',
+        description: 'Failed to delete draft. Please try again.',
+        variant: 'destructive'
+      });
     } finally {
       setDeletingDraftId(null);
     }
@@ -101,49 +118,60 @@ export function DraftsView({ accountId, onResumeDraft }: DraftsViewProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
-          <p className="mt-4 text-sm text-muted-foreground">Loading drafts...</p>
+      <>
+        <Dialog />
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+            <p className="mt-4 text-sm text-muted-foreground">Loading drafts...</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center p-8 max-w-md">
-          <p className="text-red-600 mb-4">{error}</p>
-          <Button onClick={fetchDrafts} variant="outline">
-            Retry
-          </Button>
+      <>
+        <Dialog />
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center p-8 max-w-md">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={fetchDrafts} variant="outline">
+              Retry
+            </Button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (drafts.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center p-8">
-          <FileEdit className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No drafts</h3>
-          <p className="text-sm text-muted-foreground">
-            Your saved email drafts will appear here.
-          </p>
+      <>
+        <Dialog />
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center p-8">
+            <FileEdit className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No drafts</h3>
+            <p className="text-sm text-muted-foreground">
+              Your saved email drafts will appear here.
+            </p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="p-6">
-        <h2 className="text-2xl font-semibold mb-6">Drafts ({drafts.length})</h2>
+    <>
+      <Dialog />
+      <div className="h-full overflow-y-auto">
+        <div className="p-6">
+          <h2 className="text-2xl font-semibold mb-6">Drafts ({drafts.length})</h2>
 
-        <div className="space-y-3">
-          {drafts.map((draft) => (
+          <div className="space-y-3">
+            {drafts.map((draft) => (
             <div
               key={draft.id}
               onClick={() => onResumeDraft(draft)}
@@ -206,5 +234,6 @@ export function DraftsView({ accountId, onResumeDraft }: DraftsViewProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }

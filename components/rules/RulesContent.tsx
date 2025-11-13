@@ -9,6 +9,8 @@ import RuleCard from './RuleCard';
 import RuleTemplates from './RuleTemplates';
 import RuleBuilder from './RuleBuilder';
 import type { SimpleEmailRule, SimpleRuleTemplate } from '@/lib/rules/types-simple';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useToast } from '@/components/ui/use-toast';
 
 type Tab = 'active' | 'templates';
 
@@ -21,6 +23,8 @@ export default function RulesContent() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [editingRule, setEditingRule] = useState<SimpleEmailRule | null>(null);
   const [filterEnabled, setFilterEnabled] = useState<boolean | null>(null);
+  const { confirm, Dialog } = useConfirm();
+  const { toast } = useToast();
 
   // Fetch rules
   useEffect(() => {
@@ -82,9 +86,15 @@ export default function RulesContent() {
   };
 
   const handleDeleteRule = async (ruleId: string) => {
-    if (!confirm('Are you sure you want to delete this rule?')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Delete Rule',
+      message: 'Are you sure you want to delete this rule? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/rules/${ruleId}`, {
@@ -93,9 +103,24 @@ export default function RulesContent() {
 
       if (response.ok) {
         fetchRules();
+        toast({
+          title: 'Success',
+          description: 'Rule deleted successfully',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to delete rule',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Error deleting rule:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete rule',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -158,6 +183,7 @@ export default function RulesContent() {
 
   return (
     <>
+      <Dialog />
       <div className="flex w-full h-screen">
         {/* Sidebar */}
         <aside className="w-64 border-r border-border bg-card p-4 overflow-y-auto flex-shrink-0 h-screen">

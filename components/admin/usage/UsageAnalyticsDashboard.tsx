@@ -11,11 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { 
-  DollarSign, 
-  MessageSquare, 
-  Sparkles, 
-  HardDrive, 
+import {
+  DollarSign,
+  MessageSquare,
+  Sparkles,
+  HardDrive,
   TrendingUp,
   Download,
   RefreshCw
@@ -24,8 +24,10 @@ import UserUsageTable from './UserUsageTable';
 import UsageTrendsChart from './UsageTrendsChart';
 import Link from 'next/link';
 import { downloadCSV, downloadExcel, downloadSummary } from '@/lib/exports/usage-export';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function UsageAnalyticsDashboard() {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -92,7 +94,11 @@ export default function UsageAnalyticsDashboard() {
 
   const handleExport = async () => {
     if (usersData.length === 0) {
-      alert('No data to export. Please wait for data to load.');
+      toast({
+        title: 'No Data',
+        description: 'No data to export. Please wait for data to load.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -113,7 +119,11 @@ export default function UsageAnalyticsDashboard() {
       }
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Failed to export data. Please try again.');
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to export data. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setExporting(false);
     }

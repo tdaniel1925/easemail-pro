@@ -6,28 +6,30 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { 
-  Play, 
-  Save, 
-  RefreshCw, 
-  DollarSign, 
-  Clock, 
+import {
+  Play,
+  Save,
+  RefreshCw,
+  DollarSign,
+  Clock,
   Bell,
   AlertCircle,
   CheckCircle2
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import BillingRunHistory from './BillingRunHistory';
 import PendingChargesPreview from './PendingChargesPreview';
 
 export default function BillingConfigPanel() {
+  const { confirm, Dialog } = useConfirm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -99,7 +101,13 @@ export default function BillingConfigPanel() {
   };
 
   const handleRunBilling = async () => {
-    if (!confirm('Are you sure you want to run the billing process now? This will charge all accounts with pending usage.')) {
+    const confirmed = await confirm({
+      title: 'Run Billing Process',
+      message: 'Are you sure you want to run the billing process now? This will charge all accounts with pending usage.',
+      variant: 'danger',
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -114,8 +122,8 @@ export default function BillingConfigPanel() {
       const data = await response.json();
 
       if (data.success) {
-        setMessage({ 
-          type: 'success', 
+        setMessage({
+          type: 'success',
           text: `Billing completed: ${data.result.chargesSuccessful} successful, ${data.result.chargesFailed} failed`
         });
       } else {
@@ -474,6 +482,9 @@ export default function BillingConfigPanel() {
       <div>
         <BillingRunHistory />
       </div>
+
+      {/* Confirm Dialog */}
+      <Dialog />
     </div>
   );
 }

@@ -21,10 +21,12 @@ import { Switch } from '@/components/ui/switch';
 import { InlineAlert } from '@/components/ui/inline-alert';
 import { formatFileSize } from '@/lib/attachments/utils';
 import { useQueryClient } from '@tanstack/react-query';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 function AttachmentsContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { confirm, Dialog } = useConfirm();
   const {
     view,
     filters,
@@ -190,7 +192,13 @@ function AttachmentsContent() {
   };
 
   const handleBulkDelete = async () => {
-    if (!confirm(`Delete ${selectedIds.size} selected attachments?`)) return;
+    const confirmed = await confirm({
+      title: 'Delete Attachments',
+      message: `Are you sure you want to delete ${selectedIds.size} selected attachments? This action cannot be undone.`,
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     try {
       // Implement bulk delete API call here
@@ -411,6 +419,9 @@ function AttachmentsContent() {
           onDownload={() => previewAttachment && handleDownload(previewAttachment.id)}
           onOpenEmail={() => previewAttachment?.emailId && handleOpenEmail(previewAttachment.emailId)}
         />
+
+        {/* Confirm Dialog */}
+        <Dialog />
       </div>
     </div>
   );

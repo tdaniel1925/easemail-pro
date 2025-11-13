@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, getInitials, generateAvatarColor } from '@/lib/utils';
+import { useToast } from '@/components/ui/use-toast';
 
 interface SMSMessage {
   id: string;
@@ -26,6 +27,7 @@ interface SMSMessage {
 }
 
 export function SMSPanelTab() {
+  const { toast } = useToast();
   const [messages, setMessages] = useState<SMSMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
@@ -105,11 +107,19 @@ export function SMSPanelTab() {
         // Refresh messages to include the new outbound message
         fetchMessages();
       } else {
-        alert('Failed to send SMS: ' + (data.error || 'Unknown error'));
+        toast({
+          title: 'Send Failed',
+          description: 'Failed to send SMS: ' + (data.error || 'Unknown error'),
+          variant: 'destructive',
+        });
       }
     } catch (error: any) {
       console.error('Failed to send SMS:', error);
-      alert('Failed to send SMS: ' + error.message);
+      toast({
+        title: 'Send Error',
+        description: 'Failed to send SMS: ' + error.message,
+        variant: 'destructive',
+      });
     } finally {
       setIsSending(false);
     }

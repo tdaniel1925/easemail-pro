@@ -14,6 +14,7 @@ import { useConfirm } from '@/components/ui/confirm-dialog';
 import ThemeSelector from '@/components/theme/ThemeSelector';
 import { UtilitiesContent } from '@/components/settings/UtilitiesContent';
 import { FeatureFlagsContent } from '@/components/settings/FeatureFlagsContent';
+import { useToast } from '@/components/ui/use-toast';
 
 type SettingsSection = 'sync' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'utilities' | 'features' | 'help';
 
@@ -403,12 +404,13 @@ function SyncStatusSettings() {
 }
 
 function SignaturesSettings() {
+  const { toast } = useToast();
   const [signatures, setSignatures] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingSignature, setEditingSignature] = useState<any>(null);
-  
+
   // Confirmation dialog
   const { confirm, Dialog: ConfirmDialog } = useConfirm();
 
@@ -490,7 +492,11 @@ function SignaturesSettings() {
       await loadSignatures();
     } catch (error) {
       console.error('Error deleting signature:', error);
-      alert('Failed to delete signature');
+      toast({
+        title: 'Delete Failed',
+        description: 'Failed to delete signature',
+        variant: 'destructive',
+      });
     }
   };
 

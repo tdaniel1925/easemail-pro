@@ -13,6 +13,8 @@ import { URLInputDialog } from '@/components/ui/url-input-dialog';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { SignaturePromptModal } from '@/components/email/SignaturePromptModal';
 import { formatDistanceToNow } from 'date-fns';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useToast } from '@/components/ui/use-toast';
 
 // Lazy load the AI toolbar to prevent SSR issues
 const UnifiedAIToolbar = lazy(() =>
@@ -54,6 +56,9 @@ interface EmailComposeProps {
 }
 
 export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose', accountId, draft }: EmailComposeProps) {
+  const { confirm, Dialog } = useConfirm();
+  const { toast } = useToast();
+
   const [isMinimized, setIsMinimized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showCc, setShowCc] = useState(false);
@@ -497,27 +502,34 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
       if (data.success) {
         console.log('[Email] Email sent successfully:', data.emailId);
-        
+
         // Show success message
-        const successMessage = document.createElement('div');
-        successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-[100] animate-in slide-in-from-top';
-        successMessage.textContent = '✓ Email sent successfully!';
-        document.body.appendChild(successMessage);
-        setTimeout(() => successMessage.remove(), 3000);
-        
+        toast({
+          title: 'Email Sent',
+          description: 'Your email has been sent successfully.',
+        });
+
         // Reset form state before closing
         resetForm();
         onClose();
-        
+
         // Trigger refresh of email list
         window.dispatchEvent(new CustomEvent('refreshEmails'));
       } else {
         console.error('❌ Failed to send email:', data.error);
-        alert(`Failed to send email: ${data.error || 'Unknown error'}`);
+        toast({
+          title: 'Failed to Send Email',
+          description: data.error || 'Unknown error',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('❌ Send error:', error);
-      alert('Failed to send email. Please check your connection and try again.');
+      toast({
+        title: 'Send Error',
+        description: 'Failed to send email. Please check your connection and try again.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSending(false);
     }
@@ -525,7 +537,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
   const handleSaveDraft = useCallback(async (silent = false) => {
     if (!accountId) {
-      if (!silent) alert('No email account selected. Please select an account first.');
+      if (!silent) {
+        toast({
+          title: 'No Account Selected',
+          description: 'Please select an email account first.',
+          variant: 'destructive',
+        });
+      }
       return;
     }
 
@@ -590,12 +608,10 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         }, 2000);
 
         if (!silent) {
-          // Show success message for manual saves
-          const successMessage = document.createElement('div');
-          successMessage.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg z-[100] animate-in slide-in-from-top';
-          successMessage.textContent = '✓ Draft saved successfully!';
-          document.body.appendChild(successMessage);
-          setTimeout(() => successMessage.remove(), 3000);
+          toast({
+            title: 'Draft Saved',
+            description: 'Your draft has been saved successfully.',
+          });
         }
       } else {
         setSavingStatus('error');
@@ -606,7 +622,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
             handleSaveDraft(true);
           }, 5000);
         }
-        if (!silent) alert(`Failed to save draft: ${data.error || 'Unknown error'}`);
+        if (!silent) {
+          toast({
+            title: 'Failed to Save Draft',
+            description: data.error || 'Unknown error',
+            variant: 'destructive',
+          });
+        }
       }
     } catch (error) {
       console.error('❌ Draft save error:', error);
@@ -620,7 +642,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         }, 5000);
       }
 
-      if (!silent) alert('Failed to save draft. Please try again.');
+      if (!silent) {
+        toast({
+          title: 'Draft Save Error',
+          description: 'Failed to save draft. Please try again.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsSavingDraft(false);
     }
@@ -672,19 +700,28 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       const files = Array.from(e.target.files);
       const MAX_SIZE = 25 * 1024 * 1024; // 25MB per file
       const MAX_TOTAL = 100 * 1024 * 1024; // 100MB total
-      
+
       // Check individual file sizes
       const oversized = files.filter(f => f.size > MAX_SIZE);
       if (oversized.length > 0) {
-        alert(`❌ Some files are too large (max 25MB each):\n\n${oversized.map(f => `• ${f.name} (${formatFileSize(f.size)})`).join('\n')}`);
+        const oversizedList = oversized.map(f => `${f.name} (${formatFileSize(f.size)})`).join(', ');
+        toast({
+          title: 'Files Too Large',
+          description: `Some files exceed 25MB limit: ${oversizedList}`,
+          variant: 'destructive',
+        });
         return;
       }
-      
+
       // Check total size
       const currentTotalSize = attachments.reduce((sum, f) => sum + f.size, 0);
       const newTotalSize = files.reduce((sum, f) => sum + f.size, 0);
       if (currentTotalSize + newTotalSize > MAX_TOTAL) {
-        alert(`❌ Total attachments would exceed 100MB limit\n\nCurrent: ${formatFileSize(currentTotalSize)}\nAdding: ${formatFileSize(newTotalSize)}\nMax: 100MB`);
+        toast({
+          title: 'Attachment Limit Exceeded',
+          description: `Total attachments would exceed 100MB limit. Current: ${formatFileSize(currentTotalSize)}, Adding: ${formatFileSize(newTotalSize)}.`,
+          variant: 'destructive',
+        });
         return;
       }
 
@@ -723,9 +760,17 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   };
 
   // Handle backdrop click with confirmation
-  const handleBackdropClick = () => {
+  const handleBackdropClick = async () => {
     if (isDirty) {
-      if (confirm('You have unsaved changes. Save draft before closing?')) {
+      const confirmed = await confirm({
+        title: 'Unsaved Changes',
+        message: 'You have unsaved changes. Save draft before closing?',
+        confirmText: 'Save Draft',
+        cancelText: 'Discard',
+        variant: 'warning',
+      });
+
+      if (confirmed) {
         handleSaveDraft(false).then(() => {
           resetForm();
           onClose();
@@ -1352,6 +1397,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       onContinueWithoutSignature={handleContinueWithoutSignature}
       onNeverShowAgain={handleNeverShowSignaturePrompt}
     />
+
+    {/* Confirm Dialog */}
+    <Dialog />
     </>
   );
 }

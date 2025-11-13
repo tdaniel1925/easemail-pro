@@ -19,6 +19,8 @@ import {
   Crown,
   ArrowLeft
 } from 'lucide-react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useToast } from '@/components/ui/use-toast';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +70,8 @@ export default function TeamPage() {
   const [inviteLink, setInviteLink] = useState('');
   const [copied, setCopied] = useState(false);
   const router = useRouter();
+  const { confirm, Dialog } = useConfirm();
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchMembers();
@@ -109,12 +113,20 @@ export default function TeamPage() {
         setInviteRole('member');
         // Keep dialog open to show invite link
       } else {
-        alert(data.error || 'Failed to send invitation');
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to send invitation',
+          variant: 'destructive',
+        });
         setInviteDialogOpen(false);
       }
     } catch (error) {
       console.error('Error sending invitation:', error);
-      alert('Failed to send invitation');
+      toast({
+        title: 'Error',
+        description: 'Failed to send invitation',
+        variant: 'destructive',
+      });
       setInviteDialogOpen(false);
     } finally {
       setInviting(false);
@@ -128,9 +140,15 @@ export default function TeamPage() {
   };
 
   const handleRemoveMember = async (memberId: string, memberName: string) => {
-    if (!confirm(`Are you sure you want to remove ${memberName} from the team?`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Remove Team Member',
+      message: `Are you sure you want to remove ${memberName} from the team?`,
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/team/members/${memberId}`, {
@@ -139,13 +157,25 @@ export default function TeamPage() {
 
       if (response.ok) {
         fetchMembers();
+        toast({
+          title: 'Success',
+          description: `${memberName} has been removed from the team`,
+        });
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to remove member');
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to remove member',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Error removing member:', error);
-      alert('Failed to remove member');
+      toast({
+        title: 'Error',
+        description: 'Failed to remove member',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -159,13 +189,25 @@ export default function TeamPage() {
 
       if (response.ok) {
         fetchMembers();
+        toast({
+          title: 'Success',
+          description: 'Member role updated successfully',
+        });
       } else {
         const data = await response.json();
-        alert(data.error || 'Failed to update role');
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to update role',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Error updating role:', error);
-      alert('Failed to update role');
+      toast({
+        title: 'Error',
+        description: 'Failed to update role',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -188,9 +230,11 @@ export default function TeamPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      {/* Back Link */}
-      <Link
+    <>
+      <Dialog />
+      <div className="container mx-auto p-6 max-w-6xl">
+        {/* Back Link */}
+        <Link
         href="/team/admin"
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
       >
@@ -467,7 +511,8 @@ export default function TeamPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }
 

@@ -21,6 +21,8 @@ import { SignaturePromptModal } from '@/components/email/SignaturePromptModal';
 import { ScheduleSendDialog } from '@/components/email/ScheduleSendDialog';
 import { localDraftStorage } from '@/lib/localDraftStorage';
 import { draftSyncService } from '@/lib/draftSyncService';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useToast } from '@/components/ui/use-toast';
 
 // Lazy load the AI toolbar to prevent SSR issues
 const UnifiedAIToolbar = lazy(() =>
@@ -42,6 +44,9 @@ interface EmailComposeV3Props {
 }
 
 export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', accountId, aiGeneratedReply }: EmailComposeV3Props) {
+  const { confirm, Dialog } = useConfirm();
+  const { toast } = useToast();
+
   const [isMinimized, setIsMinimized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showCc, setShowCc] = useState(false);
@@ -459,7 +464,13 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
 
   const handleSaveDraft = useCallback(async (silent = false) => {
     if (!accountId) {
-      if (!silent) alert('No email account selected. Please select an account first.');
+      if (!silent) {
+        toast({
+          title: 'No Account Selected',
+          description: 'Please select an email account first.',
+          variant: 'destructive',
+        });
+      }
       return;
     }
 
@@ -571,14 +582,22 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
 
       const oversized = files.filter(f => f.size > MAX_SIZE);
       if (oversized.length > 0) {
-        alert(`❌ Some files are too large (max 25MB each):\n\n${oversized.map(f => `• ${f.name} (${formatFileSize(f.size)})`).join('\n')}`);
+        toast({
+          title: 'Files Too Large',
+          description: `Some files exceed the 25MB limit: ${oversized.map(f => f.name).join(', ')}`,
+          variant: 'destructive',
+        });
         return;
       }
 
       const currentTotalSize = attachments.reduce((sum, f) => sum + f.size, 0);
       const newTotalSize = files.reduce((sum, f) => sum + f.size, 0);
       if (currentTotalSize + newTotalSize > MAX_TOTAL) {
-        alert(`❌ Total attachments would exceed 100MB limit\n\nCurrent: ${formatFileSize(currentTotalSize)}\nAdding: ${formatFileSize(newTotalSize)}\nMax: 100MB`);
+        toast({
+          title: 'Total Attachment Size Exceeded',
+          description: `Current: ${formatFileSize(currentTotalSize)}, Adding: ${formatFileSize(newTotalSize)}, Max: 100MB`,
+          variant: 'destructive',
+        });
         return;
       }
 
@@ -604,9 +623,17 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
     onClose();
   };
 
-  const handleBackdropClick = () => {
+  const handleBackdropClick = async () => {
     if (isDirty) {
-      if (confirm('You have unsaved changes. Save draft before closing?')) {
+      const confirmed = await confirm({
+        title: 'Unsaved Changes',
+        message: 'You have unsaved changes. Save draft before closing?',
+        confirmText: 'Save Draft',
+        cancelText: 'Discard',
+        variant: 'warning',
+      });
+
+      if (confirmed) {
         handleSaveDraft(false).then(() => {
           resetForm();
           onClose();
@@ -1233,6 +1260,9 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       onClose={() => setShowScheduleSendDialog(false)}
       onSchedule={handleScheduleSend}
     />
+
+    {/* Confirm Dialog */}
+    <Dialog />
     </>
   );
 }

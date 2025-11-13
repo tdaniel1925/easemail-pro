@@ -14,6 +14,8 @@ import { EmailTrackingDashboard } from '@/components/email/EmailTrackingDashboar
 import { EventDialog } from '@/components/calendar/EventDialog';
 import { printEmail } from '@/lib/utils/print';
 import { EmailRendererV3 } from '@/components/email/EmailRendererV3';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useToast } from '@/components/ui/use-toast';
 
 interface EmailMessage {
   id: string;
@@ -61,6 +63,8 @@ export function EmailViewerV3({
   const [showEventDialog, setShowEventDialog] = useState(false);
   const [calendars, setCalendars] = useState<any[]>([]);
   const [selectedCalendar, setSelectedCalendar] = useState<string | null>(null);
+  const { confirm, Dialog } = useConfirm();
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchMessage();
@@ -161,7 +165,15 @@ export function EmailViewerV3({
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this message?')) {
+    const confirmed = await confirm({
+      title: 'Delete Message',
+      message: 'Are you sure you want to delete this message? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -170,10 +182,15 @@ export function EmailViewerV3({
         method: 'DELETE',
       });
 
+      toast({ title: 'Success', description: 'Message deleted successfully' });
       onClose();
     } catch (err) {
       console.error('Error deleting message:', err);
-      alert('Failed to delete message');
+      toast({
+        title: 'Error',
+        description: 'Failed to delete message',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -224,19 +241,25 @@ export function EmailViewerV3({
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full items-center justify-center bg-card">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="mt-4 text-sm text-muted-foreground">Loading message...</p>
-      </div>
+      <>
+        <Dialog />
+        <div className="flex flex-col h-full items-center justify-center bg-card">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="mt-4 text-sm text-muted-foreground">Loading message...</p>
+        </div>
+      </>
     );
   }
 
   if (error || !message) {
     return (
-      <div className="flex flex-col h-full items-center justify-center bg-card">
-        <p className="text-red-600 mb-4">{error || 'Message not found'}</p>
-        <Button onClick={onClose}>Close</Button>
-      </div>
+      <>
+        <Dialog />
+        <div className="flex flex-col h-full items-center justify-center bg-card">
+          <p className="text-red-600 mb-4">{error || 'Message not found'}</p>
+          <Button onClick={onClose}>Close</Button>
+        </div>
+      </>
     );
   }
 
@@ -245,7 +268,9 @@ export function EmailViewerV3({
   const senderName = sender.name || sender.email;
 
   return (
-    <div className="flex flex-col h-full bg-card overflow-hidden">
+    <>
+      <Dialog />
+      <div className="flex flex-col h-full bg-card overflow-hidden">
       {/* Header - Fixed */}
       <div className="flex-shrink-0 p-4 border-b border-border">
         <div className="flex items-center justify-between mb-4">
@@ -476,5 +501,6 @@ export function EmailViewerV3({
         />
       )}
     </div>
+    </>
   );
 }

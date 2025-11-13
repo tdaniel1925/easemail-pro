@@ -17,6 +17,7 @@ interface PrintEmailOptions {
   }>;
   includeHeaders?: boolean;
   includeAttachments?: boolean;
+  onError?: (message: string) => void;
 }
 
 /**
@@ -54,12 +55,18 @@ export function printEmail(options: PrintEmailOptions) {
     attachments = [],
     includeHeaders = true,
     includeAttachments = true,
+    onError,
   } = options;
 
   // Create print window content
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
-    alert('Please allow pop-ups to print emails');
+    const message = 'Please allow pop-ups to print emails';
+    if (onError) {
+      onError(message);
+    } else {
+      alert(message);
+    }
     return;
   }
 

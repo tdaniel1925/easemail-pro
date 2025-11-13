@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Save, CheckCircle, Ban, X, Settings2, Globe, Shield, Zap, Database, Trash2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 type Tab = 'general' | 'auth' | 'features' | 'limits' | 'maintenance';
 
@@ -41,6 +42,7 @@ export default function SystemSettingsContent() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [cleaningTags, setCleaningTags] = useState(false);
   const [cleaningEmails, setCleaningEmails] = useState(false);
+  const { confirm, Dialog } = useConfirm();
 
   const sections = [
     { id: 'general' as Tab, name: 'General', icon: Globe },
@@ -100,7 +102,15 @@ export default function SystemSettingsContent() {
   };
 
   const handleCleanupTags = async () => {
-    if (!confirm('Are you sure you want to remove default tags from all contacts? This action cannot be undone.')) {
+    const confirmed = await confirm({
+      title: 'Clean Up Default Tags',
+      message: 'Are you sure you want to remove default tags from all contacts? This action cannot be undone.',
+      confirmText: 'Clean Up',
+      cancelText: 'Cancel',
+      variant: 'warning',
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -128,7 +138,15 @@ export default function SystemSettingsContent() {
   };
 
   const handleCleanupEmails = async () => {
-    if (!confirm('Are you sure you want to remove placeholder emails from all contacts? Contacts without phone numbers will be deleted. This action cannot be undone.')) {
+    const confirmed = await confirm({
+      title: 'Clean Up Placeholder Emails',
+      message: 'Are you sure you want to remove placeholder emails from all contacts? Contacts without phone numbers will be deleted. This action cannot be undone.',
+      confirmText: 'Clean Up',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -156,9 +174,11 @@ export default function SystemSettingsContent() {
   };
 
   return (
-    <div className="flex w-full h-screen">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-background p-4 overflow-y-auto flex-shrink-0">
+    <>
+      <Dialog />
+      <div className="flex w-full h-screen">
+        {/* Sidebar */}
+        <aside className="w-64 border-r border-border bg-background p-4 overflow-y-auto flex-shrink-0">
         <div className="mb-6">
           <h2 className="text-xl font-bold mb-3 text-foreground">System Settings</h2>
           <a 
@@ -501,6 +521,7 @@ export default function SystemSettingsContent() {
         </div>
       </main>
     </div>
+    </>
   );
 }
 

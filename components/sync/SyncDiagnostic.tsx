@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useToast } from '@/components/ui/use-toast';
 
 interface SyncDiagnosticProps {
   accountId: string;
@@ -12,6 +14,8 @@ export function SyncDiagnostic({ accountId }: SyncDiagnosticProps) {
   const [loading, setLoading] = useState(false);
   const [diagnostic, setDiagnostic] = useState<any>(null);
   const [restarting, setRestarting] = useState(false);
+  const { confirm, Dialog } = useConfirm();
+  const { toast } = useToast();
 
   const runDiagnostic = async () => {
     setLoading(true);
@@ -27,8 +31,16 @@ export function SyncDiagnostic({ accountId }: SyncDiagnosticProps) {
   };
 
   const forceRestart = async () => {
-    if (!confirm('Force restart the sync? This will continue from where it left off.')) return;
-    
+    const confirmed = await confirm({
+      title: 'Force Restart Sync',
+      message: 'Force restart the sync? This will continue from where it left off.',
+      confirmText: 'Restart',
+      cancelText: 'Cancel',
+      variant: 'warning',
+    });
+
+    if (!confirmed) return;
+
     setRestarting(true);
     try {
       const response = await fetch('/api/nylas/sync/diagnostic', {
@@ -38,24 +50,37 @@ export function SyncDiagnostic({ accountId }: SyncDiagnosticProps) {
       });
       const data = await response.json();
       if (data.success) {
-        alert('Sync force restarted successfully! Refresh the page in a few seconds.');
+        toast({
+          title: 'Success',
+          description: 'Sync force restarted successfully! Refresh the page in a few seconds.',
+        });
       } else {
-        alert('Failed to restart: ' + data.error);
+        toast({
+          title: 'Error',
+          description: 'Failed to restart: ' + data.error,
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Failed to force restart:', error);
-      alert('Failed to restart sync');
+      toast({
+        title: 'Error',
+        description: 'Failed to restart sync',
+        variant: 'destructive',
+      });
     } finally {
       setRestarting(false);
     }
   };
 
   return (
-    <div className="space-y-4">
-      <Button onClick={runDiagnostic} disabled={loading}>
-        {loading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
-        Run Sync Diagnostic
-      </Button>
+    <>
+      <Dialog />
+      <div className="space-y-4">
+        <Button onClick={runDiagnostic} disabled={loading}>
+          {loading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
+          Run Sync Diagnostic
+        </Button>
 
       {diagnostic && (
         <div className="border rounded-lg p-4 space-y-3">
@@ -116,7 +141,8 @@ export function SyncDiagnostic({ accountId }: SyncDiagnosticProps) {
           )}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

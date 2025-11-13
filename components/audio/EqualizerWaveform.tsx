@@ -94,17 +94,17 @@ export function EqualizerWaveform({
         // Add randomness for natural movement
         const randomFactor = 0.8 + Math.random() * 0.5;
 
-        // Calculate target height with more aggressive response
-        const targetHeight = Math.pow(normalizedLevel * frequencyBias * randomFactor, 0.7);
+        // Calculate target height with MORE aggressive response for higher bars
+        const targetHeight = Math.pow(normalizedLevel * frequencyBias * randomFactor, 0.5); // Lower exponent = taller bars
 
-        // Faster interpolation for more responsive movement
+        // MUCH faster interpolation for more responsive movement
         const currentHeight = barHeightsRef.current[i];
-        const smoothed = currentHeight + (targetHeight - currentHeight) * 0.5;
+        const smoothed = currentHeight + (targetHeight - currentHeight) * 0.75; // Increased from 0.5 to 0.75
         barHeightsRef.current[i] = smoothed;
 
         // Ensure minimum visibility
-        const minBarHeight = 4;
-        const barHeight = Math.max(minBarHeight, smoothed * canvasHeight * 0.9);
+        const minBarHeight = 6; // Increased from 4
+        const barHeight = Math.max(minBarHeight, smoothed * canvasHeight * 1.2); // Increased from 0.9 to 1.2 for taller bars
 
         const x = i * (barWidth + gap);
         const y = canvasHeight - barHeight;

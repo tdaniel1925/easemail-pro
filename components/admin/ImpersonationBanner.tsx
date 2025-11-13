@@ -5,6 +5,7 @@ import { AlertTriangle, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/use-toast';
 
 interface ImpersonationData {
   adminUserId: string;
@@ -15,6 +16,7 @@ interface ImpersonationData {
 }
 
 export function ImpersonationBanner() {
+  const { toast } = useToast();
   const [impersonationData, setImpersonationData] = useState<ImpersonationData | null>(null);
   const [exiting, setExiting] = useState(false);
   const router = useRouter();
@@ -92,7 +94,11 @@ export function ImpersonationBanner() {
       window.location.href = '/login?message=Exited impersonation mode. Please log in again.';
     } catch (error) {
       console.error('[ImpersonationBanner] Failed to exit impersonation:', error);
-      alert('Failed to exit impersonation mode. Please try again.');
+      toast({
+        title: 'Exit Failed',
+        description: 'Failed to exit impersonation mode. Please try again.',
+        variant: 'destructive',
+      });
       setExiting(false);
     }
   };
