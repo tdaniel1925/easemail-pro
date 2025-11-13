@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, lazy, useCallback } from 'react';
+import { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
 import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import EmailAutocomplete from '@/components/email/EmailAutocomplete';
 import { URLInputDialog } from '@/components/ui/url-input-dialog';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { SignaturePromptModal } from '@/components/email/SignaturePromptModal';
+import { formatDistanceToNow } from 'date-fns';
 
 // Lazy load the AI toolbar to prevent SSR issues
 const UnifiedAIToolbar = lazy(() =>
@@ -75,6 +76,12 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [lastSaved, setLastSaved] = useState<Date | null>(null); // Draft save indicator
   const [isDirty, setIsDirty] = useState(false); // Track if compose has unsaved changes
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null); // Track current draft ID for deletion after send
+  const [isFirstChange, setIsFirstChange] = useState(true); // Track first change for instant save
+  const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle'); // Save status indicator
+
+  // Refs for debouncing
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const saveRetryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Text formatting state - REMOVED (they don't actually work)
   const [isHtmlMode, setIsHtmlMode] = useState(true); // HTML vs Plain text mode
@@ -521,6 +528,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     }
 
     setIsSavingDraft(true);
+    setSavingStatus('saving');
 
     try {
       if (!silent) console.log('💾 Saving draft...');
@@ -566,6 +574,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         // Update last saved time
         setLastSaved(new Date());
         setIsDirty(false);
+        setSavingStatus('saved');
+        setIsFirstChange(false); // Mark that first save is complete
+
+        // Clear saved status after 2 seconds
+        setTimeout(() => {
+          setSavingStatus('idle');
+        }, 2000);
 
         if (!silent) {
           // Show success message for manual saves
@@ -576,24 +591,72 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           setTimeout(() => successMessage.remove(), 3000);
         }
       } else {
+        setSavingStatus('error');
+        // Retry after 5 seconds
+        if (silent) {
+          saveRetryTimerRef.current = setTimeout(() => {
+            console.log('[Draft] Retrying save after error...');
+            handleSaveDraft(true);
+          }, 5000);
+        }
         if (!silent) alert(`Failed to save draft: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('❌ Draft save error:', error);
+      setSavingStatus('error');
+
+      // Retry after 5 seconds for auto-saves
+      if (silent) {
+        saveRetryTimerRef.current = setTimeout(() => {
+          console.log('[Draft] Retrying save after error...');
+          handleSaveDraft(true);
+        }, 5000);
+      }
+
       if (!silent) alert('Failed to save draft. Please try again.');
     } finally {
       setIsSavingDraft(false);
     }
   }, [accountId, to, cc, bcc, subject, body, replyTo, type]);
 
-  // Auto-save draft every 30 seconds
+  // Debounced auto-save with instant first save
   useEffect(() => {
     if (!isOpen || !isDirty || !accountId) return;
-    
+
+    // Clear existing debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // If this is the first change, save immediately (Outlook behavior)
+    if (isFirstChange) {
+      console.log('[Draft] First change detected - saving immediately');
+      handleSaveDraft(true);
+      return;
+    }
+
+    // Otherwise, debounce: save 3 seconds after last change
+    debounceTimerRef.current = setTimeout(() => {
+      console.log('[Draft] Debounced auto-save triggered');
+      handleSaveDraft(true);
+    }, 3000); // 3 seconds after last change
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [isOpen, isDirty, accountId, to, cc, bcc, subject, body, isFirstChange, handleSaveDraft]);
+
+  // Periodic auto-save backup (every 3 seconds) to ensure drafts are saved even without changes
+  useEffect(() => {
+    if (!isOpen || !isDirty || !accountId) return;
+
     const autoSaveInterval = setInterval(() => {
+      console.log('[Draft] Periodic auto-save triggered');
       handleSaveDraft(true); // Silent auto-save
-    }, 30000); // Every 30 seconds
-    
+    }, 3000); // Every 3 seconds
+
     return () => clearInterval(autoSaveInterval);
   }, [isOpen, isDirty, accountId, handleSaveDraft]);
 
@@ -617,8 +680,17 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         alert(`❌ Total attachments would exceed 100MB limit\n\nCurrent: ${formatFileSize(currentTotalSize)}\nAdding: ${formatFileSize(newTotalSize)}\nMax: 100MB`);
         return;
       }
-      
+
       setAttachments([...attachments, ...files]);
+
+      // Trigger immediate save when attachment is added (Outlook behavior)
+      setIsDirty(true);
+      setTimeout(() => {
+        if (accountId) {
+          console.log('[Draft] Attachment added - saving immediately');
+          handleSaveDraft(true);
+        }
+      }, 100); // Small delay to ensure state is updated
     }
   };
 
@@ -786,6 +858,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
             isFullscreen && 'h-[calc(100vh-2rem)] w-[calc(100vw-2rem)]'
           )}
           onClick={(e) => e.stopPropagation()}
+          onBlur={(e) => {
+            // Save when focus leaves the compose window
+            if (isDirty && accountId && !e.currentTarget.contains(e.relatedTarget as Node)) {
+              console.log('[Draft] Focus lost - saving draft');
+              handleSaveDraft(true);
+            }
+          }}
         >
         {/* Header */}
         <div className="flex items-center justify-between p-3 border-b border-border bg-muted/30">
@@ -801,9 +880,26 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 To: {to.map(r => r.email).join(', ')}
               </span>
             )}
-            {lastSaved && !isMinimized && (
-              <span className="text-xs text-muted-foreground">
-                Saved {formatDistanceToNow(lastSaved)}
+            {!isMinimized && (
+              <span className="text-xs flex items-center gap-1">
+                {savingStatus === 'saving' && (
+                  <>
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                    <span className="text-blue-600">Saving...</span>
+                  </>
+                )}
+                {savingStatus === 'saved' && lastSaved && (
+                  <>
+                    <Check className="h-3 w-3 text-green-600" />
+                    <span className="text-green-600">Saved {formatDistanceToNow(lastSaved)} ago</span>
+                  </>
+                )}
+                {savingStatus === 'error' && (
+                  <span className="text-red-600">Save failed - retrying...</span>
+                )}
+                {savingStatus === 'idle' && lastSaved && (
+                  <span className="text-muted-foreground">Last saved {formatDistanceToNow(lastSaved)} ago</span>
+                )}
               </span>
             )}
           </div>
