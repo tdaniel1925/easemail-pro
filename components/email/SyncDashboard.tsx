@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import ErrorResolutionCard from '@/components/email/ErrorResolutionCard';
+import { withRetry, isRateLimitError } from '@/lib/rate-limit-handler';
 
 interface SyncDashboardProps {
   accountId: string;
@@ -63,15 +64,37 @@ export default function SyncDashboard({ accountId, emailAddress }: SyncDashboard
 
     const fetchMetrics = async () => {
       try {
-        const response = await fetch(`/api/nylas/sync/metrics?accountId=${accountId}`);
-        const data = await response.json();
+        const data = await withRetry(
+          async () => {
+            const response = await fetch(`/api/nylas/sync/metrics?accountId=${accountId}`);
+
+            // Handle rate limits gracefully
+            if (response.status === 429) {
+              console.log('Rate limited while fetching metrics, will retry...');
+              const error: any = new Error('Rate limit exceeded');
+              error.status = 429;
+              error.response = response;
+              throw error;
+            }
+
+            return response.json();
+          },
+          {
+            maxRetries: 3,
+            initialDelayMs: 2000,
+            backoffMultiplier: 2,
+          }
+        );
 
         if (data.success) {
           setMetrics(data.metrics);
           setLastUpdateTime(new Date());
         }
       } catch (error) {
-        console.error('Failed to fetch sync metrics:', error);
+        // Don't log rate limit errors as they're handled automatically
+        if (!isRateLimitError(error)) {
+          console.error('Failed to fetch sync metrics:', error);
+        }
       } finally {
         setLoading(false);
       }
@@ -88,22 +111,45 @@ export default function SyncDashboard({ accountId, emailAddress }: SyncDashboard
   const handleStopSync = async () => {
     setStopping(true);
     try {
-      const response = await fetch('/api/nylas/sync/stop', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId }),
-      });
+      await withRetry(
+        async () => {
+          const response = await fetch('/api/nylas/sync/stop', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountId }),
+          });
 
-      if (response.ok) {
-        // Refresh metrics immediately
-        const metricsResponse = await fetch(`/api/nylas/sync/metrics?accountId=${accountId}`);
-        const data = await metricsResponse.json();
-        if (data.success) {
-          setMetrics(data.metrics);
+          if (!response.ok) {
+            const error: any = new Error('Stop sync failed');
+            error.status = response.status;
+            error.response = response;
+            throw error;
+          }
+
+          return response.json();
+        },
+        {
+          maxRetries: 3,
+          initialDelayMs: 1000,
         }
+      );
+
+      // Refresh metrics immediately
+      const data = await withRetry(
+        async () => {
+          const response = await fetch(`/api/nylas/sync/metrics?accountId=${accountId}`);
+          return response.json();
+        },
+        { maxRetries: 2 }
+      );
+
+      if (data.success) {
+        setMetrics(data.metrics);
       }
     } catch (error) {
-      console.error('Stop sync failed:', error);
+      if (!isRateLimitError(error)) {
+        console.error('Stop sync failed:', error);
+      }
     } finally {
       setStopping(false);
     }
@@ -112,22 +158,45 @@ export default function SyncDashboard({ accountId, emailAddress }: SyncDashboard
   const handleRestartSync = async () => {
     setRestarting(true);
     try {
-      const response = await fetch('/api/nylas/sync/background', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId }),
-      });
+      await withRetry(
+        async () => {
+          const response = await fetch('/api/nylas/sync/background', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountId }),
+          });
 
-      if (response.ok) {
-        // Refresh metrics immediately
-        const metricsResponse = await fetch(`/api/nylas/sync/metrics?accountId=${accountId}`);
-        const data = await metricsResponse.json();
-        if (data.success) {
-          setMetrics(data.metrics);
+          if (!response.ok) {
+            const error: any = new Error('Restart sync failed');
+            error.status = response.status;
+            error.response = response;
+            throw error;
+          }
+
+          return response.json();
+        },
+        {
+          maxRetries: 3,
+          initialDelayMs: 1000,
         }
+      );
+
+      // Refresh metrics immediately
+      const data = await withRetry(
+        async () => {
+          const response = await fetch(`/api/nylas/sync/metrics?accountId=${accountId}`);
+          return response.json();
+        },
+        { maxRetries: 2 }
+      );
+
+      if (data.success) {
+        setMetrics(data.metrics);
       }
     } catch (error) {
-      console.error('Restart sync failed:', error);
+      if (!isRateLimitError(error)) {
+        console.error('Restart sync failed:', error);
+      }
     } finally {
       setRestarting(false);
     }

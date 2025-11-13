@@ -6,6 +6,7 @@ import Nylas from 'nylas';
 import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 import { assignEmailFolder, validateFolderAssignment } from '@/lib/email/folder-utils';
 import { extractAndSaveAttachments } from '@/lib/attachments/extract-from-email';
+import { isRateLimitError, calculateBackoffDelay } from '@/lib/rate-limit-handler';
 
 const nylas = new Nylas({
   apiKey: process.env.NYLAS_API_KEY!,
@@ -470,7 +471,7 @@ async function performBackgroundSync(
 
       } catch (pageError) {
         console.error(`❌ Error fetching page ${currentPage}:`, pageError);
-        
+
         // Get current account state for retry logic
         const currentAccount = await db.query.emailAccounts.findFirst({
           where: eq(emailAccounts.id, accountId),
@@ -480,15 +481,49 @@ async function performBackgroundSync(
         const maxRetries = 3;
 
         if (retryCount <= maxRetries) {
-          // Auto-retry with exponential backoff
-          const backoffMs = Math.min(1000 * Math.pow(2, retryCount - 1), 30000); // Max 30s
-          console.log(`🔄 Retry ${retryCount}/${maxRetries} in ${backoffMs}ms for account ${accountId}`);
+          // Check if it's a rate limit error for smarter backoff
+          const isRateLimit = isRateLimitError(pageError);
+          let backoffMs: number;
 
+          if (isRateLimit) {
+            // For rate limits, use longer backoff and respect Retry-After if available
+            console.log(`⏱️ Rate limit detected on retry ${retryCount}/${maxRetries}`);
+
+            // Extract Retry-After from error if available (Nylas includes this in some error responses)
+            const retryAfter = (pageError as any)?.response?.headers?.get?.('retry-after');
+            if (retryAfter) {
+              backoffMs = parseInt(retryAfter, 10) * 1000; // Convert seconds to ms
+              console.log(`📋 Using Retry-After header: ${backoffMs}ms`);
+            } else {
+              // Use exponential backoff with higher base for rate limits
+              backoffMs = calculateBackoffDelay(retryCount, {
+                maxRetries: maxRetries,
+                initialDelayMs: 5000, // Start at 5 seconds for rate limits
+                maxDelayMs: 60000, // Max 60 seconds
+                backoffMultiplier: 2,
+                jitterMs: 1000,
+              });
+            }
+          } else {
+            // Standard exponential backoff for other errors
+            backoffMs = calculateBackoffDelay(retryCount, {
+              maxRetries: maxRetries,
+              initialDelayMs: 1000,
+              maxDelayMs: 30000,
+              backoffMultiplier: 2,
+            });
+          }
+
+          console.log(`🔄 Retry ${retryCount}/${maxRetries} in ${backoffMs}ms for account ${accountId}${isRateLimit ? ' (rate limited)' : ''}`);
+
+          const errorMessage = pageError instanceof Error ? pageError.message : 'Unknown error';
           await db.update(emailAccounts)
             .set({
               retryCount: retryCount,
               lastRetryAt: new Date(),
-              lastError: `Retry ${retryCount}/${maxRetries}: ${pageError instanceof Error ? pageError.message : 'Unknown error'}`,
+              lastError: isRateLimit
+                ? `Rate limited - retrying ${retryCount}/${maxRetries} (waiting ${Math.round(backoffMs/1000)}s)`
+                : `Retry ${retryCount}/${maxRetries}: ${errorMessage}`,
             })
             .where(eq(emailAccounts.id, accountId));
 
