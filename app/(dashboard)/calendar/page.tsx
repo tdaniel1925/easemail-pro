@@ -11,6 +11,7 @@ import AgendaView from '@/components/calendar/AgendaView';
 import DraggableMonthView from '@/components/calendar/DraggableMonthView';
 import QuickAdd from '@/components/calendar/QuickAdd';
 import { cn } from '@/lib/utils';
+import { CalendarSkeleton } from '@/components/ui/skeleton';
 
 type ViewType = 'month' | 'week' | 'day' | 'agenda';
 
@@ -389,11 +390,7 @@ function CalendarContent() {
 
 export default function CalendarPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    }>
+    <Suspense fallback={<CalendarSkeleton />}>
       <CalendarContent />
     </Suspense>
   );

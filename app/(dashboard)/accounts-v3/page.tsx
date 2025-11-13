@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { getInitials, generateAvatarColor } from '@/lib/utils';
 import ProviderSelector from '@/components/email/ProviderSelector';
 import ErrorResolutionCard from '@/components/email/ErrorResolutionCard';
+import { AccountCardSkeleton, StatsCardSkeleton } from '@/components/ui/skeleton';
 
 interface EmailAccount {
   id: string;
@@ -504,8 +505,22 @@ export default function AccountsV3Page() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="p-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header Skeleton */}
+          <div className="mb-8">
+            <div className="h-8 w-64 bg-muted/50 animate-pulse rounded mb-2"></div>
+            <div className="h-4 w-96 bg-muted/50 animate-pulse rounded"></div>
+          </div>
+
+          {/* Stats Cards */}
+          <StatsCardSkeleton />
+
+          {/* Account Cards */}
+          <div className="mt-8">
+            <AccountCardSkeleton />
+          </div>
+        </div>
       </div>
     );
   }

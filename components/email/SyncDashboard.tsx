@@ -24,6 +24,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import ErrorResolutionCard from '@/components/email/ErrorResolutionCard';
 import { withRetry, isRateLimitError } from '@/lib/rate-limit-handler';
+import { SyncDashboardSkeleton } from '@/components/ui/skeleton';
 
 interface SyncDashboardProps {
   accountId: string;
@@ -203,11 +204,7 @@ export default function SyncDashboard({ accountId, emailAddress }: SyncDashboard
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <SyncDashboardSkeleton />;
   }
 
   if (!metrics) {
