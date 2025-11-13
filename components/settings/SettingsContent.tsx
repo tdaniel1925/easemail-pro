@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, User, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker } from 'lucide-react';
+import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,14 +15,13 @@ import ThemeSelector from '@/components/theme/ThemeSelector';
 import { UtilitiesContent } from '@/components/settings/UtilitiesContent';
 import { FeatureFlagsContent } from '@/components/settings/FeatureFlagsContent';
 
-type SettingsSection = 'general' | 'sync' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'utilities' | 'features' | 'help';
+type SettingsSection = 'sync' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'utilities' | 'features' | 'help';
 
 export default function SettingsContent() {
   const router = useRouter();
-  const [activeSection, setActiveSection] = useState<SettingsSection>('general');
+  const [activeSection, setActiveSection] = useState<SettingsSection>('sync');
 
   const sections = [
-    { id: 'general' as const, name: 'General', icon: User },
     { id: 'sync' as const, name: 'Sync Status', icon: RefreshCw },
     { id: 'signatures' as const, name: 'Signatures', icon: PenTool },
     { id: 'preferences' as const, name: 'Preferences', icon: Sliders },
@@ -75,7 +74,6 @@ export default function SettingsContent() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-        {activeSection === 'general' && <GeneralSettings />}
         {activeSection === 'sync' && <SyncStatusSettings />}
         {activeSection === 'signatures' && <SignaturesSettings />}
         {activeSection === 'preferences' && <PreferencesSettings />}
@@ -396,86 +394,6 @@ function SyncStatusSettings() {
               <p><strong>Why is my sync slow?</strong> Sync speed depends on your email provider's rate limits. Google allows faster sync than Microsoft.</p>
               <p><strong>Will syncing affect performance?</strong> No, syncs run in the background without affecting your ability to read and send emails.</p>
               <p><strong>How often does it sync?</strong> Initial sync downloads all historical emails. After that, new emails are synced automatically in real-time.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function GeneralSettings() {
-  return (
-    <>
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">General Settings</h1>
-            <p className="text-sm text-muted-foreground mt-1">Manage your account information and preferences</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-6">
-        <div className="w-full space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>Update your personal information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" defaultValue="John" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" defaultValue="Doe" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue="john@example.com" disabled />
-                <p className="text-xs text-muted-foreground">Email cannot be changed</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" type="tel" placeholder="+1 (555) 123-4567" />
-              </div>
-              <Button>Save Changes</Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Language & Region</CardTitle>
-              <CardDescription>Set your language and regional preferences</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Language</Label>
-                  <select className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]">
-                    <option className="bg-background text-foreground">English (US)</option>
-                    <option className="bg-background text-foreground">Spanish</option>
-                    <option className="bg-background text-foreground">French</option>
-                    <option className="bg-background text-foreground">German</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Timezone</Label>
-                  <select className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]">
-                    <option className="bg-background text-foreground">Pacific Time (PT)</option>
-                    <option className="bg-background text-foreground">Mountain Time (MT)</option>
-                    <option className="bg-background text-foreground">Central Time (CT)</option>
-                    <option className="bg-background text-foreground">Eastern Time (ET)</option>
-                  </select>
-                </div>
-              </div>
-              <Button>Save Changes</Button>
             </CardContent>
           </Card>
         </div>

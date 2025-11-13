@@ -287,7 +287,7 @@ function CalendarContent() {
         </div>
 
         {/* Calendar Card */}
-        <div className="flex-1 bg-card border border-border rounded-lg overflow-hidden">
+        <div className="flex-1 bg-card border border-border rounded-lg overflow-auto">
           {loading ? (
             <div className="flex items-center justify-center h-96">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

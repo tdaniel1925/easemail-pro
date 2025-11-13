@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Plus, Download, Upload, Grid, List, Mail, Phone, MoreVertical, Edit, Trash2, X, Loader2, MessageSquare, Sparkles, ArrowLeft, CheckSquare, Square } from 'lucide-react';
+import { Search, Plus, Download, Upload, Grid, List, Mail, Phone, MoreVertical, Edit, Trash2, X, Loader2, MessageSquare, Sparkles, ArrowLeft, CheckSquare, Square, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -59,6 +59,14 @@ export default function ContactsList() {
   // Bulk actions state
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [isAllSelected, setIsAllSelected] = useState(false);
+
+  // Sync state
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{
+    lastSyncAt: Date | null;
+    syncing: boolean;
+    error: string | null;
+  }>({ lastSyncAt: null, syncing: false, error: null });
 
   // Confirmation dialog
   const { confirm, Dialog: ConfirmDialog } = useConfirm();
@@ -347,6 +355,40 @@ export default function ContactsList() {
     fetchContacts();
   };
 
+  const handleContactSync = async () => {
+    try {
+      setSyncing(true);
+      setSyncStatus({ lastSyncAt: null, syncing: true, error: null });
+
+      const response = await fetch('/api/contacts/sync', {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSyncStatus({
+          lastSyncAt: new Date(),
+          syncing: false,
+          error: null,
+        });
+        // Refresh contacts list
+        await fetchContacts();
+      } else {
+        throw new Error(data.error || 'Sync failed');
+      }
+    } catch (error) {
+      console.error('Sync failed:', error);
+      setSyncStatus({
+        lastSyncAt: null,
+        syncing: false,
+        error: error instanceof Error ? error.message : 'Sync failed',
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   // Get unique tags from all contacts
   const allTags = Array.from(new Set(contacts.flatMap(c => c.tags || [])));
 
@@ -431,6 +473,14 @@ export default function ContactsList() {
             <p className="text-muted-foreground">{filteredContacts.length} contacts</p>
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleContactSync}
+              disabled={syncing}
+            >
+              <RefreshCw className={cn("h-4 w-4 mr-2", syncing && "animate-spin")} />
+              {syncing ? 'Syncing...' : 'Sync'}
+            </Button>
             <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Import
@@ -445,6 +495,23 @@ export default function ContactsList() {
             </Button>
           </div>
         </div>
+
+        {/* Sync Status */}
+        {syncStatus.lastSyncAt && (
+          <div className="mb-4 p-3 bg-muted/50 border border-border rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              Last synced: {new Date(syncStatus.lastSyncAt).toLocaleString()}
+            </p>
+          </div>
+        )}
+
+        {syncStatus.error && (
+          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <p className="text-sm text-destructive">
+              Sync error: {syncStatus.error}
+            </p>
+          </div>
+        )}
 
         {/* Search and Filters */}
         <div className="flex items-center gap-4">
