@@ -19,6 +19,7 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
+import Image from '@tiptap/extension-image';
 import { 
   Bold, 
   Italic, 
@@ -113,12 +114,56 @@ export function RichTextEditor({
       TableRow,
       TableHeader,
       TableCell,
+      Image.configure({
+        inline: true,
+        allowBase64: true,
+        HTMLAttributes: {
+          style: 'max-width: 100%; height: auto; display: block; margin: 10px 0;',
+        },
+      }),
     ],
     content,
     immediatelyRender: false,
     editorProps: {
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[300px] p-4',
+      },
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+
+        // Check if pasted content contains an image
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (item.type.startsWith('image/')) {
+            event.preventDefault();
+
+            const blob = item.getAsFile();
+            if (blob) {
+              // Convert blob to base64 data URL
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                const dataUrl = e.target?.result as string;
+                // Insert image at current cursor position
+                view.state.tr.replaceSelectionWith(
+                  view.state.schema.nodes.image.create({ src: dataUrl })
+                );
+                // For TipTap, use the editor commands instead
+                const { state } = view;
+                const { $from } = state.selection;
+                const pos = $from.pos;
+
+                // Insert image using TipTap command
+                if (editor) {
+                  editor.chain().focus().setImage({ src: dataUrl }).run();
+                }
+              };
+              reader.readAsDataURL(blob);
+            }
+            return true; // Prevent default paste behavior
+          }
+        }
+        return false; // Allow default paste for non-images
       },
     },
     onUpdate: ({ editor }) => {
