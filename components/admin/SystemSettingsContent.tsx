@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Save, CheckCircle, Ban, X, Settings2, Globe, Shield, Zap, Database } from 'lucide-react';
+import { Save, CheckCircle, Ban, X, Settings2, Globe, Shield, Zap, Database, Trash2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type Tab = 'general' | 'auth' | 'features' | 'limits';
+type Tab = 'general' | 'auth' | 'features' | 'limits' | 'maintenance';
 
 interface SystemSettings {
   siteName: string;
@@ -39,12 +39,15 @@ export default function SystemSettingsContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [cleaningTags, setCleaningTags] = useState(false);
+  const [cleaningEmails, setCleaningEmails] = useState(false);
 
   const sections = [
     { id: 'general' as Tab, name: 'General', icon: Globe },
     { id: 'auth' as Tab, name: 'Authentication', icon: Shield },
     { id: 'features' as Tab, name: 'Features', icon: Zap },
     { id: 'limits' as Tab, name: 'Limits & Quotas', icon: Database },
+    { id: 'maintenance' as Tab, name: 'Maintenance', icon: Trash2 },
   ];
 
   const showToast = (type: 'success' | 'error', message: string) => {
@@ -93,6 +96,62 @@ export default function SystemSettingsContent() {
       showToast('error', 'Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCleanupTags = async () => {
+    if (!confirm('Are you sure you want to remove default tags from all contacts? This action cannot be undone.')) {
+      return;
+    }
+
+    setCleaningTags(true);
+    try {
+      const response = await fetch('/api/admin/cleanup/tags', {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showToast('success',
+          `Cleanup complete! Updated ${data.contactsUpdated} contacts, removed ${data.tagsRemoved} tags.`
+        );
+      } else {
+        showToast('error', data.error || 'Tag cleanup failed');
+      }
+    } catch (error) {
+      console.error('Tag cleanup failed:', error);
+      showToast('error', 'Tag cleanup failed');
+    } finally {
+      setCleaningTags(false);
+    }
+  };
+
+  const handleCleanupEmails = async () => {
+    if (!confirm('Are you sure you want to remove placeholder emails from all contacts? Contacts without phone numbers will be deleted. This action cannot be undone.')) {
+      return;
+    }
+
+    setCleaningEmails(true);
+    try {
+      const response = await fetch('/api/admin/cleanup/emails', {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showToast('success',
+          `Cleanup complete! Updated ${data.emailsRemoved} contacts, deleted ${data.contactsDeleted} contacts without phone numbers.`
+        );
+      } else {
+        showToast('error', data.error || 'Email cleanup failed');
+      }
+    } catch (error) {
+      console.error('Email cleanup failed:', error);
+      showToast('error', 'Email cleanup failed');
+    } finally {
+      setCleaningEmails(false);
     }
   };
 
@@ -350,6 +409,92 @@ export default function SystemSettingsContent() {
                     </div>
                   </CardContent>
                 </Card>
+              )}
+
+              {activeTab === 'maintenance' && (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Contact Cleanup</CardTitle>
+                      <CardDescription>
+                        Remove unwanted or placeholder data from contacts
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Clean Up Default Tags */}
+                      <div className="space-y-3">
+                        <div>
+                          <h3 className="font-medium text-sm mb-1">Clean Up Default Tags</h3>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            Removes default/unwanted tags like "Contacts", "My Contacts", "Starred", etc. from all contacts.
+                          </p>
+                        </div>
+                        <Button
+                          onClick={handleCleanupTags}
+                          disabled={cleaningTags || cleaningEmails}
+                          variant="outline"
+                          className="w-full sm:w-auto"
+                        >
+                          {cleaningTags ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Cleaning Tags...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Clean Up Tags
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      <div className="border-t border-border pt-6">
+                        {/* Clean Up Placeholder Emails */}
+                        <div className="space-y-3">
+                          <div>
+                            <h3 className="font-medium text-sm mb-1">Clean Up Placeholder Emails</h3>
+                            <p className="text-sm text-muted-foreground mb-3">
+                              Removes placeholder emails (noemail@, test@, temp@, etc.). Contacts with phone numbers will be kept, others will be deleted.
+                            </p>
+                          </div>
+                          <Button
+                            onClick={handleCleanupEmails}
+                            disabled={cleaningTags || cleaningEmails}
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                          >
+                            {cleaningEmails ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Cleaning Emails...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Clean Up Emails
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-yellow-500/50 bg-yellow-500/5">
+                    <CardHeader>
+                      <CardTitle className="text-yellow-600 dark:text-yellow-500 flex items-center gap-2">
+                        <Ban className="h-5 w-5" />
+                        Warning
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        These cleanup operations are permanent and cannot be undone. Always ensure you have a backup before performing maintenance operations.
+                      </p>
+                    </CardContent>
+                  </Card>
+                </>
               )}
             </div>
           )}

@@ -68,6 +68,10 @@ export default function ContactsList() {
     error: string | null;
   }>({ lastSyncAt: null, syncing: false, error: null });
 
+  // Bulk delete progress state
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
+
   // Confirmation dialog
   const { confirm, Dialog: ConfirmDialog } = useConfirm();
 
@@ -232,16 +236,25 @@ export default function ContactsList() {
     if (!confirmed) return;
 
     try {
-      const deletePromises = Array.from(selectedContactIds).map(id =>
-        fetch(`/api/contacts/${id}`, { method: 'DELETE' })
-      );
+      setBulkDeleting(true);
+      const contactIds = Array.from(selectedContactIds);
+      const total = contactIds.length;
+      setDeleteProgress({ current: 0, total });
 
-      await Promise.all(deletePromises);
+      // Delete contacts one by one to show progress
+      for (let i = 0; i < contactIds.length; i++) {
+        await fetch(`/api/contacts/${contactIds[i]}`, { method: 'DELETE' });
+        setDeleteProgress({ current: i + 1, total });
+      }
+
       await fetchContacts();
       setSelectedContactIds(new Set());
       setIsAllSelected(false);
     } catch (error) {
       console.error('Failed to delete contacts:', error);
+    } finally {
+      setBulkDeleting(false);
+      setDeleteProgress({ current: 0, total: 0 });
     }
   };
 
@@ -417,8 +430,26 @@ export default function ContactsList() {
           </Button>
         </div>
 
+        {/* Delete Progress Indicator */}
+        {bulkDeleting && (
+          <div className="mb-4 p-4 bg-muted border border-border rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium">Deleting contacts...</p>
+              <p className="text-sm text-muted-foreground">
+                {deleteProgress.current} / {deleteProgress.total}
+              </p>
+            </div>
+            <div className="w-full bg-background rounded-full h-2.5">
+              <div
+                className="bg-primary h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${(deleteProgress.current / deleteProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Bulk Actions Toolbar */}
-        {selectedContactIds.size > 0 && (
+        {selectedContactIds.size > 0 && !bulkDeleting && (
           <div className="flex items-center justify-between p-3 mb-4 bg-primary/10 border border-primary/20 rounded-lg">
             <div className="flex items-center gap-2">
               <input
