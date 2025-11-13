@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
       where: eq(users.id, user.id),
     });
 
-    if (!dbUser?.isAdmin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
     }
 
     console.log('🧹 Starting placeholder email cleanup (admin)...');
