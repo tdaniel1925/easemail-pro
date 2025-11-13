@@ -40,8 +40,8 @@ export default function SettingsContent() {
       <aside className="w-64 border-r border-border bg-background p-4 overflow-y-auto flex-shrink-0">
         <div className="mb-6">
           <h2 className="text-xl font-bold mb-3 text-foreground">Settings</h2>
-          <a 
-            href="/inbox-v3"
+          <a
+            href="/inbox"
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

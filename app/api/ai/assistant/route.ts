@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build system context with current page info
-    const systemContext = buildSystemContext(currentPage || '/inbox-v3');
+    const systemContext = buildSystemContext(currentPage || '/inbox');
 
     // Prepare messages for OpenAI
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [

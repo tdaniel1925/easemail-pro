@@ -515,7 +515,7 @@ export default function AccountsV3Page() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <a
-              href="/inbox-v3"
+              href="/inbox"
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />

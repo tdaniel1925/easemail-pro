@@ -112,7 +112,7 @@ export default function ProfileContent() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push('/inbox-v3')}
+            onClick={() => router.push('/inbox')}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Inbox

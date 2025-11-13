@@ -110,7 +110,7 @@ function AcceptInvitationContent() {
       }
 
       // Success! Redirect to dashboard
-      setTimeout(() => router.push('/inbox-v3'), 1500);
+      setTimeout(() => router.push('/inbox'), 1500);
     } catch (err: any) {
       console.error('Activation error:', err);
       setError(err.message);

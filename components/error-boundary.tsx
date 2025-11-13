@@ -115,7 +115,7 @@ function DefaultErrorFallback({
             Try again
           </button>
           <button
-            onClick={() => window.location.href = '/inbox-v3'}
+            onClick={() => window.location.href = '/inbox'}
             className="px-4 py-2 border border-border rounded-md hover:bg-muted transition-colors"
           >
             Go to inbox
@@ -162,7 +162,7 @@ export function PageErrorBoundary({ children }: { children: ReactNode }) {
                   Reload page
                 </button>
                 <button
-                  onClick={() => window.location.href = '/inbox-v3'}
+                  onClick={() => window.location.href = '/inbox'}
                   className="w-full px-4 py-3 border border-border rounded-md hover:bg-muted transition-colors font-medium"
                 >
                   Return to inbox

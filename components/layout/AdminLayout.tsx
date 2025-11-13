@@ -98,7 +98,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* Back to Inbox */}
           <Link
-            href="/inbox-v3"
+            href="/inbox"
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

@@ -234,7 +234,7 @@ export default function UsersManagement() {
         // Redirect to inbox after successful session creation
         // Use a full page reload to ensure all state is refreshed
         setTimeout(() => {
-          window.location.href = '/inbox-v3';
+          window.location.href = '/inbox';
         }, 500);
       } else {
         console.error('[Impersonate] API error:', data);

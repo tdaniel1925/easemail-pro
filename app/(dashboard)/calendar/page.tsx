@@ -223,8 +223,8 @@ function CalendarContent() {
           <div>
             <h1 className="text-2xl font-bold">Calendar</h1>
             <p className="text-sm text-muted-foreground">Manage your schedule and events</p>
-            <a 
-              href="/inbox-v3"
+            <a
+              href="/inbox"
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mt-2"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

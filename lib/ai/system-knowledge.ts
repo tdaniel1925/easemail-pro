@@ -131,7 +131,7 @@ export const FEATURES: Record<string, KnowledgeItem> = {
       'Wait for sync to complete',
       'Your account appears in the sidebar',
     ],
-    links: ['/inbox-v3'],
+    links: ['/inbox'],
     tags: ['setup', 'gmail', 'outlook', 'imap', 'account', 'sync'],
     relatedFeatures: ['account-switcher', 'multi-account'],
   },
@@ -253,7 +253,7 @@ export const FEATURES: Record<string, KnowledgeItem> = {
       'Results filter in real-time',
       'Clear search to see all emails again',
     ],
-    links: ['/inbox-v3'],
+    links: ['/inbox'],
     tags: ['search', 'find', 'filter', 'lookup'],
     shortcuts: ['/'],
     relatedFeatures: ['folders', 'labels'],
@@ -502,8 +502,8 @@ export const QUICK_ACTIONS: Record<string, { action: string; path?: string }> = 
   'rules': { action: 'navigate', path: '/rules' },
   'automation': { action: 'navigate', path: '/rules' },
   
-  'inbox': { action: 'navigate', path: '/inbox-v3' },
-  'go to inbox': { action: 'navigate', path: '/inbox-v3' },
+  'inbox': { action: 'navigate', path: '/inbox' },
+  'go to inbox': { action: 'navigate', path: '/inbox' },
   
   'attachments': { action: 'navigate', path: '/attachments' },
   'view attachments': { action: 'navigate', path: '/attachments' },

@@ -24,7 +24,7 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false }: AIAssi
       role: 'assistant',
       content: 'Hi! I\'m your AI assistant. I know everything about EaseMail and can help you with:\n\n• How to use any feature\n• Step-by-step instructions\n• Troubleshooting issues\n• Finding settings\n• Keyboard shortcuts\n\nWhat would you like help with?',
       actions: [
-        { text: 'Connect Email Account', action: 'navigate', path: '/inbox-v3' },
+        { text: 'Connect Email Account', action: 'navigate', path: '/inbox' },
         { text: 'Use AI Write', action: 'navigate', path: '/inbox?compose=true' },
         { text: 'Create Rules', action: 'navigate', path: '/rules' },
       ],
@@ -363,7 +363,7 @@ function getQuickSuggestions(pathname: string): string[] {
     'How do I create email rules?',
   ];
 
-  if (pathname === '/inbox-v3' || pathname === '/') {
+  if (pathname === '/inbox' || pathname === '/') {
     return [
       'How do I compose an email?',
       'How do I use AI Write?',

@@ -194,8 +194,8 @@ function AttachmentsContent() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   {data?.pagination.total.toLocaleString() || 0} files • {formatFileSize(stats?.totalSizeBytes || 0)}
                 </p>
-                <a 
-                  href="/inbox-v3"
+                <a
+                  href="/inbox"
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mt-2"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

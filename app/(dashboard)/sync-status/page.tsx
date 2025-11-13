@@ -58,7 +58,7 @@ export default async function SyncStatusPage() {
       {/* Header with Back Button */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/inbox-v3">
+          <Link href="/inbox">
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
