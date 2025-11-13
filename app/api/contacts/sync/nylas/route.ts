@@ -8,12 +8,236 @@ import Nylas from 'nylas';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Increase timeout for syncing many contacts
 
+// Helper to send SSE (Server-Sent Events) progress updates
+function sendProgress(encoder: TextEncoder, controller: ReadableStreamDefaultController, data: any) {
+  const message = `data: ${JSON.stringify(data)}\n\n`;
+  controller.enqueue(encoder.encode(message));
+}
+
 /**
- * Sync contacts from Nylas (Gmail/Outlook/etc) to local database
- * POST /api/contacts/sync/nylas
- * Body: { grantId: string }
+ * Sync contacts from Nylas (Gmail/Outlook/etc) to local database with streaming progress
+ * POST /api/contacts/sync/nylas?stream=true - Streaming mode (SSE)
+ * POST /api/contacts/sync/nylas - Legacy mode (full response at end)
+ * Body: { grantId: string, accountName?: string }
  */
 export async function POST(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const isStreaming = searchParams.get('stream') === 'true';
+
+  if (isStreaming) {
+    return streamingSync(request);
+  } else {
+    return legacySync(request);
+  }
+}
+
+// Streaming sync with real-time progress updates
+async function streamingSync(request: NextRequest) {
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+          sendProgress(encoder, controller, { type: 'error', error: 'Unauthorized' });
+          controller.close();
+          return;
+        }
+
+        const body = await request.json();
+        const { grantId, accountName } = body;
+
+        if (!grantId) {
+          sendProgress(encoder, controller, { type: 'error', error: 'Grant ID is required' });
+          controller.close();
+          return;
+        }
+
+        console.log('🔄 Starting streaming contact sync for grant:', grantId);
+
+        // Send initial status
+        sendProgress(encoder, controller, {
+          type: 'start',
+          accountName: accountName || 'Email Account',
+          status: 'Connecting to email provider...'
+        });
+
+        // Initialize Nylas client
+        const nylas = new Nylas({
+          apiKey: process.env.NYLAS_API_KEY!,
+          apiUri: process.env.NYLAS_API_URI || 'https://api.us.nylas.com',
+        });
+
+        // Fetch contacts from Nylas with progress
+        let allNylasContacts: any[] = [];
+        let pageToken: string | undefined = undefined;
+        let hasMore = true;
+
+        sendProgress(encoder, controller, {
+          type: 'fetching',
+          status: 'Fetching contacts from provider...'
+        });
+
+        while (hasMore) {
+          const response = await nylas.contacts.list({
+            identifier: grantId,
+            queryParams: {
+              limit: 50,
+              ...(pageToken && { pageToken }),
+            },
+          });
+
+          allNylasContacts = allNylasContacts.concat(response.data);
+          hasMore = !!response.nextCursor;
+          pageToken = response.nextCursor;
+
+          sendProgress(encoder, controller, {
+            type: 'fetching',
+            total: allNylasContacts.length,
+            status: `Fetched ${allNylasContacts.length} contacts...`
+          });
+        }
+
+        const totalContacts = allNylasContacts.length;
+        console.log(`✅ Retrieved ${totalContacts} contacts from Nylas`);
+
+        sendProgress(encoder, controller, {
+          type: 'processing',
+          total: totalContacts,
+          current: 0,
+          percentage: 0,
+          status: `Processing ${totalContacts} contacts...`
+        });
+
+        // Process and insert contacts
+        let imported = 0;
+        let skipped = 0;
+        let errors = 0;
+
+        for (let i = 0; i < allNylasContacts.length; i++) {
+          const nylasContact = allNylasContacts[i];
+
+          try {
+            // Get primary email
+            const primaryEmail = nylasContact.emails?.find((e: any) => e.type === 'work' || e.type === 'personal')?.email
+              || nylasContact.emails?.[0]?.email;
+
+            const emailLower = primaryEmail ? primaryEmail.toLowerCase() : null;
+
+            // Check if contact already exists
+            const existingByProvider = await db.query.contacts.findFirst({
+              where: and(
+                eq(contacts.userId, user.id),
+                eq(contacts.providerContactId, nylasContact.id)
+              ),
+            });
+
+            const existingByEmail = !existingByProvider && primaryEmail ? await db.query.contacts.findFirst({
+              where: and(
+                eq(contacts.userId, user.id),
+                eq(contacts.email, emailLower)
+              ),
+            }) : null;
+
+            const existing = existingByProvider || existingByEmail;
+
+            if (existing) {
+              skipped++;
+            } else {
+              // Get contact details
+              const primaryPhone = nylasContact.phoneNumbers?.find((p: any) => p.type === 'work' || p.type === 'mobile')?.number
+                || nylasContact.phoneNumbers?.[0]?.number;
+              const company = nylasContact.companyName || null;
+              const jobTitle = nylasContact.jobTitle || null;
+              const firstName = nylasContact.givenName || null;
+              const lastName = nylasContact.surname || null;
+              const fullName = firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || null;
+              const displayName = fullName || (emailLower ? emailLower.split('@')[0] : 'Unknown');
+              const website = nylasContact.webPages?.[0]?.url || null;
+              const notes = nylasContact.notes ? nylasContact.notes.join('\n') : null;
+              const tags = nylasContact.groups?.map((g: any) => g.name || g.id) || [];
+
+              // Insert contact
+              await db.insert(contacts).values({
+                userId: user.id,
+                email: emailLower,
+                firstName,
+                lastName,
+                fullName,
+                displayName,
+                phone: primaryPhone,
+                company,
+                jobTitle,
+                website,
+                notes,
+                tags,
+                provider: 'nylas',
+                providerContactId: nylasContact.id,
+              });
+
+              imported++;
+            }
+          } catch (error: any) {
+            console.error('Error importing contact:', error);
+            errors++;
+          }
+
+          // Send progress update every contact
+          const current = i + 1;
+          const percentage = Math.round((current / totalContacts) * 100);
+
+          sendProgress(encoder, controller, {
+            type: 'progress',
+            total: totalContacts,
+            current,
+            percentage,
+            imported,
+            skipped,
+            errors,
+            status: `Syncing: ${current} / ${totalContacts} (${percentage}%)`
+          });
+        }
+
+        // Send completion
+        console.log(`✅ Sync complete: ${imported} imported, ${skipped} skipped, ${errors} errors`);
+
+        sendProgress(encoder, controller, {
+          type: 'complete',
+          total: totalContacts,
+          imported,
+          skipped,
+          errors,
+          percentage: 100,
+          status: 'Sync complete!'
+        });
+
+        controller.close();
+
+      } catch (error: any) {
+        console.error('❌ Streaming sync error:', error);
+        sendProgress(encoder, controller, {
+          type: 'error',
+          error: error.message || 'Failed to sync contacts'
+        });
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  });
+}
+
+// Legacy sync (original behavior)
+async function legacySync(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -55,8 +279,6 @@ export async function POST(request: NextRequest) {
       });
 
       allNylasContacts = allNylasContacts.concat(response.data);
-
-      // Check if there are more pages
       hasMore = !!response.nextCursor;
       pageToken = response.nextCursor;
 
@@ -72,14 +294,10 @@ export async function POST(request: NextRequest) {
 
     for (const nylasContact of allNylasContacts) {
       try {
-        // Get primary email
         const primaryEmail = nylasContact.emails?.find((e: any) => e.type === 'work' || e.type === 'personal')?.email
           || nylasContact.emails?.[0]?.email;
-
-        // Use email if available, otherwise leave null (don't create placeholder)
         const emailLower = primaryEmail ? primaryEmail.toLowerCase() : null;
 
-        // Check if contact already exists by provider ID or email
         const existingByProvider = await db.query.contacts.findFirst({
           where: and(
             eq(contacts.userId, user.id),
@@ -101,32 +319,18 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Get primary phone
         const primaryPhone = nylasContact.phoneNumbers?.find((p: any) => p.type === 'work' || p.type === 'mobile')?.number
           || nylasContact.phoneNumbers?.[0]?.number;
-
-        // Get company info
         const company = nylasContact.companyName || null;
         const jobTitle = nylasContact.jobTitle || null;
-
-        // Build full name
         const firstName = nylasContact.givenName || null;
         const lastName = nylasContact.surname || null;
-        const fullName = firstName && lastName
-          ? `${firstName} ${lastName}`
-          : firstName || lastName || null;
-        const displayName = fullName || emailLower.split('@')[0];
-
-        // Get website/links
+        const fullName = firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || null;
+        const displayName = fullName || (emailLower ? emailLower.split('@')[0] : 'Unknown');
         const website = nylasContact.webPages?.[0]?.url || null;
-
-        // Get notes
         const notes = nylasContact.notes ? nylasContact.notes.join('\n') : null;
-
-        // Get groups as tags
         const tags = nylasContact.groups?.map((g: any) => g.name || g.id) || [];
 
-        // Insert contact
         const newContact = await db.insert(contacts).values({
           userId: user.id,
           email: emailLower,
@@ -140,7 +344,6 @@ export async function POST(request: NextRequest) {
           website,
           notes,
           tags,
-          // Store Nylas ID for future syncing
           provider: 'nylas',
           providerContactId: nylasContact.id,
         }).returning();
@@ -165,8 +368,8 @@ export async function POST(request: NextRequest) {
       errors: errors.length,
       details: {
         importedContacts: imported,
-        skippedReasons: skipped.slice(0, 10), // First 10 for debugging
-        errorDetails: errors.slice(0, 10), // First 10 for debugging
+        skippedReasons: skipped.slice(0, 10),
+        errorDetails: errors.slice(0, 10),
       },
     });
   } catch (error: any) {

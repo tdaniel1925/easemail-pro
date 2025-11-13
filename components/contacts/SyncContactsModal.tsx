@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { RefreshCw, Check, AlertCircle, X, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { RefreshCw, Check, AlertCircle, X, Loader2, StopCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
 interface Account {
@@ -12,6 +14,19 @@ interface Account {
   emailAddress: string;
   emailProvider: string;
   isActive: boolean;
+}
+
+interface SyncProgress {
+  type: 'start' | 'fetching' | 'processing' | 'progress' | 'complete' | 'error';
+  accountName?: string;
+  status?: string;
+  total?: number;
+  current?: number;
+  percentage?: number;
+  imported?: number;
+  skipped?: number;
+  errors?: number;
+  error?: string;
 }
 
 interface SyncResult {
@@ -29,10 +44,13 @@ interface SyncContactsModalProps {
 }
 
 export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncContactsModalProps) {
+  const { toast } = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<{ [key: string]: boolean }>({});
+  const [progress, setProgress] = useState<{ [key: string]: SyncProgress }>({});
   const [results, setResults] = useState<{ [key: string]: SyncResult }>({});
+  const abortControllersRef = useRef<{ [key: string]: AbortController }>({});
 
   useEffect(() => {
     if (isOpen) {
@@ -58,8 +76,6 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
 
   const handleSync = async (account: Account) => {
     try {
-      setSyncing({ ...syncing, [account.id]: true });
-
       console.log('🔄 Syncing account:', {
         id: account.id,
         email: account.emailAddress,
@@ -69,9 +85,15 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
       if (!account.nylasGrantId) {
         console.error('❌ No Nylas grant ID for account:', account.emailAddress);
         console.error('Account data:', account);
-        alert(`Cannot sync ${account.emailAddress}: This account is not properly connected to Nylas. Please reconnect it in Settings.`);
-        setResults({
-          ...results,
+
+        toast({
+          title: 'Cannot sync account',
+          description: `${account.emailAddress} is not properly connected to Nylas. Please reconnect it in Settings.`,
+          variant: 'destructive'
+        });
+
+        setResults(prev => ({
+          ...prev,
           [account.id]: {
             success: false,
             total: 0,
@@ -79,36 +101,137 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
             skipped: 0,
             errors: 1,
           },
-        });
-        setSyncing({ ...syncing, [account.id]: false });
+        }));
         return;
       }
 
-      const response = await fetch('/api/contacts/sync/nylas', {
+      // Create AbortController for this sync
+      const abortController = new AbortController();
+      abortControllersRef.current[account.id] = abortController;
+
+      setSyncing(prev => ({ ...prev, [account.id]: true }));
+      setProgress(prev => ({
+        ...prev,
+        [account.id]: {
+          type: 'start',
+          accountName: account.emailAddress,
+          status: 'Starting sync...'
+        }
+      }));
+
+      // Use streaming API with SSE
+      const response = await fetch('/api/contacts/sync/nylas?stream=true', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ grantId: account.nylasGrantId }),
+        body: JSON.stringify({
+          grantId: account.nylasGrantId,
+          accountName: account.emailAddress
+        }),
+        signal: abortController.signal,
       });
 
-      const data = await response.json();
+      if (!response.ok || !response.body) {
+        throw new Error('Failed to start sync');
+      }
 
-      if (data.success) {
-        setResults({
-          ...results,
-          [account.id]: {
-            success: true,
-            total: data.total,
-            imported: data.imported,
-            skipped: data.skipped,
-            errors: data.errors,
-          },
+      // Read streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { value, done } = await reader.read();
+
+        if (done) break;
+
+        // Decode chunk and parse SSE events
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data: SyncProgress = JSON.parse(line.slice(6));
+
+              setProgress(prev => ({
+                ...prev,
+                [account.id]: data
+              }));
+
+              // Handle completion
+              if (data.type === 'complete') {
+                setResults(prev => ({
+                  ...prev,
+                  [account.id]: {
+                    success: true,
+                    total: data.total || 0,
+                    imported: data.imported || 0,
+                    skipped: data.skipped || 0,
+                    errors: data.errors || 0,
+                  },
+                }));
+                onSuccess();
+
+                toast({
+                  title: 'Sync complete',
+                  description: `Imported ${data.imported} contacts from ${account.emailAddress}`,
+                });
+              }
+
+              // Handle error
+              if (data.type === 'error') {
+                setResults(prev => ({
+                  ...prev,
+                  [account.id]: {
+                    success: false,
+                    total: 0,
+                    imported: 0,
+                    skipped: 0,
+                    errors: 1,
+                  },
+                }));
+
+                toast({
+                  title: 'Sync failed',
+                  description: data.error || 'Failed to sync contacts',
+                  variant: 'destructive'
+                });
+              }
+            } catch (e) {
+              console.error('Failed to parse SSE data:', e);
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      // Check if it was aborted
+      if (error.name === 'AbortError') {
+        console.log('Sync cancelled for account:', account.emailAddress);
+
+        toast({
+          title: 'Sync cancelled',
+          description: `Stopped syncing ${account.emailAddress}`,
         });
-        onSuccess();
+
+        setProgress(prev => ({
+          ...prev,
+          [account.id]: {
+            type: 'error',
+            status: 'Cancelled by user'
+          }
+        }));
       } else {
-        setResults({
-          ...results,
+        console.error('Sync error:', error);
+
+        toast({
+          title: 'Sync error',
+          description: error.message || 'Failed to sync contacts',
+          variant: 'destructive'
+        });
+
+        setResults(prev => ({
+          ...prev,
           [account.id]: {
             success: false,
             total: 0,
@@ -116,22 +239,19 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
             skipped: 0,
             errors: 1,
           },
-        });
+        }));
       }
-    } catch (error) {
-      console.error('Sync error:', error);
-      setResults({
-        ...results,
-        [account.id]: {
-          success: false,
-          total: 0,
-          imported: 0,
-          skipped: 0,
-          errors: 1,
-        },
-      });
     } finally {
-      setSyncing({ ...syncing, [account.id]: false });
+      setSyncing(prev => ({ ...prev, [account.id]: false }));
+      delete abortControllersRef.current[account.id];
+    }
+  };
+
+  // Stop sync for an account
+  const handleStopSync = (accountId: string) => {
+    const controller = abortControllersRef.current[accountId];
+    if (controller) {
+      controller.abort();
     }
   };
 
@@ -180,6 +300,7 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
             <div className="space-y-3">
               {accounts.map((account) => {
                 const isSyncing = syncing[account.id];
+                const currentProgress = progress[account.id];
                 const result = results[account.id];
 
                 return (
@@ -187,7 +308,8 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
                     key={account.id}
                     className={cn(
                       'border rounded-lg p-4 transition-all',
-                      result?.success && 'border-green-500 bg-green-50 dark:bg-green-950/20'
+                      result?.success && 'border-green-500 bg-green-50 dark:bg-green-950/20',
+                      isSyncing && 'border-blue-500 bg-blue-50 dark:bg-blue-950/20'
                     )}
                   >
                     <div className="flex items-center justify-between">
@@ -201,31 +323,90 @@ export default function SyncContactsModal({ isOpen, onClose, onSuccess }: SyncCo
                         </div>
                       </div>
 
-                      <Button
-                        onClick={() => handleSync(account)}
-                        disabled={isSyncing || !account.isActive}
-                        size="sm"
-                      >
-                        {isSyncing ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Syncing...
-                          </>
-                        ) : result?.success ? (
-                          <>
-                            <Check className="h-4 w-4 mr-2" />
-                            Synced
-                          </>
-                        ) : (
-                          <>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Sync Now
-                          </>
+                      <div className="flex items-center gap-2">
+                        {isSyncing && (
+                          <Button
+                            onClick={() => handleStopSync(account.id)}
+                            variant="destructive"
+                            size="sm"
+                          >
+                            <StopCircle className="h-4 w-4 mr-2" />
+                            Stop
+                          </Button>
                         )}
-                      </Button>
+                        <Button
+                          onClick={() => handleSync(account)}
+                          disabled={isSyncing || !account.isActive}
+                          size="sm"
+                        >
+                          {isSyncing ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Syncing...
+                            </>
+                          ) : result?.success ? (
+                            <>
+                              <Check className="h-4 w-4 mr-2" />
+                              Synced
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Sync Now
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
 
-                    {result && (
+                    {/* Real-time Progress */}
+                    {isSyncing && currentProgress && (
+                      <div className="mt-3 pt-3 border-t space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            {currentProgress.status || 'Syncing...'}
+                          </span>
+                          {currentProgress.percentage !== undefined && (
+                            <span className="font-mono font-medium">
+                              {currentProgress.percentage}%
+                            </span>
+                          )}
+                        </div>
+
+                        {currentProgress.total !== undefined && currentProgress.total > 0 && (
+                          <>
+                            <Progress value={currentProgress.percentage || 0} className="h-2" />
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Total:</span>
+                                <span className="font-medium">{currentProgress.total}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Current:</span>
+                                <span className="font-medium">{currentProgress.current || 0}</span>
+                              </div>
+                              {currentProgress.imported !== undefined && (
+                                <div className="flex justify-between">
+                                  <span className="text-green-600 dark:text-green-400">Imported:</span>
+                                  <span className="font-medium text-green-600 dark:text-green-400">
+                                    {currentProgress.imported}
+                                  </span>
+                                </div>
+                              )}
+                              {currentProgress.skipped !== undefined && (
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Skipped:</span>
+                                  <span className="font-medium">{currentProgress.skipped}</span>
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Final Results */}
+                    {!isSyncing && result && (
                       <div className="mt-3 pt-3 border-t text-sm">
                         {result.success ? (
                           <div className="space-y-1">
