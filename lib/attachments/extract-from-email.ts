@@ -33,7 +33,7 @@ export async function extractAndSaveAttachments({
   console.log(`📎 Starting attachment extraction for message: ${message.id}`);
   console.log(`📎 Found ${message.attachments.length} attachment(s)`);
 
-  const supabase = createClient();
+  const supabase = await createClient();
   let saved = 0;
   let skipped = 0;
   let failed = 0;

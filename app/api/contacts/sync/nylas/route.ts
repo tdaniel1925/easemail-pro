@@ -76,10 +76,8 @@ export async function POST(request: NextRequest) {
         const primaryEmail = nylasContact.emails?.find((e: any) => e.type === 'work' || e.type === 'personal')?.email
           || nylasContact.emails?.[0]?.email;
 
-        // Generate a fallback email for contacts without one (using Nylas ID)
-        const emailLower = primaryEmail
-          ? primaryEmail.toLowerCase()
-          : `no-email-${nylasContact.id}@placeholder.local`.toLowerCase();
+        // Use email if available, otherwise leave null (don't create placeholder)
+        const emailLower = primaryEmail ? primaryEmail.toLowerCase() : null;
 
         // Check if contact already exists by provider ID or email
         const existingByProvider = await db.query.contacts.findFirst({

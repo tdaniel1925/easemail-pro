@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import Nylas from 'nylas';
 import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 import { assignEmailFolder, validateFolderAssignment } from '@/lib/email/folder-utils';
+import { extractAndSaveAttachments } from '@/lib/attachments/extract-from-email';
 
 const nylas = new Nylas({
   apiKey: process.env.NYLAS_API_KEY!,
@@ -132,6 +133,12 @@ async function performBackgroundSync(
       where: eq(emailAccounts.id, accountId),
     });
 
+    if (!account) {
+      console.error(`❌ Account ${accountId} not found`);
+      return;
+    }
+
+    const userId = account.userId;
     let syncedCount = account?.syncedEmailCount || 0;
     const continuationCount = account?.continuationCount || 0;
     
@@ -374,6 +381,23 @@ async function performBackgroundSync(
             if (result && result.length > 0) {
               totalSynced++;
               syncedCount++;
+
+              // Extract and save attachments if email has them
+              if (message.attachments && message.attachments.length > 0) {
+                try {
+                  await extractAndSaveAttachments({
+                    message,
+                    emailRecord: result[0],
+                    accountId,
+                    userId,
+                    grantId,
+                    nylas,
+                  });
+                } catch (attachmentError: any) {
+                  console.error(`⚠️ Failed to extract attachments for email ${message.id}:`, attachmentError.message);
+                  // Don't fail the whole sync if attachment extraction fails
+                }
+              }
             }
           } catch (emailError: any) {
             // If it's a duplicate key error, just skip it silently

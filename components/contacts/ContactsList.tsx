@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Plus, Download, Upload, Grid, List, Mail, Phone, MoreVertical, Edit, Trash2, X, Loader2, MessageSquare, Sparkles } from 'lucide-react';
+import { Search, Plus, Download, Upload, Grid, List, Mail, Phone, MoreVertical, Edit, Trash2, X, Loader2, MessageSquare, Sparkles, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -362,6 +362,19 @@ export default function ContactsList() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-6 border-b border-border bg-card">
+        {/* Back to Inbox Button */}
+        <div className="mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push('/inbox')}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Inbox
+          </Button>
+        </div>
+
         {/* Bulk Actions Toolbar */}
         {selectedContactIds.size > 0 && (
           <div className="flex items-center justify-between p-3 mb-4 bg-primary/10 border border-primary/20 rounded-lg">
