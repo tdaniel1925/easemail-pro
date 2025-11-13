@@ -17,13 +17,13 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is admin
+    // Check if user is platform admin
     const dbUser = await db.query.users.findFirst({
       where: eq(users.id, user.id),
     });
 
-    if (!dbUser || dbUser.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
     }
 
     // Fetch stats

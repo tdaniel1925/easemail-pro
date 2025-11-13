@@ -1868,6 +1868,43 @@ export const scheduledEmails = pgTable('scheduled_emails', {
   pendingIdx: index('scheduled_emails_pending_idx').on(table.status, table.scheduledFor),
 }));
 
+// User Activity Logs Table (for detailed tracking of beta user activities)
+export const userActivityLogs = pgTable('user_activity_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+
+  // Activity details
+  activityType: varchar('activity_type', { length: 100 }).notNull(), // 'login', 'page_view', 'feature_use', 'error', 'api_call', etc.
+  activityName: varchar('activity_name', { length: 255 }).notNull(), // Specific name like 'composed_email', 'created_rule', 'opened_settings'
+  path: text('path'), // URL path or route
+  method: varchar('method', { length: 10 }), // HTTP method for API calls
+
+  // Status and error tracking
+  status: varchar('status', { length: 50 }).default('success'), // 'success', 'error', 'warning'
+  errorMessage: text('error_message'), // Error message if status is 'error'
+  errorStack: text('error_stack'), // Stack trace for debugging
+  isFlagged: boolean('is_flagged').default(false), // Flag for admin review
+
+  // Context and metadata
+  metadata: jsonb('metadata').$type<Record<string, any>>(), // Additional context (feature params, filters used, etc.)
+  duration: integer('duration'), // Duration in milliseconds
+
+  // Request details
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  browser: varchar('browser', { length: 100 }),
+  os: varchar('os', { length: 100 }),
+  device: varchar('device', { length: 100 }), // 'desktop', 'mobile', 'tablet'
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('activity_logs_user_id_idx').on(table.userId),
+  activityTypeIdx: index('activity_logs_activity_type_idx').on(table.activityType),
+  statusIdx: index('activity_logs_status_idx').on(table.status),
+  isFlaggedIdx: index('activity_logs_is_flagged_idx').on(table.isFlagged),
+  createdAtIdx: index('activity_logs_created_at_idx').on(table.createdAt),
+}));
+
 // Relations
 export const emailTrackingEventsRelations = relations(emailTrackingEvents, ({ one, many }) => ({
   user: one(users, {

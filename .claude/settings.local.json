@@ -67,7 +67,10 @@
       "Bash(git rm:*)",
       "Bash(del nul 2)",
       "Bash(npm update:*)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(git gc:*)",
+      "Bash(head:*)",
+      "Bash(.ts \")"
     ],
     "deny": [],
     "ask": []

@@ -118,17 +118,12 @@ export default function AdminPricingPage() {
         overridesRes.json(),
       ]);
 
-      // Ensure data is in array format, or use empty array as fallback
-      setPlans(Array.isArray(plansData) ? plansData : []);
-      setUsagePricing(Array.isArray(usageData) ? usageData : []);
-      setTiers(Array.isArray(tiersData) ? tiersData : []);
-      setSettings(Array.isArray(settingsData) ? settingsData : []);
-      setOverrides(Array.isArray(overridesData) ? overridesData : []);
-      
-      // Log any errors for debugging
-      if (!Array.isArray(settingsData)) {
-        console.error('Settings data is not an array:', settingsData);
-      }
+      // Extract data from API responses (handle both array and { success, data } formats)
+      setPlans(Array.isArray(plansData) ? plansData : plansData.plans || []);
+      setUsagePricing(Array.isArray(usageData) ? usageData : usageData.usagePricing || []);
+      setTiers(Array.isArray(tiersData) ? tiersData : tiersData.tiers || []);
+      setSettings(Array.isArray(settingsData) ? settingsData : settingsData.settings || []);
+      setOverrides(Array.isArray(overridesData) ? overridesData : overridesData.overrides || []);
     } catch (error) {
       console.error('Failed to fetch pricing data:', error);
       setToast({ message: 'Failed to load pricing data', type: 'error' });

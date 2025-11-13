@@ -28,21 +28,33 @@ export async function GET(request: NextRequest) {
     // Fetch all organizations
     const orgs = await db.query.organizations.findMany();
 
-    // Add member counts manually to avoid relation issues
+    // Add comprehensive counts for each organization
     const orgsWithCounts = await Promise.all(
       orgs.map(async (org) => {
-        // Count active members for this organization
+        // Count organization members (from organization_members table)
         const memberCountResult = await db
           .select({ count: sql<number>`count(*)::int` })
           .from(organizationMembers)
           .where(eq(organizationMembers.organizationId, org.id));
-        
+
+        // Count users linked to this organization (from users table)
+        const userCountResult = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(users)
+          .where(eq(users.organizationId, org.id));
+
         const memberCount = Number(memberCountResult[0]?.count || 0);
-        
+        const userCount = Number(userCountResult[0]?.count || 0);
+
+        // Use the higher of the two counts (in case members table isn't populated)
+        const actualMemberCount = Math.max(memberCount, userCount);
+
         return {
           ...org,
+          currentSeats: actualMemberCount, // Update current seats to reflect actual count
           _count: {
-            members: memberCount,
+            members: actualMemberCount,
+            users: userCount,
           },
         };
       })
