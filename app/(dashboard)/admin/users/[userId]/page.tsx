@@ -52,7 +52,6 @@ interface UsageStats {
   };
   ai: {
     totalRequests: number;
-    totalTokens: number;
     totalCost: number;
     byDay: any[];
   };
@@ -360,14 +359,10 @@ export default function UserDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="text-sm text-muted-foreground">Total Requests</div>
                       <div className="text-2xl font-bold">{usage?.ai.totalRequests || 0}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">Total Tokens</div>
-                      <div className="text-2xl font-bold">{(usage?.ai.totalTokens || 0).toLocaleString()}</div>
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground">Total Cost</div>

@@ -182,7 +182,7 @@ function AttachmentsContent() {
   };
 
   const handleBulkDownload = async () => {
-    for (const id of selectedIds) {
+    for (const id of Array.from(selectedIds)) {
       await downloadMutation.mutateAsync(id);
     }
     setSuccess(`Downloaded ${selectedIds.size} attachments`);

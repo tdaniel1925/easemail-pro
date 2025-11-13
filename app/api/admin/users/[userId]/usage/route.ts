@@ -38,37 +38,36 @@ export async function GET(
     // Fetch SMS usage
     const smsStats = await db
       .select({
-        totalMessages: sql<number>`count(*)::int`,
-        totalCost: sql<string>`sum(cost_usd)::text`,
+        totalMessages: sql<number>`sum(total_messages_sent)::int`,
+        totalCost: sql<string>`sum(total_cost_usd)::text`,
       })
       .from(smsUsage)
       .where(and(
         eq(smsUsage.userId, userId),
-        gte(smsUsage.sentAt, startDate)
+        gte(smsUsage.periodStart, startDate)
       ));
 
     // Fetch AI usage
     const aiStats = await db
       .select({
-        totalRequests: sql<number>`count(*)::int`,
-        totalTokens: sql<number>`sum(tokens_used)::int`,
-        totalCost: sql<string>`sum(cost_usd)::text`,
+        totalRequests: sql<number>`sum(request_count)::int`,
+        totalCost: sql<string>`sum(total_cost_usd)::text`,
       })
       .from(aiUsage)
       .where(and(
         eq(aiUsage.userId, userId),
-        gte(aiUsage.createdAt, startDate)
+        gte(aiUsage.periodStart, startDate)
       ));
 
     // Fetch storage usage
     const storageStats = await db
       .select({
-        totalUsageBytes: sql<number>`sum(usage_bytes)::bigint`,
+        totalUsageBytes: sql<number>`sum(total_bytes)::bigint`,
       })
       .from(storageUsage)
       .where(and(
         eq(storageUsage.userId, userId),
-        gte(storageUsage.recordedAt, startDate)
+        gte(storageUsage.periodStart, startDate)
       ));
 
     // Fetch email accounts count
@@ -77,42 +76,42 @@ export async function GET(
       .from(emailAccounts)
       .where(eq(emailAccounts.userId, userId));
 
-    // Fetch emails count
+    // Fetch emails count (join through emailAccounts)
     const [{ emailCount }] = await db
       .select({ emailCount: sql<number>`count(*)::int` })
       .from(emails)
-      .where(eq(emails.userId, userId));
+      .innerJoin(emailAccounts, eq(emails.accountId, emailAccounts.id))
+      .where(eq(emailAccounts.userId, userId));
 
     // Get SMS usage by day
     const smsByDay = await db
       .select({
-        date: sql<string>`date_trunc('day', sent_at)::text`,
-        count: sql<number>`count(*)::int`,
-        cost: sql<string>`sum(cost_usd)::text`,
+        date: sql<string>`date_trunc('day', period_start)::text`,
+        count: sql<number>`sum(total_messages_sent)::int`,
+        cost: sql<string>`sum(total_cost_usd)::text`,
       })
       .from(smsUsage)
       .where(and(
         eq(smsUsage.userId, userId),
-        gte(smsUsage.sentAt, startDate)
+        gte(smsUsage.periodStart, startDate)
       ))
-      .groupBy(sql`date_trunc('day', sent_at)`)
-      .orderBy(sql`date_trunc('day', sent_at)`);
+      .groupBy(sql`date_trunc('day', period_start)`)
+      .orderBy(sql`date_trunc('day', period_start)`);
 
     // Get AI usage by day
     const aiByDay = await db
       .select({
-        date: sql<string>`date_trunc('day', created_at)::text`,
-        count: sql<number>`count(*)::int`,
-        tokens: sql<number>`sum(tokens_used)::int`,
-        cost: sql<string>`sum(cost_usd)::text`,
+        date: sql<string>`date_trunc('day', period_start)::text`,
+        count: sql<number>`sum(request_count)::int`,
+        cost: sql<string>`sum(total_cost_usd)::text`,
       })
       .from(aiUsage)
       .where(and(
         eq(aiUsage.userId, userId),
-        gte(aiUsage.createdAt, startDate)
+        gte(aiUsage.periodStart, startDate)
       ))
-      .groupBy(sql`date_trunc('day', created_at)`)
-      .orderBy(sql`date_trunc('day', created_at)`);
+      .groupBy(sql`date_trunc('day', period_start)`)
+      .orderBy(sql`date_trunc('day', period_start)`);
 
     return NextResponse.json({
       success: true,
@@ -124,7 +123,6 @@ export async function GET(
         },
         ai: {
           totalRequests: aiStats[0]?.totalRequests || 0,
-          totalTokens: aiStats[0]?.totalTokens || 0,
           totalCost: parseFloat(aiStats[0]?.totalCost || '0'),
           byDay: aiByDay,
         },

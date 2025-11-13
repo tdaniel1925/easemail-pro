@@ -57,7 +57,7 @@ export async function GET(
         success: true,
         organization: org,
         usage: {
-          total: { requests: 0, tokens: 0, cost: 0 },
+          total: { requests: 0, cost: 0 },
           byFeature: [],
           byDay: [],
           byUser: [],
@@ -74,47 +74,44 @@ export async function GET(
     // Fetch total AI usage for the organization
     const totalStats = await db
       .select({
-        totalRequests: sql<number>`count(*)::int`,
-        totalTokens: sql<number>`sum(tokens_used)::int`,
-        totalCost: sql<string>`sum(cost_usd)::text`,
+        totalRequests: sql<number>`sum(request_count)::int`,
+        totalCost: sql<string>`sum(total_cost_usd)::text`,
       })
       .from(aiUsage)
       .where(and(
         inArray(aiUsage.userId, userIds),
-        gte(aiUsage.createdAt, startDate)
+        gte(aiUsage.periodStart, startDate)
       ));
 
     // Get usage by feature
     const byFeature = await db
       .select({
-        feature: aiUsage.featureUsed,
-        requests: sql<number>`count(*)::int`,
-        tokens: sql<number>`sum(tokens_used)::int`,
-        cost: sql<string>`sum(cost_usd)::text`,
+        feature: aiUsage.feature,
+        requests: sql<number>`sum(request_count)::int`,
+        cost: sql<string>`sum(total_cost_usd)::text`,
       })
       .from(aiUsage)
       .where(and(
         inArray(aiUsage.userId, userIds),
-        gte(aiUsage.createdAt, startDate)
+        gte(aiUsage.periodStart, startDate)
       ))
-      .groupBy(aiUsage.featureUsed)
-      .orderBy(sql`sum(cost_usd) DESC`);
+      .groupBy(aiUsage.feature)
+      .orderBy(sql`sum(total_cost_usd) DESC`);
 
     // Get usage by day
     const byDay = await db
       .select({
-        date: sql<string>`date_trunc('day', created_at)::text`,
-        requests: sql<number>`count(*)::int`,
-        tokens: sql<number>`sum(tokens_used)::int`,
-        cost: sql<string>`sum(cost_usd)::text`,
+        date: sql<string>`date_trunc('day', period_start)::text`,
+        requests: sql<number>`sum(request_count)::int`,
+        cost: sql<string>`sum(total_cost_usd)::text`,
       })
       .from(aiUsage)
       .where(and(
         inArray(aiUsage.userId, userIds),
-        gte(aiUsage.createdAt, startDate)
+        gte(aiUsage.periodStart, startDate)
       ))
-      .groupBy(sql`date_trunc('day', created_at)`)
-      .orderBy(sql`date_trunc('day', created_at)`);
+      .groupBy(sql`date_trunc('day', period_start)`)
+      .orderBy(sql`date_trunc('day', period_start)`);
 
     // Get usage by user
     const byUser = await db
@@ -122,18 +119,17 @@ export async function GET(
         userId: aiUsage.userId,
         userEmail: users.email,
         userName: users.fullName,
-        requests: sql<number>`count(*)::int`,
-        tokens: sql<number>`sum(${aiUsage.tokensUsed})::int`,
-        cost: sql<string>`sum(${aiUsage.costUsd})::text`,
+        requests: sql<number>`sum(request_count)::int`,
+        cost: sql<string>`sum(total_cost_usd)::text`,
       })
       .from(aiUsage)
       .leftJoin(users, eq(aiUsage.userId, users.id))
       .where(and(
         inArray(aiUsage.userId, userIds),
-        gte(aiUsage.createdAt, startDate)
+        gte(aiUsage.periodStart, startDate)
       ))
       .groupBy(aiUsage.userId, users.email, users.fullName)
-      .orderBy(sql`sum(${aiUsage.costUsd}) DESC`);
+      .orderBy(sql`sum(total_cost_usd) DESC`);
 
     // Get top 10 users
     const topUsers = byUser.slice(0, 10);
@@ -148,7 +144,6 @@ export async function GET(
       usage: {
         total: {
           requests: totalStats[0]?.totalRequests || 0,
-          tokens: totalStats[0]?.totalTokens || 0,
           cost: parseFloat(totalStats[0]?.totalCost || '0'),
         },
         byFeature,
