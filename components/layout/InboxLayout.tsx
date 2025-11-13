@@ -817,7 +817,12 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
           )}
           <div className="flex-1 overflow-hidden">
             {/* Show DraftsView when drafts folder is selected */}
-            {activeFolder === 'drafts' && selectedAccountId ? (
+            {(() => {
+              console.log('[InboxLayout] activeFolder:', activeFolder, 'selectedAccountId:', selectedAccountId);
+              console.log('[InboxLayout] Should show DraftsView?', (activeFolder?.toLowerCase() === 'drafts' || activeFolder?.toLowerCase() === 'draft') && selectedAccountId);
+              return null;
+            })()}
+            {(activeFolder?.toLowerCase() === 'drafts' || activeFolder?.toLowerCase() === 'draft') && selectedAccountId ? (
               <DraftsView
                 accountId={
                   accounts.find((a: any) => a.id === selectedAccountId)?.nylasGrantId ||
