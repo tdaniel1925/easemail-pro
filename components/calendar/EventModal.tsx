@@ -210,7 +210,7 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-4 px-1 py-2">
           {/* Title */}
           <div>
             <label className="block text-sm font-medium mb-2">Title *</label>

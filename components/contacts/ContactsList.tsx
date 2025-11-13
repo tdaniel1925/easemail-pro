@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Plus, Download, Upload, Grid, List, Mail, Phone, MoreVertical, Edit, Trash2, X, Loader2, MessageSquare, Sparkles, ArrowLeft } from 'lucide-react';
+import { Search, Plus, Download, Upload, Grid, List, Mail, Phone, MoreVertical, Edit, Trash2, X, Loader2, MessageSquare, Sparkles, ArrowLeft, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -388,6 +388,15 @@ export default function ContactsList() {
               <span className="font-medium">{selectedContactIds.size} selected</span>
             </div>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleSelectAll}
+                title={isAllSelected ? "Deselect All" : "Select All"}
+              >
+                {isAllSelected ? <Square className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
+                {isAllSelected ? "Deselect All" : "Select All"}
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
