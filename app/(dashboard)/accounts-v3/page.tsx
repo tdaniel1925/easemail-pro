@@ -112,7 +112,7 @@ export default function AccountsV3Page() {
 
         for (const account of autoSyncAccounts) {
           try {
-            await fetch(`/api/nylas/sync`, {
+            await fetch(`/api/nylas/sync/background`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ accountId: account.id }),

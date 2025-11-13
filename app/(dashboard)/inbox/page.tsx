@@ -98,9 +98,16 @@ export default function InboxV3Page() {
       setComposeType('reply');
       setIsComposeOpen(true);
     } else if (type === 'reply-all') {
-      // TODO: Implement reply-all logic with all recipients
+      // Extract all recipients (original TO + CC, excluding current user)
+      const allToRecipients = email.to?.map((r: any) => r.email).filter((e: string) => e !== senderEmail) || [];
+      const allCcRecipients = email.cc?.map((r: any) => r.email) || [];
+
+      // Combine: Reply goes to sender + all original TO recipients (except sender) + all CC recipients
+      const replyToEmails = [senderEmail, ...allToRecipients].filter((e: string, i: number, arr: string[]) => arr.indexOf(e) === i);
+
       setComposeReplyTo({
-        to: senderEmail,
+        to: replyToEmails.join(', '),
+        cc: allCcRecipients.length > 0 ? allCcRecipients.join(', ') : undefined,
         subject: email.subject?.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
         messageId: email.id,
         body: email.body || email.snippet,
