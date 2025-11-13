@@ -545,8 +545,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         requestBody.draftId = currentDraftId;
       }
 
-      const response = await fetch('/api/nylas/drafts', {
-        method,
+      const response = await fetch('/api/nylas-v3/drafts', {
+        method: 'POST', // Always POST for v3 (handles both create and update)
         headers: {
           'Content-Type': 'application/json',
         },

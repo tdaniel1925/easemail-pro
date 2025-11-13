@@ -44,7 +44,7 @@ export function DraftsView({ accountId, onResumeDraft }: DraftsViewProps) {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/nylas/drafts?accountId=${accountId}`);
+      const response = await fetch(`/api/nylas-v3/drafts?accountId=${accountId}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch drafts');
@@ -74,7 +74,7 @@ export function DraftsView({ accountId, onResumeDraft }: DraftsViewProps) {
     try {
       setDeletingDraftId(draftId);
 
-      const response = await fetch(`/api/nylas/drafts?draftId=${draftId}`, {
+      const response = await fetch(`/api/nylas-v3/drafts?draftId=${draftId}`, {
         method: 'DELETE',
       });
 
