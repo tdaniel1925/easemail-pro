@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -56,9 +56,14 @@ export default function EmailComposer({
   const [showBcc, setShowBcc] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   const handleSend = async () => {
-    if (!to || !subject || !body) {
+    // Get HTML content from contenteditable div
+    const htmlBody = editorRef.current?.innerHTML || '';
+    const textBody = editorRef.current?.innerText || '';
+
+    if (!to || !subject || !textBody.trim()) {
       alert('Please fill in all required fields');
       return;
     }
@@ -74,7 +79,7 @@ export default function EmailComposer({
           cc: cc ? cc.split(',').map(email => ({ email: email.trim() })) : undefined,
           bcc: bcc ? bcc.split(',').map(email => ({ email: email.trim() })) : undefined,
           subject,
-          body,
+          body: htmlBody, // Send HTML content with embedded images
           replyToMessageId: replyTo?.messageId,
         }),
       });
@@ -88,6 +93,9 @@ export default function EmailComposer({
         setBcc('');
         setSubject('');
         setBody('');
+        if (editorRef.current) {
+          editorRef.current.innerHTML = '';
+        }
         setAttachments([]);
       } else {
         alert(data.error || 'Failed to send email');
@@ -109,11 +117,9 @@ export default function EmailComposer({
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+  const handlePaste = async (e: React.ClipboardEvent<HTMLDivElement>) => {
     const items = e.clipboardData?.items;
     if (!items) return;
-
-    let imagesPasted = 0;
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -124,24 +130,36 @@ export default function EmailComposer({
 
         const blob = item.getAsFile();
         if (blob) {
-          // Generate a filename with timestamp
-          const timestamp = new Date().getTime();
-          const extension = item.type.split('/')[1];
-          const fileName = `pasted-image-${timestamp}.${extension}`;
+          // Convert blob to base64 data URL
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const dataUrl = event.target?.result as string;
 
-          // Create a File object from the blob
-          const file = new File([blob], fileName, { type: item.type });
+            // Insert image into the contenteditable div at cursor position
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+              const range = selection.getRangeAt(0);
+              range.deleteContents();
 
-          // Add to attachments
-          setAttachments(prev => [...prev, file]);
-          imagesPasted++;
+              const img = document.createElement('img');
+              img.src = dataUrl;
+              img.style.maxWidth = '100%';
+              img.style.height = 'auto';
+              img.style.display = 'block';
+              img.style.margin = '10px 0';
+
+              range.insertNode(img);
+
+              // Move cursor after image
+              range.setStartAfter(img);
+              range.setEndAfter(img);
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }
+          };
+          reader.readAsDataURL(blob);
         }
       }
-    }
-
-    // Show feedback to user
-    if (imagesPasted > 0) {
-      console.log(`${imagesPasted} image(s) added to attachments`);
     }
   };
 
@@ -261,16 +279,24 @@ export default function EmailComposer({
           {/* Body */}
           <div className="space-y-2">
             <Label htmlFor="body">Message</Label>
-            <Textarea
-              id="body"
-              placeholder="Write your message... (Tip: You can paste images directly with Ctrl+V)"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
+            <div
+              ref={editorRef}
+              contentEditable
               onPaste={handlePaste}
-              rows={12}
-              className="resize-none"
-              required
+              className="min-h-[300px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 overflow-y-auto"
+              data-placeholder="Write your message... (Tip: You can paste images directly with Ctrl+V)"
+              style={{
+                minHeight: '300px',
+                maxHeight: '400px',
+              }}
+              suppressContentEditableWarning
             />
+            <style jsx>{`
+              [contenteditable]:empty:before {
+                content: attr(data-placeholder);
+                color: hsl(var(--muted-foreground));
+              }
+            `}</style>
           </div>
 
           {/* Attachments */}
