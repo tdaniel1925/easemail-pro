@@ -113,6 +113,8 @@ export default function EmailComposer({
     const items = e.clipboardData?.items;
     if (!items) return;
 
+    let imagesPasted = 0;
+
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
 
@@ -132,8 +134,14 @@ export default function EmailComposer({
 
           // Add to attachments
           setAttachments(prev => [...prev, file]);
+          imagesPasted++;
         }
       }
+    }
+
+    // Show feedback to user
+    if (imagesPasted > 0) {
+      console.log(`${imagesPasted} image(s) added to attachments`);
     }
   };
 
@@ -255,7 +263,7 @@ export default function EmailComposer({
             <Label htmlFor="body">Message</Label>
             <Textarea
               id="body"
-              placeholder="Write your message..."
+              placeholder="Write your message... (Tip: You can paste images directly with Ctrl+V)"
               value={body}
               onChange={(e) => setBody(e.target.value)}
               onPaste={handlePaste}
@@ -268,23 +276,40 @@ export default function EmailComposer({
           {/* Attachments */}
           {attachments.length > 0 && (
             <div className="space-y-2">
-              <Label>Attachments</Label>
+              <Label>Attachments ({attachments.length})</Label>
               <div className="space-y-1">
-                {attachments.map((file, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded"
-                  >
-                    <span className="text-sm truncate">{file.name}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeAttachment(index)}
+                {attachments.map((file, index) => {
+                  const isImage = file.type.startsWith('image/');
+                  const fileSize = file.size < 1024 * 1024
+                    ? `${(file.size / 1024).toFixed(1)} KB`
+                    : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded"
                     >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {isImage ? (
+                          <Image className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                        ) : (
+                          <Paperclip className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                        )}
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-sm truncate">{file.name}</span>
+                          <span className="text-xs text-muted-foreground">{fileSize}</span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeAttachment(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
