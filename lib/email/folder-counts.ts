@@ -68,19 +68,19 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
           AND e.is_archived = false
           AND e.folder IS NOT NULL
           AND e.folder != ''
-        
+
         UNION ALL
-        
+
         SELECT
           e.id as email_id,
           e.is_read,
           folder_elem as folder_name
         FROM emails e
         CROSS JOIN LATERAL jsonb_array_elements_text(
-          CASE 
-            WHEN e.folders IS NOT NULL AND jsonb_array_length(e.folders) > 0 
-            THEN e.folders 
-            ELSE '[]'::jsonb 
+          CASE
+            WHEN e.folders IS NOT NULL AND jsonb_array_length(e.folders) > 0
+            THEN e.folders
+            ELSE '[]'::jsonb
           END
         ) AS folder_elem
         WHERE
@@ -98,15 +98,42 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
     // Drizzle's execute returns an array directly, not wrapped in .rows
     const result = Array.isArray(rawResult) ? rawResult : [];
 
-    console.log(`📊 Calculated folder counts for account ${accountId}:`, result);
+    // Get local draft count (stored in email_drafts table, not emails table)
+    const draftCountResult = await db.execute<{ count: number }>(sql`
+      SELECT COUNT(*)::int as count
+      FROM email_drafts
+      WHERE account_id = ${accountId}
+    `);
+    const draftCount = Array.isArray(draftCountResult) && draftCountResult.length > 0
+      ? Number(draftCountResult[0].count)
+      : 0;
+
+    // Add drafts folder to the result
+    const countsWithDrafts = result.map(row => ({
+      folder: row.folder || 'inbox',
+      totalCount: Number(row.totalCount) || 0,
+      unreadCount: Number(row.unreadCount) || 0,
+    }));
+
+    // Add or update drafts folder count
+    const draftsIndex = countsWithDrafts.findIndex(c => c.folder.toLowerCase() === 'drafts');
+    if (draftsIndex >= 0) {
+      // Drafts folder exists from provider - add local drafts to it
+      countsWithDrafts[draftsIndex].totalCount += draftCount;
+    } else if (draftCount > 0) {
+      // No drafts folder from provider - create one with local drafts
+      countsWithDrafts.push({
+        folder: 'drafts',
+        totalCount: draftCount,
+        unreadCount: 0, // Drafts are always "read"
+      });
+    }
+
+    console.log(`📊 Calculated folder counts for account ${accountId} (${draftCount} local drafts):`, countsWithDrafts);
 
     return {
       success: true,
-      counts: result.map(row => ({
-        folder: row.folder || 'inbox',
-        totalCount: Number(row.totalCount) || 0,
-        unreadCount: Number(row.unreadCount) || 0,
-      })),
+      counts: countsWithDrafts,
     };
   } catch (error) {
     console.error('❌ Failed to get folder counts:', error);

@@ -477,6 +477,20 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   const systemFolders = folders.filter(f => ['inbox', 'sent', 'drafts', 'trash', 'starred', 'snoozed'].includes(f.folderType?.toLowerCase()));
   const customFolders = folders.filter(f => !['inbox', 'sent', 'drafts', 'trash', 'starred', 'snoozed', 'spam', 'archive'].includes(f.folderType?.toLowerCase()));
 
+  // Ensure "Drafts" folder always exists (even if provider doesn't have one)
+  // This is for local-only draft storage
+  const hasDraftsFolder = systemFolders.some(f => f.folderType?.toLowerCase() === 'drafts');
+  if (!hasDraftsFolder && accounts.length > 0) {
+    systemFolders.push({
+      id: 'local-drafts',
+      name: 'drafts',
+      displayName: 'Drafts (Local)',
+      folderType: 'drafts',
+      unreadCount: 0,
+      totalCount: 0,
+    } as any);
+  }
+
   console.log('🗂️ System folders:', systemFolders.map(f => `${f.displayName} (${f.folderType})`));
   console.log('📂 Custom folders:', customFolders.map(f => `${f.displayName} (${f.folderType})`));
 
