@@ -358,6 +358,42 @@ export const contacts = pgTable('contacts', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Contact Sync Status (track sync state per account)
+export const contactSyncStatus = pgTable('contact_sync_status', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  emailAccountId: uuid('email_account_id').references(() => emailAccounts.id, { onDelete: 'cascade' }),
+
+  provider: varchar('provider', { length: 50 }).notNull(), // 'nylas', 'google', 'microsoft'
+  nylasGrantId: varchar('nylas_grant_id', { length: 255 }),
+
+  // Sync tracking
+  syncEnabled: boolean('sync_enabled').default(true),
+  lastSyncAt: timestamp('last_sync_at'),
+  lastSuccessfulSyncAt: timestamp('last_successful_sync_at'),
+  nextSyncAt: timestamp('next_sync_at'),
+
+  // Sync statistics
+  syncStatus: varchar('sync_status', { length: 50 }).default('idle'), // 'idle', 'syncing', 'success', 'error'
+  syncError: text('sync_error'),
+  totalContactsSynced: integer('total_contacts_synced').default(0),
+  contactsAdded: integer('contacts_added').default(0),
+  contactsUpdated: integer('contacts_updated').default(0),
+  contactsSkipped: integer('contacts_skipped').default(0),
+
+  // Pagination tokens for incremental sync
+  syncToken: text('sync_token'),
+  pageToken: text('page_token'),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('contact_sync_user_id_idx').on(table.userId),
+  accountIdIdx: index('contact_sync_account_id_idx').on(table.emailAccountId),
+  grantIdIdx: index('contact_sync_grant_id_idx').on(table.nylasGrantId),
+  providerIdx: index('contact_sync_provider_idx').on(table.provider),
+}));
+
 // Labels
 export const labels = pgTable('labels', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -816,6 +852,50 @@ export const calendarEvents = pgTable('calendar_events', {
   microsoftIdIdx: index('calendar_events_microsoft_id_idx').on(table.microsoftEventId),
   statusIdx: index('calendar_events_status_idx').on(table.status),
   parentIdIdx: index('calendar_events_parent_id_idx').on(table.parentEventId),
+}));
+
+// Calendars (metadata for synced calendars)
+export const calendars = pgTable('calendars', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  emailAccountId: uuid('email_account_id').references(() => emailAccounts.id, { onDelete: 'cascade' }),
+
+  // Provider info
+  provider: varchar('provider', { length: 50 }).notNull(), // 'google', 'microsoft', 'nylas', etc.
+  providerCalendarId: varchar('provider_calendar_id', { length: 255 }).notNull(),
+  nylasGrantId: varchar('nylas_grant_id', { length: 255 }),
+
+  // Calendar details
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  timezone: varchar('timezone', { length: 100 }).default('UTC'),
+
+  // Display settings
+  color: varchar('color', { length: 20 }).default('blue'),
+  isVisible: boolean('is_visible').default(true),
+  isPrimary: boolean('is_primary').default(false),
+
+  // Permissions
+  isReadOnly: boolean('is_read_only').default(false),
+  isOwned: boolean('is_owned').default(false),
+
+  // Sync settings
+  syncEnabled: boolean('sync_enabled').default(true),
+  lastSyncedAt: timestamp('last_synced_at'),
+  syncStatus: varchar('sync_status', { length: 50 }).default('idle'),
+  syncError: text('sync_error'),
+
+  // Provider-specific metadata
+  providerData: jsonb('provider_data').$type<Record<string, any>>(),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('calendars_user_id_idx').on(table.userId),
+  accountIdIdx: index('calendars_account_id_idx').on(table.emailAccountId),
+  providerIdIdx: index('calendars_provider_id_idx').on(table.providerCalendarId),
+  grantIdIdx: index('calendars_grant_id_idx').on(table.nylasGrantId),
+  providerIdx: index('calendars_provider_idx').on(table.provider),
 }));
 
 // Calendar Sync State
