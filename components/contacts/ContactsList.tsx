@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Contact {
   id: string;
@@ -40,6 +41,7 @@ interface Contact {
 
 export default function ContactsList() {
   const router = useRouter();
+  const { toast } = useToast();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -260,7 +262,11 @@ export default function ContactsList() {
       setIsAllSelected(false);
     } catch (error) {
       console.error('Failed to delete contacts:', error);
-      alert(error instanceof Error ? error.message : 'Failed to delete contacts');
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete contacts',
+        variant: 'destructive'
+      });
     } finally {
       setBulkDeleting(false);
     }

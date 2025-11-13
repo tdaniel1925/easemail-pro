@@ -29,7 +29,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
-  Dialog,
+  Dialog as InviteDialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -70,7 +70,7 @@ export default function TeamPage() {
   const [inviteLink, setInviteLink] = useState('');
   const [copied, setCopied] = useState(false);
   const router = useRouter();
-  const { confirm, Dialog } = useConfirm();
+  const { confirm, Dialog: ConfirmDialog } = useConfirm();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -231,7 +231,7 @@ export default function TeamPage() {
 
   return (
     <>
-      <Dialog />
+      <ConfirmDialog />
       <div className="container mx-auto p-6 max-w-6xl">
         {/* Back Link */}
         <Link
@@ -253,7 +253,7 @@ export default function TeamPage() {
           </p>
         </div>
 
-        <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+        <InviteDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => { setInviteLink(''); setCopied(false); }}>
               <UserPlus className="h-4 w-4 mr-2" />
@@ -389,7 +389,7 @@ export default function TeamPage() {
               </form>
             )}
           </DialogContent>
-        </Dialog>
+        </InviteDialog>
       </div>
 
       <Card>
