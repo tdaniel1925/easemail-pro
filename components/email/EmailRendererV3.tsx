@@ -11,6 +11,7 @@ interface Attachment {
   filename: string;
   size: number;
   contentType: string;
+  contentId?: string;
 }
 
 interface EmailRendererV3Props {
@@ -239,7 +240,13 @@ export function EmailRendererV3({
           </pre>
         </div>
       ) : (
-        <SimpleEmailViewer body={bodyHtml || ''} bodyText={bodyText} />
+        <SimpleEmailViewer
+          body={bodyHtml || ''}
+          bodyText={bodyText}
+          attachments={attachments || undefined}
+          accountId={accountId}
+          messageId={messageId || emailId}
+        />
       )}
 
       {/* Attachments */}

@@ -173,10 +173,19 @@ export function FolderSidebarV3({
 
           <span className="flex-1 text-left truncate">{folder.name}</span>
 
-          {/* Show totalCount for drafts, unreadCount for others */}
+          {/* Show unreadCount for regular folders, red dot for drafts */}
           {(() => {
             const isDrafts = folder.name.toLowerCase().includes('draft');
-            const count = isDrafts ? folder.totalCount : folder.unreadCount;
+
+            // Show red dot for drafts folder if there are any drafts
+            if (isDrafts && folder.totalCount && folder.totalCount > 0) {
+              return (
+                <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+              );
+            }
+
+            // Show unread count for other folders
+            const count = folder.unreadCount;
 
             if (count && count > 0) {
               return (

@@ -109,6 +109,34 @@ export default function EmailComposer({
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+
+      // Check if the pasted item is an image
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+
+        const blob = item.getAsFile();
+        if (blob) {
+          // Generate a filename with timestamp
+          const timestamp = new Date().getTime();
+          const extension = item.type.split('/')[1];
+          const fileName = `pasted-image-${timestamp}.${extension}`;
+
+          // Create a File object from the blob
+          const file = new File([blob], fileName, { type: item.type });
+
+          // Add to attachments
+          setAttachments(prev => [...prev, file]);
+        }
+      }
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -230,6 +258,7 @@ export default function EmailComposer({
               placeholder="Write your message..."
               value={body}
               onChange={(e) => setBody(e.target.value)}
+              onPaste={handlePaste}
               rows={12}
               className="resize-none"
               required

@@ -32,6 +32,7 @@ interface EmailMessage {
     filename: string;
     size: number;
     content_type: string;
+    content_id?: string;
   }>;
 }
 
@@ -354,7 +355,8 @@ export function EmailViewerV3({
             id: att.id,
             filename: att.filename,
             size: att.size,
-            contentType: att.content_type
+            contentType: att.content_type,
+            contentId: att.content_id
           })) || null}
         />
 

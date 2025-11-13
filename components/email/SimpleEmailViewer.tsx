@@ -5,6 +5,13 @@ import { useEffect, useRef } from 'react';
 interface SimpleEmailViewerProps {
   body: string;  // The HTML from Nylas
   bodyText?: string; // Plain text fallback
+  attachments?: Array<{
+    id: string;
+    contentId?: string;
+    contentType: string;
+  }>;
+  accountId?: string;
+  messageId?: string;
 }
 
 /**
@@ -16,7 +23,7 @@ interface SimpleEmailViewerProps {
  * - Let email control its own layout
  * - CSS isolation to prevent conflicts
  */
-export function SimpleEmailViewer({ body, bodyText }: SimpleEmailViewerProps) {
+export function SimpleEmailViewer({ body, bodyText, attachments, accountId, messageId }: SimpleEmailViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,7 +36,8 @@ export function SimpleEmailViewer({ body, bodyText }: SimpleEmailViewerProps) {
       hasBody: !!body,
       hasBodyText: !!bodyText,
       bodyLength: body?.length || 0,
-      bodyPreview: body?.substring(0, 200) || 'No body'
+      bodyPreview: body?.substring(0, 200) || 'No body',
+      attachmentCount: attachments?.length || 0
     });
 
     // Simple: just set innerHTML with basic sanitization
@@ -38,6 +46,11 @@ export function SimpleEmailViewer({ body, bodyText }: SimpleEmailViewerProps) {
 
     // Remove leading whitespace that causes blank space at start
     sanitized = removeLeadingWhitespace(sanitized);
+
+    // Replace cid: references with actual attachment URLs
+    if (attachments && accountId && messageId) {
+      sanitized = resolveCidReferences(sanitized, attachments, accountId, messageId);
+    }
 
     containerRef.current.innerHTML = sanitized;
 
@@ -59,7 +72,7 @@ export function SimpleEmailViewer({ body, bodyText }: SimpleEmailViewerProps) {
         img.style.display = 'none';
       }
     });
-  }, [body, bodyText]);
+  }, [body, bodyText, attachments, accountId, messageId]);
 
   if (!body && !bodyText) {
     return <div className="p-4 text-muted-foreground">No email content</div>;
@@ -115,4 +128,47 @@ function removeLeadingWhitespace(html: string): string {
     .replace(/^(\s*<div[^>]*>\s*(&nbsp;|\s)*<\/div>\s*)+/gi, '')
     // Trim leading whitespace
     .trimStart();
+}
+
+/**
+ * Resolve cid: references in HTML to actual attachment URLs
+ *
+ * Many emails use Content-ID (cid:) references for inline images like logos.
+ * This function replaces cid: references with actual download URLs.
+ */
+function resolveCidReferences(
+  html: string,
+  attachments: Array<{ id: string; contentId?: string; contentType: string }>,
+  accountId: string,
+  messageId: string
+): string {
+  if (!html || !attachments || attachments.length === 0) return html;
+
+  // Create a map of contentId -> attachment
+  const cidMap = new Map<string, { id: string; contentType: string }>();
+  attachments.forEach(att => {
+    if (att.contentId) {
+      // Content-ID might be wrapped in angle brackets like <image001@example.com>
+      const cleanCid = att.contentId.replace(/^<|>$/g, '');
+      cidMap.set(cleanCid, { id: att.id, contentType: att.contentType });
+    }
+  });
+
+  // Replace all cid: references with download URLs
+  return html.replace(/src=["']cid:([^"']+)["']/gi, (match, cid) => {
+    const attachment = cidMap.get(cid);
+    if (attachment) {
+      // Build the download URL
+      const params = new URLSearchParams({
+        grantId: accountId,
+        attachmentId: attachment.id,
+        messageId: messageId,
+      });
+      const downloadUrl = `/api/nylas-v3/attachments/download?${params.toString()}`;
+      console.log(`📎 Resolved cid:${cid} to attachment ${attachment.id}`);
+      return `src="${downloadUrl}"`;
+    }
+    console.warn(`⚠️ Could not resolve cid:${cid} - no matching attachment found`);
+    return match; // Keep original if not found
+  });
 }
