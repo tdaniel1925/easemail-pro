@@ -173,7 +173,7 @@ function AttachmentsContent() {
       newSelected.add(id);
     }
     setSelectedIds(newSelected);
-    setIsAllSelected(data?.data && newSelected.size === data.data.length);
+    setIsAllSelected(Boolean(data?.data && newSelected.size === data.data.length));
   };
 
   const clearSelection = () => {

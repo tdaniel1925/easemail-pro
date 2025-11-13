@@ -1,31 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { 
-  users, 
-  emailAccounts, 
-  emails, 
-  contacts, 
-  emailSignatures,
-  userAuditLogs,
-  organizationMembers,
-  teamInvitations,
-  smsUsage,
-  aiUsage,
-  storageUsage,
-} from '@/lib/db/schema';
+import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
-type RouteContext = {
-  params: Promise<{ userId: string }>;
-};
-
-// PATCH: Update user role or suspension status (admin only)
-export async function PATCH(request: NextRequest, context: RouteContext) {
+// GET: Fetch user details
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { userId: string } }
+) {
   try {
-    const { userId } = await context.params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -33,7 +19,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is admin
+    // Check if user is platform admin
     const dbUser = await db.query.users.findFirst({
       where: eq(users.id, user.id),
     });
@@ -42,81 +28,92 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
     }
 
+    const { userId } = params;
+
+    // Fetch user details
+    const targetUser = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (!targetUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: targetUser.id,
+        email: targetUser.email,
+        fullName: targetUser.fullName,
+        role: targetUser.role,
+        subscriptionTier: targetUser.subscriptionTier,
+        createdAt: targetUser.createdAt,
+        updatedAt: targetUser.updatedAt,
+        organizationId: targetUser.organizationId,
+      },
+    });
+  } catch (error) {
+    console.error('User fetch error:', error);
+    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
+  }
+}
+
+// PATCH: Update user details
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { userId: string } }
+) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+    }
+
+    const { userId } = params;
     const body = await request.json();
-    const { role, suspended, fullName, email, subscriptionTier } = body;
 
-    // Build update object
-    const updateData: any = {
-      updatedAt: new Date(),
-    };
-
-    // Validate and add role if provided
-    if (role !== undefined) {
-      const validRoles = ['platform_admin', 'org_admin', 'org_user', 'individual'];
-      if (!validRoles.includes(role)) {
-        return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
-      }
-      updateData.role = role;
-    }
-
-    // Add suspended status if provided
-    if (suspended !== undefined) {
-      updateData.suspended = suspended;
-    }
-
-    // Add full name if provided
-    if (fullName !== undefined) {
-      updateData.fullName = fullName;
-    }
-
-    // Add subscription tier if provided
-    if (subscriptionTier !== undefined) {
-      const validTiers = ['free', 'starter', 'pro', 'enterprise', 'beta'];
-      if (!validTiers.includes(subscriptionTier)) {
-        return NextResponse.json({ error: 'Invalid subscription tier' }, { status: 400 });
-      }
-
-      // If setting to 'beta', set isPromoUser to true and tier to 'free'
-      // Beta users are tracked via isPromoUser flag, not subscription tier
-      if (subscriptionTier === 'beta') {
-        updateData.isPromoUser = true;
-        updateData.subscriptionTier = 'free'; // Store as free, but isPromoUser grants unlimited access
-      } else {
-        updateData.subscriptionTier = subscriptionTier;
-        updateData.isPromoUser = false; // Clear promo flag if setting to a regular tier
-      }
-    }
-
-    // Add email if provided (requires validation)
-    if (email !== undefined && email !== '') {
-      // Check if email is already taken by another user
-      const existingUser = await db.query.users.findFirst({
-        where: eq(users.email, email),
-      });
-
-      if (existingUser && existingUser.id !== userId) {
-        return NextResponse.json({ error: 'Email already in use by another user' }, { status: 400 });
-      }
-
-      updateData.email = email;
-    }
+    const { role, subscriptionTier, fullName } = body;
 
     // Update user
-    await db.update(users)
-      .set(updateData)
-      .where(eq(users.id, userId));
+    const updateData: any = {};
+    if (role !== undefined) updateData.role = role;
+    if (subscriptionTier !== undefined) updateData.subscriptionTier = subscriptionTier;
+    if (fullName !== undefined) updateData.fullName = fullName;
 
-    return NextResponse.json({ success: true });
+    const [updated] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+      .returning();
+
+    if (!updated) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, user: updated });
   } catch (error) {
     console.error('User update error:', error);
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
   }
 }
 
-// DELETE: Delete user account (admin only)
-export async function DELETE(request: NextRequest, context: RouteContext) {
+// DELETE: Delete user
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { userId: string } }
+) {
   try {
-    const { userId } = await context.params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -124,7 +121,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is admin
+    // Check if user is platform admin
     const dbUser = await db.query.users.findFirst({
       where: eq(users.id, user.id),
     });
@@ -133,120 +130,19 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
     }
 
-    // Prevent self-deletion
+    const { userId } = params;
+
+    // Prevent deleting yourself
     if (userId === user.id) {
       return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
     }
 
-    // Get user details before deletion for logging
-    const userToDelete = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-    });
-
-    if (!userToDelete) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    console.log(`🗑️ Starting deletion process for user: ${userToDelete.email} (${userId})`);
-
-    // Step 1: Delete all related data (in order to avoid foreign key constraints)
-    
-    // Delete usage tracking records
-    await db.delete(smsUsage).where(eq(smsUsage.userId, userId));
-    console.log('  ✓ Deleted SMS usage records');
-    
-    await db.delete(aiUsage).where(eq(aiUsage.userId, userId));
-    console.log('  ✓ Deleted AI usage records');
-    
-    await db.delete(storageUsage).where(eq(storageUsage.userId, userId));
-    console.log('  ✓ Deleted storage usage records');
-
-    // Delete email-related data
-    const userEmailAccounts = await db.query.emailAccounts.findMany({
-      where: eq(emailAccounts.userId, userId),
-      columns: {
-        id: true,
-        emailAddress: true,
-      },
-    });
-
-    for (const account of userEmailAccounts) {
-      // Delete all emails for each account
-      const emailCount = await db.delete(emails).where(eq(emails.accountId, account.id));
-      console.log(`  ✓ Deleted emails for account ${account.emailAddress || account.id}`);
-    }
-
-    // Delete email accounts
-    await db.delete(emailAccounts).where(eq(emailAccounts.userId, userId));
-    console.log('  ✓ Deleted email accounts');
-
-    // Delete contacts
-    await db.delete(contacts).where(eq(contacts.userId, userId));
-    console.log('  ✓ Deleted contacts');
-
-    // Delete signatures
-    await db.delete(emailSignatures).where(eq(emailSignatures.userId, userId));
-    console.log('  ✓ Deleted email signatures');
-
-    // Delete organization memberships
-    await db.delete(organizationMembers).where(eq(organizationMembers.userId, userId));
-    console.log('  ✓ Deleted organization memberships');
-
-    // Delete team invitations (sent by this user)
-    await db.delete(teamInvitations).where(eq(teamInvitations.invitedBy, userId));
-    console.log('  ✓ Deleted team invitations');
-
-    // Delete audit logs (or keep them for compliance - your choice)
-    // Uncomment if you want to delete audit logs:
-    // await db.delete(userAuditLogs).where(eq(userAuditLogs.userId, userId));
-    // console.log('  ✓ Deleted audit logs');
-
-    // Step 2: Delete from Supabase Auth
-    try {
-      const adminClient = createAdminClient();
-      const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId);
-      
-      if (authDeleteError) {
-        console.warn(`  ⚠️ Failed to delete from Supabase Auth: ${authDeleteError.message}`);
-        // Continue anyway - the database record will be deleted
-      } else {
-        console.log('  ✓ Deleted from Supabase Auth');
-      }
-    } catch (authError) {
-      console.warn('  ⚠️ Error deleting from Supabase Auth:', authError);
-      // Continue anyway
-    }
-
-    // Step 3: Delete user from database
+    // Delete user (cascade will handle related records)
     await db.delete(users).where(eq(users.id, userId));
-    console.log('  ✓ Deleted user record from database');
 
-    // Log the deletion in audit logs (from admin's perspective)
-    await db.insert(userAuditLogs).values({
-      userId: user.id, // Admin who performed the deletion
-      action: 'deleted_user',
-      performedBy: user.id,
-      details: {
-        deletedUserId: userId,
-        deletedUserEmail: userToDelete.email,
-        deletedUserRole: userToDelete.role,
-      },
-      ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
-      userAgent: request.headers.get('user-agent') || 'unknown',
-    });
-
-    console.log(`✅ User ${userToDelete.email} deleted successfully`);
-
-    return NextResponse.json({ 
-      success: true,
-      message: `User ${userToDelete.email} and all associated data deleted successfully`
-    });
+    return NextResponse.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
-    console.error('❌ User delete error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to delete user',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    console.error('User deletion error:', error);
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
   }
 }
-
