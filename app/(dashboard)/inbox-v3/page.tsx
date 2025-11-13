@@ -11,7 +11,7 @@ import { Pencil, MessageSquare, Users, Calendar, Paperclip } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { FolderSidebarV3 } from '@/components/nylas-v3/folder-sidebar-v3';
 import { EmailListEnhancedV3 } from '@/components/nylas-v3/email-list-enhanced-v3';
-import { EmailComposeV3 } from '@/components/nylas-v3/email-compose-v3';
+import EmailCompose from '@/components/email/EmailCompose';
 import { EmailViewerV3 } from '@/components/nylas-v3/email-viewer-v3';
 import { SMSInboxV3 } from '@/components/nylas-v3/sms-inbox-v3';
 import { ContactPanelV3 } from '@/components/nylas-v3/contact-panel-v3';
@@ -263,7 +263,7 @@ export default function InboxV3Page() {
     </div>
 
     {/* Email Compose Modal */}
-    <EmailComposeV3
+    <EmailCompose
       isOpen={isComposeOpen}
       onClose={() => {
         setIsComposeOpen(false);
@@ -274,7 +274,6 @@ export default function InboxV3Page() {
       type={composeType}
       replyTo={composeReplyTo}
       accountId={selectedAccountId || undefined}
-      aiGeneratedReply={aiReplyText}
     />
     </>
   );
