@@ -68,9 +68,8 @@ export default function ContactsList() {
     error: string | null;
   }>({ lastSyncAt: null, syncing: false, error: null });
 
-  // Bulk delete progress state
+  // Bulk delete state
   const [bulkDeleting, setBulkDeleting] = useState(false);
-  const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
 
   // Confirmation dialog
   const { confirm, Dialog: ConfirmDialog } = useConfirm();
@@ -238,23 +237,32 @@ export default function ContactsList() {
     try {
       setBulkDeleting(true);
       const contactIds = Array.from(selectedContactIds);
-      const total = contactIds.length;
-      setDeleteProgress({ current: 0, total });
 
-      // Delete contacts one by one to show progress
-      for (let i = 0; i < contactIds.length; i++) {
-        await fetch(`/api/contacts/${contactIds[i]}`, { method: 'DELETE' });
-        setDeleteProgress({ current: i + 1, total });
+      // Use bulk delete API endpoint - runs on server side in one transaction
+      // This is much faster and can continue even if user navigates away
+      const response = await fetch('/api/contacts/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactIds }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete contacts');
       }
 
+      console.log(`✅ Bulk delete completed: ${data.deletedCount} contacts deleted`);
+
+      // Refresh contacts list
       await fetchContacts();
       setSelectedContactIds(new Set());
       setIsAllSelected(false);
     } catch (error) {
       console.error('Failed to delete contacts:', error);
+      alert(error instanceof Error ? error.message : 'Failed to delete contacts');
     } finally {
       setBulkDeleting(false);
-      setDeleteProgress({ current: 0, total: 0 });
     }
   };
 
@@ -430,26 +438,8 @@ export default function ContactsList() {
           </Button>
         </div>
 
-        {/* Delete Progress Indicator */}
-        {bulkDeleting && (
-          <div className="mb-4 p-4 bg-muted border border-border rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium">Deleting contacts...</p>
-              <p className="text-sm text-muted-foreground">
-                {deleteProgress.current} / {deleteProgress.total}
-              </p>
-            </div>
-            <div className="w-full bg-background rounded-full h-2.5">
-              <div
-                className="bg-primary h-2.5 rounded-full transition-all duration-300"
-                style={{ width: `${(deleteProgress.current / deleteProgress.total) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
-
         {/* Bulk Actions Toolbar */}
-        {selectedContactIds.size > 0 && !bulkDeleting && (
+        {selectedContactIds.size > 0 && (
           <div className="flex items-center justify-between p-3 mb-4 bg-primary/10 border border-primary/20 rounded-lg">
             <div className="flex items-center gap-2">
               <input
@@ -482,10 +472,20 @@ export default function ContactsList() {
                 variant="outline"
                 size="sm"
                 onClick={handleBulkDelete}
+                disabled={bulkDeleting}
                 className="text-destructive hover:text-destructive"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Selected
+                {bulkDeleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Selected
+                  </>
+                )}
               </Button>
               <Button
                 variant="ghost"
