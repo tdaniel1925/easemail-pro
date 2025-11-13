@@ -55,7 +55,11 @@ export default function ContactsList() {
   const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
   const [smsContact, setSMSContact] = useState<{id: string; name: string; phoneNumber: string} | null>(null);
   const [enrichmentMessage, setEnrichmentMessage] = useState<{ type: 'info' | 'success'; text: string } | null>(null);
-  
+
+  // Bulk actions state
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+  const [isAllSelected, setIsAllSelected] = useState(false);
+
   // Confirmation dialog
   const { confirm, Dialog: ConfirmDialog } = useConfirm();
 
@@ -186,6 +190,86 @@ export default function ContactsList() {
     window.URL.revokeObjectURL(url);
   };
 
+  // Bulk action handlers
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedContactIds(new Set());
+      setIsAllSelected(false);
+    } else {
+      setSelectedContactIds(new Set(filteredContacts.map(c => c.id)));
+      setIsAllSelected(true);
+    }
+  };
+
+  const toggleSelectContact = (contactId: string) => {
+    const newSelected = new Set(selectedContactIds);
+    if (newSelected.has(contactId)) {
+      newSelected.delete(contactId);
+    } else {
+      newSelected.add(contactId);
+    }
+    setSelectedContactIds(newSelected);
+    setIsAllSelected(newSelected.size === filteredContacts.length && filteredContacts.length > 0);
+  };
+
+  const handleBulkDelete = async () => {
+    const confirmed = await confirm({
+      title: `Delete ${selectedContactIds.size} Contacts`,
+      message: `Are you sure you want to delete ${selectedContactIds.size} selected contact(s)?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      const deletePromises = Array.from(selectedContactIds).map(id =>
+        fetch(`/api/contacts/${id}`, { method: 'DELETE' })
+      );
+
+      await Promise.all(deletePromises);
+      await fetchContacts();
+      setSelectedContactIds(new Set());
+      setIsAllSelected(false);
+    } catch (error) {
+      console.error('Failed to delete contacts:', error);
+    }
+  };
+
+  const handleBulkExport = () => {
+    const selectedContacts = contacts.filter(c => selectedContactIds.has(c.id));
+
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Company', 'Job Title', 'Location'];
+    const csvData = [
+      headers.join(','),
+      ...selectedContacts.map(contact => [
+        contact.firstName || '',
+        contact.lastName || '',
+        contact.email || '',
+        contact.phone || '',
+        contact.company || '',
+        contact.jobTitle || '',
+        contact.location || '',
+      ].map(field => `"${field}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `selected-contacts-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const clearSelection = () => {
+    setSelectedContactIds(new Set());
+    setIsAllSelected(false);
+  };
+
   const handleComposeEmail = (email: string) => {
     // Trigger compose modal via InboxLayout's event listener
     const composeEvent = new CustomEvent('openCompose', {
@@ -278,6 +362,47 @@ export default function ContactsList() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-6 border-b border-border bg-card">
+        {/* Bulk Actions Toolbar */}
+        {selectedContactIds.size > 0 && (
+          <div className="flex items-center justify-between p-3 mb-4 bg-primary/10 border border-primary/20 rounded-lg">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <span className="font-medium">{selectedContactIds.size} selected</span>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkExport}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Selected
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkDelete}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Selected
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearSelection}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold">Contacts</h1>
@@ -387,28 +512,32 @@ export default function ContactsList() {
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredContacts.map((contact) => (
-              <ContactCard 
-                key={contact.id} 
+              <ContactCard
+                key={contact.id}
                 contact={contact}
                 onDelete={handleDeleteContact}
                 onEdit={handleEditContact}
                 onEmail={handleComposeEmail}
                 onSMS={handleSMSClick}
                 onClick={handleContactClick}
+                isSelected={selectedContactIds.has(contact.id)}
+                onToggleSelect={toggleSelectContact}
               />
             ))}
           </div>
         ) : (
           <div className="space-y-2">
             {filteredContacts.map((contact) => (
-              <ContactListItem 
-                key={contact.id} 
+              <ContactListItem
+                key={contact.id}
                 contact={contact}
                 onDelete={handleDeleteContact}
                 onEdit={handleEditContact}
                 onEmail={handleComposeEmail}
                 onSMS={handleSMSClick}
                 onClick={handleContactClick}
+                isSelected={selectedContactIds.has(contact.id)}
+                onToggleSelect={toggleSelectContact}
               />
             ))}
           </div>
@@ -459,9 +588,11 @@ interface ContactCardProps {
   onEmail: (email: string) => void;
   onSMS: (contact: Contact) => void;
   onClick: (contact: Contact) => void;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
 }
 
-function ContactCard({ contact, onDelete, onEdit, onEmail, onSMS, onClick }: ContactCardProps) {
+function ContactCard({ contact, onDelete, onEdit, onEmail, onSMS, onClick, isSelected, onToggleSelect }: ContactCardProps) {
   // Build display name with proper fallbacks
   const displayName = contact.displayName || 
                       contact.fullName || 
@@ -475,8 +606,23 @@ function ContactCard({ contact, onDelete, onEdit, onEmail, onSMS, onClick }: Con
   const avatarColor = generateAvatarColor(avatarSeed);
 
   return (
-    <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+    <Card className={cn(
+      "hover:shadow-lg transition-shadow cursor-pointer relative",
+      isSelected && "ring-2 ring-primary"
+    )}>
       <CardContent className="p-6">
+        <div className="absolute top-2 left-2">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleSelect(contact.id);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="h-4 w-4 rounded border-gray-300 cursor-pointer"
+          />
+        </div>
         <div className="text-center">
           <div
             className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-medium text-white mx-auto mb-4 cursor-pointer"
@@ -598,9 +744,11 @@ interface ContactListItemProps {
   onEmail: (email: string) => void;
   onSMS: (contact: Contact) => void;
   onClick: (contact: Contact) => void;
+  isSelected: boolean;
+  onToggleSelect: (id: string) => void;
 }
 
-function ContactListItem({ contact, onDelete, onEdit, onEmail, onSMS, onClick }: ContactListItemProps) {
+function ContactListItem({ contact, onDelete, onEdit, onEmail, onSMS, onClick, isSelected, onToggleSelect }: ContactListItemProps) {
   // Build display name with proper fallbacks
   const displayName = contact.displayName || 
                       contact.fullName || 
@@ -614,9 +762,22 @@ function ContactListItem({ contact, onDelete, onEdit, onEmail, onSMS, onClick }:
   const avatarColor = generateAvatarColor(avatarSeed);
 
   return (
-    <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={() => onClick(contact)}>
+    <Card className={cn(
+      "hover:bg-accent transition-colors cursor-pointer",
+      isSelected && "ring-2 ring-primary"
+    )} onClick={() => onClick(contact)}>
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleSelect(contact.id);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="h-4 w-4 rounded border-gray-300 cursor-pointer flex-shrink-0"
+          />
           <div
             className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-medium text-white flex-shrink-0"
             style={{ backgroundColor: avatarColor }}
