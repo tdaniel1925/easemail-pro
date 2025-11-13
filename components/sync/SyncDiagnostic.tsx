@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/use-toast';
+import ErrorResolutionCard from '@/components/email/ErrorResolutionCard';
 
 interface SyncDiagnosticProps {
   accountId: string;
@@ -135,8 +136,12 @@ export function SyncDiagnostic({ accountId }: SyncDiagnosticProps) {
           )}
 
           {diagnostic.errors.lastError && (
-            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-              <strong>Error:</strong> {diagnostic.errors.lastError}
+            <div className="mt-4">
+              <ErrorResolutionCard
+                errorMessage={diagnostic.errors.lastError}
+                accountId={accountId}
+                onRetry={forceRestart}
+              />
             </div>
           )}
         </div>

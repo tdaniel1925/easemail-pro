@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getInitials, generateAvatarColor } from '@/lib/utils';
 import ProviderSelector from '@/components/email/ProviderSelector';
+import ErrorResolutionCard from '@/components/email/ErrorResolutionCard';
 
 interface EmailAccount {
   id: string;
@@ -743,13 +744,13 @@ export default function AccountsV3Page() {
                       </div>
                     )}
 
-                    {/* Error Alert */}
+                    {/* Error Alert with Resolution Guide */}
                     {account.lastError && account.syncStatus === 'error' && (
-                      <Alert variant="destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Sync Error</AlertTitle>
-                        <AlertDescription className="text-xs">{account.lastError}</AlertDescription>
-                      </Alert>
+                      <ErrorResolutionCard
+                        errorMessage={account.lastError}
+                        accountId={account.id}
+                        onRetry={() => handleSyncAccount(account.id)}
+                      />
                     )}
 
                     {/* Account Stats */}

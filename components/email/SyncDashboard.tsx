@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import ErrorResolutionCard from '@/components/email/ErrorResolutionCard';
 
 interface SyncDashboardProps {
   accountId: string;
@@ -187,35 +188,13 @@ export default function SyncDashboard({ accountId, emailAddress }: SyncDashboard
         </Badge>
       </div>
 
-      {/* Error Alert */}
+      {/* Error Alert with Resolution Guide */}
       {hasError && metrics.lastError && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Sync Error</AlertTitle>
-          <AlertDescription>
-            {metrics.lastError}
-            <div className="mt-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleRestartSync}
-                disabled={restarting}
-              >
-                {restarting ? (
-                  <>
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    Restarting...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    Retry Sync
-                  </>
-                )}
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
+        <ErrorResolutionCard
+          errorMessage={metrics.lastError}
+          accountId={accountId}
+          onRetry={handleRestartSync}
+        />
       )}
 
       {/* Progress Overview */}
