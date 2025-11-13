@@ -78,7 +78,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       }, { status: 500 });
     }
 
-    // Use the email_otp to verify and create a session
+    // Extract the OTP from the generated link
     const emailOtp = linkData.properties.email_otp;
 
     if (!emailOtp) {
@@ -105,8 +105,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       }, { status: 500 });
     }
 
-    const accessToken = verifyData.session.access_token;
-    const refreshToken = verifyData.session.refresh_token;
+    const accessToken = verifyData.session?.access_token;
+    const refreshToken = verifyData.session?.refresh_token;
 
     console.log('[Impersonate] Session created successfully:', {
       hasAccessToken: !!accessToken,

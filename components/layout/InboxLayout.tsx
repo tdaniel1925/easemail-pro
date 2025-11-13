@@ -76,27 +76,37 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
     return () => window.removeEventListener('openCompose' as any, handleComposeEvent);
   }, []);
 
+  // Sync URL folder parameter with activeFolder state
+  useEffect(() => {
+    const folderParam = searchParams.get('folder');
+    if (folderParam) {
+      setActiveFolder(folderParam);
+    } else {
+      setActiveFolder('inbox'); // Default to inbox if no folder specified
+    }
+  }, [searchParams]);
+
   // Check for success/error messages from OAuth callback
   useEffect(() => {
     const success = searchParams.get('success');
     const error = searchParams.get('error');
     const syncing = searchParams.get('syncing');
     const warnings = searchParams.get('warnings');
-    
+
     if (success === 'account_added') {
       console.log('[Account] Account added successfully! Fetching accounts and folders...');
-      
+
       if (warnings) {
         const failedItems = warnings.split(',');
         const warningText = failedItems.join(' and ');
-        setMessage({ 
-          type: 'info', 
-          text: `⚠️ Account connected, but ${warningText} sync had issues. Background sync is running and will retry automatically.` 
+        setMessage({
+          type: 'info',
+          text: `⚠️ Account connected, but ${warningText} sync had issues. Background sync is running and will retry automatically.`
         });
       } else if (syncing === 'true') {
-        setMessage({ 
-          type: 'info', 
-          text: '✅ Account connected! Initial emails are loading below. Background sync is analyzing remaining emails - this may take a few minutes.' 
+        setMessage({
+          type: 'info',
+          text: '✅ Account connected! Initial emails are loading below. Background sync is analyzing remaining emails - this may take a few minutes.'
         });
       } else {
         setMessage({ type: 'success', text: 'Email account connected successfully!' });
@@ -106,7 +116,7 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
       // Clear the query param
       router.replace('/inbox-v3');
     }
-    
+
     if (error) {
       console.error('❌ Error:', error);
       setMessage({ type: 'error', text: `Failed to connect account: ${error}` });
@@ -426,8 +436,8 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
   // ✅ PHASE 3: Handle folder selection with recent folders tracking
   const handleFolderSelect = (folderName: string) => {
     setActiveFolder(folderName);
-    router.push(`/inbox?folder=${encodeURIComponent(folderName)}`);
-    
+    router.push(`/inbox-v3?folder=${encodeURIComponent(folderName)}`);
+
     // Add to recent folders (max 5)
     setRecentFolders(prev => {
       const updated = [folderName, ...prev.filter(f => f !== folderName)];
@@ -809,7 +819,10 @@ export default function InboxLayout({ children }: InboxLayoutProps) {
             {/* Show DraftsView when drafts folder is selected */}
             {activeFolder === 'drafts' && selectedAccountId ? (
               <DraftsView
-                accountId={selectedAccountId}
+                accountId={
+                  accounts.find((a: any) => a.id === selectedAccountId)?.nylasGrantId ||
+                  selectedAccountId
+                }
                 onResumeDraft={(draft) => {
                   setComposeDraft(draft);
                   setIsComposeOpen(true);
