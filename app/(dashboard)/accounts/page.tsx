@@ -3,5 +3,5 @@
 import { redirect } from 'next/navigation';
 
 export default function AccountsPage() {
-  redirect('/accounts-v2');
+  redirect('/accounts-v3');
 }
