@@ -58,6 +58,16 @@ export default function EmailComposer({
   const [attachments, setAttachments] = useState<File[]>([]);
   const editorRef = useRef<HTMLDivElement>(null);
 
+  // Focus editor when dialog opens
+  useEffect(() => {
+    if (isOpen && editorRef.current) {
+      // Small delay to ensure dialog is rendered
+      setTimeout(() => {
+        editorRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen]);
+
   const handleSend = async () => {
     // Get HTML content from contenteditable div
     const htmlBody = editorRef.current?.innerHTML || '';
@@ -281,13 +291,24 @@ export default function EmailComposer({
             <Label htmlFor="body">Message</Label>
             <div
               ref={editorRef}
-              contentEditable
+              contentEditable={true}
               onPaste={handlePaste}
+              onInput={(e) => {
+                // Track content changes if needed
+                const html = e.currentTarget.innerHTML;
+                setBody(html);
+              }}
+              tabIndex={0}
+              role="textbox"
+              aria-multiline="true"
+              aria-label="Email message body"
               className="min-h-[300px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 overflow-y-auto"
               data-placeholder="Write your message... (Tip: You can paste images directly with Ctrl+V)"
               style={{
                 minHeight: '300px',
                 maxHeight: '400px',
+                whiteSpace: 'pre-wrap',
+                wordWrap: 'break-word',
               }}
               suppressContentEditableWarning
             />
@@ -295,6 +316,10 @@ export default function EmailComposer({
               [contenteditable]:empty:before {
                 content: attr(data-placeholder);
                 color: hsl(var(--muted-foreground));
+                pointer-events: none;
+              }
+              [contenteditable]:focus {
+                outline: none;
               }
             `}</style>
           </div>
