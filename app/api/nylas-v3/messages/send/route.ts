@@ -6,8 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
-import { emailAccounts } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { emailAccounts, emailDrafts } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { getNylasClient } from '@/lib/nylas-v3/config';
 import { handleNylasError } from '@/lib/nylas-v3/errors';
 import { processEmailForTracking } from '@/lib/email-tracking';
@@ -161,6 +161,27 @@ export async function POST(request: NextRequest) {
       } catch (updateError) {
         console.error('[Send] Failed to update tracking with message ID:', updateError);
         // Non-critical error, continue
+      }
+    }
+
+    // 7. Delete local draft if this was sent from a draft
+    if (draftId) {
+      try {
+        console.log('[Send] Deleting local draft after successful send:', draftId);
+
+        await db
+          .delete(emailDrafts)
+          .where(
+            and(
+              eq(emailDrafts.id, draftId),
+              eq(emailDrafts.userId, user.id)
+            )
+          );
+
+        console.log('[Send] ✅ Local draft deleted successfully');
+      } catch (deleteError) {
+        console.error('[Send] Failed to delete draft (non-critical):', deleteError);
+        // Non-critical error, email was sent successfully
       }
     }
 
