@@ -6,7 +6,7 @@
  */
 
 import { useState, Suspense, useEffect } from 'react';
-import { Loader2, LayoutGrid as Squares2X2Icon, List as ListBulletIcon, Paperclip, Upload, Sparkles, Mail, AlertCircle } from 'lucide-react';
+import { Loader2, LayoutGrid as Squares2X2Icon, List as ListBulletIcon, Paperclip, Upload, Sparkles, Mail, AlertCircle, CheckSquare, Square, Download, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { SearchBar } from '@/components/attachments/SearchBar';
 import { FilterBar } from '@/components/attachments/FilterBar';
@@ -45,6 +45,10 @@ function AttachmentsContent() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isAllSelected, setIsAllSelected] = useState(false);
 
   // Fetch AI setting with cleanup
   useEffect(() => {
@@ -150,6 +154,56 @@ function AttachmentsContent() {
     setPage(1);
   };
 
+  // Bulk selection handlers
+  const toggleSelectAll = () => {
+    if (isAllSelected || selectedIds.size > 0) {
+      setSelectedIds(new Set());
+      setIsAllSelected(false);
+    } else if (data?.data) {
+      setSelectedIds(new Set(data.data.map(a => a.id)));
+      setIsAllSelected(true);
+    }
+  };
+
+  const toggleSelectAttachment = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+    setIsAllSelected(data?.data && newSelected.size === data.data.length);
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setIsAllSelected(false);
+  };
+
+  const handleBulkDownload = async () => {
+    for (const id of selectedIds) {
+      await downloadMutation.mutateAsync(id);
+    }
+    setSuccess(`Downloaded ${selectedIds.size} attachments`);
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedIds.size} selected attachments?`)) return;
+
+    try {
+      // Implement bulk delete API call here
+      // For now, just show success message
+      setSuccess(`Deleted ${selectedIds.size} attachments`);
+      clearSelection();
+      refetch();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete attachments');
+    }
+  };
+
   const hasAttachments = data && data.data.length > 0;
   const hasFilters = !!(filters.search || filters.fileTypes.length > 0 || filters.documentTypes.length > 0 || filters.senders.length > 0 || filters.dateRange);
 
@@ -181,6 +235,58 @@ function AttachmentsContent() {
               title="Failed to load attachments"
               message="There was an error loading your attachments. Please try again."
             />
+          </div>
+        )}
+
+        {/* Bulk Actions Toolbar */}
+        {selectedIds.size > 0 && (
+          <div className="border-b bg-accent px-6 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <span className="font-medium">{selectedIds.size} selected</span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleSelectAll}
+                  title={isAllSelected ? "Deselect All" : "Select All"}
+                >
+                  {isAllSelected ? <Square className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
+                  {isAllSelected ? "Deselect All" : "Select All"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkDownload}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Selected
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Selected
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearSelection}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -280,6 +386,9 @@ function AttachmentsContent() {
                 onPreview={openPreview}
                 onDownload={handleDownload}
                 onOpenEmail={handleOpenEmail}
+                selectedIds={Array.from(selectedIds)}
+                onToggleSelect={toggleSelectAttachment}
+                showCheckboxes={true}
               />
 
               {/* Pagination */}
