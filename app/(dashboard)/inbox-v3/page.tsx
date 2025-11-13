@@ -15,6 +15,7 @@ import EmailCompose from '@/components/email/EmailCompose';
 import { EmailViewerV3 } from '@/components/nylas-v3/email-viewer-v3';
 import { SMSInboxV3 } from '@/components/nylas-v3/sms-inbox-v3';
 import { ContactPanelV3 } from '@/components/nylas-v3/contact-panel-v3';
+import { DraftsView } from '@/components/email/DraftsView';
 import { useAccounts } from '@/lib/hooks/use-accounts';
 import EaseMailLogoFull from '@/components/ui/EaseMailLogoFull';
 import SettingsMenuNew from '@/components/layout/SettingsMenuNew';
@@ -37,6 +38,7 @@ export default function InboxV3Page() {
   const [composeType, setComposeType] = useState<'compose' | 'reply' | 'reply-all' | 'forward'>('compose');
   const [rightPanelTab, setRightPanelTab] = useState<'contact' | 'calendar' | 'ai'>('calendar');
   const [aiReplyText, setAiReplyText] = useState<string | null>(null);
+  const [composeDraft, setComposeDraft] = useState<any>(null);
 
   // Get accounts
   const { accounts, loading: accountsLoading } = useAccounts();
@@ -214,10 +216,19 @@ export default function InboxV3Page() {
         </div>
       </div>
 
-      {/* Main Content Area - Email List/Viewer/SMS */}
+      {/* Main Content Area - Email List/Viewer/SMS/Drafts */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {selectedFolderName === 'sms' ? (
           <SMSInboxV3 />
+        ) : selectedFolderName?.toLowerCase() === 'drafts' && selectedAccountId ? (
+          <DraftsView
+            accountId={selectedAccountId}
+            onResumeDraft={(draft) => {
+              console.log('[inbox-v3] Resuming draft:', draft);
+              setComposeDraft(draft);
+              setIsComposeOpen(true);
+            }}
+          />
         ) : selectedAccountId && !selectedMessageId ? (
           <EmailListEnhancedV3
             accountId={selectedAccountId}
@@ -270,10 +281,12 @@ export default function InboxV3Page() {
         setComposeReplyTo(null);
         setComposeType('compose');
         setAiReplyText(null);
+        setComposeDraft(null);
       }}
       type={composeType}
       replyTo={composeReplyTo}
       accountId={selectedAccountId || undefined}
+      draft={composeDraft}
     />
     </>
   );
