@@ -78,6 +78,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null); // Track current draft ID for deletion after send
   const [isFirstChange, setIsFirstChange] = useState(true); // Track first change for instant save
   const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle'); // Save status indicator
+  const [skipSignatureCheck, setSkipSignatureCheck] = useState(false); // Skip signature check on retry
 
   // Refs for debouncing
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -366,6 +367,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     setShowCc(false);
     setShowBcc(false);
     setCurrentDraftId(null); // Clear draft ID
+    setSkipSignatureCheck(false); // Reset skip flag
   };
 
   const handleSend = async () => {
@@ -404,14 +406,16 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     console.log('[EmailCompose] Account ID:', accountId, 'Type:', typeof accountId);
 
     // Check for signature - show prompt if no signatures exist and user hasn't hidden it
+    // Skip this check if user already clicked "Continue without signature"
     console.log('[EmailCompose] Signature check:', {
       signaturesCount: signatures.length,
       hidePrompt: hideSignaturePromptPreference,
       type: type,
-      showPrompt: signatures.length === 0 && !hideSignaturePromptPreference && type === 'compose'
+      skipSignatureCheck: skipSignatureCheck,
+      showPrompt: signatures.length === 0 && !hideSignaturePromptPreference && type === 'compose' && !skipSignatureCheck
     });
-    
-    if (signatures.length === 0 && !hideSignaturePromptPreference && type === 'compose') {
+
+    if (signatures.length === 0 && !hideSignaturePromptPreference && type === 'compose' && !skipSignatureCheck) {
       console.log('[EmailCompose] ✅ Showing signature prompt');
       setShowSignaturePrompt(true);
       return;
@@ -806,10 +810,14 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   };
 
   const handleContinueWithoutSignature = () => {
-    console.log('[EmailCompose] Continuing without signature');
+    console.log('[EmailCompose] Continuing without signature - setting skip flag');
     setShowSignaturePrompt(false);
-    // Retry sending
-    handleSend();
+    // Set flag to skip signature check on retry
+    setSkipSignatureCheck(true);
+    // Retry sending after a brief delay to ensure state is updated
+    setTimeout(() => {
+      handleSend();
+    }, 100);
   };
 
   const handleURLSubmit = (url: string) => {
