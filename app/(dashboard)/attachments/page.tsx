@@ -53,7 +53,7 @@ function AttachmentsContent() {
     fetch('/api/user/preferences')
       .then(res => res.json())
       .then(data => {
-        if (mounted) setAiEnabled(data.aiAttachmentProcessing);
+        if (mounted) setAiEnabled(data.preferences?.aiAttachmentProcessing || false);
       })
       .catch(err => {
         if (mounted) {
@@ -73,7 +73,7 @@ function AttachmentsContent() {
     
     try {
       const response = await fetch('/api/user/preferences', {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ aiAttachmentProcessing: enabled }),
       });
