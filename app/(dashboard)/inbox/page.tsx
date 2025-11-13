@@ -28,7 +28,8 @@ export default function InboxV3Page() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null); // Nylas Grant ID (for API calls)
+  const [selectedDbAccountId, setSelectedDbAccountId] = useState<string | null>(null); // Database UUID (for sending emails)
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedFolderName, setSelectedFolderName] = useState<string>('inbox');
   const [isComposeOpen, setIsComposeOpen] = useState(false);
@@ -50,15 +51,18 @@ export default function InboxV3Page() {
 
   // Auto-select first account if none selected
   if (!selectedAccountId && accounts.length > 0 && !accountsLoading) {
-    // Use nylasGrantId (the Nylas grant ID) instead of id (database UUID)
+    // Use nylasGrantId (the Nylas grant ID) for folder/message API calls
+    // AND store the database ID for sending emails
     const firstValidAccount = accounts.find(acc => acc.nylasGrantId);
     if (firstValidAccount) {
-      setSelectedAccountId(firstValidAccount.nylasGrantId);
+      setSelectedAccountId(firstValidAccount.nylasGrantId); // For Nylas API
+      setSelectedDbAccountId(firstValidAccount.id); // For send email API
     } else {
       console.error('❌ No accounts with valid Nylas grant ID found.');
       console.error('Please reconnect your email account in Settings.');
       // Still set something to prevent infinite loop, but log the error
       setSelectedAccountId(accounts[0].id);
+      setSelectedDbAccountId(accounts[0].id);
     }
   }
 
@@ -292,7 +296,7 @@ export default function InboxV3Page() {
       }}
       type={composeType}
       replyTo={composeReplyTo}
-      accountId={selectedAccountId || undefined}
+      accountId={selectedDbAccountId || undefined}
       draft={composeDraft}
     />
     </>
