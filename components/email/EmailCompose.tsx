@@ -400,6 +400,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       return;
     }
 
+    // Debug: Log accountId being sent
+    console.log('[EmailCompose] Account ID:', accountId, 'Type:', typeof accountId);
+
     // Check for signature - show prompt if no signatures exist and user hasn't hidden it
     console.log('[EmailCompose] Signature check:', {
       signaturesCount: signatures.length,

@@ -42,12 +42,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Get email account
+    console.log('[Send] Looking up account:', accountId, 'Type:', typeof accountId);
+
     const account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.id, accountId),
     });
 
     if (!account) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+      console.error('[Send] Account not found:', accountId);
+      return NextResponse.json({
+        error: `Account not found: ${accountId}. Please select a valid email account.`
+      }, { status: 404 });
     }
 
     // Verify account belongs to user
