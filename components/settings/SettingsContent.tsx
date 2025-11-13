@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker } from 'lucide-react';
+import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,18 +21,29 @@ type SettingsSection = 'sync' | 'signatures' | 'preferences' | 'notifications' |
 export default function SettingsContent() {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<SettingsSection>('sync');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const sections = [
-    { id: 'sync' as const, name: 'Sync Status', icon: RefreshCw },
-    { id: 'signatures' as const, name: 'Signatures', icon: PenTool },
-    { id: 'preferences' as const, name: 'Preferences', icon: Sliders },
-    { id: 'notifications' as const, name: 'Notifications', icon: Bell },
-    { id: 'privacy' as const, name: 'Privacy & Security', icon: Shield },
-    { id: 'integrations' as const, name: 'Integrations', icon: Plug },
-    { id: 'utilities' as const, name: 'Utilities', icon: Wrench },
-    { id: 'features' as const, name: 'Feature Flags', icon: Beaker },
-    { id: 'help' as const, name: 'Help & Support', icon: HelpCircle },
+    { id: 'sync' as const, name: 'Sync Status', icon: RefreshCw, keywords: ['email', 'sync', 'status', 'progress', 'accounts', 'mailbox'] },
+    { id: 'signatures' as const, name: 'Signatures', icon: PenTool, keywords: ['signature', 'email', 'footer', 'sign', 'template'] },
+    { id: 'preferences' as const, name: 'Preferences', icon: Sliders, keywords: ['theme', 'appearance', 'display', 'reading', 'composing', 'dark mode'] },
+    { id: 'notifications' as const, name: 'Notifications', icon: Bell, keywords: ['notifications', 'alerts', 'sound', 'desktop', 'quiet hours'] },
+    { id: 'privacy' as const, name: 'Privacy & Security', icon: Shield, keywords: ['privacy', 'security', 'ai', 'tracking', 'images', 'protection'] },
+    { id: 'integrations' as const, name: 'Integrations', icon: Plug, keywords: ['integrations', 'zoom', 'slack', 'connect', 'third party'] },
+    { id: 'utilities' as const, name: 'Utilities', icon: Wrench, keywords: ['utilities', 'tools', 'diagnostics', 'database'] },
+    { id: 'features' as const, name: 'Feature Flags', icon: Beaker, keywords: ['features', 'experimental', 'beta', 'flags'] },
+    { id: 'help' as const, name: 'Help & Support', icon: HelpCircle, keywords: ['help', 'support', 'guide', 'tutorial', 'shortcuts', 'onboarding'] },
   ];
+
+  // Filter sections based on search query
+  const filteredSections = sections.filter(section => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      section.name.toLowerCase().includes(query) ||
+      section.keywords.some(keyword => keyword.toLowerCase().includes(query))
+    );
+  });
 
   return (
     <div className="flex w-full h-screen">
@@ -42,7 +53,7 @@ export default function SettingsContent() {
           <h2 className="text-xl font-bold mb-3 text-foreground">Settings</h2>
           <a
             href="/inbox"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m12 19-7-7 7-7"/>
@@ -50,26 +61,47 @@ export default function SettingsContent() {
             </svg>
             Back to Inbox
           </a>
+
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search settings..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
         <nav className="space-y-1">
-          {sections.map((section) => {
-            const Icon = section.icon;
-            return (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
-                  activeSection === section.id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{section.name}</span>
-              </button>
-            );
-          })}
+          {filteredSections.length === 0 ? (
+            <div className="text-sm text-muted-foreground text-center py-4">
+              No settings found
+            </div>
+          ) : (
+            filteredSections.map((section) => {
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => {
+                    setActiveSection(section.id);
+                    setSearchQuery(''); // Clear search when selecting
+                  }}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                    activeSection === section.id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{section.name}</span>
+                </button>
+              );
+            })
+          )}
         </nav>
       </aside>
 
