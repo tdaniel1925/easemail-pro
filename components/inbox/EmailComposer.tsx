@@ -1,3 +1,24 @@
+/**
+ * ⚠️ DEPRECATED - DO NOT USE ⚠️
+ *
+ * This component is deprecated and should not be used or modified.
+ *
+ * USE INSTEAD: components/email/EmailCompose.tsx
+ *
+ * The main inbox uses components/email/EmailCompose.tsx which contains
+ * the RichTextEditor with full TipTap support, including:
+ * - Inline image pasting
+ * - Rich text formatting
+ * - Draft auto-save
+ * - Signature management
+ *
+ * This file (EmailComposer.tsx) was mistakenly edited in the past
+ * but is NOT used by the application. Any changes made here will
+ * have NO EFFECT on the actual email composer.
+ *
+ * @deprecated Use components/email/EmailCompose.tsx instead
+ */
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -22,6 +43,9 @@ import {
   Loader2,
 } from 'lucide-react';
 
+/**
+ * @deprecated This component is not used. See file header for details.
+ */
 interface EmailComposerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -34,6 +58,11 @@ interface EmailComposerProps {
   mode?: 'compose' | 'reply' | 'replyAll' | 'forward';
 }
 
+/**
+ * @deprecated This component is not used by the application.
+ * Use components/email/EmailCompose.tsx instead.
+ * See file header for full details.
+ */
 export default function EmailComposer({
   isOpen,
   onClose,
@@ -41,6 +70,12 @@ export default function EmailComposer({
   accountId,
   mode = 'compose',
 }: EmailComposerProps) {
+  // ⚠️ WARNING: This component is DEPRECATED and NOT USED
+  // See file header for details
+  console.warn(
+    '⚠️ DEPRECATED: EmailComposer (components/inbox/EmailComposer.tsx) is deprecated. ' +
+    'Use components/email/EmailCompose.tsx instead.'
+  );
   const [to, setTo] = useState(replyTo?.email || '');
   const [cc, setCc] = useState('');
   const [bcc, setBcc] = useState('');
