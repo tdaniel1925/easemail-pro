@@ -90,6 +90,7 @@ async function handleContactWebhook(type: string, data: any) {
           const contact = await nylas.contacts.find({
             identifier: grant_id,
             contactId: object.id,
+            queryParams: {},
           });
 
           // Upsert contact to database

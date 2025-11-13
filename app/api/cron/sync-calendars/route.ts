@@ -113,11 +113,11 @@ export async function GET(request: NextRequest) {
             name: nylasCalendar.name || 'Untitled Calendar',
             description: nylasCalendar.description || null,
             timezone: nylasCalendar.timezone || 'UTC',
-            color: nylasCalendar.hex_color || 'blue',
+            color: nylasCalendar.hexColor || 'blue',
             isVisible: true,
-            isPrimary: nylasCalendar.is_primary || false,
-            isReadOnly: nylasCalendar.read_only || false,
-            isOwned: nylasCalendar.is_owned_by_user || false,
+            isPrimary: nylasCalendar.isPrimary || false,
+            isReadOnly: nylasCalendar.readOnly || false,
+            isOwned: nylasCalendar.isOwnedByUser || false,
             syncEnabled: true,
             lastSyncedAt: new Date(),
             syncStatus: 'idle',
@@ -145,9 +145,9 @@ export async function GET(request: NextRequest) {
           const eventsResponse = await nylas.events.list({
             identifier: account.nylasGrantId,
             queryParams: {
-              calendar_id: nylasCalendar.id,
-              start: thirtyDaysAgo,
-              end: ninetyDaysFromNow,
+              calendarId: nylasCalendar.id,
+              start: String(thirtyDaysAgo),
+              end: String(ninetyDaysFromNow),
               limit: 100,
             },
           });
