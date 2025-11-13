@@ -60,16 +60,49 @@ export function FolderSidebarV3({
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `/api/nylas-v3/folders?accountId=${accountId}&hierarchy=true`
-      );
+      // Fetch folders and counts in parallel
+      const [foldersResponse, countsResponse] = await Promise.all([
+        fetch(`/api/nylas-v3/folders?accountId=${accountId}&hierarchy=true`),
+        fetch(`/api/nylas/folders/counts?accountId=${accountId}`)
+      ]);
 
-      if (!response.ok) {
+      if (!foldersResponse.ok) {
         throw new Error('Failed to fetch folders');
       }
 
-      const data = await response.json();
-      setFolders(data.folders || []);
+      const foldersData = await foldersResponse.json();
+      let fetchedFolders = foldersData.folders || [];
+
+      // Merge in counts if available
+      if (countsResponse.ok) {
+        const countsData = await countsResponse.json();
+        if (countsData.success && countsData.counts) {
+          // Create a map of folder name -> counts
+          const countsMap = new Map<string, { totalCount: number; unreadCount: number }>(
+            countsData.counts.map((c: any) => [c.folder.toLowerCase(), { totalCount: c.totalCount, unreadCount: c.unreadCount }])
+          );
+
+          // Recursive function to update counts in folder tree
+          const updateFolderCounts = (folder: FolderItem): FolderItem => {
+            const folderCounts = countsMap.get(folder.name.toLowerCase());
+            const updatedFolder: FolderItem = {
+              ...folder,
+              totalCount: folderCounts?.totalCount ?? folder.totalCount,
+              unreadCount: folderCounts?.unreadCount ?? folder.unreadCount,
+            };
+
+            if (folder.children) {
+              updatedFolder.children = folder.children.map(updateFolderCounts);
+            }
+
+            return updatedFolder;
+          };
+
+          fetchedFolders = fetchedFolders.map(updateFolderCounts);
+        }
+      }
+
+      setFolders(fetchedFolders);
     } catch (err) {
       console.error('Error fetching folders:', err);
       setError(err instanceof Error ? err.message : 'Failed to load folders');
@@ -140,18 +173,27 @@ export function FolderSidebarV3({
 
           <span className="flex-1 text-left truncate">{folder.name}</span>
 
-          {folder.unreadCount && folder.unreadCount > 0 && (
-            <span
-              className={cn(
-                'text-xs font-semibold px-2 py-0.5 rounded-full',
-                isSelected
-                  ? 'bg-primary-foreground/20 text-primary-foreground'
-                  : 'bg-primary/10 text-primary'
-              )}
-            >
-              {folder.unreadCount}
-            </span>
-          )}
+          {/* Show totalCount for drafts, unreadCount for others */}
+          {(() => {
+            const isDrafts = folder.name.toLowerCase().includes('draft');
+            const count = isDrafts ? folder.totalCount : folder.unreadCount;
+
+            if (count && count > 0) {
+              return (
+                <span
+                  className={cn(
+                    'text-xs font-semibold px-2 py-0.5 rounded-full',
+                    isSelected
+                      ? 'bg-primary-foreground/20 text-primary-foreground'
+                      : 'bg-primary/10 text-primary'
+                  )}
+                >
+                  {count}
+                </span>
+              );
+            }
+            return null;
+          })()}
         </button>
 
         {hasChildren && isExpanded && (
