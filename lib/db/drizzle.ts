@@ -15,7 +15,7 @@ const connectionString = process.env.DATABASE_URL!;
 const queryClient = postgres(connectionString, {
   max: 10, // ✅ REDUCED: Lower connection limit for serverless (prevents exhaustion)
   idle_timeout: 20, // ✅ REDUCED: Release idle connections faster in serverless
-  connect_timeout: 10, // ✅ REDUCED: Fail fast if pooler is overloaded (prevents queue buildup)
+  connect_timeout: 30, // ✅ INCREASED: Allow more time for pooler connections (handles bursts better)
   max_lifetime: 60 * 5, // ✅ REDUCED: Rotate connections every 5 min (prevents stale connections)
   fetch_types: false, // Better performance
   prepare: false, // REQUIRED for pgbouncer/pooler mode
