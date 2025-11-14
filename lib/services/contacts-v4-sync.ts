@@ -364,7 +364,7 @@ export class ContactsV4SyncService {
       ),
     });
 
-    // Create lookup maps by nylas_contact_id AND by primary email
+    // Create lookup maps by nylas_contact_id, email, and name+phone
     const existingByNylasIdMap = new Map(
       existingContacts
         .filter(c => c.nylasContactId)
@@ -377,7 +377,19 @@ export class ContactsV4SyncService {
         .map(c => [c.primaryEmail!.toLowerCase(), c])
     );
 
-    console.log(`📋 Found ${existingContacts.length} existing contacts (${existingByNylasIdMap.size} with Nylas ID, ${existingByEmailMap.size} with email)`);
+    // Create name+phone lookup (normalize name and phone)
+    const existingByNamePhoneMap = new Map(
+      existingContacts
+        .filter(c => c.displayName && c.primaryPhone)
+        .map(c => {
+          const normalizedName = c.displayName!.toLowerCase().trim();
+          const normalizedPhone = c.primaryPhone!.replace(/\D/g, ''); // Remove non-digits
+          const key = `${normalizedName}|${normalizedPhone}`;
+          return [key, c];
+        })
+    );
+
+    console.log(`📋 Found ${existingContacts.length} existing contacts (${existingByNylasIdMap.size} with Nylas ID, ${existingByEmailMap.size} with email, ${existingByNamePhoneMap.size} with name+phone)`);
 
     // Prepare batch inserts/updates
     const contactsToInsert: any[] = [];
@@ -393,8 +405,9 @@ export class ContactsV4SyncService {
           continue;
         }
 
-        // Check if contact exists by Nylas ID first, then by email
+        // Check if contact exists by Nylas ID first, then by email, then by name+phone
         let existing = existingByNylasIdMap.get(nylasContact.id);
+        let duplicateDetectionMethod = '';
 
         // If not found by Nylas ID, check by primary email to detect duplicates
         if (!existing && nylasContact.emails?.length) {
@@ -402,7 +415,28 @@ export class ContactsV4SyncService {
           if (primaryEmail) {
             existing = existingByEmailMap.get(primaryEmail);
             if (existing) {
+              duplicateDetectionMethod = 'email';
               console.log(`🔍 Duplicate detected by email: ${primaryEmail} (existing ID: ${existing.id}, Nylas ID: ${nylasContact.id})`);
+              // Update the existing contact with the Nylas ID if it doesn't have one
+              if (!existing.nylasContactId) {
+                console.log(`✅ Linking existing contact ${existing.id} with Nylas ID ${nylasContact.id}`);
+              }
+            }
+          }
+        }
+
+        // If still not found, check by name+phone combination
+        if (!existing && nylasContact.given_name && nylasContact.phone_numbers?.length) {
+          const displayName = `${nylasContact.given_name} ${nylasContact.surname || ''}`.trim();
+          const normalizedName = displayName.toLowerCase().trim();
+          const primaryPhone = nylasContact.phone_numbers[0].number;
+          if (primaryPhone) {
+            const normalizedPhone = primaryPhone.replace(/\D/g, '');
+            const key = `${normalizedName}|${normalizedPhone}`;
+            existing = existingByNamePhoneMap.get(key);
+            if (existing) {
+              duplicateDetectionMethod = 'name+phone';
+              console.log(`🔍 Duplicate detected by name+phone: ${displayName} / ${primaryPhone} (existing ID: ${existing.id}, Nylas ID: ${nylasContact.id})`);
               // Update the existing contact with the Nylas ID if it doesn't have one
               if (!existing.nylasContactId) {
                 console.log(`✅ Linking existing contact ${existing.id} with Nylas ID ${nylasContact.id}`);
