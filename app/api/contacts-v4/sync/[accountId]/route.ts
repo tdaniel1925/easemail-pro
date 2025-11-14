@@ -135,11 +135,33 @@ async function streamingSync(accountId: string, forceFullSync: boolean) {
 
         // Get account details
         console.log('🔄 [SSE Sync] Fetching account details for:', accountId);
-        const { data: account } = await supabase
+        console.log('🔄 [SSE Sync] Query: email_accounts WHERE id =', accountId);
+
+        const { data: account, error: accountError } = await supabase
           .from('email_accounts')
-          .select('nylas_grant_id, email')
+          .select('id, nylas_grant_id, email, user_id')
           .eq('id', accountId)
           .single();
+
+        console.log('🔍 [SSE Sync] Database query result:', {
+          account,
+          accountError,
+          hasAccount: !!account,
+          hasGrantId: account?.nylas_grant_id ? 'YES' : 'NO',
+          accountUserId: account?.user_id,
+          currentUserId: user.id,
+          userMatch: account?.user_id === user.id ? 'MATCH' : 'MISMATCH'
+        });
+
+        if (accountError) {
+          console.error('❌ [SSE Sync] Database error fetching account:', accountError);
+          sendSSE(controller, encoder, {
+            type: 'error',
+            error: `Database error: ${accountError.message}`,
+          });
+          controller.close();
+          return;
+        }
 
         if (!account || !account.nylas_grant_id) {
           console.error('❌ [SSE Sync] Account not found or missing grant_id:', account);
