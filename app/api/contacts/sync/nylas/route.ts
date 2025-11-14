@@ -112,10 +112,35 @@ async function streamingSync(request: NextRequest) {
           status: `Processing ${totalContacts} contacts...`
         });
 
-        // Process and insert contacts
+        // ✅ OPTIMIZATION: Fetch ALL existing contacts in ONE query
+        const existingContacts = await db.query.contacts.findMany({
+          where: eq(contacts.userId, user.id),
+          columns: {
+            id: true,
+            email: true,
+            providerContactId: true,
+          },
+        });
+
+        // Create lookup maps for fast duplicate detection
+        const existingByProviderId = new Map(
+          existingContacts
+            .filter(c => c.providerContactId)
+            .map(c => [c.providerContactId!, c.id])
+        );
+        const existingByEmail = new Map(
+          existingContacts
+            .filter(c => c.email)
+            .map(c => [c.email!, c.id])
+        );
+
+        console.log(`📋 Found ${existingContacts.length} existing contacts`);
+
+        // Process and prepare contacts for batch insert
         let imported = 0;
         let skipped = 0;
         let errors = 0;
+        const contactsToInsert: any[] = [];
 
         for (let i = 0; i < allNylasContacts.length; i++) {
           const nylasContact = allNylasContacts[i];
@@ -137,24 +162,11 @@ async function streamingSync(request: NextRequest) {
 
             const emailLower = primaryEmail ? primaryEmail.toLowerCase() : null;
 
-            // Check if contact already exists
-            const existingByProvider = await db.query.contacts.findFirst({
-              where: and(
-                eq(contacts.userId, user.id),
-                eq(contacts.providerContactId, nylasContact.id)
-              ),
-            });
+            // ✅ OPTIMIZATION: Use in-memory lookup instead of database queries
+            const existsByProvider = existingByProviderId.has(nylasContact.id);
+            const existsByEmail = emailLower && existingByEmail.has(emailLower);
 
-            const existingByEmail = !existingByProvider && emailLower ? await db.query.contacts.findFirst({
-              where: and(
-                eq(contacts.userId, user.id),
-                eq(contacts.email, emailLower)
-              ),
-            }) : null;
-
-            const existing = existingByProvider || existingByEmail;
-
-            if (existing) {
+            if (existsByProvider || existsByEmail) {
               skipped++;
             } else {
               // Get contact details
@@ -170,8 +182,8 @@ async function streamingSync(request: NextRequest) {
               const notes = nylasContact.notes ? nylasContact.notes.join('\n') : null;
               const tags = nylasContact.groups?.map((g: any) => g.name || g.id) || [];
 
-              // Insert contact
-              await db.insert(contacts).values({
+              // Add to batch insert array
+              contactsToInsert.push({
                 userId: user.id,
                 email: emailLower,
                 firstName,
@@ -191,24 +203,53 @@ async function streamingSync(request: NextRequest) {
               imported++;
             }
           } catch (error: any) {
-            console.error('Error importing contact:', error);
+            console.error('Error processing contact:', error);
             errors++;
           }
 
-          // Send progress update every contact
-          const current = i + 1;
-          const percentage = Math.round((current / totalContacts) * 100);
+          // Send progress update every 10 contacts
+          if ((i + 1) % 10 === 0 || i === allNylasContacts.length - 1) {
+            const current = i + 1;
+            const percentage = Math.round((current / totalContacts) * 100);
 
+            sendProgress(encoder, controller, {
+              type: 'progress',
+              total: totalContacts,
+              current,
+              percentage,
+              imported,
+              skipped,
+              errors,
+              status: `Processing: ${current} / ${totalContacts} (${percentage}%)`
+            });
+          }
+        }
+
+        // ✅ OPTIMIZATION: Batch insert all new contacts in chunks of 100
+        if (contactsToInsert.length > 0) {
           sendProgress(encoder, controller, {
             type: 'progress',
             total: totalContacts,
-            current,
-            percentage,
+            current: totalContacts,
+            percentage: 100,
             imported,
             skipped,
             errors,
-            status: `Syncing: ${current} / ${totalContacts} (${percentage}%)`
+            status: `Saving ${contactsToInsert.length} new contacts...`
           });
+
+          const BATCH_SIZE = 100;
+          for (let i = 0; i < contactsToInsert.length; i += BATCH_SIZE) {
+            const batch = contactsToInsert.slice(i, i + BATCH_SIZE);
+            try {
+              await db.insert(contacts).values(batch);
+              console.log(`✅ Inserted batch ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} contacts)`);
+            } catch (error: any) {
+              console.error('❌ Batch insert error:', error);
+              errors += batch.length;
+              imported -= batch.length;
+            }
+          }
         }
 
         // Send completion
@@ -297,10 +338,35 @@ async function legacySync(request: NextRequest) {
 
     console.log(`✅ Retrieved ${allNylasContacts.length} contacts from Nylas`);
 
-    // Process and insert contacts
+    // ✅ OPTIMIZATION: Fetch ALL existing contacts in ONE query
+    const existingContacts = await db.query.contacts.findMany({
+      where: eq(contacts.userId, user.id),
+      columns: {
+        id: true,
+        email: true,
+        providerContactId: true,
+      },
+    });
+
+    // Create lookup maps for fast duplicate detection
+    const existingByProviderId = new Map(
+      existingContacts
+        .filter(c => c.providerContactId)
+        .map(c => [c.providerContactId!, c.id])
+    );
+    const existingByEmailMap = new Map(
+      existingContacts
+        .filter(c => c.email)
+        .map(c => [c.email!, c.id])
+    );
+
+    console.log(`📋 Found ${existingContacts.length} existing contacts`);
+
+    // Process and prepare contacts for batch insert
     const imported = [];
     const skipped = [];
     const errors = [];
+    const contactsToInsert: any[] = [];
 
     for (const nylasContact of allNylasContacts) {
       try {
@@ -318,24 +384,12 @@ async function legacySync(request: NextRequest) {
 
         const emailLower = primaryEmail ? primaryEmail.toLowerCase() : null;
 
-        const existingByProvider = await db.query.contacts.findFirst({
-          where: and(
-            eq(contacts.userId, user.id),
-            eq(contacts.providerContactId, nylasContact.id)
-          ),
-        });
+        // ✅ OPTIMIZATION: Use in-memory lookup instead of database queries
+        const existsByProvider = existingByProviderId.has(nylasContact.id);
+        const existsByEmail = emailLower && existingByEmailMap.has(emailLower);
 
-        const existingByEmail = !existingByProvider && emailLower ? await db.query.contacts.findFirst({
-          where: and(
-            eq(contacts.userId, user.id),
-            eq(contacts.email, emailLower)
-          ),
-        }) : null;
-
-        const existing = existingByProvider || existingByEmail;
-
-        if (existing) {
-          skipped.push({ contact: nylasContact, reason: 'Already exists', existingId: existing.id });
+        if (existsByProvider || existsByEmail) {
+          skipped.push({ contact: nylasContact, reason: 'Already exists' });
           continue;
         }
 
@@ -351,7 +405,7 @@ async function legacySync(request: NextRequest) {
         const notes = nylasContact.notes ? nylasContact.notes.join('\n') : null;
         const tags = nylasContact.groups?.map((g: any) => g.name || g.id) || [];
 
-        const newContact = await db.insert(contacts).values({
+        contactsToInsert.push({
           userId: user.id,
           email: emailLower,
           firstName,
@@ -366,15 +420,32 @@ async function legacySync(request: NextRequest) {
           tags,
           provider: 'nylas',
           providerContactId: nylasContact.id,
-        }).returning();
-
-        imported.push(newContact[0]);
+        });
       } catch (error: any) {
-        console.error('Error importing contact:', error);
+        console.error('Error processing contact:', error);
         errors.push({
           contact: nylasContact,
           error: error.message || 'Unknown error'
         });
+      }
+    }
+
+    // ✅ OPTIMIZATION: Batch insert all new contacts in chunks of 100
+    if (contactsToInsert.length > 0) {
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < contactsToInsert.length; i += BATCH_SIZE) {
+        const batch = contactsToInsert.slice(i, i + BATCH_SIZE);
+        try {
+          const insertedBatch = await db.insert(contacts).values(batch).returning();
+          imported.push(...insertedBatch);
+          console.log(`✅ Inserted batch ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} contacts)`);
+        } catch (error: any) {
+          console.error('❌ Batch insert error:', error);
+          errors.push({
+            batch: `Batch ${Math.floor(i / BATCH_SIZE) + 1}`,
+            error: error.message || 'Unknown error'
+          });
+        }
       }
     }
 
