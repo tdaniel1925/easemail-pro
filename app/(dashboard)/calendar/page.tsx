@@ -12,10 +12,13 @@ import DraggableMonthView from '@/components/calendar/DraggableMonthView';
 import QuickAdd from '@/components/calendar/QuickAdd';
 import { cn } from '@/lib/utils';
 import { CalendarSkeleton } from '@/components/ui/skeleton';
+import { useAccount } from '@/contexts/AccountContext';
+import AccountSwitcher from '@/components/account/AccountSwitcher';
 
 type ViewType = 'month' | 'week' | 'day' | 'agenda';
 
 function CalendarContent() {
+  const { selectedAccount } = useAccount();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<ViewType>('month');
@@ -49,19 +52,25 @@ function CalendarContent() {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
   };
 
-  // Fetch events
+  // Fetch events for selected account
   const fetchEvents = async () => {
+    if (!selectedAccount?.nylasGrantId) {
+      setEvents([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       // Get first and last day of current month
       const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-      
+
       const response = await fetch(
-        `/api/calendar/events?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+        `/api/calendar/events?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&grantId=${selectedAccount.nylasGrantId}`
       );
       const data = await response.json();
-      
+
       if (data.success) {
         setEvents(data.events || []);
       }
@@ -74,7 +83,7 @@ function CalendarContent() {
 
   useEffect(() => {
     fetchEvents();
-  }, [currentMonth]);
+  }, [currentMonth, selectedAccount]);
 
   // Check for openNew query parameter
   useEffect(() => {
@@ -221,19 +230,25 @@ function CalendarContent() {
       <div className="flex-1 flex flex-col p-8 overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">Calendar</h1>
-            <p className="text-sm text-muted-foreground">Manage your schedule and events</p>
-            <a
-              href="/inbox"
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mt-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m12 19-7-7 7-7"/>
-                <path d="M19 12H5"/>
-              </svg>
-              Back to Inbox
-            </a>
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold">Calendar</h1>
+              <p className="text-sm text-muted-foreground">Manage your schedule and events</p>
+              <a
+                href="/inbox"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mt-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m12 19-7-7 7-7"/>
+                  <path d="M19 12H5"/>
+                </svg>
+                Back to Inbox
+              </a>
+            </div>
+            {/* Account Switcher */}
+            <div className="ml-4">
+              <AccountSwitcher />
+            </div>
           </div>
           <div className="flex gap-2">
             {/* View selector */}

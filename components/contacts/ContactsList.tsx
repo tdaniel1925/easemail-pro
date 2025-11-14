@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/use-toast';
+import { useAccount } from '@/contexts/AccountContext';
+import AccountSwitcher from '@/components/account/AccountSwitcher';
 
 interface Contact {
   id: string;
@@ -40,6 +42,7 @@ interface Contact {
 }
 
 export default function ContactsList() {
+  const { selectedAccount } = useAccount();
   const router = useRouter();
   const { toast } = useToast();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -78,18 +81,24 @@ export default function ContactsList() {
 
   useEffect(() => {
     fetchContacts();
-  }, []);
+  }, [selectedAccount]);
 
   useEffect(() => {
     filterAndSortContacts();
   }, [contacts, searchQuery, selectedFilter, sortBy]);
 
   const fetchContacts = async () => {
+    if (!selectedAccount?.id) {
+      setContacts([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await fetch('/api/contacts');
+      const response = await fetch(`/api/contacts?accountId=${selectedAccount.id}`);
       const data = await response.json();
-      
+
       if (data.success) {
         setContacts(data.contacts || []);
       }
@@ -505,9 +514,13 @@ export default function ContactsList() {
         )}
 
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold">Contacts</h1>
-            <p className="text-muted-foreground">{filteredContacts.length} contacts</p>
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold">Contacts</h1>
+              <p className="text-muted-foreground">{filteredContacts.length} contacts</p>
+            </div>
+            {/* Account Switcher */}
+            <AccountSwitcher />
           </div>
           <div className="flex gap-2">
             <Button
