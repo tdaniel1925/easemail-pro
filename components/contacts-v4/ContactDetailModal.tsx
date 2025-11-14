@@ -97,9 +97,9 @@ export default function ContactDetailModal({
       const data = await response.json();
 
       if (data.success) {
-        setContact({ ...contact, is_favorite: !contact.is_favorite });
+        setContact({ ...contact, isFavorite: !contact.isFavorite });
         toast({
-          title: contact.is_favorite ? 'Removed from favorites' : 'Added to favorites',
+          title: contact.isFavorite ? 'Removed from favorites' : 'Added to favorites',
         });
       } else {
         throw new Error(data.error || 'Failed to update favorite status');
