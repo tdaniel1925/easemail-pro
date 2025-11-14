@@ -39,6 +39,16 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { useAccount } from '@/contexts/AccountContext';
 import type { ContactListItem, ContactSearchFilters, GetContactsResponse, ContactV4 } from '@/lib/types/contacts-v4';
@@ -94,6 +104,10 @@ export default function ContactsV4List() {
   // SMS modal
   const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
   const [smsContact, setSMSContact] = useState<{ id: string; name: string; phoneNumber: string } | null>(null);
+
+  // Confirmation dialogs
+  const [deleteContactId, setDeleteContactId] = useState<string | null>(null);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   // Fetch contacts
   const fetchContacts = useCallback(async (resetOffset = false, append = false) => {
@@ -367,11 +381,15 @@ export default function ContactsV4List() {
 
   // Delete contact
   const handleDelete = async (contactId: string) => {
-    if (!confirm('Are you sure you want to delete this contact?')) {
-      return;
-    }
+    setDeleteContactId(contactId);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteContactId) return;
 
     try {
+      const contactId = deleteContactId;
+      setDeleteContactId(null);
       const response = await fetch(`/api/contacts-v4/${contactId}`, {
         method: 'DELETE',
       });
@@ -400,10 +418,12 @@ export default function ContactsV4List() {
   // Bulk delete contacts
   const handleBulkDelete = async () => {
     if (selectedContactIds.size === 0) return;
+    setShowBulkDeleteConfirm(true);
+  };
 
-    if (!confirm(`Are you sure you want to delete ${selectedContactIds.size} contacts? This action cannot be undone.`)) {
-      return;
-    }
+  const confirmBulkDelete = async () => {
+    setShowBulkDeleteConfirm(false);
+    if (selectedContactIds.size === 0) return;
 
     try {
       const response = await fetch('/api/contacts-v4/bulk-delete', {
@@ -988,6 +1008,42 @@ export default function ContactsV4List() {
         onClose={handleCloseSMS}
         contact={smsContact}
       />
+
+      {/* Delete Contact Confirmation */}
+      <AlertDialog open={!!deleteContactId} onOpenChange={(open) => !open && setDeleteContactId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Contact</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this contact? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteContactId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation */}
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Multiple Contacts</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedContactIds.size} contacts? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowBulkDeleteConfirm(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete {selectedContactIds.size} Contacts
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { contacts } from '@/lib/db/schema';
+import { contactsV4 } from '@/lib/db/schema';
 import { inArray, and, eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
@@ -35,11 +35,11 @@ export async function POST(request: NextRequest) {
 
     // Delete contacts - only those belonging to the user
     const result = await db
-      .delete(contacts)
+      .delete(contactsV4)
       .where(
         and(
-          eq(contacts.userId, user.id),
-          inArray(contacts.id, contactIds)
+          eq(contactsV4.userId, user.id),
+          inArray(contactsV4.id, contactIds)
         )
       );
 
