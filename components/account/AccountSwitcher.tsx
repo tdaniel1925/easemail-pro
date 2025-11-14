@@ -16,7 +16,11 @@ import { cn, getInitials, generateAvatarColor } from '@/lib/utils';
 import { useAccount } from '@/contexts/AccountContext';
 import { useRouter } from 'next/navigation';
 
-export default function AccountSwitcher() {
+interface AccountSwitcherProps {
+  showManagementOptions?: boolean;
+}
+
+export default function AccountSwitcher({ showManagementOptions = true }: AccountSwitcherProps) {
   const { selectedAccount, setSelectedAccount, accounts, isLoading } = useAccount();
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -170,36 +174,40 @@ export default function AccountSwitcher() {
             )}
           </ScrollArea>
 
-          <Separator />
+          {showManagementOptions && (
+            <>
+              <Separator />
 
-          {/* Actions */}
-          <div className="p-1">
-            <div
-              onClick={() => {
-                setOpen(false);
-                router.push('/accounts-v3');
-              }}
-              className="flex items-center gap-3 py-3 px-2 cursor-pointer rounded-md hover:bg-accent transition-colors"
-            >
-              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-muted flex-shrink-0">
-                <Plus className="h-4 w-4" />
-              </div>
-              <span className="text-sm font-medium">Add Account</span>
-            </div>
+              {/* Actions */}
+              <div className="p-1">
+                <div
+                  onClick={() => {
+                    setOpen(false);
+                    router.push('/accounts-v3');
+                  }}
+                  className="flex items-center gap-3 py-3 px-2 cursor-pointer rounded-md hover:bg-accent transition-colors"
+                >
+                  <div className="h-8 w-8 rounded-full flex items-center justify-center bg-muted flex-shrink-0">
+                    <Plus className="h-4 w-4" />
+                  </div>
+                  <span className="text-sm font-medium">Add Account</span>
+                </div>
 
-            <div
-              onClick={() => {
-                setOpen(false);
-                router.push('/accounts-v3');
-              }}
-              className="flex items-center gap-3 py-3 px-2 cursor-pointer rounded-md hover:bg-accent transition-colors"
-            >
-              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-muted flex-shrink-0">
-                <Mail className="h-4 w-4" />
+                <div
+                  onClick={() => {
+                    setOpen(false);
+                    router.push('/accounts-v3');
+                  }}
+                  className="flex items-center gap-3 py-3 px-2 cursor-pointer rounded-md hover:bg-accent transition-colors"
+                >
+                  <div className="h-8 w-8 rounded-full flex items-center justify-center bg-muted flex-shrink-0">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <span className="text-sm font-medium">Manage Accounts</span>
+                </div>
               </div>
-              <span className="text-sm font-medium">Manage Accounts</span>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </PopoverContent>
     </Popover>

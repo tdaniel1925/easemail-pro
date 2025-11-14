@@ -247,7 +247,7 @@ function CalendarContent() {
             </div>
             {/* Account Switcher */}
             <div className="ml-4">
-              <AccountSwitcher />
+              <AccountSwitcher showManagementOptions={false} />
             </div>
           </div>
           <div className="flex gap-2">
