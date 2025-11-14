@@ -1,6 +1,6 @@
 /**
  * Contacts V4 Individual Contact API
- * GET /api/contacts-v4/[id] - Get single contact
+ * GET /api/contacts-v4/[id] - Get contact by ID
  * PUT /api/contacts-v4/[id] - Update contact
  * DELETE /api/contacts-v4/[id] - Delete contact
  */
@@ -14,7 +14,7 @@ import { eq, and } from 'drizzle-orm';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET - Get single contact by ID
+ * GET - Get contact by ID
  */
 export async function GET(
   request: NextRequest,
@@ -28,7 +28,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch contact
+    // Get contact from database
     const contact = await db.query.contactsV4.findFirst({
       where: and(
         eq(contactsV4.id, params.id),
@@ -39,14 +39,14 @@ export async function GET(
 
     if (!contact) {
       return NextResponse.json(
-        { error: 'Contact not found' },
+        { success: false, error: 'Contact not found' },
         { status: 404 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      contact,
+      contact: transformContactToResponse(contact),
     });
   } catch (error: any) {
     console.error('❌ Get contact error:', error);
@@ -77,37 +77,7 @@ export async function PUT(
 
     if (!updates) {
       return NextResponse.json(
-        { error: 'updates field is required' },
-        { status: 400 }
-      );
-    }
-
-    // Check if contact exists and belongs to user
-    const existing = await db.query.contactsV4.findFirst({
-      where: and(
-        eq(contactsV4.id, params.id),
-        eq(contactsV4.userId, user.id),
-        eq(contactsV4.isDeleted, false)
-      ),
-    });
-
-    if (!existing) {
-      return NextResponse.json(
-        { error: 'Contact not found' },
-        { status: 404 }
-      );
-    }
-
-    // Validate that contact has at least email or phone after update
-    const newEmails = updates.emails || existing.emails;
-    const newPhones = updates.phone_numbers || existing.phoneNumbers;
-
-    if (
-      (!newEmails || (Array.isArray(newEmails) && newEmails.length === 0)) &&
-      (!newPhones || (Array.isArray(newPhones) && newPhones.length === 0))
-    ) {
-      return NextResponse.json(
-        { error: 'Contact must have at least one email or phone number' },
+        { error: 'updates object is required' },
         { status: 400 }
       );
     }
@@ -115,10 +85,10 @@ export async function PUT(
     // Prepare update data
     const updateData: any = {
       localUpdatedAt: new Date(),
-      syncStatus: sync_immediately ? 'pending_update' : existing.syncStatus,
+      syncStatus: sync_immediately ? 'pending_update' : 'synced',
     };
 
-    // Map form fields to database fields
+    // Map snake_case API fields to camelCase DB fields
     if (updates.given_name !== undefined) updateData.givenName = updates.given_name;
     if (updates.middle_name !== undefined) updateData.middleName = updates.middle_name;
     if (updates.surname !== undefined) updateData.surname = updates.surname;
@@ -134,7 +104,7 @@ export async function PUT(
     if (updates.manager_name !== undefined) updateData.managerName = updates.manager_name;
     if (updates.office_location !== undefined) updateData.officeLocation = updates.office_location;
     if (updates.department !== undefined) updateData.department = updates.department;
-    if (updates.birthday !== undefined) updateData.birthday = updates.birthday ? new Date(updates.birthday) : null;
+    if (updates.birthday !== undefined) updateData.birthday = updates.birthday;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
     if (updates.groups !== undefined) updateData.groups = updates.groups;
     if (updates.tags !== undefined) updateData.tags = updates.tags;
@@ -144,17 +114,27 @@ export async function PUT(
     const [updatedContact] = await db
       .update(contactsV4)
       .set(updateData)
-      .where(and(
-        eq(contactsV4.id, params.id),
-        eq(contactsV4.userId, user.id)
-      ))
+      .where(
+        and(
+          eq(contactsV4.id, params.id),
+          eq(contactsV4.userId, user.id),
+          eq(contactsV4.isDeleted, false)
+        )
+      )
       .returning();
+
+    if (!updatedContact) {
+      return NextResponse.json(
+        { success: false, error: 'Contact not found' },
+        { status: 404 }
+      );
+    }
 
     // TODO: If sync_immediately is true, trigger sync to Nylas
 
     return NextResponse.json({
       success: true,
-      contact: updatedContact,
+      contact: transformContactToResponse(updatedContact),
     });
   } catch (error: any) {
     console.error('❌ Update contact error:', error);
@@ -180,55 +160,35 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const hardDelete = searchParams.get('hard') === 'true';
+    // Soft delete - mark as deleted
+    const [deletedContact] = await db
+      .update(contactsV4)
+      .set({
+        isDeleted: true,
+        localUpdatedAt: new Date(),
+        syncStatus: 'pending_delete',
+      })
+      .where(
+        and(
+          eq(contactsV4.id, params.id),
+          eq(contactsV4.userId, user.id),
+          eq(contactsV4.isDeleted, false)
+        )
+      )
+      .returning();
 
-    // Check if contact exists and belongs to user
-    const existing = await db.query.contactsV4.findFirst({
-      where: and(
-        eq(contactsV4.id, params.id),
-        eq(contactsV4.userId, user.id)
-      ),
-    });
-
-    if (!existing) {
+    if (!deletedContact) {
       return NextResponse.json(
-        { error: 'Contact not found' },
+        { success: false, error: 'Contact not found' },
         { status: 404 }
       );
     }
 
-    if (hardDelete) {
-      // Permanent delete
-      await db
-        .delete(contactsV4)
-        .where(and(
-          eq(contactsV4.id, params.id),
-          eq(contactsV4.userId, user.id)
-        ));
-
-      // TODO: If contact was synced, delete from Nylas
-    } else {
-      // Soft delete
-      await db
-        .update(contactsV4)
-        .set({
-          isDeleted: true,
-          deletedAt: new Date(),
-          syncStatus: 'pending_delete',
-          localUpdatedAt: new Date(),
-        })
-        .where(and(
-          eq(contactsV4.id, params.id),
-          eq(contactsV4.userId, user.id)
-        ));
-
-      // TODO: Trigger delete sync to Nylas
-    }
+    // TODO: Trigger sync to Nylas to delete remotely
 
     return NextResponse.json({
       success: true,
-      message: hardDelete ? 'Contact permanently deleted' : 'Contact deleted',
+      message: 'Contact deleted successfully',
     });
   } catch (error: any) {
     console.error('❌ Delete contact error:', error);
@@ -237,4 +197,65 @@ export async function DELETE(
       { status: 500 }
     );
   }
+}
+
+// ============================================
+// HELPERS
+// ============================================
+
+function transformContactToResponse(contact: any) {
+  return {
+    id: contact.id,
+    account_id: contact.accountId,
+    user_id: contact.userId,
+    nylas_contact_id: contact.nylasContactId,
+    nylas_grant_id: contact.nylasGrantId,
+    provider: contact.provider,
+    source: contact.source,
+
+    // Name fields
+    display_name: contact.displayName,
+    given_name: contact.givenName,
+    middle_name: contact.middleName,
+    surname: contact.surname,
+    suffix: contact.suffix,
+    nickname: contact.nickname,
+
+    // Contact methods
+    emails: contact.emails,
+    phone_numbers: contact.phoneNumbers,
+    physical_addresses: contact.physicalAddresses,
+    web_pages: contact.webPages,
+    im_addresses: contact.imAddresses,
+
+    // Professional
+    job_title: contact.jobTitle,
+    company_name: contact.companyName,
+    manager_name: contact.managerName,
+    office_location: contact.officeLocation,
+    department: contact.department,
+
+    // Personal
+    birthday: contact.birthday,
+    notes: contact.notes,
+    picture_url: contact.pictureUrl,
+
+    // Organization
+    groups: contact.groups,
+    tags: contact.tags,
+
+    // Metadata
+    is_favorite: contact.isFavorite,
+    is_deleted: contact.isDeleted,
+    sync_status: contact.syncStatus,
+    sync_error: contact.syncError,
+    version: contact.version,
+
+    // Timestamps
+    created_at: contact.createdAt,
+    updated_at: contact.updatedAt,
+    last_synced_at: contact.lastSyncedAt,
+    local_updated_at: contact.localUpdatedAt,
+    remote_updated_at: contact.remoteUpdatedAt,
+  };
 }
