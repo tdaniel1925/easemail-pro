@@ -133,30 +133,104 @@ export default function ContactsV4List() {
     }
   }, [selectedAccountId, searchQuery, filters, offset, limit, toast]);
 
-  // Auto-select first account on mount
-  useEffect(() => {
-    if (selectedAccountId === 'all' && accounts.length > 0) {
-      const firstActiveAccount = accounts.find(acc => acc.isActive);
-      if (firstActiveAccount) {
-        setSelectedAccountId(firstActiveAccount.id);
-      }
-    }
-  }, [accounts]);
+  // Auto-select first account on mount (commented out to allow "All Accounts" option)
+  // useEffect(() => {
+  //   if (selectedAccountId === 'all' && accounts.length > 0) {
+  //     const firstActiveAccount = accounts.find(acc => acc.isActive);
+  //     if (firstActiveAccount) {
+  //       setSelectedAccountId(firstActiveAccount.id);
+  //     }
+  //   }
+  // }, [accounts]);
 
   // Initial fetch and when filters change
   useEffect(() => {
     fetchContacts(true);
   }, [selectedAccountId, searchQuery, filters.is_favorite, filters.source]);
 
-  // Sync contacts with real-time progress
-  const handleSync = async () => {
-    if (selectedAccountId === 'all') {
+  // Sync all accounts in parallel
+  const handleSyncAll = async () => {
+    const activeAccounts = accounts.filter(acc => acc.isActive);
+    if (activeAccounts.length === 0) {
       toast({
-        title: 'Select an account',
-        description: 'Please select a specific account to sync contacts',
+        title: 'No active accounts',
+        description: 'No active accounts to sync',
         variant: 'destructive'
       });
       return;
+    }
+
+    try {
+      setSyncing(true);
+      setSyncProgress({
+        status: `Starting sync for ${activeAccounts.length} accounts...`,
+        percentage: 0,
+        imported: 0,
+        updated: 0
+      });
+
+      // Sync all accounts in parallel using Promise.allSettled for better error handling
+      const syncPromises = activeAccounts.map(async (account, index) => {
+        try {
+          const response = await fetch(`/api/contacts-v4/sync/${account.id}`, {
+            method: 'POST',
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to sync ${account.emailAddress}`);
+          }
+
+          const data = await response.json();
+
+          // Update progress
+          const completedCount = index + 1;
+          const percentage = Math.round((completedCount / activeAccounts.length) * 100);
+
+          setSyncProgress(prev => ({
+            status: `Synced ${completedCount}/${activeAccounts.length} accounts`,
+            percentage,
+            imported: (prev?.imported || 0) + (data.result?.imported || 0),
+            updated: (prev?.updated || 0) + (data.result?.updated || 0),
+          }));
+
+          return { success: true, account: account.emailAddress, data };
+        } catch (error) {
+          return { success: false, account: account.emailAddress, error };
+        }
+      });
+
+      const results = await Promise.allSettled(syncPromises);
+
+      // Count successful syncs
+      const successful = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+      const failed = results.length - successful;
+
+      toast({
+        title: 'Sync complete',
+        description: `Successfully synced ${successful} of ${activeAccounts.length} accounts${failed > 0 ? `, ${failed} failed` : ''}`,
+        variant: failed > 0 ? 'destructive' : 'default'
+      });
+
+      // Refresh contacts list
+      fetchContacts(true);
+    } catch (error) {
+      console.error('Sync all error:', error);
+      toast({
+        title: 'Sync failed',
+        description: error instanceof Error ? error.message : 'Failed to sync accounts',
+        variant: 'destructive'
+      });
+    } finally {
+      setSyncing(false);
+      setSyncProgress(null);
+    }
+  };
+
+  // Sync contacts with real-time progress
+  const handleSync = async () => {
+    if (selectedAccountId === 'all') {
+      // If "All Accounts" is selected, trigger sync all
+      return handleSyncAll();
     }
 
     try {
@@ -517,10 +591,10 @@ export default function ContactsV4List() {
             <Button
               variant="outline"
               onClick={handleSync}
-              disabled={syncing || selectedAccountId === 'all'}
+              disabled={syncing}
             >
               <RefreshCw className={cn("h-4 w-4 mr-2", syncing && "animate-spin")} />
-              {syncing ? 'Syncing...' : 'Sync'}
+              {syncing ? 'Syncing...' : selectedAccountId === 'all' ? 'Sync All Accounts' : 'Sync'}
             </Button>
             <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
