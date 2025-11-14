@@ -259,7 +259,22 @@ function CalendarContent() {
           // Refresh events
           await fetchEvents();
         } else {
-          throw new Error(syncData.error || 'Sync failed');
+          // Handle permission errors with actionable guidance
+          const errorMessage = syncData.error || 'Sync failed';
+          const isPermissionError = errorMessage.includes('Calendar access not granted') ||
+                                   errorMessage.includes('calendar permissions');
+
+          toast({
+            title: isPermissionError ? 'Calendar Permissions Required' : 'Sync Failed',
+            description: isPermissionError
+              ? 'This account needs calendar access. Please go to Settings > Accounts to reconnect with calendar permissions.'
+              : errorMessage,
+            variant: 'destructive',
+            duration: isPermissionError ? 8000 : 5000,
+          });
+
+          // Don't throw, just return early
+          return;
         }
       }
     } catch (error) {
@@ -430,6 +445,11 @@ function CalendarContent() {
             <div className="flex-1">
               <h3 className="font-semibold text-destructive">Unable to load calendar</h3>
               <p className="text-sm text-destructive/90 mt-1">{error}</p>
+              {error.includes('reconnect') && (
+                <p className="text-sm text-destructive/80 mt-2">
+                  Go to <a href="/settings" className="underline font-medium">Settings → Accounts</a> to reconnect with calendar permissions.
+                </p>
+              )}
             </div>
             <Button
               variant="outline"
