@@ -175,10 +175,15 @@ async function fetchGoogleCalendarEvents(
   if (syncToken) {
     params.append('syncToken', syncToken);
   } else {
-    // First sync - get events from 1 month ago
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    params.append('timeMin', oneMonthAgo.toISOString());
+    // First sync - get events from 6 months ago to capture historical data
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    params.append('timeMin', sixMonthsAgo.toISOString());
+
+    // Also set timeMax to 6 months in the future for better calendar coverage
+    const sixMonthsFuture = new Date();
+    sixMonthsFuture.setMonth(sixMonthsFuture.getMonth() + 6);
+    params.append('timeMax', sixMonthsFuture.toISOString());
   }
   
   const response = await fetch(`${baseUrl}?${params.toString()}`, {

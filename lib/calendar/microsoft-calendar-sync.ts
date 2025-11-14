@@ -173,16 +173,20 @@ async function fetchMicrosoftCalendarEvents(
   let url = deltaLink || 'https://graph.microsoft.com/v1.0/me/calendar/events';
   
   if (!deltaLink) {
-    // First sync - get events from 1 month ago
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    
+    // First sync - get events from 6 months ago to capture historical data
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    // Also set range to 6 months in the future for better calendar coverage
+    const sixMonthsFuture = new Date();
+    sixMonthsFuture.setMonth(sixMonthsFuture.getMonth() + 6);
+
     const params = new URLSearchParams({
       '$top': '250',
       '$orderby': 'start/dateTime',
-      '$filter': `start/dateTime ge '${oneMonthAgo.toISOString()}'`,
+      '$filter': `start/dateTime ge '${sixMonthsAgo.toISOString()}' and start/dateTime le '${sixMonthsFuture.toISOString()}'`,
     });
-    
+
     url = `${url}?${params.toString()}`;
   }
   

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Plus } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Plus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
+import { useAccount } from '@/contexts/AccountContext';
 
 interface Event {
   id: string;
@@ -15,10 +16,12 @@ interface Event {
 }
 
 export function MiniCalendar() {
+  const { selectedAccount, accounts } = useAccount();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const pathname = usePathname();
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -71,31 +74,52 @@ export function MiniCalendar() {
       currentMonth.getFullYear() === selectedDate.getFullYear();
   };
 
-  // Fetch events for current month
-  const fetchEvents = async () => {
+  // Fetch events for current month from ALL accounts
+  const fetchEvents = useCallback(async () => {
+    setError(null);
+
+    // If no accounts exist, return empty
+    if (!accounts || accounts.length === 0) {
+      setEvents([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-      
+
+      // Fetch events from ALL accounts (no grantId filter)
       const response = await fetch(
         `/api/calendar/events?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
       );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch events: ${response.statusText}`);
+      }
+
       const data = await response.json();
-      
+
       if (data.success) {
         setEvents(data.events || []);
+        setError(null);
+      } else {
+        throw new Error(data.error || 'Failed to fetch events');
       }
     } catch (error) {
       console.error('Failed to fetch events:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load events';
+      setError(errorMessage);
+      setEvents([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentMonth, accounts]);
 
   useEffect(() => {
     fetchEvents();
-  }, [currentMonth]);
+  }, [fetchEvents]);
 
   // Get upcoming events (next 7 days)
   const upcomingEvents = events
@@ -226,7 +250,16 @@ export function MiniCalendar() {
           </div>
 
           <div className="space-y-2">
-            {loading ? (
+            {error ? (
+              <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-destructive">{error}</p>
+                  </div>
+                </div>
+              </div>
+            ) : loading ? (
               <div className="text-xs text-muted-foreground py-4 text-center">
                 Loading...
               </div>

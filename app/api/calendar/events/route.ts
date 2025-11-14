@@ -27,41 +27,66 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
     const calendarType = searchParams.get('calendarType');
     const status = searchParams.get('status');
-    
+
+    // Pagination parameters
+    const limit = parseInt(searchParams.get('limit') || '100');
+    const offset = parseInt(searchParams.get('offset') || '0');
+
+    // Validate pagination params
+    const safeLimit = Math.min(Math.max(1, limit), 1000); // Max 1000 events per request
+    const safeOffset = Math.max(0, offset);
+
     // Build query filters
     const filters = [eq(calendarEvents.userId, user.id)];
-    
+
     if (startDate) {
       filters.push(gte(calendarEvents.startTime, new Date(startDate)));
     }
-    
+
     if (endDate) {
       filters.push(lte(calendarEvents.endTime, new Date(endDate)));
     }
-    
+
     if (calendarType) {
       filters.push(eq(calendarEvents.calendarType, calendarType as any));
     }
-    
+
     if (status && status !== 'all') {
       filters.push(eq(calendarEvents.status, status as any));
     } else {
       // By default, don't show cancelled events
       filters.push(eq(calendarEvents.status, 'confirmed' as any));
     }
-    
-    // Fetch events
+
+    // Get total count for pagination
+    const totalCountQuery = await db
+      .select()
+      .from(calendarEvents)
+      .where(and(...filters));
+    const totalCount = totalCountQuery.length;
+
+    // Fetch events with pagination
     const events = await db
       .select()
       .from(calendarEvents)
       .where(and(...filters))
       .orderBy(calendarEvents.startTime)
-      .limit(500);
-    
+      .limit(safeLimit)
+      .offset(safeOffset);
+
+    const hasMore = (safeOffset + events.length) < totalCount;
+
     return NextResponse.json({
       success: true,
       events,
       count: events.length,
+      totalCount,
+      hasMore,
+      pagination: {
+        limit: safeLimit,
+        offset: safeOffset,
+        nextOffset: hasMore ? safeOffset + safeLimit : null,
+      },
     });
 
   } catch (error: any) {

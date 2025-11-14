@@ -1,8 +1,8 @@
 'use client';
 
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Loader2, RefreshCw, Sparkles, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, Suspense, useEffect } from 'react';
+import { useState, Suspense, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import EventModal from '@/components/calendar/EventModal';
 import WeekView from '@/components/calendar/WeekView';
@@ -10,15 +10,18 @@ import DayView from '@/components/calendar/DayView';
 import AgendaView from '@/components/calendar/AgendaView';
 import DraggableMonthView from '@/components/calendar/DraggableMonthView';
 import QuickAdd from '@/components/calendar/QuickAdd';
+import CalendarFilters from '@/components/calendar/CalendarFilters';
 import { cn } from '@/lib/utils';
 import { CalendarSkeleton } from '@/components/ui/skeleton';
 import { useAccount } from '@/contexts/AccountContext';
 import AccountSwitcher from '@/components/account/AccountSwitcher';
+import { useToast } from '@/components/ui/use-toast';
 
 type ViewType = 'month' | 'week' | 'day' | 'agenda';
 
 function CalendarContent() {
   const { selectedAccount } = useAccount();
+  const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<ViewType>('month');
@@ -29,6 +32,10 @@ function CalendarContent() {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [syncing, setSyncing] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCalendarTypes, setSelectedCalendarTypes] = useState<string[]>([
+    'personal', 'work', 'family', 'holiday', 'birthday', 'meeting', 'task'
+  ]);
   const searchParams = useSearchParams();
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -44,6 +51,16 @@ function CalendarContent() {
 
   const { firstDay, daysInMonth } = getDaysInMonth(currentMonth);
 
+  // Filter events based on selected calendar types
+  const filteredEvents = useMemo(() => {
+    if (selectedCalendarTypes.length === 0) return [];
+
+    return events.filter(event => {
+      const eventType = event.calendarType || 'personal';
+      return selectedCalendarTypes.includes(eventType);
+    });
+  }, [events, selectedCalendarTypes]);
+
   const previousMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
   };
@@ -53,10 +70,27 @@ function CalendarContent() {
   };
 
   // Fetch events for selected account
-  const fetchEvents = async () => {
-    if (!selectedAccount?.nylasGrantId) {
+  const fetchEvents = useCallback(async () => {
+    // Clear previous error
+    setError(null);
+
+    // Validate account selection
+    if (!selectedAccount) {
       setEvents([]);
       setLoading(false);
+      setError('Please select an account to view calendar events');
+      return;
+    }
+
+    if (!selectedAccount.nylasGrantId) {
+      setEvents([]);
+      setLoading(false);
+      setError('This account is not connected. Please reconnect your account.');
+      toast({
+        title: 'Account Not Connected',
+        description: 'Please reconnect your account to view calendar events.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -69,21 +103,37 @@ function CalendarContent() {
       const response = await fetch(
         `/api/calendar/events?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&grantId=${selectedAccount.nylasGrantId}`
       );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch events: ${response.statusText}`);
+      }
+
       const data = await response.json();
 
       if (data.success) {
         setEvents(data.events || []);
+        setError(null);
+      } else {
+        throw new Error(data.error || 'Failed to fetch events');
       }
     } catch (error) {
       console.error('Failed to fetch events:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load calendar events';
+      setError(errorMessage);
+      toast({
+        title: 'Error Loading Events',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      setEvents([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentMonth, selectedAccount, toast]);
 
   useEffect(() => {
     fetchEvents();
-  }, [currentMonth, selectedAccount]);
+  }, [fetchEvents]);
 
   // Check for openNew query parameter
   useEffect(() => {
@@ -110,12 +160,12 @@ function CalendarContent() {
     return () => window.removeEventListener('openEventModal' as any, handleOpenEventModal);
   }, []);
 
-  // Get events for a specific day
+  // Get events for a specific day (using filtered events)
   const getEventsForDay = (day: number) => {
     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const dateStr = date.toISOString().split('T')[0];
-    
-    return events.filter(event => {
+
+    return filteredEvents.filter(event => {
       const eventStart = new Date(event.startTime);
       const eventDateStr = eventStart.toISOString().split('T')[0];
       return eventDateStr === dateStr;
@@ -150,35 +200,76 @@ function CalendarContent() {
   };
 
   const handleSync = async () => {
+    // Validate selected account
+    if (!selectedAccount) {
+      toast({
+        title: 'No Account Selected',
+        description: 'Please select an account to sync calendar events.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!selectedAccount.nylasGrantId) {
+      toast({
+        title: 'Account Not Connected',
+        description: 'This account is not connected. Please reconnect to sync.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSyncing(true);
     try {
-      // Get user's email accounts
-      const accountsResponse = await fetch('/api/nylas/accounts');
-      const accountsData = await accountsResponse.json();
-      
-      if (accountsData.accounts && accountsData.accounts.length > 0) {
-        // Sync with first account (you can enhance this to sync all accounts)
-        const account = accountsData.accounts[0];
-        
-        if (account.emailProvider === 'gmail' || account.nylasProvider === 'google') {
-          await fetch('/api/calendar/sync/google', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accountId: account.id }),
+      const isGoogleAccount = selectedAccount.emailProvider === 'gmail' ||
+                             selectedAccount.nylasProvider === 'google' ||
+                             selectedAccount.emailAddress?.includes('@gmail.com');
+
+      const isMicrosoftAccount = selectedAccount.emailProvider === 'outlook' ||
+                                selectedAccount.nylasProvider === 'microsoft' ||
+                                selectedAccount.emailAddress?.includes('@outlook.com') ||
+                                selectedAccount.emailAddress?.includes('@hotmail.com');
+
+      let syncResponse;
+
+      if (isGoogleAccount) {
+        syncResponse = await fetch('/api/calendar/sync/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountId: selectedAccount.id }),
+        });
+      } else if (isMicrosoftAccount) {
+        syncResponse = await fetch('/api/calendar/sync/microsoft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountId: selectedAccount.id }),
+        });
+      } else {
+        throw new Error('Unsupported email provider for calendar sync');
+      }
+
+      if (syncResponse) {
+        const syncData = await syncResponse.json();
+
+        if (syncData.success) {
+          toast({
+            title: 'Sync Complete',
+            description: `Successfully synced ${syncData.synced || 0} events`,
           });
-        } else if (account.emailProvider === 'outlook' || account.nylasProvider === 'microsoft') {
-          await fetch('/api/calendar/sync/microsoft', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accountId: account.id }),
-          });
+          // Refresh events
+          await fetchEvents();
+        } else {
+          throw new Error(syncData.error || 'Sync failed');
         }
-        
-        // Refresh events
-        await fetchEvents();
       }
     } catch (error) {
       console.error('Sync failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to sync calendar';
+      toast({
+        title: 'Sync Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
     } finally {
       setSyncing(false);
     }
@@ -188,7 +279,14 @@ function CalendarContent() {
     try {
       // Find the event
       const event = events.find(e => e.id === eventId);
-      if (!event) return;
+      if (!event) {
+        toast({
+          title: 'Event Not Found',
+          description: 'Could not find the event to move',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       // Calculate time difference
       const oldStart = new Date(event.startTime);
@@ -212,16 +310,32 @@ function CalendarContent() {
         }),
       });
 
+      if (!response.ok) {
+        throw new Error(`Failed to move event: ${response.statusText}`);
+      }
+
       const data = await response.json();
 
       if (data.success) {
+        toast({
+          title: 'Event Moved',
+          description: 'Event has been successfully moved to the new date',
+        });
         // Refresh events
         await fetchEvents();
       } else {
-        console.error('Failed to move event:', data.error);
+        throw new Error(data.error || 'Failed to move event');
       }
     } catch (error) {
       console.error('Error moving event:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to move event';
+      toast({
+        title: 'Error Moving Event',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      // Refresh to show correct state
+      await fetchEvents();
     }
   };
 
@@ -282,9 +396,15 @@ function CalendarContent() {
                 Agenda
               </Button>
             </div>
-            
-            <Button 
-              variant="outline" 
+
+            {/* Calendar Type Filters */}
+            <CalendarFilters
+              selectedTypes={selectedCalendarTypes}
+              onTypesChange={setSelectedCalendarTypes}
+            />
+
+            <Button
+              variant="outline"
               onClick={handleSync}
               disabled={syncing}
             >
@@ -302,18 +422,45 @@ function CalendarContent() {
           </div>
         </div>
 
+        {/* Error Banner */}
+        {error && (
+          <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-destructive">Unable to load calendar</h3>
+              <p className="text-sm text-destructive/90 mt-1">{error}</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchEvents()}
+              className="flex-shrink-0"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+
         {/* Calendar Card */}
         <div className="flex-1 bg-card border border-border rounded-lg overflow-auto">
           {loading ? (
             <div className="flex items-center justify-center h-96">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-96">
+              <div className="text-center space-y-3">
+                <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
+                <p className="text-muted-foreground">Calendar events could not be loaded</p>
+                <Button onClick={() => fetchEvents()}>Try Again</Button>
+              </div>
+            </div>
           ) : (
             <>
               {view === 'month' && (
                 <DraggableMonthView
                   currentMonth={currentMonth}
-                  events={events}
+                  events={filteredEvents}
                   onMonthChange={setCurrentMonth}
                   onEventMove={handleEventMove}
                   onDayClick={handleDayClick}
@@ -323,7 +470,7 @@ function CalendarContent() {
 
               {view === 'week' && (
                 <WeekView
-                  events={events}
+                  events={filteredEvents}
                   onEventClick={(event) => {
                     setSelectedEvent(event);
                     setSelectedDate(null);
@@ -343,7 +490,7 @@ function CalendarContent() {
 
               {view === 'day' && (
                 <DayView
-                  events={events}
+                  events={filteredEvents}
                   onEventClick={(event) => {
                     setSelectedEvent(event);
                     setSelectedDate(null);
@@ -363,7 +510,7 @@ function CalendarContent() {
 
               {view === 'agenda' && (
                 <AgendaView
-                  events={events}
+                  events={filteredEvents}
                   onEventClick={(event) => {
                     setSelectedEvent(event);
                     setSelectedDate(null);

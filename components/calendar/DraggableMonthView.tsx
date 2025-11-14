@@ -7,10 +7,11 @@
 
 import { useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable, closestCenter } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Repeat, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
+import { findConflictingEvents } from '@/lib/calendar/calendar-utils';
 
 interface DraggableMonthViewProps {
   currentMonth: Date;
@@ -21,7 +22,7 @@ interface DraggableMonthViewProps {
   onEventClick: (e: React.MouseEvent, event: any) => void;
 }
 
-function DraggableEvent({ event }: { event: any }) {
+function DraggableEvent({ event, allEvents }: { event: any; allEvents: any[] }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: event.id,
     data: event,
@@ -32,6 +33,9 @@ function DraggableEvent({ event }: { event: any }) {
     opacity: isDragging ? 0.5 : 1,
   } : undefined;
 
+  const conflicts = findConflictingEvents(event, allEvents);
+  const hasConflict = conflicts.length > 0;
+
   return (
     <div
       ref={setNodeRef}
@@ -40,22 +44,25 @@ function DraggableEvent({ event }: { event: any }) {
       {...attributes}
       onClick={(e) => e.stopPropagation()}
       className={cn(
-        'text-xs px-1 py-0.5 rounded truncate cursor-move',
+        'text-xs px-1 py-0.5 rounded truncate cursor-move flex items-center gap-0.5',
         event.color === 'blue' && 'bg-blue-500/20 text-blue-700 dark:text-blue-300',
         event.color === 'green' && 'bg-green-500/20 text-green-700 dark:text-green-300',
         event.color === 'red' && 'bg-red-500/20 text-red-700 dark:text-red-300',
         event.color === 'purple' && 'bg-purple-500/20 text-purple-700 dark:text-purple-300',
         event.color === 'orange' && 'bg-orange-500/20 text-orange-700 dark:text-orange-300',
         event.color === 'pink' && 'bg-pink-500/20 text-pink-700 dark:text-pink-300',
-        isDragging && 'opacity-50'
+        isDragging && 'opacity-50',
+        hasConflict && 'ring-1 ring-destructive/30'
       )}
     >
-      {event.title}
+      {event.isRecurring && <Repeat className="h-2.5 w-2.5 flex-shrink-0" />}
+      {hasConflict && <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0 text-destructive" />}
+      <span className="truncate">{event.title}</span>
     </div>
   );
 }
 
-function DroppableDay({ day, isToday, events, onDayClick }: any) {
+function DroppableDay({ day, isToday, events, allEvents, onDayClick }: any) {
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${day.day}`,
     data: { date: day.date },
@@ -80,7 +87,7 @@ function DroppableDay({ day, isToday, events, onDayClick }: any) {
       </div>
       <div className="space-y-0.5">
         {events.slice(0, 3).map((event: any) => (
-          <DraggableEvent key={event.id} event={event} />
+          <DraggableEvent key={event.id} event={event} allEvents={allEvents} />
         ))}
         {events.length > 3 && (
           <div className="text-xs text-muted-foreground">
@@ -215,6 +222,7 @@ export default function DraggableMonthView({
               day={day}
               isToday={isToday(day.day)}
               events={day.events}
+              allEvents={events}
               onDayClick={onDayClick}
             />
           ))}
