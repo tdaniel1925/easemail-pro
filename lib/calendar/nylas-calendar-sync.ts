@@ -97,7 +97,7 @@ export async function syncFromNylasCalendar(
     // Process each event
     for (const nylasEvent of events.data || []) {
       try {
-        await upsertEventFromNylas(userId, accountId, nylasEvent);
+        await upsertEventFromNylas(userId, accountId, nylasEvent, account);
         syncedCount++;
       } catch (error: any) {
         console.error(`❌ Failed to sync event ${nylasEvent.id}:`, error.message);
@@ -148,7 +148,8 @@ export async function syncFromNylasCalendar(
 async function upsertEventFromNylas(
   userId: string,
   accountId: string,
-  nylasEvent: any
+  nylasEvent: any,
+  account: any
 ): Promise<void> {
   // Parse event times
   const startTime = nylasEvent.when?.startTime
@@ -163,18 +164,23 @@ async function upsertEventFromNylas(
       ? new Date(nylasEvent.when.date)
       : new Date(startTime.getTime() + 3600000); // Default 1 hour
 
-  // Check if event already exists
+  // Determine provider type from account
+  const isGoogleAccount = account.nylasProvider === 'google' ||
+                         account.emailProvider === 'gmail' ||
+                         account.emailAddress?.includes('@gmail.com');
+
+  // Check if event already exists based on provider
   const existing = await db.query.calendarEvents.findFirst({
     where: and(
       eq(calendarEvents.userId, userId),
-      eq(calendarEvents.externalEventId, nylasEvent.id)
+      isGoogleAccount
+        ? eq(calendarEvents.googleEventId, nylasEvent.id)
+        : eq(calendarEvents.microsoftEventId, nylasEvent.id)
     )
   });
 
-  const eventData = {
+  const eventData: any = {
     userId,
-    emailAccountId: accountId,
-    externalEventId: nylasEvent.id,
     title: nylasEvent.title || '(No title)',
     description: nylasEvent.description || null,
     location: nylasEvent.location || null,
@@ -185,12 +191,24 @@ async function upsertEventFromNylas(
     recurrenceRule: nylasEvent.recurrence?.join(';') || null,
     timezone: nylasEvent.when?.timezone || 'UTC',
     calendarType: 'personal', // Default type
-    color: null,
     status: nylasEvent.status === 'cancelled' ? 'cancelled' : 'confirmed',
     attendees: nylasEvent.participants || [],
-    organizer: nylasEvent.organizer?.email || null,
+    organizerEmail: nylasEvent.organizer?.email || null,
     updatedAt: new Date(),
   };
+
+  // Add provider-specific fields
+  if (isGoogleAccount) {
+    eventData.googleEventId = nylasEvent.id;
+    eventData.googleCalendarId = 'primary';
+    eventData.googleSyncStatus = 'synced';
+    eventData.googleLastSyncedAt = new Date();
+  } else {
+    eventData.microsoftEventId = nylasEvent.id;
+    eventData.microsoftCalendarId = 'primary';
+    eventData.microsoftSyncStatus = 'synced';
+    eventData.microsoftLastSyncedAt = new Date();
+  }
 
   if (existing) {
     // Update existing event
