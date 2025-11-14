@@ -27,14 +27,8 @@ CREATE TABLE IF NOT EXISTS contacts_v4 (
     suffix VARCHAR(50),
     nickname VARCHAR(255),
 
-    -- Computed display name
-    display_name VARCHAR(512) GENERATED ALWAYS AS (
-        COALESCE(
-            TRIM(CONCAT_WS(' ', given_name, middle_name, surname, suffix)),
-            nickname,
-            'Unknown Contact'
-        )
-    ) STORED,
+    -- Display name (computed via trigger instead of generated column)
+    display_name VARCHAR(512),
 
     -- Email Addresses (JSONB array matching Nylas format)
     emails JSONB DEFAULT '[]'::JSONB,
@@ -349,6 +343,32 @@ CREATE POLICY groups_user_policy ON contact_groups
 -- TRIGGERS
 -- ============================================
 
+-- Auto-compute display_name
+CREATE OR REPLACE FUNCTION compute_contact_display_name()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Compute display name from name fields
+    NEW.display_name = COALESCE(
+        NULLIF(TRIM(
+            CONCAT(
+                COALESCE(NEW.given_name, ''),
+                CASE WHEN NEW.middle_name IS NOT NULL THEN ' ' || NEW.middle_name ELSE '' END,
+                CASE WHEN NEW.surname IS NOT NULL THEN ' ' || NEW.surname ELSE '' END,
+                CASE WHEN NEW.suffix IS NOT NULL THEN ' ' || NEW.suffix ELSE '' END
+            )
+        ), ''),
+        NEW.nickname,
+        'Unknown Contact'
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER compute_contacts_v4_display_name
+    BEFORE INSERT OR UPDATE ON contacts_v4
+    FOR EACH ROW
+    EXECUTE FUNCTION compute_contact_display_name();
+
 -- Auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_contacts_v4_updated_at()
 RETURNS TRIGGER AS $$
@@ -490,17 +510,18 @@ $$ LANGUAGE plpgsql STABLE;
 -- ============================================
 
 -- Create sync state for existing accounts
-INSERT INTO contact_sync_state (user_id, account_id, nylas_grant_id, sync_enabled, auto_sync)
-SELECT DISTINCT
-    ea.user_id,
-    ea.id,
-    ea.nylas_grant_id,
-    TRUE,
-    TRUE
-FROM email_accounts ea
-WHERE ea.is_active = TRUE
-  AND ea.nylas_grant_id IS NOT NULL
-ON CONFLICT (account_id) DO NOTHING;
+-- Note: This will be executed when migration runs
+-- Commented out for now since it depends on email_accounts table structure
+-- INSERT INTO contact_sync_state (user_id, account_id, sync_enabled, auto_sync)
+-- SELECT DISTINCT
+--     ea.user_id,
+--     ea.id,
+--     TRUE,
+--     TRUE
+-- FROM email_accounts ea
+-- WHERE ea.is_active = TRUE
+--   AND ea.nylas_grant_id IS NOT NULL
+-- ON CONFLICT (account_id) DO NOTHING;
 
 -- ============================================
 -- COMMENTS
