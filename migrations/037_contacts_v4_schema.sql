@@ -384,6 +384,15 @@ CREATE TRIGGER contacts_v4_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_contacts_v4_updated_at();
 
+-- Generic updated_at function for other tables
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE TRIGGER sync_state_updated_at
     BEFORE UPDATE ON contact_sync_state
     FOR EACH ROW
