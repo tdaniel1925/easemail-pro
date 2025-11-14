@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable, closestCenter } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight, Repeat, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Repeat, AlertTriangle, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -38,34 +38,44 @@ function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEve
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Only open event details if not currently dragging
-    if (!isDragging) {
-      onEventClick(e, event);
-    }
+    onEventClick(e, event);
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
-      {...attributes}
-      onClick={handleClick}
       className={cn(
-        'text-xs px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 flex items-center gap-0.5',
+        'text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5 group relative',
         event.color === 'blue' && 'bg-blue-500/20 text-blue-700 dark:text-blue-300',
         event.color === 'green' && 'bg-green-500/20 text-green-700 dark:text-green-300',
         event.color === 'red' && 'bg-red-500/20 text-red-700 dark:text-red-300',
         event.color === 'purple' && 'bg-purple-500/20 text-purple-700 dark:text-purple-300',
         event.color === 'orange' && 'bg-orange-500/20 text-orange-700 dark:text-orange-300',
         event.color === 'pink' && 'bg-pink-500/20 text-pink-700 dark:text-pink-300',
-        isDragging && 'opacity-50 cursor-move',
+        isDragging && 'opacity-50',
         hasConflict && 'ring-1 ring-destructive/30'
       )}
     >
-      {event.isRecurring && <Repeat className="h-2.5 w-2.5 flex-shrink-0" />}
-      {hasConflict && <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0 text-destructive" />}
-      <span className="truncate">{event.title}</span>
+      {/* Drag Handle - only this part triggers drag */}
+      <div
+        {...listeners}
+        {...attributes}
+        className="cursor-move opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+        title="Drag to move event"
+      >
+        <GripVertical className="h-3 w-3" />
+      </div>
+
+      {/* Clickable Event Content */}
+      <div
+        onClick={handleClick}
+        className="flex-1 flex items-center gap-0.5 cursor-pointer hover:opacity-80 truncate"
+      >
+        {event.isRecurring && <Repeat className="h-2.5 w-2.5 flex-shrink-0" />}
+        {hasConflict && <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0 text-destructive" />}
+        <span className="truncate">{event.title}</span>
+      </div>
     </div>
   );
 }
