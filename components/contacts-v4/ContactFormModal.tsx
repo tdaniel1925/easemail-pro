@@ -88,27 +88,27 @@ export default function ContactFormModal({
   // Load contact data when editing
   useEffect(() => {
     if (contact) {
-      setGivenName(contact.given_name || '');
-      setMiddleName(contact.middle_name || '');
+      setGivenName(contact.givenName || '');
+      setMiddleName(contact.middleName || '');
       setSurname(contact.surname || '');
       setSuffix(contact.suffix || '');
       setNickname(contact.nickname || '');
 
       setEmails(contact.emails?.length > 0 ? contact.emails : [{ type: 'work', email: '' }]);
-      setPhones(contact.phone_numbers?.length > 0 ? contact.phone_numbers : [{ type: 'mobile', number: '' }]);
+      setPhones(contact.phoneNumbers?.length > 0 ? contact.phoneNumbers : [{ type: 'mobile', number: '' }]);
 
-      setJobTitle(contact.job_title || '');
-      setCompanyName(contact.company_name || '');
+      setJobTitle(contact.jobTitle || '');
+      setCompanyName(contact.companyName || '');
       setDepartment(contact.department || '');
-      setOfficeLocation(contact.office_location || '');
-      setManagerName(contact.manager_name || '');
+      setOfficeLocation(contact.officeLocation || '');
+      setManagerName(contact.managerName || '');
 
       setBirthday(contact.birthday ? new Date(contact.birthday).toISOString().split('T')[0] : '');
       setNotes(contact.notes || '');
 
       setTags(contact.tags || []);
-      setAddresses(contact.physical_addresses || []);
-      setWebPages(contact.web_pages || []);
+      setAddresses(contact.physicalAddresses || []);
+      setWebPages(contact.webPages || []);
     } else {
       // Reset form for new contact
       resetForm();

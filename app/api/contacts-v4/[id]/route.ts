@@ -206,56 +206,56 @@ export async function DELETE(
 function transformContactToResponse(contact: any) {
   return {
     id: contact.id,
-    account_id: contact.accountId,
-    user_id: contact.userId,
-    nylas_contact_id: contact.nylasContactId,
-    nylas_grant_id: contact.nylasGrantId,
+    accountId: contact.accountId,
+    userId: contact.userId,
+    nylasContactId: contact.nylasContactId,
+    nylasGrantId: contact.nylasGrantId,
     provider: contact.provider,
     source: contact.source,
 
     // Name fields
-    display_name: contact.displayName,
-    given_name: contact.givenName,
-    middle_name: contact.middleName,
+    displayName: contact.displayName,
+    givenName: contact.givenName,
+    middleName: contact.middleName,
     surname: contact.surname,
     suffix: contact.suffix,
     nickname: contact.nickname,
 
     // Contact methods
     emails: contact.emails,
-    phone_numbers: contact.phoneNumbers,
-    physical_addresses: contact.physicalAddresses,
-    web_pages: contact.webPages,
-    im_addresses: contact.imAddresses,
+    phoneNumbers: contact.phoneNumbers,
+    physicalAddresses: contact.physicalAddresses,
+    webPages: contact.webPages,
+    imAddresses: contact.imAddresses,
 
     // Professional
-    job_title: contact.jobTitle,
-    company_name: contact.companyName,
-    manager_name: contact.managerName,
-    office_location: contact.officeLocation,
+    jobTitle: contact.jobTitle,
+    companyName: contact.companyName,
+    managerName: contact.managerName,
+    officeLocation: contact.officeLocation,
     department: contact.department,
 
     // Personal
     birthday: contact.birthday,
     notes: contact.notes,
-    picture_url: contact.pictureUrl,
+    pictureUrl: contact.pictureUrl,
 
     // Organization
     groups: contact.groups,
     tags: contact.tags,
 
     // Metadata
-    is_favorite: contact.isFavorite,
-    is_deleted: contact.isDeleted,
-    sync_status: contact.syncStatus,
-    sync_error: contact.syncError,
+    isFavorite: contact.isFavorite,
+    isDeleted: contact.isDeleted,
+    syncStatus: contact.syncStatus,
+    syncError: contact.syncError,
     version: contact.version,
 
     // Timestamps
-    created_at: contact.createdAt,
-    updated_at: contact.updatedAt,
-    last_synced_at: contact.lastSyncedAt,
-    local_updated_at: contact.localUpdatedAt,
-    remote_updated_at: contact.remoteUpdatedAt,
+    createdAt: contact.createdAt,
+    updatedAt: contact.updatedAt,
+    lastSyncedAt: contact.lastSyncedAt,
+    localUpdatedAt: contact.localUpdatedAt,
+    remoteUpdatedAt: contact.remoteUpdatedAt,
   };
 }

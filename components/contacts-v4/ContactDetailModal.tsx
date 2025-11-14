@@ -169,11 +169,11 @@ export default function ContactDetailModal({
   }
 
   const avatarColor = generateAvatarColor(
-    getPrimaryEmail(contact.emails)?.email || contact.display_name
+    getPrimaryEmail(contact.emails)?.email || contact.displayName
   );
 
   const primaryEmail = getPrimaryEmail(contact.emails);
-  const primaryPhone = getPrimaryPhone(contact.phone_numbers);
+  const primaryPhone = getPrimaryPhone(contact.phoneNumbers);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -186,7 +186,7 @@ export default function ContactDetailModal({
                 className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-medium text-white relative"
                 style={{ backgroundColor: avatarColor }}
               >
-                {getInitials(contact.display_name)}
+                {getInitials(contact.displayName)}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -195,20 +195,20 @@ export default function ContactDetailModal({
                 >
                   <Star className={cn(
                     "h-3 w-3",
-                    contact.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
+                    contact.isFavorite ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
                   )} />
                 </Button>
               </div>
 
               <div>
-                <DialogTitle className="text-2xl mb-1">{contact.display_name}</DialogTitle>
+                <DialogTitle className="text-2xl mb-1">{contact.displayName}</DialogTitle>
 
                 {/* Job Title and Company */}
-                {(contact.job_title || contact.company_name) && (
+                {(contact.jobTitle || contact.companyName) && (
                   <p className="text-sm text-muted-foreground mb-2">
-                    {contact.job_title && contact.company_name
-                      ? `${contact.job_title} at ${contact.company_name}`
-                      : contact.job_title || contact.company_name
+                    {contact.jobTitle && contact.companyName
+                      ? `${contact.jobTitle} at ${contact.companyName}`
+                      : contact.jobTitle || contact.companyName
                     }
                   </p>
                 )}
@@ -230,11 +230,11 @@ export default function ContactDetailModal({
                 )}
 
                 {/* Sync Status */}
-                {contact.sync_status !== 'synced' && (
+                {contact.syncStatus !== 'synced' && (
                   <div className="mt-2 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 text-yellow-500" />
                     <span className="text-sm text-yellow-600">
-                      {contact.sync_status.replace('_', ' ')}
+                      {contact.syncStatus.replace('_', ' ')}
                     </span>
                   </div>
                 )}
@@ -292,11 +292,11 @@ export default function ContactDetailModal({
                   Name
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  {contact.given_name && (
-                    <InfoField label="First Name" value={contact.given_name} />
+                  {contact.givenName && (
+                    <InfoField label="First Name" value={contact.givenName} />
                   )}
-                  {contact.middle_name && (
-                    <InfoField label="Middle Name" value={contact.middle_name} />
+                  {contact.middleName && (
+                    <InfoField label="Middle Name" value={contact.middleName} />
                   )}
                   {contact.surname && (
                     <InfoField label="Last Name" value={contact.surname} />
@@ -338,11 +338,11 @@ export default function ContactDetailModal({
                 )}
 
                 {/* Phone Numbers */}
-                {contact.phone_numbers && contact.phone_numbers.length > 0 && (
+                {contact.phoneNumbers && contact.phoneNumbers.length > 0 && (
                   <div>
                     <p className="text-sm font-medium text-muted-foreground mb-2">Phone Numbers</p>
                     <div className="space-y-2">
-                      {contact.phone_numbers.map((phone: NylasPhoneNumber, index: number) => (
+                      {contact.phoneNumbers.map((phone: NylasPhoneNumber, index: number) => (
                         <div key={index} className="flex items-center gap-2">
                           <Badge variant="outline">{phone.type || 'other'}</Badge>
                           <a
@@ -359,41 +359,41 @@ export default function ContactDetailModal({
               </div>
 
               {/* Professional Information */}
-              {(contact.job_title || contact.company_name || contact.department || contact.office_location || contact.manager_name) && (
+              {(contact.jobTitle || contact.companyName || contact.department || contact.officeLocation || contact.managerName) && (
                 <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Briefcase className="h-5 w-5" />
                     Professional
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
-                    {contact.job_title && (
-                      <InfoField label="Job Title" value={contact.job_title} />
+                    {contact.jobTitle && (
+                      <InfoField label="Job Title" value={contact.jobTitle} />
                     )}
-                    {contact.company_name && (
-                      <InfoField label="Company" value={contact.company_name} />
+                    {contact.companyName && (
+                      <InfoField label="Company" value={contact.companyName} />
                     )}
                     {contact.department && (
                       <InfoField label="Department" value={contact.department} />
                     )}
-                    {contact.office_location && (
-                      <InfoField label="Office Location" value={contact.office_location} />
+                    {contact.officeLocation && (
+                      <InfoField label="Office Location" value={contact.officeLocation} />
                     )}
-                    {contact.manager_name && (
-                      <InfoField label="Manager" value={contact.manager_name} />
+                    {contact.managerName && (
+                      <InfoField label="Manager" value={contact.managerName} />
                     )}
                   </div>
                 </div>
               )}
 
               {/* Addresses */}
-              {contact.physical_addresses && contact.physical_addresses.length > 0 && (
+              {contact.physicalAddresses && contact.physicalAddresses.length > 0 && (
                 <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Home className="h-5 w-5" />
                     Addresses
                   </h3>
                   <div className="space-y-4">
-                    {contact.physical_addresses.map((address: NylasPhysicalAddress, index: number) => (
+                    {contact.physicalAddresses.map((address: NylasPhysicalAddress, index: number) => (
                       <div key={index} className="space-y-1">
                         <Badge variant="outline">{address.type || 'other'}</Badge>
                         <p className="text-sm">
@@ -412,14 +412,14 @@ export default function ContactDetailModal({
               )}
 
               {/* Web Pages */}
-              {contact.web_pages && contact.web_pages.length > 0 && (
+              {contact.webPages && contact.webPages.length > 0 && (
                 <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Globe className="h-5 w-5" />
                     Web & Social
                   </h3>
                   <div className="space-y-2">
-                    {contact.web_pages.map((page: any, index: number) => (
+                    {contact.webPages.map((page: any, index: number) => (
                       <div key={index} className="flex items-center gap-2">
                         <Badge variant="outline">{page.type || 'other'}</Badge>
                         <a
@@ -477,11 +477,11 @@ export default function ContactDetailModal({
               )}
 
               {/* IM Addresses */}
-              {contact.im_addresses && contact.im_addresses.length > 0 && (
+              {contact.imAddresses && contact.imAddresses.length > 0 && (
                 <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-lg font-semibold">Instant Messaging</h3>
                   <div className="space-y-2">
-                    {contact.im_addresses.map((im: any, index: number) => (
+                    {contact.imAddresses.map((im: any, index: number) => (
                       <div key={index} className="flex items-center gap-2">
                         <Badge variant="outline">{im.type || 'other'}</Badge>
                         <span className="text-sm">{im.im_address}</span>

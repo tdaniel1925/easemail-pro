@@ -89,9 +89,9 @@ export class ContactsV4SyncService {
     try {
       // Update sync state to 'syncing'
       await this.updateSyncState({
-        sync_status: 'syncing',
-        last_sync_attempt: new Date(),
-        current_operation: 'initializing',
+        syncStatus: 'syncing',
+        lastSyncAttempt: new Date(),
+        currentOperation: 'initializing',
       });
 
       this.sendProgress({
@@ -101,7 +101,7 @@ export class ContactsV4SyncService {
 
       // Get or create sync state
       const syncState = await this.getSyncState();
-      const cursor = !forceFullSync ? syncState?.last_sync_cursor : undefined;
+      const cursor = !forceFullSync ? syncState?.lastSyncCursor : undefined;
 
       // Fetch contacts from Nylas
       const { contacts: nylasContacts, nextCursor } = await this.fetchAllContacts(cursor);
@@ -117,17 +117,17 @@ export class ContactsV4SyncService {
 
       // Update sync state with results
       await this.updateSyncState({
-        sync_status: 'idle',
-        last_successful_sync: new Date(),
-        last_sync_cursor: nextCursor || cursor,
-        total_contacts: result.imported + result.updated,
-        synced_contacts: result.imported + result.updated,
-        error_contacts: result.errors,
-        conflict_contacts: result.conflicts,
-        current_operation: null,
-        progress_current: 0,
-        progress_total: 0,
-        progress_percentage: 0,
+        syncStatus: 'idle',
+        lastSuccessfulSync: new Date(),
+        lastSyncCursor: nextCursor || cursor,
+        totalContacts: result.imported + result.updated,
+        syncedContacts: result.imported + result.updated,
+        errorContacts: result.errors,
+        conflictContacts: result.conflicts,
+        currentOperation: null,
+        progressCurrent: 0,
+        progressTotal: 0,
+        progressPercentage: 0,
       });
 
       const durationMs = Date.now() - startTime;
@@ -167,9 +167,9 @@ export class ContactsV4SyncService {
 
       // Update sync state to error
       await this.updateSyncState({
-        sync_status: 'error',
-        sync_error: error.message,
-        current_operation: null,
+        syncStatus: 'error',
+        syncError: error.message,
+        currentOperation: null,
       });
 
       // Log error
@@ -456,9 +456,9 @@ export class ContactsV4SyncService {
         });
 
         await this.updateSyncState({
-          progress_current: i + 1,
-          progress_total: nylasContacts.length,
-          progress_percentage: percentage,
+          progressCurrent: i + 1,
+          progressTotal: nylasContacts.length,
+          progressPercentage: percentage,
         });
       }
     }
