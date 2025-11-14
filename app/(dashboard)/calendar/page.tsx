@@ -15,7 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar as CalendarIconLucide,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -317,8 +318,18 @@ function CalendarContent() {
         <div className="border-b border-border bg-card">
           <div className="px-6 py-4">
             <div className="flex items-center justify-between">
-              {/* Left: Title & Navigation */}
+              {/* Left: Back to Inbox + Title & Navigation */}
               <div className="flex items-center gap-4">
+                <a
+                  href="/inbox"
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back to Inbox</span>
+                </a>
+
+                <div className="h-6 w-px bg-border" />
+
                 <div className="flex items-center gap-3">
                   <CalendarIconLucide className="h-6 w-6 text-primary" />
                   <h1 className="text-2xl font-bold">Calendar</h1>

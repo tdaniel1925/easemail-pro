@@ -22,7 +22,7 @@ interface DraggableMonthViewProps {
   onEventClick: (e: React.MouseEvent, event: any) => void;
 }
 
-function DraggableEvent({ event, allEvents }: { event: any; allEvents: any[] }) {
+function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEvents: any[]; onEventClick: (e: React.MouseEvent, event: any) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: event.id,
     data: event,
@@ -36,22 +36,30 @@ function DraggableEvent({ event, allEvents }: { event: any; allEvents: any[] }) 
   const conflicts = findConflictingEvents(event, allEvents);
   const hasConflict = conflicts.length > 0;
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Only open event details if not currently dragging
+    if (!isDragging) {
+      onEventClick(e, event);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
-      onClick={(e) => e.stopPropagation()}
+      onClick={handleClick}
       className={cn(
-        'text-xs px-1 py-0.5 rounded truncate cursor-move flex items-center gap-0.5',
+        'text-xs px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 flex items-center gap-0.5',
         event.color === 'blue' && 'bg-blue-500/20 text-blue-700 dark:text-blue-300',
         event.color === 'green' && 'bg-green-500/20 text-green-700 dark:text-green-300',
         event.color === 'red' && 'bg-red-500/20 text-red-700 dark:text-red-300',
         event.color === 'purple' && 'bg-purple-500/20 text-purple-700 dark:text-purple-300',
         event.color === 'orange' && 'bg-orange-500/20 text-orange-700 dark:text-orange-300',
         event.color === 'pink' && 'bg-pink-500/20 text-pink-700 dark:text-pink-300',
-        isDragging && 'opacity-50',
+        isDragging && 'opacity-50 cursor-move',
         hasConflict && 'ring-1 ring-destructive/30'
       )}
     >
@@ -62,7 +70,7 @@ function DraggableEvent({ event, allEvents }: { event: any; allEvents: any[] }) 
   );
 }
 
-function DroppableDay({ day, isToday, events, allEvents, onDayClick }: any) {
+function DroppableDay({ day, isToday, events, allEvents, onDayClick, onEventClick }: any) {
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${day.day}`,
     data: { date: day.date },
@@ -87,7 +95,7 @@ function DroppableDay({ day, isToday, events, allEvents, onDayClick }: any) {
       </div>
       <div className="space-y-0.5">
         {events.slice(0, 3).map((event: any) => (
-          <DraggableEvent key={event.id} event={event} allEvents={allEvents} />
+          <DraggableEvent key={event.id} event={event} allEvents={allEvents} onEventClick={onEventClick} />
         ))}
         {events.length > 3 && (
           <div className="text-xs text-muted-foreground">
@@ -224,6 +232,7 @@ export default function DraggableMonthView({
               events={day.events}
               allEvents={events}
               onDayClick={onDayClick}
+              onEventClick={onEventClick}
             />
           ))}
         </div>
