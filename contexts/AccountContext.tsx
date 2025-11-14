@@ -38,7 +38,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     const loadSelectedAccount = async () => {
       try {
         // First, fetch all accounts
-        const response = await fetch('/api/email-accounts');
+        const response = await fetch('/api/nylas/accounts');
         const data = await response.json();
 
         if (data.success && data.accounts) {
