@@ -45,10 +45,16 @@ export async function GET(
   const isStreaming = searchParams.get('stream') === 'true';
   const forceFullSync = searchParams.get('full') === 'true';
 
+  console.log('📥 [GET Sync] Request received for account:', params.accountId);
+  console.log('📥 [GET Sync] Query params - stream:', isStreaming, 'full:', forceFullSync);
+
   // If streaming is requested, use SSE sync
   if (isStreaming) {
+    console.log('🔄 [GET Sync] Routing to streaming sync...');
     return streamingSync(params.accountId, forceFullSync);
   }
+
+  console.log('📊 [GET Sync] Fetching sync state (non-streaming)...');
 
   // Otherwise, return sync state as JSON
   try {
@@ -108,21 +114,27 @@ export async function GET(
 // ============================================
 
 async function streamingSync(accountId: string, forceFullSync: boolean) {
+  console.log('🔄 [SSE Sync] Starting streaming sync for account:', accountId, 'fullSync:', forceFullSync);
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        console.log('🔄 [SSE Sync] Stream started, getting user...');
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
+          console.error('❌ [SSE Sync] No user found - unauthorized');
           sendSSE(controller, encoder, { type: 'error', error: 'Unauthorized' });
           controller.close();
           return;
         }
 
+        console.log('✅ [SSE Sync] User authenticated:', user.id);
+
         // Get account details
+        console.log('🔄 [SSE Sync] Fetching account details for:', accountId);
         const { data: account } = await supabase
           .from('email_accounts')
           .select('nylas_grant_id, email')
@@ -130,6 +142,7 @@ async function streamingSync(accountId: string, forceFullSync: boolean) {
           .single();
 
         if (!account || !account.nylas_grant_id) {
+          console.error('❌ [SSE Sync] Account not found or missing grant_id:', account);
           sendSSE(controller, encoder, {
             type: 'error',
             error: 'Account not found or not connected',
@@ -138,25 +151,33 @@ async function streamingSync(accountId: string, forceFullSync: boolean) {
           return;
         }
 
+        console.log('✅ [SSE Sync] Account found:', account.email, 'grant_id:', account.nylas_grant_id);
+
         // Determine provider from email domain
         const provider = account.email?.includes('@gmail.com') ||
           account.email?.includes('@googlemail.com')
           ? 'google'
           : 'microsoft';
 
+        console.log('✅ [SSE Sync] Provider determined:', provider);
+
         // Create sync service with progress callback
+        console.log('🔄 [SSE Sync] Creating sync service...');
         const syncService = createContactsSyncService({
           accountId,
           userId: user.id,
           grantId: account.nylas_grant_id,
           provider,
           onProgress: (update: SyncProgressUpdate) => {
+            console.log('📊 [SSE Sync] Progress update:', update);
             sendSSE(controller, encoder, update);
           },
         });
 
+        console.log('🚀 [SSE Sync] Starting sync operation...');
         // Perform sync
         const result = await syncService.sync(forceFullSync);
+        console.log('✅ [SSE Sync] Sync completed:', result);
 
         // Send final result
         sendSSE(controller, encoder, {

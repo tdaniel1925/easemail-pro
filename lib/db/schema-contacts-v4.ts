@@ -191,7 +191,7 @@ export const contactSyncLogs = pgTable('contact_sync_logs', {
 }, (table) => ({
   accountIdIdx: index('sync_logs_account_idx').on(table.accountId, table.createdAt),
   contactIdIdx: index('sync_logs_contact_idx').on(table.contactId),
-  statusIdx: index('sync_logs_status_idx').on(table.status).where(sql`${table.status} = 'error'`),
+  statusIdx: index('sync_logs_status_idx').on(table.status),
   createdIdx: index('sync_logs_created_idx').on(table.createdAt),
 }));
 

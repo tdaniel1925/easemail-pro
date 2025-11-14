@@ -239,11 +239,19 @@ export default function ContactsV4List() {
       setSyncProgress({ status: 'Starting sync...', percentage: 0, imported: 0, updated: 0 });
 
       // Use Server-Sent Events for real-time progress
-      const eventSource = new EventSource(
-        `/api/contacts-v4/sync/${selectedAccountId}?stream=true`
-      );
+      const streamUrl = `/api/contacts-v4/sync/${selectedAccountId}?stream=true`;
+      console.log('🔄 [Sync] Initiating EventSource connection to:', streamUrl);
+
+      const eventSource = new EventSource(streamUrl);
+
+      console.log('🔄 [Sync] EventSource created, state:', eventSource.readyState);
+
+      eventSource.onopen = () => {
+        console.log('✅ [Sync] EventSource connection opened successfully');
+      };
 
       eventSource.onmessage = (event) => {
+        console.log('📩 [Sync] Received SSE message:', event.data);
         const update = JSON.parse(event.data);
 
         switch (update.type) {
@@ -310,7 +318,9 @@ export default function ContactsV4List() {
         }
       };
 
-      eventSource.onerror = () => {
+      eventSource.onerror = (error) => {
+        console.error('❌ [Sync] EventSource error:', error);
+        console.error('❌ [Sync] EventSource state:', eventSource.readyState);
         eventSource.close();
         setSyncing(false);
         setSyncProgress(null);
