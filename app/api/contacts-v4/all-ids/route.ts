@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     // Filter by account if specified (and not 'all')
     if (accountId && accountId !== 'all') {
-      conditions.push(eq(contactsV4.emailAccountId, accountId));
+      conditions.push(eq(contactsV4.accountId, accountId));
     }
 
     // Apply search filter if provided
