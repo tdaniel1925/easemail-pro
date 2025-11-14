@@ -279,7 +279,8 @@ export function MiniCalendar() {
                 } else if (isTomorrow) {
                   timeLabel = `Tomorrow ${eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
                 } else {
-                  timeLabel = eventDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                  // Use toLocaleString for combined date and time formatting
+                  timeLabel = eventDate.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
                 }
 
                 return (
