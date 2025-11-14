@@ -134,35 +134,35 @@ export type ContactProvider = 'google' | 'microsoft';
 
 export interface ContactV4 {
   id: string;
-  user_id: string;
-  account_id: string;
+  userId: string;
+  accountId: string;
 
   // Nylas integration
-  nylas_contact_id: string | null;
-  nylas_grant_id: string;
+  nylasContactId: string | null;
+  nylasGrantId: string;
   provider: ContactProvider;
   source: ContactSource;
 
   // Name fields
-  given_name: string | null;
-  middle_name: string | null;
+  givenName: string | null;
+  middleName: string | null;
   surname: string | null;
   suffix: string | null;
   nickname: string | null;
-  display_name: string; // Computed/generated
+  displayName: string; // Computed/generated
 
   // Contact information (JSONB)
   emails: NylasEmail[];
-  phone_numbers: NylasPhoneNumber[];
-  physical_addresses: NylasPhysicalAddress[];
-  web_pages: NylasWebPage[];
-  im_addresses: NylasIMAddress[];
+  phoneNumbers: NylasPhoneNumber[];
+  physicalAddresses: NylasPhysicalAddress[];
+  webPages: NylasWebPage[];
+  imAddresses: NylasIMAddress[];
 
   // Professional
-  job_title: string | null;
-  company_name: string | null;
-  manager_name: string | null;
-  office_location: string | null;
+  jobTitle: string | null;
+  companyName: string | null;
+  managerName: string | null;
+  officeLocation: string | null;
   department: string | null;
 
   // Personal
@@ -170,73 +170,73 @@ export interface ContactV4 {
   notes: string | null;
 
   // Picture
-  picture_url: string | null;
-  picture_data: Buffer | null;
-  picture_updated_at: Date | null;
+  pictureUrl: string | null;
+  pictureData: Buffer | null;
+  pictureUpdatedAt: Date | null;
 
   // Organization
   groups: NylasContactGroup[];
   tags: string[];
 
   // Metadata
-  is_favorite: boolean;
-  is_deleted: boolean;
+  isFavorite: boolean;
+  isDeleted: boolean;
 
   // Sync state
-  sync_status: ContactSyncStatus;
-  sync_error: string | null;
-  last_synced_at: Date | null;
+  syncStatus: ContactSyncStatus;
+  syncError: string | null;
+  lastSyncedAt: Date | null;
 
   // Versioning
   version: number;
   etag: string | null;
-  local_updated_at: Date;
-  remote_updated_at: Date | null;
+  localUpdatedAt: Date;
+  remoteUpdatedAt: Date | null;
 
   // Timestamps
-  created_at: Date;
-  updated_at: Date;
-  deleted_at: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
 }
 
 export interface ContactSyncState {
   id: string;
-  user_id: string;
-  account_id: string;
+  userId: string;
+  accountId: string;
 
   // Sync tracking
-  last_successful_sync: Date | null;
-  last_sync_attempt: Date | null;
-  next_sync_scheduled: Date | null;
+  lastSuccessfulSync: Date | null;
+  lastSyncAttempt: Date | null;
+  nextSyncScheduled: Date | null;
 
   // Statistics
-  total_contacts: number;
-  synced_contacts: number;
-  pending_contacts: number;
-  error_contacts: number;
-  conflict_contacts: number;
+  totalContacts: number;
+  syncedContacts: number;
+  pendingContacts: number;
+  errorContacts: number;
+  conflictContacts: number;
 
   // Status
-  sync_status: 'idle' | 'syncing' | 'error' | 'paused';
-  sync_error: string | null;
-  current_operation: string | null;
+  syncStatus: 'idle' | 'syncing' | 'error' | 'paused';
+  syncError: string | null;
+  currentOperation: string | null;
 
   // Progress
-  progress_current: number;
-  progress_total: number;
-  progress_percentage: number;
+  progressCurrent: number;
+  progressTotal: number;
+  progressPercentage: number;
 
   // Configuration
-  sync_enabled: boolean;
-  sync_interval_minutes: number;
-  auto_sync: boolean;
+  syncEnabled: boolean;
+  syncIntervalMinutes: number;
+  autoSync: boolean;
 
   // Cursor
-  last_sync_cursor: string | null;
+  lastSyncCursor: string | null;
 
   // Timestamps
-  created_at: Date;
-  updated_at: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export type SyncOperation =
@@ -267,9 +267,9 @@ export type SyncTrigger =
 
 export interface ContactSyncLog {
   id: string;
-  user_id: string;
-  account_id: string;
-  contact_id: string | null;
+  userId: string;
+  accountId: string;
+  contactId: string | null;
 
   // Operation
   operation: SyncOperation;
@@ -277,26 +277,26 @@ export interface ContactSyncLog {
 
   // Status
   status: SyncLogStatus;
-  error_message: string | null;
-  error_code: string | null;
+  errorMessage: string | null;
+  errorCode: string | null;
 
   // Changes
-  changes_made: FieldChange[] | null;
+  changesMade: FieldChange[] | null;
 
   // Performance
-  duration_ms: number | null;
+  durationMs: number | null;
 
   // Context
-  triggered_by: SyncTrigger | null;
+  triggeredBy: SyncTrigger | null;
 
   // Timestamp
-  created_at: Date;
+  createdAt: Date;
 }
 
 export interface FieldChange {
   field: string;
-  old_value: any;
-  new_value: any;
+  oldValue: any;
+  newValue: any;
 }
 
 export type ConflictType =
@@ -318,55 +318,55 @@ export type ConflictStatus =
 
 export interface ContactConflict {
   id: string;
-  user_id: string;
-  contact_id: string;
+  userId: string;
+  contactId: string;
 
   // Conflict data
-  local_version: Partial<ContactV4>;
-  remote_version: Partial<NylasContact>;
+  localVersion: Partial<ContactV4>;
+  remoteVersion: Partial<NylasContact>;
 
   // Details
-  conflict_fields: string[];
-  conflict_reason: string | null;
-  conflict_type: ConflictType | null;
+  conflictFields: string[];
+  conflictReason: string | null;
+  conflictType: ConflictType | null;
 
   // Resolution
-  resolution_strategy: ResolutionStrategy | null;
-  resolved_version: Partial<ContactV4> | null;
-  resolved_by: string | null;
-  resolved_at: Date | null;
+  resolutionStrategy: ResolutionStrategy | null;
+  resolvedVersion: Partial<ContactV4> | null;
+  resolvedBy: string | null;
+  resolvedAt: Date | null;
 
   // Status
   status: ConflictStatus;
 
   // Timestamps
-  created_at: Date;
-  updated_at: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ContactGroup {
   id: string;
-  user_id: string;
-  account_id: string;
+  userId: string;
+  accountId: string;
 
   // Group details
   name: string;
   description: string | null;
 
   // Nylas integration
-  nylas_group_id: string | null;
-  group_type: 'system' | 'user';
+  nylasGroupId: string | null;
+  groupType: 'system' | 'user';
 
   // UI
   color: string | null;
   icon: string | null;
 
   // Stats
-  contact_count: number;
+  contactCount: number;
 
   // Timestamps
-  created_at: Date;
-  updated_at: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // ============================================

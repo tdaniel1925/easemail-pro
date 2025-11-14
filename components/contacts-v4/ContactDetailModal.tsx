@@ -89,7 +89,7 @@ export default function ContactDetailModal({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          updates: { is_favorite: !contact.is_favorite },
+          updates: { is_favorite: !contact.isFavorite },
           sync_immediately: false
         }),
       });
