@@ -84,8 +84,8 @@ export async function syncFromNylasCalendar(
       identifier: account.nylasGrantId,
       queryParams: {
         calendarId: 'primary',
-        start: Math.floor(sixMonthsAgo.getTime() / 1000),
-        end: Math.floor(twelveMonthsFuture.getTime() / 1000),
+        start: Math.floor(sixMonthsAgo.getTime() / 1000) as any,
+        end: Math.floor(twelveMonthsFuture.getTime() / 1000) as any,
         limit: 500, // Fetch up to 500 events
       },
     });
