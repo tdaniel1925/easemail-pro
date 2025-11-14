@@ -92,19 +92,40 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { email, fullName, role = 'individual', organizationId } = body;
+    const {
+      email,
+      fullName,
+      role = 'individual',
+      organizationId,
+      password, // Optional - if not provided, use invitation flow
+      subscriptionTier = 'free' // Default to free tier
+    } = body;
 
     // Validation
     if (!email || !fullName) {
-      return NextResponse.json({ 
-        error: 'Email and full name are required' 
+      return NextResponse.json({
+        error: 'Email and full name are required'
       }, { status: 400 });
     }
 
     const validRoles = ['platform_admin', 'org_admin', 'org_user', 'individual'];
     if (!validRoles.includes(role)) {
-      return NextResponse.json({ 
-        error: `Invalid role. Must be one of: ${validRoles.join(', ')}` 
+      return NextResponse.json({
+        error: `Invalid role. Must be one of: ${validRoles.join(', ')}`
+      }, { status: 400 });
+    }
+
+    const validTiers = ['free', 'starter', 'pro', 'enterprise', 'beta'];
+    if (!validTiers.includes(subscriptionTier)) {
+      return NextResponse.json({
+        error: `Invalid subscription tier. Must be one of: ${validTiers.join(', ')}`
+      }, { status: 400 });
+    }
+
+    // If password is provided, validate it
+    if (password && password.length < 8) {
+      return NextResponse.json({
+        error: 'Password must be at least 8 characters long'
       }, { status: 400 });
     }
 
@@ -127,8 +148,9 @@ export async function POST(request: NextRequest) {
     );
 
     let authUserId: string;
-    const invitationToken = generateInvitationToken();
-    const invitationExpiry = generateInvitationExpiry(7); // 7 days
+    const useInvitationFlow = !password; // Use invitation if no password provided
+    const invitationToken = useInvitationFlow ? generateInvitationToken() : null;
+    const invitationExpiry = useInvitationFlow ? generateInvitationExpiry(7) : null; // 7 days
 
     if (authUserExists) {
       // User exists in auth but not in our DB - get their ID
@@ -136,24 +158,30 @@ export async function POST(request: NextRequest) {
         u => u.email?.toLowerCase() === email.toLowerCase().trim()
       );
       authUserId = existingAuthUser!.id;
-      
+
       console.log(`♻️ Reusing existing Supabase Auth user: ${authUserId}`);
-      
-      // Update their metadata
-      await adminClient.auth.admin.updateUserById(authUserId, {
+
+      // Update their metadata and password if provided
+      const updateData: any = {
         user_metadata: {
           full_name: fullName,
         },
-        email_confirm: false, // They need to accept invitation first
-      });
+        email_confirm: !useInvitationFlow, // Auto-confirm if password provided
+      };
+
+      if (password) {
+        updateData.password = password;
+      }
+
+      await adminClient.auth.admin.updateUserById(authUserId, updateData);
     } else {
-      // Create new auth user with a random password (they'll set their own)
-      const randomPassword = Math.random().toString(36).slice(-32); // Temporary, won't be used
-      
+      // Create new auth user
+      const userPassword = password || Math.random().toString(36).slice(-32); // Use provided or random password
+
       const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
         email: email.toLowerCase().trim(),
-        password: randomPassword,
-        email_confirm: false, // They need to accept invitation first
+        password: userPassword,
+        email_confirm: !useInvitationFlow, // Auto-confirm if password provided
         user_metadata: {
           full_name: fullName,
         },
@@ -161,9 +189,9 @@ export async function POST(request: NextRequest) {
 
       if (authError || !authData.user) {
         console.error('❌ Supabase Auth error:', authError);
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: 'Failed to create user account',
-          details: authError?.message 
+          details: authError?.message
         }, { status: 500 });
       }
 
@@ -171,19 +199,27 @@ export async function POST(request: NextRequest) {
       console.log(`✅ Created Supabase Auth user: ${authUserId}`);
     }
 
-    // Create user in database with invitation token
-    const [newUser] = await db.insert(users).values({
+    // Create user in database
+    const userValues: any = {
       id: authUserId,
       email: email.toLowerCase().trim(),
       fullName,
       organizationId: organizationId || null,
       role: role,
-      accountStatus: 'pending', // User hasn't accepted invitation yet
-      invitationToken: invitationToken,
-      invitationExpiresAt: invitationExpiry,
+      subscriptionTier: subscriptionTier,
+      isPromoUser: subscriptionTier === 'beta', // Beta users are promo users
+      accountStatus: useInvitationFlow ? 'pending' : 'active', // Active if password provided
       invitedBy: currentUser.id,
       createdBy: currentUser.id,
-    })
+    };
+
+    // Add invitation fields only if using invitation flow
+    if (useInvitationFlow) {
+      userValues.invitationToken = invitationToken;
+      userValues.invitationExpiresAt = invitationExpiry;
+    }
+
+    const [newUser] = await db.insert(users).values(userValues)
     .onConflictDoUpdate({
       target: users.id,
       set: {
@@ -191,11 +227,15 @@ export async function POST(request: NextRequest) {
         fullName,
         organizationId: organizationId || null,
         role: role,
-        accountStatus: 'pending',
-        invitationToken: invitationToken,
-        invitationExpiresAt: invitationExpiry,
+        subscriptionTier: subscriptionTier,
+        isPromoUser: subscriptionTier === 'beta',
+        accountStatus: useInvitationFlow ? 'pending' : 'active',
         invitedBy: currentUser.id,
         updatedAt: new Date(),
+        ...(useInvitationFlow ? {
+          invitationToken: invitationToken,
+          invitationExpiresAt: invitationExpiry,
+        } : {}),
       },
     })
     .returning();
@@ -218,41 +258,50 @@ export async function POST(request: NextRequest) {
 
     console.log(`📊 Logged audit event`);
 
-    // Send invitation email
-    const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/accept-invitation?token=${invitationToken}`;
-    
-    const emailData = {
-      recipientName: fullName,
-      recipientEmail: email,
-      invitationUrl: invitationUrl,
-      inviterName: currentUser.fullName || currentUser.email,
-      expiryDays: 7,
-    };
+    // Send invitation email only if using invitation flow
+    let emailResult = { success: false };
+    if (useInvitationFlow) {
+      const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/accept-invitation?token=${invitationToken}`;
 
-    const emailResult = await sendEmail({
-      to: email,
-      subject: getInvitationEmailSubject(emailData),
-      html: getInvitationEmailTemplate(emailData),
-    });
+      const emailData = {
+        recipientName: fullName,
+        recipientEmail: email,
+        invitationUrl: invitationUrl,
+        inviterName: currentUser.fullName || currentUser.email,
+        expiryDays: 7,
+      };
 
-    if (!emailResult.success) {
-      console.error('⚠️ Failed to send invitation email:', emailResult.error);
-      // Don't fail the request - user was created successfully
-    } else {
-      console.log(`✅ Invitation email sent to ${email}`);
+      emailResult = await sendEmail({
+        to: email,
+        subject: getInvitationEmailSubject(emailData),
+        html: getInvitationEmailTemplate(emailData),
+      });
+
+      if (!emailResult.success) {
+        console.error('⚠️ Failed to send invitation email:', emailResult.error);
+        // Don't fail the request - user was created successfully
+      } else {
+        console.log(`✅ Invitation email sent to ${email}`);
+      }
     }
+
+    const responseMessage = useInvitationFlow
+      ? `User created successfully. Invitation email sent to ${email}`
+      : `User created successfully with password. User can login immediately.`;
 
     return NextResponse.json({
       success: true,
-      message: `User created successfully. Invitation email sent to ${email}`,
+      message: responseMessage,
       user: {
         id: newUser.id,
         email: newUser.email,
         fullName: newUser.fullName,
         role: newUser.role,
+        subscriptionTier: newUser.subscriptionTier,
         accountStatus: newUser.accountStatus,
       },
       emailSent: emailResult.success,
+      requiresInvitation: useInvitationFlow,
     });
 
   } catch (error: any) {

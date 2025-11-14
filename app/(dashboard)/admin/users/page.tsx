@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Mail, Shield, Trash2, ArrowLeft, Search, MoreVertical, Ban, Key, UserX, CheckCircle, Edit, X, Crown, Zap, Sparkles, UserCog } from 'lucide-react';
+import { Users, Mail, Shield, Trash2, ArrowLeft, Search, MoreVertical, Ban, Key, UserX, CheckCircle, Edit, X, Crown, Zap, Sparkles, UserCog, UserPlus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
@@ -56,6 +56,8 @@ export default function UsersManagement() {
   const [saving, setSaving] = useState(false);
   const [impersonateConfirm, setImpersonateConfirm] = useState<{ userId: string; userEmail: string } | null>(null);
   const [impersonating, setImpersonating] = useState(false);
+  const [addUserModalOpen, setAddUserModalOpen] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
 
   // Toast notification state
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -67,6 +69,15 @@ export default function UsersManagement() {
     role: '',
     subscriptionTier: '',
     organizationId: '',
+  });
+
+  // Form state for adding new user
+  const [newUserForm, setNewUserForm] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    role: 'individual',
+    subscriptionTier: 'free',
   });
 
   // Helper function to get subscription tier badge
@@ -300,6 +311,45 @@ export default function UsersManagement() {
     }
   };
 
+  const handleCreateUser = async () => {
+    // Validate form
+    if (!newUserForm.email || !newUserForm.fullName || !newUserForm.password) {
+      showToast('error', 'Please fill in all required fields');
+      return;
+    }
+
+    setCreatingUser(true);
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUserForm),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        await fetchUsers();
+        setAddUserModalOpen(false);
+        setNewUserForm({
+          fullName: '',
+          email: '',
+          password: '',
+          role: 'individual',
+          subscriptionTier: 'free',
+        });
+        showToast('success', 'User created successfully');
+      } else {
+        showToast('error', data.error || 'Failed to create user');
+      }
+    } catch (error) {
+      console.error('Failed to create user:', error);
+      showToast('error', 'Failed to create user');
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
   const filteredUsers = users.filter(user =>
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (user.fullName?.toLowerCase() || '').includes(searchQuery.toLowerCase())
@@ -309,11 +359,17 @@ export default function UsersManagement() {
     <AdminLayout>
       <div className="p-8">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage user accounts, roles, and permissions
-          </p>
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">User Management</h1>
+            <p className="text-muted-foreground mt-2">
+              Manage user accounts, roles, and permissions
+            </p>
+          </div>
+          <Button onClick={() => setAddUserModalOpen(true)} size="lg">
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add User
+          </Button>
         </div>
 
         {/* Search */}
@@ -485,7 +541,7 @@ export default function UsersManagement() {
                           <DropdownMenuContent align="end" className="w-56">
                             <DropdownMenuLabel>User Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            
+
                             <DropdownMenuItem onClick={() => handleOpenEditModal(user)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Edit User Details
@@ -516,8 +572,8 @@ export default function UsersManagement() {
                             )}
 
                             <DropdownMenuSeparator />
-                            
-                            <DropdownMenuItem 
+
+                            <DropdownMenuItem
                               onClick={() => handleDeleteUser(user.id)}
                               className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
                             >
@@ -535,6 +591,175 @@ export default function UsersManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Add User Modal */}
+      <Dialog open={addUserModalOpen} onOpenChange={setAddUserModalOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+            <DialogDescription>
+              Create a new user account with specific role and subscription tier
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Full Name */}
+            <div className="space-y-2">
+              <Label htmlFor="newFullName">Full Name *</Label>
+              <Input
+                id="newFullName"
+                value={newUserForm.fullName}
+                onChange={(e) => setNewUserForm({ ...newUserForm, fullName: e.target.value })}
+                placeholder="Enter full name"
+                disabled={creatingUser}
+              />
+            </div>
+
+            {/* Email */}
+            <div className="space-y-2">
+              <Label htmlFor="newEmail">Email Address *</Label>
+              <Input
+                id="newEmail"
+                type="email"
+                value={newUserForm.email}
+                onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                placeholder="user@example.com"
+                disabled={creatingUser}
+              />
+            </div>
+
+            {/* Password */}
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Temporary Password *</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newUserForm.password}
+                onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                placeholder="Minimum 8 characters"
+                disabled={creatingUser}
+              />
+              <p className="text-xs text-muted-foreground">
+                User will be required to change password on first login
+              </p>
+            </div>
+
+            {/* Role */}
+            <div className="space-y-2">
+              <Label htmlFor="newRole">User Role *</Label>
+              <Select
+                value={newUserForm.role}
+                onValueChange={(value) => setNewUserForm({ ...newUserForm, role: value })}
+                disabled={creatingUser}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="platform_admin">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      <span>Platform Admin</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="org_admin">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-blue-500" />
+                      <span>Organization Admin</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="org_user">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span>Organization User</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="individual">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span>Individual User</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Defines user permissions and access level
+              </p>
+            </div>
+
+            {/* Subscription Tier */}
+            <div className="space-y-2">
+              <Label htmlFor="newSubscriptionTier">Subscription Plan *</Label>
+              <Select
+                value={newUserForm.subscriptionTier}
+                onValueChange={(value) => setNewUserForm({ ...newUserForm, subscriptionTier: value })}
+                disabled={creatingUser}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select subscription tier" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span>Free</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="starter">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-blue-500" />
+                      <span>Starter</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="pro">
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-4 w-4 text-purple-500" />
+                      <span>Pro</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="enterprise">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-orange-500" />
+                      <span>Enterprise</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="beta">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-yellow-500" />
+                      <span>Beta User (Unlimited)</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {newUserForm.subscriptionTier === 'beta' ? (
+                  <span className="text-yellow-600 dark:text-yellow-400 font-medium">
+                    Beta users have unlimited access to all features
+                  </span>
+                ) : (
+                  'Controls feature access and usage limits'
+                )}
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAddUserModalOpen(false)}
+              disabled={creatingUser}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateUser}
+              disabled={creatingUser}
+            >
+              {creatingUser ? 'Creating User...' : 'Create User'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit User Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
@@ -765,4 +990,3 @@ export default function UsersManagement() {
     </AdminLayout>
   );
 }
-
