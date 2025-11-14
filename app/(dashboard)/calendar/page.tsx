@@ -44,6 +44,7 @@ function CalendarContent() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [currentYear, setCurrentYear] = useState(new Date());
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const searchParams = useSearchParams();
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -112,18 +113,26 @@ function CalendarContent() {
     // Clear previous error
     setError(null);
 
-    // Validate account selection
+    // Validate account selection (only show errors after initial load)
     if (!selectedAccount) {
       setEvents([]);
       setLoading(false);
-      setError('Please select an account to view calendar events');
+      // Only show error if we've completed initial load
+      if (initialLoadDone) {
+        setError('Please select an account to view calendar events');
+      }
+      setInitialLoadDone(true);
       return;
     }
 
     if (!selectedAccount.nylasGrantId) {
       setEvents([]);
       setLoading(false);
-      setError('This account is not connected. Please reconnect your account to enable calendar access.');
+      // Only show error if we've completed initial load
+      if (initialLoadDone) {
+        setError('This account is not connected. Please reconnect your account to enable calendar access.');
+      }
+      setInitialLoadDone(true);
       return;
     }
 
@@ -149,15 +158,17 @@ function CalendarContent() {
       } else {
         throw new Error(data.error || 'Failed to fetch events');
       }
+      setInitialLoadDone(true);
     } catch (error) {
       console.error('Failed to fetch events:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to load calendar events';
       setError(errorMessage);
       setEvents([]);
+      setInitialLoadDone(true);
     } finally {
       setLoading(false);
     }
-  }, [currentMonth, selectedAccount]);
+  }, [currentMonth, selectedAccount, initialLoadDone]);
 
   useEffect(() => {
     fetchEvents();
