@@ -256,23 +256,23 @@ CREATE TABLE IF NOT EXISTS contact_groups (
 -- ============================================
 
 -- Primary lookups
-CREATE INDEX idx_contacts_v4_user_id ON contacts_v4(user_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_contacts_v4_account_id ON contacts_v4(account_id) WHERE is_deleted = FALSE;
-CREATE INDEX idx_contacts_v4_nylas_id ON contacts_v4(nylas_contact_id) WHERE nylas_contact_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_user_id ON contacts_v4(user_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_account_id ON contacts_v4(account_id) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_nylas_id ON contacts_v4(nylas_contact_id) WHERE nylas_contact_id IS NOT NULL;
 
 -- Display name search
-CREATE INDEX idx_contacts_v4_display_name ON contacts_v4(display_name) WHERE is_deleted = FALSE;
-CREATE INDEX idx_contacts_v4_surname ON contacts_v4(surname) WHERE is_deleted = FALSE;
-CREATE INDEX idx_contacts_v4_company ON contacts_v4(company_name) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_display_name ON contacts_v4(display_name) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_surname ON contacts_v4(surname) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_company ON contacts_v4(company_name) WHERE is_deleted = FALSE;
 
 -- JSONB searches (GIN indexes)
-CREATE INDEX idx_contacts_v4_emails_gin ON contacts_v4 USING GIN (emails);
-CREATE INDEX idx_contacts_v4_phones_gin ON contacts_v4 USING GIN (phone_numbers);
-CREATE INDEX idx_contacts_v4_groups_gin ON contacts_v4 USING GIN (groups);
-CREATE INDEX idx_contacts_v4_tags_gin ON contacts_v4 USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_emails_gin ON contacts_v4 USING GIN (emails);
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_phones_gin ON contacts_v4 USING GIN (phone_numbers);
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_groups_gin ON contacts_v4 USING GIN (groups);
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_tags_gin ON contacts_v4 USING GIN (tags);
 
 -- Full-text search
-CREATE INDEX idx_contacts_v4_fulltext ON contacts_v4 USING GIN (
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_fulltext ON contacts_v4 USING GIN (
     to_tsvector('english',
         COALESCE(display_name, '') || ' ' ||
         COALESCE(company_name, '') || ' ' ||
@@ -283,30 +283,30 @@ CREATE INDEX idx_contacts_v4_fulltext ON contacts_v4 USING GIN (
 ) WHERE is_deleted = FALSE;
 
 -- Sync status indexes
-CREATE INDEX idx_contacts_v4_sync_status ON contacts_v4(sync_status) WHERE sync_status != 'synced';
-CREATE INDEX idx_contacts_v4_last_synced ON contacts_v4(last_synced_at);
-CREATE INDEX idx_contacts_v4_updated_at ON contacts_v4(local_updated_at);
-CREATE INDEX idx_contacts_v4_favorite ON contacts_v4(is_favorite) WHERE is_favorite = TRUE;
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_sync_status ON contacts_v4(sync_status) WHERE sync_status != 'synced';
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_last_synced ON contacts_v4(last_synced_at);
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_updated_at ON contacts_v4(local_updated_at);
+CREATE INDEX IF NOT EXISTS idx_contacts_v4_favorite ON contacts_v4(is_favorite) WHERE is_favorite = TRUE;
 
 -- Sync state indexes
-CREATE INDEX idx_sync_state_account ON contact_sync_state(account_id);
-CREATE INDEX idx_sync_state_status ON contact_sync_state(sync_status);
-CREATE INDEX idx_sync_state_next_sync ON contact_sync_state(next_sync_scheduled) WHERE sync_enabled = TRUE;
+CREATE INDEX IF NOT EXISTS idx_sync_state_account_v4 ON contact_sync_state(account_id);
+CREATE INDEX IF NOT EXISTS idx_sync_state_status_v4 ON contact_sync_state(sync_status);
+CREATE INDEX IF NOT EXISTS idx_sync_state_next_sync_v4 ON contact_sync_state(next_sync_scheduled) WHERE sync_enabled = TRUE;
 
 -- Sync logs indexes
-CREATE INDEX idx_sync_logs_account ON contact_sync_logs(account_id, created_at DESC);
-CREATE INDEX idx_sync_logs_contact ON contact_sync_logs(contact_id);
-CREATE INDEX idx_sync_logs_status ON contact_sync_logs(status) WHERE status = 'error';
-CREATE INDEX idx_sync_logs_created ON contact_sync_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sync_logs_account_v4 ON contact_sync_logs(account_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sync_logs_contact_v4 ON contact_sync_logs(contact_id);
+CREATE INDEX IF NOT EXISTS idx_sync_logs_status_v4 ON contact_sync_logs(status) WHERE status = 'error';
+CREATE INDEX IF NOT EXISTS idx_sync_logs_created_v4 ON contact_sync_logs(created_at DESC);
 
 -- Conflict indexes
-CREATE INDEX idx_conflicts_user ON contact_conflicts(user_id) WHERE status = 'pending';
-CREATE INDEX idx_conflicts_contact ON contact_conflicts(contact_id);
-CREATE INDEX idx_conflicts_status ON contact_conflicts(status);
+CREATE INDEX IF NOT EXISTS idx_conflicts_user_v4 ON contact_conflicts(user_id) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_conflicts_contact_v4 ON contact_conflicts(contact_id);
+CREATE INDEX IF NOT EXISTS idx_conflicts_status_v4 ON contact_conflicts(status);
 
 -- Group indexes
-CREATE INDEX idx_groups_account ON contact_groups(account_id);
-CREATE INDEX idx_groups_name ON contact_groups(name);
+CREATE INDEX IF NOT EXISTS idx_groups_account_v4 ON contact_groups(account_id);
+CREATE INDEX IF NOT EXISTS idx_groups_name_v4 ON contact_groups(name);
 
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
