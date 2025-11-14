@@ -32,7 +32,7 @@ import { useToast } from '@/components/ui/use-toast';
 import type { ContactV4, NylasEmail, NylasPhoneNumber, NylasPhysicalAddress } from '@/lib/types/contacts-v4';
 import { formatDistanceToNow } from 'date-fns';
 import { calculateSMSSegments } from '@/lib/sms/character-counter';
-import { formatPhoneForDisplay } from '@/lib/utils/phone';
+import { formatPhoneForDisplay, formatPhoneForTwilio } from '@/lib/utils/phone';
 
 interface ContactDetailModalProps {
   isOpen: boolean;
@@ -68,6 +68,10 @@ export default function ContactDetailModal({
     segments?: number;
   } | null>(null);
 
+  // Error states for inline display
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [favoriteError, setFavoriteError] = useState<string | null>(null);
+
   // Fetch contact details
   useEffect(() => {
     if (isOpen && contactId) {
@@ -75,7 +79,7 @@ export default function ContactDetailModal({
     }
   }, [isOpen, contactId]);
 
-  // Reset SMS form when modal closes
+  // Reset SMS form and errors when modal closes
   useEffect(() => {
     if (!isOpen) {
       setShowSMSForm(false);
@@ -84,6 +88,8 @@ export default function ContactDetailModal({
       setSMSError(null);
       setSMSSuccess(false);
       setTwilioDetails(null);
+      setDeleteError(null);
+      setFavoriteError(null);
     }
   }, [isOpen]);
 
@@ -100,11 +106,7 @@ export default function ContactDetailModal({
       }
     } catch (error) {
       console.error('Failed to fetch contact:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load contact details',
-        variant: 'destructive'
-      });
+      // Close modal if contact can't be loaded
       onClose();
     } finally {
       setLoading(false);
@@ -113,6 +115,8 @@ export default function ContactDetailModal({
 
   const handleToggleFavorite = async () => {
     if (!contact) return;
+
+    setFavoriteError(null);
 
     try {
       const response = await fetch(`/api/contacts-v4/${contactId}`, {
@@ -128,19 +132,12 @@ export default function ContactDetailModal({
 
       if (data.success) {
         setContact({ ...contact, isFavorite: !contact.isFavorite });
-        toast({
-          title: contact.isFavorite ? 'Removed from favorites' : 'Added to favorites',
-        });
       } else {
         throw new Error(data.error || 'Failed to update favorite status');
       }
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update favorite status',
-        variant: 'destructive'
-      });
+      setFavoriteError(error instanceof Error ? error.message : 'Failed to update favorite status');
     }
   };
 
@@ -148,6 +145,8 @@ export default function ContactDetailModal({
     if (!confirm('Are you sure you want to delete this contact? This action cannot be undone.')) {
       return;
     }
+
+    setDeleteError(null);
 
     try {
       const response = await fetch(`/api/contacts-v4/${contactId}`, {
@@ -157,10 +156,6 @@ export default function ContactDetailModal({
       const data = await response.json();
 
       if (data.success) {
-        toast({
-          title: 'Contact deleted',
-          description: 'Contact has been deleted successfully',
-        });
         onDeleted?.();
         onClose();
       } else {
@@ -168,11 +163,7 @@ export default function ContactDetailModal({
       }
     } catch (error) {
       console.error('Failed to delete contact:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete contact',
-        variant: 'destructive'
-      });
+      setDeleteError(error instanceof Error ? error.message : 'Failed to delete contact');
     }
   };
 
@@ -366,7 +357,7 @@ export default function ContactDetailModal({
 
                 {/* Primary Contact */}
                 <p className="text-sm text-muted-foreground">
-                  {primaryEmail?.email || primaryPhone?.number || 'No contact info'}
+                  {primaryEmail?.email || (primaryPhone ? formatPhoneForTwilio(primaryPhone.number) : 'No contact info')}
                 </p>
 
                 {/* Tags */}
@@ -434,6 +425,38 @@ export default function ContactDetailModal({
           </TabsList>
 
           <div className="flex-1 overflow-y-auto p-6">
+            {/* Error Messages */}
+            {(deleteError || favoriteError) && (
+              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    {deleteError && (
+                      <p className="text-sm text-red-700 dark:text-red-300 font-medium">
+                        Delete Error: {deleteError}
+                      </p>
+                    )}
+                    {favoriteError && (
+                      <p className="text-sm text-red-700 dark:text-red-300 font-medium">
+                        Favorite Error: {favoriteError}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDeleteError(null);
+                      setFavoriteError(null);
+                    }}
+                    className="flex-shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* SMS FORM (shown when showSMSForm is true) */}
             {showSMSForm && (
               <div className="mb-6 p-6 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg space-y-4">
@@ -644,10 +667,10 @@ export default function ContactDetailModal({
                         <div key={index} className="flex items-center gap-2">
                           <Badge variant="outline">{phone.type || 'other'}</Badge>
                           <a
-                            href={`tel:${phone.number}`}
+                            href={`tel:${formatPhoneForTwilio(phone.number)}`}
                             className="text-sm hover:underline"
                           >
-                            {phone.number}
+                            {formatPhoneForTwilio(phone.number)}
                           </a>
                         </div>
                       ))}

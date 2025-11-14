@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { getInitials, generateAvatarColor, cn } from '@/lib/utils';
 import { getAccountColor } from '@/lib/utils/account-colors';
+import { formatPhoneForTwilio } from '@/lib/utils/phone';
 import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
@@ -979,7 +980,7 @@ function ContactCard({ contact, onDelete, onToggleFavorite, onEdit, onSendSMS, i
             <p className="text-sm text-muted-foreground mb-1">{contact.company_name}</p>
           )}
           <p className="text-sm text-muted-foreground mb-3">
-            {contact.primary_email || contact.primary_phone || 'No contact info'}
+            {contact.primary_email || (contact.primary_phone ? formatPhoneForTwilio(contact.primary_phone) : 'No contact info')}
           </p>
 
           {/* Tags */}
@@ -1039,7 +1040,7 @@ function ContactCard({ contact, onDelete, onToggleFavorite, onEdit, onSendSMS, i
               onClick={(e) => {
                 e.stopPropagation();
                 if (contact.primary_phone) {
-                  onSendSMS(contact.id, contact.display_name, contact.primary_phone);
+                  onSendSMS(contact.id, contact.display_name, formatPhoneForTwilio(contact.primary_phone));
                 }
               }}
             >
@@ -1152,7 +1153,7 @@ function ContactListItem({ contact, onDelete, onToggleFavorite, onEdit, onSendSM
               </Button>
             </div>
             <p className="text-sm text-muted-foreground truncate">
-              {contact.primary_email || contact.primary_phone || 'No contact info'}
+              {contact.primary_email || (contact.primary_phone ? formatPhoneForTwilio(contact.primary_phone) : 'No contact info')}
             </p>
             {(contact.job_title || contact.company_name) && (
               <p className="text-xs text-muted-foreground truncate">
@@ -1206,7 +1207,7 @@ function ContactListItem({ contact, onDelete, onToggleFavorite, onEdit, onSendSM
               onClick={(e) => {
                 e.stopPropagation();
                 if (contact.primary_phone) {
-                  onSendSMS(contact.id, contact.display_name, contact.primary_phone);
+                  onSendSMS(contact.id, contact.display_name, formatPhoneForTwilio(contact.primary_phone));
                 }
               }}
             >
