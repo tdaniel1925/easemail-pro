@@ -11,12 +11,12 @@ import * as schema from './schema';
 const connectionString = process.env.DATABASE_URL!;
 
 // ✅ CRITICAL FIX: Optimized connection pool for serverless + webhook volume
-// Supabase Pooler (Transaction Mode) has connection limits - we need to be conservative
+// Supabase Session Mode has strict connection limits - MUST be very conservative
 const queryClient = postgres(connectionString, {
-  max: 10, // ✅ REDUCED: Lower connection limit for serverless (prevents exhaustion)
-  idle_timeout: 20, // ✅ REDUCED: Release idle connections faster in serverless
-  connect_timeout: 30, // ✅ INCREASED: Allow more time for pooler connections (handles bursts better)
-  max_lifetime: 60 * 5, // ✅ REDUCED: Rotate connections every 5 min (prevents stale connections)
+  max: 1, // ✅ CRITICAL: Session mode requires minimal connections per serverless function
+  idle_timeout: 10, // ✅ Release connections very quickly (serverless is stateless)
+  connect_timeout: 30, // Allow time for pooler connections
+  max_lifetime: 60 * 2, // Rotate connections every 2 min (prevent stale connections)
   fetch_types: false, // Better performance
   prepare: false, // REQUIRED for pgbouncer/pooler mode
   onnotice: () => {}, // Suppress PostgreSQL notices
