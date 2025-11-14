@@ -10,7 +10,10 @@ import WeekView from '@/components/calendar/WeekView';
 import DayView from '@/components/calendar/DayView';
 import AgendaView from '@/components/calendar/AgendaView';
 import DraggableMonthView from '@/components/calendar/DraggableMonthView';
+import YearView from '@/components/calendar/YearView';
+import ListView from '@/components/calendar/ListView';
 import QuickAdd from '@/components/calendar/QuickAdd';
+import EventSearch from '@/components/calendar/EventSearch';
 import { CalendarFilters } from '@/components/calendar/CalendarFilters';
 import { cn } from '@/lib/utils';
 import { CalendarSkeleton } from '@/components/ui/skeleton';
@@ -18,7 +21,7 @@ import { useAccount } from '@/contexts/AccountContext';
 import AccountSwitcher from '@/components/account/AccountSwitcher';
 import { useToast } from '@/components/ui/use-toast';
 
-type ViewType = 'month' | 'week' | 'day' | 'agenda';
+type ViewType = 'month' | 'week' | 'day' | 'agenda' | 'year' | 'list';
 
 function CalendarContent() {
   const { selectedAccount } = useAccount();
@@ -38,6 +41,9 @@ function CalendarContent() {
   const [selectedCalendarTypes, setSelectedCalendarTypes] = useState<string[]>([
     'personal', 'work', 'family', 'holiday', 'birthday', 'meeting', 'task'
   ]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [currentYear, setCurrentYear] = useState(new Date());
   const searchParams = useSearchParams();
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -53,15 +59,35 @@ function CalendarContent() {
 
   const { firstDay, daysInMonth } = getDaysInMonth(currentMonth);
 
-  // Filter events based on selected calendar types
+  // Filter events based on selected calendar types and search
   const filteredEvents = useMemo(() => {
+    // Use search results if search is active
+    const baseEvents = isSearchActive ? searchResults : events;
+
     if (selectedCalendarTypes.length === 0) return [];
 
-    return events.filter(event => {
+    return baseEvents.filter(event => {
       const eventType = event.calendarType || 'personal';
       return selectedCalendarTypes.includes(eventType);
     });
-  }, [events, selectedCalendarTypes]);
+  }, [events, searchResults, isSearchActive, selectedCalendarTypes]);
+
+  // Handle search results
+  const handleSearchResults = useCallback((results: any[]) => {
+    setSearchResults(results);
+    setIsSearchActive(results.length !== events.length || results.length === 0);
+  }, [events.length]);
+
+  // Go to today
+  const goToToday = useCallback(() => {
+    const today = new Date();
+    setCurrentMonth(today);
+    setCurrentDate(today);
+    setCurrentYear(today);
+    if (view === 'month' || view === 'week' || view === 'day') {
+      setCurrentMonth(today);
+    }
+  }, [view]);
 
   // Get available calendar types from current events
   const availableTypes = useMemo(() => {
@@ -360,6 +386,16 @@ function CalendarContent() {
             </div>
           </div>
           <div className="flex gap-2">
+            {/* Today Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToToday}
+              className="font-medium"
+            >
+              Today
+            </Button>
+
             {/* View selector */}
             <div className="flex gap-1 border border-border rounded-lg p-1">
               <Button
@@ -384,11 +420,25 @@ function CalendarContent() {
                 Day
               </Button>
               <Button
+                variant={view === 'year' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setView('year')}
+              >
+                Year
+              </Button>
+              <Button
                 variant={view === 'agenda' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setView('agenda')}
               >
                 Agenda
+              </Button>
+              <Button
+                variant={view === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setView('list')}
+              >
+                List
               </Button>
             </div>
 
@@ -416,6 +466,14 @@ function CalendarContent() {
               New Event
             </Button>
           </div>
+        </div>
+
+        {/* Event Search */}
+        <div className="mb-4">
+          <EventSearch
+            events={events}
+            onResultsChange={handleSearchResults}
+          />
         </div>
 
         {/* Error Banner */}
@@ -510,6 +568,33 @@ function CalendarContent() {
               {view === 'agenda' && (
                 <AgendaView
                   events={filteredEvents}
+                  onEventClick={(event) => {
+                    setSelectedEvent(event);
+                    setIsEventDetailsOpen(true);
+                  }}
+                />
+              )}
+
+              {view === 'year' && (
+                <YearView
+                  currentYear={currentYear}
+                  events={filteredEvents}
+                  onDateClick={(date) => {
+                    setCurrentMonth(date);
+                    setCurrentDate(date);
+                    setView('month');
+                  }}
+                  onEventClick={(event) => {
+                    setSelectedEvent(event);
+                    setIsEventDetailsOpen(true);
+                  }}
+                />
+              )}
+
+              {view === 'list' && (
+                <ListView
+                  events={filteredEvents}
+                  currentDate={currentDate}
                   onEventClick={(event) => {
                     setSelectedEvent(event);
                     setIsEventDetailsOpen(true);
