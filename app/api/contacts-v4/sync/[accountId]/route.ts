@@ -139,7 +139,7 @@ async function streamingSync(accountId: string, forceFullSync: boolean) {
 
         const { data: account, error: accountError } = await supabase
           .from('email_accounts')
-          .select('id, nylas_grant_id, email, user_id')
+          .select('id, nylas_grant_id, email_address, user_id')
           .eq('id', accountId)
           .single();
 
@@ -173,11 +173,11 @@ async function streamingSync(accountId: string, forceFullSync: boolean) {
           return;
         }
 
-        console.log('✅ [SSE Sync] Account found:', account.email, 'grant_id:', account.nylas_grant_id);
+        console.log('✅ [SSE Sync] Account found:', account.email_address, 'grant_id:', account.nylas_grant_id);
 
         // Determine provider from email domain
-        const provider = account.email?.includes('@gmail.com') ||
-          account.email?.includes('@googlemail.com')
+        const provider = account.email_address?.includes('@gmail.com') ||
+          account.email_address?.includes('@googlemail.com')
           ? 'google'
           : 'microsoft';
 
@@ -244,7 +244,7 @@ async function regularSync(accountId: string, forceFullSync: boolean) {
     // Get account details
     const { data: account } = await supabase
       .from('email_accounts')
-      .select('nylas_grant_id, email')
+      .select('nylas_grant_id, email_address')
       .eq('id', accountId)
       .single();
 
@@ -256,8 +256,8 @@ async function regularSync(accountId: string, forceFullSync: boolean) {
     }
 
     // Determine provider from email domain
-    const provider = account.email?.includes('@gmail.com') ||
-      account.email?.includes('@googlemail.com')
+    const provider = account.email_address?.includes('@gmail.com') ||
+      account.email_address?.includes('@googlemail.com')
       ? 'google'
       : 'microsoft';
 

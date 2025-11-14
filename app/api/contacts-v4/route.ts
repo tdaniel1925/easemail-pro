@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
     // Get account details for nylas_grant_id
     const { data: account } = await supabase
       .from('email_accounts')
-      .select('nylas_grant_id, email')
+      .select('nylas_grant_id, email_address')
       .eq('id', account_id)
       .single();
 
@@ -176,8 +176,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine provider
-    const provider = account.email?.includes('@gmail.com') ||
-      account.email?.includes('@googlemail.com')
+    const provider = account.email_address?.includes('@gmail.com') ||
+      account.email_address?.includes('@googlemail.com')
       ? 'google'
       : 'microsoft';
 
