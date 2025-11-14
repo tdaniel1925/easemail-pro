@@ -95,12 +95,7 @@ function CalendarContent() {
     if (!selectedAccount.nylasGrantId) {
       setEvents([]);
       setLoading(false);
-      setError('This account is not connected. Please reconnect your account.');
-      toast({
-        title: 'Account Not Connected',
-        description: 'Please reconnect your account to view calendar events.',
-        variant: 'destructive',
-      });
+      setError('This account is not connected. Please reconnect your account to enable calendar access.');
       return;
     }
 
@@ -130,16 +125,11 @@ function CalendarContent() {
       console.error('Failed to fetch events:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to load calendar events';
       setError(errorMessage);
-      toast({
-        title: 'Error Loading Events',
-        description: errorMessage,
-        variant: 'destructive',
-      });
       setEvents([]);
     } finally {
       setLoading(false);
     }
-  }, [currentMonth, selectedAccount, toast]);
+  }, [currentMonth, selectedAccount]);
 
   useEffect(() => {
     fetchEvents();
