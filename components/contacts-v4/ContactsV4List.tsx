@@ -466,14 +466,41 @@ export default function ContactsV4List() {
     }
   };
 
-  // Bulk selection
-  const toggleSelectAll = () => {
+  // Bulk selection - select ALL contacts in database (not just visible)
+  const toggleSelectAll = async () => {
     if (isAllSelected) {
       setSelectedContactIds(new Set());
       setIsAllSelected(false);
     } else {
-      setSelectedContactIds(new Set(contacts.map(c => c.id)));
-      setIsAllSelected(true);
+      try {
+        // Fetch all contact IDs from the database
+        const params = new URLSearchParams();
+        if (selectedAccountId !== 'all') {
+          params.set('accountId', selectedAccountId);
+        }
+        if (searchQuery.trim()) {
+          params.set('search', searchQuery.trim());
+        }
+
+        const response = await fetch(`/api/contacts-v4/all-ids?${params.toString()}`);
+        const data = await response.json();
+
+        if (data.ids) {
+          setSelectedContactIds(new Set(data.ids));
+          setIsAllSelected(true);
+          toast({
+            title: 'All contacts selected',
+            description: `Selected all ${data.total.toLocaleString()} contacts`,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to select all contacts:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to select all contacts',
+          variant: 'destructive'
+        });
+      }
     }
   };
 
@@ -710,7 +737,7 @@ export default function ContactsV4List() {
             <Button
               variant="outline"
               onClick={toggleSelectAll}
-              disabled={contacts.length === 0}
+              disabled={total === 0}
             >
               {isAllSelected ? (
                 <>
@@ -720,7 +747,7 @@ export default function ContactsV4List() {
               ) : (
                 <>
                   <CheckSquare className="h-4 w-4 mr-2" />
-                  Select All
+                  Select All {total.toLocaleString()} Contacts
                 </>
               )}
             </Button>
