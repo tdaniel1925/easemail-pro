@@ -65,18 +65,25 @@ export async function GET(request: NextRequest) {
     // Apply search if provided
     if (search) {
       const searchLower = search.toLowerCase();
+      // Match only at the beginning of words (start of string or after space)
       query = db.query.contactsV4.findMany({
         where: and(
           ...conditions,
           or(
-            ilike(contactsV4.displayName, `%${searchLower}%`),
-            ilike(contactsV4.givenName, `%${searchLower}%`),
-            ilike(contactsV4.surname, `%${searchLower}%`),
-            ilike(contactsV4.companyName, `%${searchLower}%`),
-            ilike(contactsV4.jobTitle, `%${searchLower}%`),
+            // Match at start of display name or after a space
+            sql`LOWER(${contactsV4.displayName}) ~ ${`(^|\\s)${searchLower}`}`,
+            // Match at start of given name or after a space
+            sql`LOWER(${contactsV4.givenName}) ~ ${`(^|\\s)${searchLower}`}`,
+            // Match at start of surname or after a space
+            sql`LOWER(${contactsV4.surname}) ~ ${`(^|\\s)${searchLower}`}`,
+            // Match at start of company name or after a space
+            sql`LOWER(${contactsV4.companyName}) ~ ${`(^|\\s)${searchLower}`}`,
+            // Match at start of job title or after a space
+            sql`LOWER(${contactsV4.jobTitle}) ~ ${`(^|\\s)${searchLower}`}`,
+            // Match emails at the start (before @)
             sql`EXISTS (
               SELECT 1 FROM jsonb_array_elements(${contactsV4.emails}) AS email_obj
-              WHERE LOWER(email_obj->>'email') LIKE ${`%${searchLower}%`}
+              WHERE LOWER(email_obj->>'email') ~ ${`^${searchLower}`}
             )`
           )
         ),
