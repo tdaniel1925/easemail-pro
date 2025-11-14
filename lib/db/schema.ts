@@ -907,17 +907,40 @@ export const calendarSyncState = pgTable('calendar_sync_state', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   emailAccountId: uuid('email_account_id').references(() => emailAccounts.id, { onDelete: 'cascade' }),
-  
+
   provider: varchar('provider', { length: 50 }).notNull(),
   calendarId: varchar('calendar_id', { length: 255 }),
-  
+
+  // Sync timing
   lastSyncAt: timestamp('last_sync_at'),
-  syncToken: text('sync_token'),
-  pageToken: text('page_token'),
-  
-  syncStatus: varchar('sync_status', { length: 50 }).default('idle'),
+  lastSuccessfulSync: timestamp('last_successful_sync'),
+  lastSyncAttempt: timestamp('last_sync_attempt'),
+
+  // Pagination tokens
+  syncToken: text('sync_token'), // For Google/Microsoft delta sync
+  pageToken: text('page_token'), // For legacy pagination
+  lastSyncCursor: text('last_sync_cursor'), // For Nylas cursor-based pagination
+
+  // Sync status
+  syncStatus: varchar('sync_status', { length: 50 }).default('idle'), // 'idle', 'syncing', 'error', 'paused'
   lastError: text('last_error'),
-  
+
+  // Statistics (matching contacts-v4)
+  totalEvents: integer('total_events').default(0),
+  syncedEvents: integer('synced_events').default(0),
+  pendingEvents: integer('pending_events').default(0),
+  errorEvents: integer('error_events').default(0),
+
+  // Progress tracking (matching contacts-v4)
+  progressCurrent: integer('progress_current').default(0),
+  progressTotal: integer('progress_total').default(0),
+  progressPercentage: integer('progress_percentage').default(0),
+  currentOperation: varchar('current_operation', { length: 255 }),
+
+  // Configuration
+  syncEnabled: boolean('sync_enabled').default(true),
+  autoSync: boolean('auto_sync').default(true),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
