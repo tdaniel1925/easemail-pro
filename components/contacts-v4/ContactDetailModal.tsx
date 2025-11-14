@@ -277,10 +277,9 @@ export default function ContactDetailModal({
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="metadata">Metadata</TabsTrigger>
           </TabsList>
 
           <div className="flex-1 overflow-y-auto p-6">
@@ -491,71 +490,6 @@ export default function ContactDetailModal({
                   </div>
                 </div>
               )}
-            </TabsContent>
-
-            {/* METADATA TAB */}
-            <TabsContent value="metadata" className="space-y-6 mt-0">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  System Information
-                </h3>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <InfoField label="Contact ID" value={contact.id} mono />
-                  <InfoField label="Account ID" value={contact.account_id} mono />
-                  <InfoField label="Provider" value={contact.provider} />
-                  <InfoField label="Source" value={contact.source} />
-                  <InfoField label="Sync Status" value={contact.sync_status.replace('_', ' ')} />
-                  <InfoField label="Version" value={contact.version.toString()} />
-
-                  {contact.nylas_contact_id && (
-                    <InfoField label="Nylas Contact ID" value={contact.nylas_contact_id} mono />
-                  )}
-
-                  {contact.nylas_grant_id && (
-                    <InfoField label="Nylas Grant ID" value={contact.nylas_grant_id} mono />
-                  )}
-
-                  <InfoField
-                    label="Created"
-                    value={formatDistanceToNow(new Date(contact.created_at), { addSuffix: true })}
-                  />
-
-                  <InfoField
-                    label="Updated"
-                    value={formatDistanceToNow(new Date(contact.updated_at), { addSuffix: true })}
-                  />
-
-                  {contact.last_synced_at && (
-                    <InfoField
-                      label="Last Synced"
-                      value={formatDistanceToNow(new Date(contact.last_synced_at), { addSuffix: true })}
-                    />
-                  )}
-
-                  {contact.local_updated_at && (
-                    <InfoField
-                      label="Local Updated"
-                      value={formatDistanceToNow(new Date(contact.local_updated_at), { addSuffix: true })}
-                    />
-                  )}
-
-                  {contact.remote_updated_at && (
-                    <InfoField
-                      label="Remote Updated"
-                      value={formatDistanceToNow(new Date(contact.remote_updated_at), { addSuffix: true })}
-                    />
-                  )}
-                </div>
-
-                {contact.sync_error && (
-                  <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-                    <p className="text-sm font-medium text-destructive mb-1">Sync Error</p>
-                    <p className="text-sm text-muted-foreground">{contact.sync_error}</p>
-                  </div>
-                )}
-              </div>
             </TabsContent>
           </div>
         </Tabs>
