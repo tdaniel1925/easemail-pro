@@ -457,6 +457,7 @@ export class CalendarSyncService {
 
   /**
    * Transform Nylas event to local format
+   * Now captures ALL event data including reminders, metadata, busy status, and organizer name
    */
   private transformFromNylas(nylas: NylasEvent): any {
     // Parse event times
@@ -483,6 +484,27 @@ export class CalendarSyncService {
       endTime = new Date(startTime.getTime() + 3600000); // 1 hour
     }
 
+    // Transform attendees to include full participant data
+    const attendees = nylas.participants?.map(p => ({
+      email: p.email,
+      name: p.name || null,
+      status: (p.status as 'accepted' | 'declined' | 'maybe' | 'pending') || 'pending',
+    })) || [];
+
+    // Transform reminders to our format
+    const reminders = nylas.reminders?.map((reminder: any) => ({
+      type: reminder.type || 'popup',
+      minutesBefore: reminder.minutes || 0,
+    })) || [];
+
+    // Build metadata object with additional Nylas data
+    const metadata: Record<string, any> = {
+      ...nylas.metadata,
+      nylasCreatedAt: nylas.created_at ? new Date(nylas.created_at * 1000).toISOString() : null,
+      nylasUpdatedAt: nylas.updated_at ? new Date(nylas.updated_at * 1000).toISOString() : null,
+      nylasGrantId: nylas.grant_id,
+    };
+
     const baseData = {
       title: nylas.title || '(No title)',
       description: nylas.description || null,
@@ -495,8 +517,12 @@ export class CalendarSyncService {
       timezone,
       calendarType: 'personal' as const,
       status: nylas.status === 'cancelled' ? 'cancelled' as const : 'confirmed' as const,
-      attendees: nylas.participants || [],
+      attendees,
       organizerEmail: nylas.organizer?.email || null,
+      // Enhanced fields
+      reminders,
+      metadata,
+      isPrivate: nylas.busy === false, // If not busy, likely private time block
     };
 
     // Add provider-specific fields
