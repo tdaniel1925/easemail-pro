@@ -19,7 +19,9 @@ import {
   Briefcase,
   Home,
   AlertCircle,
-  Clock
+  Clock,
+  Send,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -29,7 +31,8 @@ import { getInitials, generateAvatarColor, cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import type { ContactV4, NylasEmail, NylasPhoneNumber, NylasPhysicalAddress } from '@/lib/types/contacts-v4';
 import { formatDistanceToNow } from 'date-fns';
-import { SMSModal } from '@/components/sms/SMSModal';
+import { calculateSMSSegments } from '@/lib/sms/character-counter';
+import { formatPhoneForDisplay } from '@/lib/utils/phone';
 
 interface ContactDetailModalProps {
   isOpen: boolean;
@@ -50,8 +53,20 @@ export default function ContactDetailModal({
   const [loading, setLoading] = useState(true);
   const [contact, setContact] = useState<ContactV4 | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
-  const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
-  const [smsContact, setSMSContact] = useState<{ id: string; name: string; phoneNumber: string } | null>(null);
+
+  // SMS form state
+  const [showSMSForm, setShowSMSForm] = useState(false);
+  const [smsMessage, setSMSMessage] = useState('');
+  const [smsPhoneNumber, setSMSPhoneNumber] = useState('');
+  const [isSendingSMS, setIsSendingSMS] = useState(false);
+  const [smsError, setSMSError] = useState<string | null>(null);
+  const [smsSuccess, setSMSSuccess] = useState(false);
+  const [twilioDetails, setTwilioDetails] = useState<{
+    sid?: string;
+    status?: string;
+    cost?: number;
+    segments?: number;
+  } | null>(null);
 
   // Fetch contact details
   useEffect(() => {
@@ -59,6 +74,18 @@ export default function ContactDetailModal({
       fetchContact();
     }
   }, [isOpen, contactId]);
+
+  // Reset SMS form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setShowSMSForm(false);
+      setSMSMessage('');
+      setSMSPhoneNumber('');
+      setSMSError(null);
+      setSMSSuccess(false);
+      setTwilioDetails(null);
+    }
+  }, [isOpen]);
 
   const fetchContact = async () => {
     try {
@@ -161,17 +188,123 @@ export default function ContactDetailModal({
 
   const handleSendSMS = (phoneNumber: string) => {
     if (!contact) return;
-    setSMSContact({
-      id: contact.id,
-      name: contact.displayName,
-      phoneNumber
-    });
-    setIsSMSModalOpen(true);
+    setSMSPhoneNumber(phoneNumber);
+    setShowSMSForm(true);
+    setSMSError(null);
+    setSMSSuccess(false);
+    setTwilioDetails(null);
   };
 
-  const handleCloseSMS = () => {
-    setIsSMSModalOpen(false);
-    setSMSContact(null);
+  const handleCloseSMSForm = () => {
+    setShowSMSForm(false);
+    setSMSMessage('');
+    setSMSPhoneNumber('');
+    setSMSError(null);
+    setSMSSuccess(false);
+    setTwilioDetails(null);
+  };
+
+  const handleSendSMSMessage = async () => {
+    if (!contact || !smsMessage.trim()) {
+      setSMSError('Please enter a message');
+      return;
+    }
+
+    const segments = calculateSMSSegments(smsMessage);
+    const maxSegments = 10;
+
+    if (segments.messageCount > maxSegments) {
+      setSMSError(`Message exceeds ${maxSegments} segment limit`);
+      return;
+    }
+
+    setIsSendingSMS(true);
+    setSMSError(null);
+    setTwilioDetails(null);
+
+    try {
+      console.log('🚀 Sending SMS to:', smsPhoneNumber);
+      console.log('📤 Request payload:', {
+        contactId: contact.id,
+        toPhone: smsPhoneNumber,
+        messageLength: smsMessage.trim().length,
+      });
+
+      const response = await fetch('/api/sms/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contactId: contact.id,
+          toPhone: smsPhoneNumber,
+          message: smsMessage.trim(),
+        }),
+      });
+
+      console.log('📡 Response status:', response.status, response.statusText);
+
+      const responseText = await response.text();
+      console.log('📄 Raw response text:', responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log('[SMS] Parsed response data:', data);
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError);
+        setSMSError('Failed to parse server response');
+        return;
+      }
+
+      const isSuccess = (
+        response.ok &&
+        (data.success === true || data.success === 'true') &&
+        (data.twilioSid || data.smsId)
+      );
+
+      console.log('🔍 Success check:', {
+        responseOk: response.ok,
+        dataSuccess: data.success,
+        hasTwilioSid: !!data.twilioSid,
+        hasSmsId: !!data.smsId,
+        finalResult: isSuccess,
+      });
+
+      if (isSuccess) {
+        console.log('[SMS] SMS sent successfully!');
+
+        setTwilioDetails({
+          sid: data.twilioSid,
+          status: data.status || 'queued',
+          cost: data.cost,
+          segments: data.segments,
+        });
+
+        setSMSSuccess(true);
+        toast({
+          title: 'SMS sent successfully!',
+          description: `Message sent to ${formatPhoneForDisplay(smsPhoneNumber)}`,
+        });
+
+        // Auto-close SMS form after 3 seconds
+        setTimeout(() => {
+          handleCloseSMSForm();
+        }, 3000);
+      } else {
+        console.error('❌ SMS send failed - Response details:', {
+          status: response.status,
+          ok: response.ok,
+          dataSuccess: data.success,
+          data: data,
+        });
+        setSMSError(data.error || data.details || data.message || `Failed: ${response.status} ${response.statusText}`);
+      }
+    } catch (err: any) {
+      console.error('❌ Network/Runtime error:', err);
+      console.error('Error stack:', err.stack);
+      setSMSError(err.message || 'Network error - please check your connection');
+    } finally {
+      setIsSendingSMS(false);
+    }
   };
 
   if (loading || !contact) {
@@ -246,16 +379,6 @@ export default function ContactDetailModal({
                     ))}
                   </div>
                 )}
-
-                {/* Sync Status */}
-                {contact.syncStatus !== 'synced' && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-yellow-500" />
-                    <span className="text-sm text-yellow-600">
-                      {contact.syncStatus.replace('_', ' ')}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -311,6 +434,153 @@ export default function ContactDetailModal({
           </TabsList>
 
           <div className="flex-1 overflow-y-auto p-6">
+            {/* SMS FORM (shown when showSMSForm is true) */}
+            {showSMSForm && (
+              <div className="mb-6 p-6 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                      <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        Send SMS
+                      </h3>
+                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                        <Phone className="h-3.5 w-3.5" />
+                        <span>{formatPhoneForDisplay(smsPhoneNumber)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCloseSMSForm}
+                    disabled={isSendingSMS}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Message Input */}
+                <div>
+                  <textarea
+                    value={smsMessage}
+                    onChange={(e) => setSMSMessage(e.target.value)}
+                    placeholder="Type your message..."
+                    className={`w-full h-32 px-4 py-3 bg-white dark:bg-gray-800 border ${
+                      calculateSMSSegments(smsMessage).messageCount > 10
+                        ? 'border-red-300 dark:border-red-700'
+                        : 'border-gray-300 dark:border-gray-700'
+                    } rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500`}
+                    disabled={isSendingSMS || smsSuccess}
+                  />
+
+                  {/* Character Counter */}
+                  <div className="flex items-center justify-between mt-2 text-xs">
+                    <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+                      <span>
+                        {calculateSMSSegments(smsMessage).characterCount} / {calculateSMSSegments(smsMessage).charsPerSegment * calculateSMSSegments(smsMessage).messageCount} chars
+                      </span>
+                      <span className={calculateSMSSegments(smsMessage).messageCount > 10 ? 'text-red-600 dark:text-red-400 font-medium' : ''}>
+                        {calculateSMSSegments(smsMessage).messageCount} segment{calculateSMSSegments(smsMessage).messageCount !== 1 ? 's' : ''}
+                      </span>
+                      <span className="text-gray-400">
+                        {calculateSMSSegments(smsMessage).encoding === 'GSM-7' ? 'GSM-7' : 'Unicode'}
+                      </span>
+                    </div>
+                    <div className="font-medium text-gray-900 dark:text-white">
+                      ${(calculateSMSSegments(smsMessage).messageCount * 0.05).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Error Message */}
+                {smsError && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+                    <p className="text-sm text-red-700 dark:text-red-300">{smsError}</p>
+                  </div>
+                )}
+
+                {/* Success Message */}
+                {smsSuccess && twilioDetails && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                          SMS sent successfully!
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                          Status: {twilioDetails.status} • SID: {twilioDetails.sid?.slice(-8)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Twilio Details */}
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-1">Delivery Details:</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-blue-700 dark:text-blue-300">
+                        <div>
+                          <span className="font-medium">Segments:</span> {twilioDetails.segments || 1}
+                        </div>
+                        <div>
+                          <span className="font-medium">Cost:</span> ${twilioDetails.cost?.toFixed(4) || '0.05'}
+                        </div>
+                        <div className="col-span-2">
+                          <span className="font-medium">Twilio SID:</span> {twilioDetails.sid}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Info Note */}
+                {!smsError && !smsSuccess && (
+                  <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      Messages over 160 characters are split into multiple SMS. Emojis count as 2-4 characters.
+                    </p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCloseSMSForm}
+                    disabled={isSendingSMS}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSendSMSMessage}
+                    disabled={isSendingSMS || smsSuccess || !smsMessage.trim() || calculateSMSSegments(smsMessage).messageCount > 10}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {isSendingSMS ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : smsSuccess ? (
+                      <>
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Sent
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Send SMS
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* OVERVIEW TAB */}
             <TabsContent value="overview" className="space-y-6 mt-0">
               {/* Name Information */}
@@ -522,12 +792,6 @@ export default function ContactDetailModal({
           </div>
         </Tabs>
       </DialogContent>
-
-      <SMSModal
-        isOpen={isSMSModalOpen}
-        onClose={handleCloseSMS}
-        contact={smsContact}
-      />
     </Dialog>
   );
 }
