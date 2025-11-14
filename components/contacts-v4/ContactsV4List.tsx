@@ -133,6 +133,16 @@ export default function ContactsV4List() {
     }
   }, [selectedAccountId, searchQuery, filters, offset, limit, toast]);
 
+  // Auto-select first account on mount
+  useEffect(() => {
+    if (selectedAccountId === 'all' && accounts.length > 0) {
+      const firstActiveAccount = accounts.find(acc => acc.isActive);
+      if (firstActiveAccount) {
+        setSelectedAccountId(firstActiveAccount.id);
+      }
+    }
+  }, [accounts]);
+
   // Initial fetch and when filters change
   useEffect(() => {
     fetchContacts(true);
