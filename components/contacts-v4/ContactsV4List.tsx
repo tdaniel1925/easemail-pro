@@ -709,6 +709,23 @@ export default function ContactsV4List() {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              onClick={toggleSelectAll}
+              disabled={contacts.length === 0}
+            >
+              {isAllSelected ? (
+                <>
+                  <X className="h-4 w-4 mr-2" />
+                  Deselect All
+                </>
+              ) : (
+                <>
+                  <CheckSquare className="h-4 w-4 mr-2" />
+                  Select All
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
               onClick={handleSync}
               disabled={syncing}
             >
