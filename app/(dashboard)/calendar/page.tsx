@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useState, Suspense, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import EventModal from '@/components/calendar/EventModal';
+import EventDetailsModal from '@/components/calendar/EventDetailsModal';
 import WeekView from '@/components/calendar/WeekView';
 import DayView from '@/components/calendar/DayView';
 import AgendaView from '@/components/calendar/AgendaView';
@@ -28,6 +29,7 @@ function CalendarContent() {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [syncing, setSyncing] = useState(false);
@@ -189,7 +191,11 @@ function CalendarContent() {
   const handleEventClick = (e: React.MouseEvent, event: any) => {
     e.stopPropagation();
     setSelectedEvent(event);
-    setSelectedDate(null);
+    setIsEventDetailsOpen(true);
+  };
+
+  const handleEditEvent = () => {
+    setIsEventDetailsOpen(false);
     setIsEventModalOpen(true);
   };
 
@@ -468,8 +474,7 @@ function CalendarContent() {
                   events={filteredEvents}
                   onEventClick={(event) => {
                     setSelectedEvent(event);
-                    setSelectedDate(null);
-                    setIsEventModalOpen(true);
+                    setIsEventDetailsOpen(true);
                   }}
                   onTimeSlotClick={(date, hour) => {
                     const clickedDate = new Date(date);
@@ -488,8 +493,7 @@ function CalendarContent() {
                   events={filteredEvents}
                   onEventClick={(event) => {
                     setSelectedEvent(event);
-                    setSelectedDate(null);
-                    setIsEventModalOpen(true);
+                    setIsEventDetailsOpen(true);
                   }}
                   onTimeSlotClick={(date, hour) => {
                     const clickedDate = new Date(date);
@@ -508,8 +512,7 @@ function CalendarContent() {
                   events={filteredEvents}
                   onEventClick={(event) => {
                     setSelectedEvent(event);
-                    setSelectedDate(null);
-                    setIsEventModalOpen(true);
+                    setIsEventDetailsOpen(true);
                   }}
                 />
               )}
@@ -518,7 +521,25 @@ function CalendarContent() {
         </div>
       </div>
 
-      {/* Event Modal */}
+      {/* Event Details Modal (View Only) */}
+      <EventDetailsModal
+        isOpen={isEventDetailsOpen}
+        onClose={() => {
+          setIsEventDetailsOpen(false);
+          setSelectedEvent(null);
+        }}
+        event={selectedEvent}
+        onEdit={handleEditEvent}
+        onDelete={() => {
+          setIsEventDetailsOpen(false);
+          setSelectedEvent(null);
+        }}
+        onSuccess={() => {
+          fetchEvents();
+        }}
+      />
+
+      {/* Event Modal (Create/Edit) */}
       <EventModal
         isOpen={isEventModalOpen}
         onClose={() => {
