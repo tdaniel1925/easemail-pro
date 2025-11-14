@@ -221,32 +221,12 @@ function CalendarContent() {
 
     setSyncing(true);
     try {
-      const isGoogleAccount = selectedAccount.emailProvider === 'gmail' ||
-                             selectedAccount.nylasProvider === 'google' ||
-                             selectedAccount.emailAddress?.includes('@gmail.com');
-
-      const isMicrosoftAccount = selectedAccount.emailProvider === 'outlook' ||
-                                selectedAccount.nylasProvider === 'microsoft' ||
-                                selectedAccount.emailAddress?.includes('@outlook.com') ||
-                                selectedAccount.emailAddress?.includes('@hotmail.com');
-
-      let syncResponse;
-
-      if (isGoogleAccount) {
-        syncResponse = await fetch('/api/calendar/sync/google', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountId: selectedAccount.id }),
-        });
-      } else if (isMicrosoftAccount) {
-        syncResponse = await fetch('/api/calendar/sync/microsoft', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountId: selectedAccount.id }),
-        });
-      } else {
-        throw new Error('Unsupported email provider for calendar sync');
-      }
+      // All accounts use Nylas, so use the Nylas sync endpoint
+      const syncResponse = await fetch('/api/calendar/sync/nylas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: selectedAccount.id }),
+      });
 
       if (syncResponse) {
         const syncData = await syncResponse.json();
