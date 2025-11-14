@@ -373,20 +373,27 @@ export class ContactsV4SyncService {
 
     const existingByEmailMap = new Map(
       existingContacts
-        .filter(c => c.primaryEmail)
-        .map(c => [c.primaryEmail!.toLowerCase(), c])
+        .filter(c => c.emails && Array.isArray(c.emails) && c.emails.length > 0)
+        .map(c => {
+          const primaryEmail = (c.emails as any)?.[0]?.email;
+          return [primaryEmail?.toLowerCase(), c] as const;
+        })
+        .filter((pair): pair is [string, typeof pair[1]] => !!pair[0]) // Filter out null/undefined emails
     );
 
     // Create name+phone lookup (normalize name and phone)
     const existingByNamePhoneMap = new Map(
       existingContacts
-        .filter(c => c.displayName && c.primaryPhone)
+        .filter(c => c.displayName && c.phoneNumbers && Array.isArray(c.phoneNumbers) && c.phoneNumbers.length > 0)
         .map(c => {
           const normalizedName = c.displayName!.toLowerCase().trim();
-          const normalizedPhone = c.primaryPhone!.replace(/\D/g, ''); // Remove non-digits
+          const primaryPhone = (c.phoneNumbers as any)?.[0]?.number;
+          if (!primaryPhone) return [null, c] as const;
+          const normalizedPhone = primaryPhone.replace(/\D/g, ''); // Remove non-digits
           const key = `${normalizedName}|${normalizedPhone}`;
-          return [key, c];
+          return [key, c] as const;
         })
+        .filter((pair): pair is [string, typeof pair[1]] => !!pair[0]) // Filter out null keys
     );
 
     console.log(`📋 Found ${existingContacts.length} existing contacts (${existingByNylasIdMap.size} with Nylas ID, ${existingByEmailMap.size} with email, ${existingByNamePhoneMap.size} with name+phone)`);
