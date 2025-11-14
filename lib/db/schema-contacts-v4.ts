@@ -5,7 +5,7 @@
  */
 
 import { pgTable, uuid, varchar, text, timestamp, boolean, integer, jsonb, index, unique, date } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import type {
   NylasEmail,
   NylasPhoneNumber,
@@ -13,7 +13,7 @@ import type {
   NylasWebPage,
   NylasIMAddress,
   NylasContactGroup,
-} from './types/contacts-v4';
+} from '../types/contacts-v4';
 
 // ============================================
 // CONTACTS V4 TABLE
@@ -88,19 +88,19 @@ export const contactsV4 = pgTable('contacts_v4', {
   deletedAt: timestamp('deleted_at'),
 }, (table) => ({
   // Primary indexes
-  userIdIdx: index('contacts_v4_user_id_idx').on(table.userId).where(table.isDeleted.eq(false)),
-  accountIdIdx: index('contacts_v4_account_id_idx').on(table.accountId).where(table.isDeleted.eq(false)),
+  userIdIdx: index('contacts_v4_user_id_idx').on(table.userId).where(sql`${table.isDeleted} = false`),
+  accountIdIdx: index('contacts_v4_account_id_idx').on(table.accountId).where(sql`${table.isDeleted} = false`),
   nylasIdIdx: index('contacts_v4_nylas_id_idx').on(table.nylasContactId),
 
   // Search indexes
-  displayNameIdx: index('contacts_v4_display_name_idx').on(table.displayName).where(table.isDeleted.eq(false)),
-  surnameIdx: index('contacts_v4_surname_idx').on(table.surname).where(table.isDeleted.eq(false)),
-  companyIdx: index('contacts_v4_company_idx').on(table.companyName).where(table.isDeleted.eq(false)),
+  displayNameIdx: index('contacts_v4_display_name_idx').on(table.displayName).where(sql`${table.isDeleted} = false`),
+  surnameIdx: index('contacts_v4_surname_idx').on(table.surname).where(sql`${table.isDeleted} = false`),
+  companyIdx: index('contacts_v4_company_idx').on(table.companyName).where(sql`${table.isDeleted} = false`),
 
   // Sync indexes
   syncStatusIdx: index('contacts_v4_sync_status_idx').on(table.syncStatus),
   lastSyncedIdx: index('contacts_v4_last_synced_idx').on(table.lastSyncedAt),
-  favoriteIdx: index('contacts_v4_favorite_idx').on(table.isFavorite).where(table.isFavorite.eq(true)),
+  favoriteIdx: index('contacts_v4_favorite_idx').on(table.isFavorite).where(sql`${table.isFavorite} = true`),
 
   // Unique constraint
   uniqueNylasContact: unique('contacts_v4_unique_nylas').on(table.accountId, table.nylasContactId),
@@ -151,7 +151,7 @@ export const contactSyncState = pgTable('contact_sync_state', {
 }, (table) => ({
   accountIdIdx: index('sync_state_account_idx').on(table.accountId),
   statusIdx: index('sync_state_status_idx').on(table.syncStatus),
-  nextSyncIdx: index('sync_state_next_sync_idx').on(table.nextSyncScheduled).where(table.syncEnabled.eq(true)),
+  nextSyncIdx: index('sync_state_next_sync_idx').on(table.nextSyncScheduled).where(sql`${table.syncEnabled} = true`),
 }));
 
 // ============================================
@@ -191,7 +191,7 @@ export const contactSyncLogs = pgTable('contact_sync_logs', {
 }, (table) => ({
   accountIdIdx: index('sync_logs_account_idx').on(table.accountId, table.createdAt),
   contactIdIdx: index('sync_logs_contact_idx').on(table.contactId),
-  statusIdx: index('sync_logs_status_idx').on(table.status).where(table.status.eq('error')),
+  statusIdx: index('sync_logs_status_idx').on(table.status).where(sql`${table.status} = 'error'`),
   createdIdx: index('sync_logs_created_idx').on(table.createdAt),
 }));
 
@@ -226,7 +226,7 @@ export const contactConflicts = pgTable('contact_conflicts', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
-  userIdIdx: index('conflicts_user_idx').on(table.userId).where(table.status.eq('pending')),
+  userIdIdx: index('conflicts_user_idx').on(table.userId).where(sql`${table.status} = 'pending'`),
   contactIdIdx: index('conflicts_contact_idx').on(table.contactId),
   statusIdx: index('conflicts_status_idx').on(table.status),
 }));

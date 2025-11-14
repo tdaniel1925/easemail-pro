@@ -197,7 +197,7 @@ export default function InboxV3Page() {
         <div className="flex-shrink-0 border-t border-border">
           <div className="p-2 space-y-1">
             <a
-              href="/contacts"
+              href="/contacts-v4"
               className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-lg transition-colors"
             >
               <Users className="h-4 w-4" />

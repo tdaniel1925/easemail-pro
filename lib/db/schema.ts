@@ -2033,4 +2033,6 @@ export const sms_usage = smsUsage;
 export const ai_usage = aiUsage;
 export const storage_usage = storageUsage;
 
+// Contacts V4 exports
+export * from './schema-contacts-v4';
 

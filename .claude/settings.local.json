@@ -6,7 +6,12 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Add settings search functionality\n\nImplemented searchable settings with keyword filtering\n\nFeatures:\n- Search input in settings sidebar\n- Keyword-based filtering for all 9 setting sections\n- Real-time search results\n- Auto-clear search on section selection\n- \"No settings found\" state\n- Improved sidebar spacing\n\nKeywords included for:\n- Sync Status: email, sync, status, progress, accounts, mailbox\n- Signatures: signature, email, footer, sign, template\n- Preferences: theme, appearance, display, reading, composing, dark mode\n- Notifications: notifications, alerts, sound, desktop, quiet hours\n- Privacy & Security: privacy, security, ai, tracking, images, protection\n- Integrations: integrations, zoom, slack, connect, third party\n- Utilities: utilities, tools, diagnostics, database\n- Feature Flags: features, experimental, beta, flags\n- Help & Support: help, support, guide, tutorial, shortcuts, onboarding\n\nUX Improvements:\n- Faster settings discovery\n- Better user experience for finding specific settings\n- Reduces cognitive load when navigating settings\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git push)",
       "Bash(npm run build:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill:*)",
+      "Bash(nul)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

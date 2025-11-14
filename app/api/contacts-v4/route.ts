@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
       managerName: contact.manager_name || null,
       officeLocation: contact.office_location || null,
       department: contact.department || null,
-      birthday: contact.birthday ? new Date(contact.birthday) : null,
+      birthday: contact.birthday || null,
       notes: contact.notes || null,
       groups: contact.groups || [],
       tags: contact.tags || [],
