@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
     // Transform to list item format
     const contactList = resultsToReturn.map(contact => ({
       id: contact.id,
+      account_id: contact.accountId,
       display_name: contact.displayName,
       primary_email: getPrimaryEmail(contact.emails as any),
       primary_phone: getPrimaryPhone(contact.phoneNumbers as any),

@@ -375,6 +375,7 @@ export interface ContactGroup {
 
 export interface ContactListItem {
   id: string;
+  account_id: string;
   display_name: string;
   primary_email: string | null;
   primary_phone: string | null;

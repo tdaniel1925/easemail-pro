@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { getInitials, generateAvatarColor, cn } from '@/lib/utils';
+import { getAccountColor } from '@/lib/utils/account-colors';
 import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
@@ -844,6 +845,7 @@ interface ContactCardProps {
 
 function ContactCard({ contact, onDelete, onToggleFavorite, onEdit, isSelected, onToggleSelect, onClick }: ContactCardProps) {
   const avatarColor = generateAvatarColor(contact.primary_email || contact.display_name);
+  const accountColor = getAccountColor(contact.account_id);
 
   return (
     <Card
@@ -851,6 +853,7 @@ function ContactCard({ contact, onDelete, onToggleFavorite, onEdit, isSelected, 
         "hover:shadow-lg transition-shadow cursor-pointer relative",
         isSelected && "ring-2 ring-primary"
       )}
+      style={{ borderLeft: `4px solid ${accountColor}` }}
       onClick={() => onClick?.(contact.id)}
     >
       <CardContent className="p-6">
@@ -1006,6 +1009,7 @@ interface ContactListItemProps {
 
 function ContactListItem({ contact, onDelete, onToggleFavorite, onEdit, isSelected, onToggleSelect, onClick }: ContactListItemProps) {
   const avatarColor = generateAvatarColor(contact.primary_email || contact.display_name);
+  const accountColor = getAccountColor(contact.account_id);
 
   return (
     <Card
@@ -1013,6 +1017,7 @@ function ContactListItem({ contact, onDelete, onToggleFavorite, onEdit, isSelect
         "hover:bg-accent transition-colors cursor-pointer",
         isSelected && "ring-2 ring-primary"
       )}
+      style={{ borderLeft: `4px solid ${accountColor}` }}
       onClick={() => onClick?.(contact.id)}
     >
       <CardContent className="p-4">
