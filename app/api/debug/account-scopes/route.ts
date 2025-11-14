@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
         lastCalendarSync: account.lastCalendarSyncAt,
         lastError: account.lastError,
       },
-      issues: [],
+      issues: [] as string[],
     };
 
     // Identify issues
