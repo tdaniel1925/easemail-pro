@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS contacts_v4 (
 CREATE TABLE IF NOT EXISTS contact_sync_state (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    account_id UUID NOT NULL REFERENCES email_accounts(id) ON DELETE CASCADE,
+    account_id UUID NOT NULL, -- References email_accounts table (FK added separately if needed)
 
     -- Sync Tracking
     last_successful_sync TIMESTAMP WITH TIME ZONE,
@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS contact_sync_state (
 CREATE TABLE IF NOT EXISTS contact_sync_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    account_id UUID NOT NULL REFERENCES email_accounts(id) ON DELETE CASCADE,
+    account_id UUID NOT NULL, -- References email_accounts table (FK added separately if needed)
     contact_id UUID REFERENCES contacts_v4(id) ON DELETE SET NULL,
 
     -- Operation Details
@@ -227,7 +227,7 @@ CREATE TABLE IF NOT EXISTS contact_conflicts (
 CREATE TABLE IF NOT EXISTS contact_groups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    account_id UUID NOT NULL REFERENCES email_accounts(id) ON DELETE CASCADE,
+    account_id UUID NOT NULL, -- References email_accounts table (FK added separately if needed)
 
     -- Group Details
     name VARCHAR(255) NOT NULL,
