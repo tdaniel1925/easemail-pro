@@ -12,7 +12,7 @@
 CREATE TABLE IF NOT EXISTS contacts_v4 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    account_id UUID NOT NULL REFERENCES email_accounts(id) ON DELETE CASCADE,
+    account_id UUID NOT NULL, -- References email_accounts table (FK added separately if needed)
 
     -- Nylas Integration
     nylas_contact_id VARCHAR(255),
