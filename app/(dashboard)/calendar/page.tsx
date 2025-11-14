@@ -74,6 +74,7 @@ function CalendarContent() {
 
   // Mini Calendar State
   const [miniCalendarMonth, setMiniCalendarMonth] = useState(new Date());
+  const [selectedMiniDate, setSelectedMiniDate] = useState<Date | null>(null);
 
   // Filtered events based on search and calendar types
   const filteredEvents = useMemo(() => {
@@ -217,6 +218,8 @@ function CalendarContent() {
     setCurrentDate(today);
     setCurrentYear(today);
     setMiniCalendarMonth(today);
+    setSelectedMiniDate(null); // Clear date filter
+    if (view !== 'month') setView('month'); // Switch to month view
   };
 
   const previousMonth = () => {
@@ -567,7 +570,7 @@ function CalendarContent() {
             ))}
 
             {miniDays.map((day) => {
-              const isSelected = isSameDay(day, currentDate);
+              const isSelected = selectedMiniDate ? isSameDay(day, selectedMiniDate) : isSameDay(day, currentDate);
               const isTodayDate = isToday(day);
               const hasEvents = hasEventsOnDate(day);
               const isCurrentMonth = isSameMonth(day, miniCalendarMonth);
@@ -576,6 +579,7 @@ function CalendarContent() {
                 <button
                   key={day.toString()}
                   onClick={() => {
+                    setSelectedMiniDate(day);
                     setCurrentDate(day);
                     setCurrentMonth(day);
                     if (view !== 'month') setView('month');
@@ -605,10 +609,33 @@ function CalendarContent() {
 
         {/* Upcoming Events */}
         <div className="flex-1 overflow-y-auto p-4">
-          <h3 className="font-semibold text-sm mb-3">Upcoming Events</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm">
+              {selectedMiniDate ? format(selectedMiniDate, 'MMM d Events') : 'Upcoming Events'}
+            </h3>
+            {selectedMiniDate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedMiniDate(null)}
+                className="h-6 text-xs"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
           <div className="space-y-2">
             {filteredEvents
-              .filter(event => new Date(event.startTime) >= new Date())
+              .filter(event => {
+                const eventDate = new Date(event.startTime);
+                if (selectedMiniDate) {
+                  // Show only events for the selected date
+                  return format(eventDate, 'yyyy-MM-dd') === format(selectedMiniDate, 'yyyy-MM-dd');
+                } else {
+                  // Show all upcoming events
+                  return eventDate >= new Date();
+                }
+              })
               .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
               .slice(0, 10)
               .map((event) => {
@@ -643,9 +670,16 @@ function CalendarContent() {
                 );
               })}
 
-            {filteredEvents.filter(e => new Date(e.startTime) >= new Date()).length === 0 && (
+            {filteredEvents.filter(e => {
+              const eventDate = new Date(e.startTime);
+              if (selectedMiniDate) {
+                return format(eventDate, 'yyyy-MM-dd') === format(selectedMiniDate, 'yyyy-MM-dd');
+              } else {
+                return eventDate >= new Date();
+              }
+            }).length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-8">
-                No upcoming events
+                {selectedMiniDate ? `No events on ${format(selectedMiniDate, 'MMM d')}` : 'No upcoming events'}
               </p>
             )}
           </div>

@@ -52,6 +52,7 @@ export default function EventDetailsModal({
   const { toast } = useToast();
   const [deleting, setDeleting] = useState(false);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   if (!event) return null;
 
@@ -159,9 +160,11 @@ export default function EventDetailsModal({
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this event?')) return;
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
 
+  const handleDeleteConfirm = async () => {
     setDeleting(true);
     try {
       const response = await fetch(`/api/calendar/events/${event.id}`, {
@@ -190,7 +193,12 @@ export default function EventDetailsModal({
       });
     } finally {
       setDeleting(false);
+      setShowDeleteConfirm(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
   };
 
   const formatDateTime = (date: Date, allDay: boolean) => {
@@ -233,11 +241,11 @@ export default function EventDetailsModal({
                   <Edit className="h-4 w-4" />
                 </Button>
               )}
-              {onDelete && (
+              {onDelete && !showDeleteConfirm && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handleDelete}
+                  onClick={handleDeleteClick}
                   disabled={deleting}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -439,6 +447,36 @@ export default function EventDetailsModal({
             )}
           </div>
         </div>
+
+        {/* Delete Confirmation Banner */}
+        {showDeleteConfirm && (
+          <div className="p-4 bg-destructive/10 border-t border-destructive/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-destructive">Delete this event?</p>
+                <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDeleteCancel}
+                  disabled={deleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDeleteConfirm}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Deleting...' : 'Delete Event'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex justify-end gap-2 pt-4 border-t border-border">
