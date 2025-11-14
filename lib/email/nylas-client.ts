@@ -76,11 +76,24 @@ export async function exchangeNylasCode(code: string) {
 
     if (grantResponse.ok) {
       const grantData = await grantResponse.json();
-      scopes = grantData.data?.scope || grantData.data?.scopes || [];
+      console.log('🔍 Full grant data:', JSON.stringify(grantData, null, 2));
+
+      // Try multiple possible field paths
+      scopes = grantData.data?.scope ||
+               grantData.data?.scopes ||
+               grantData.scope ||
+               grantData.scopes ||
+               [];
+
       console.log('📋 Retrieved scopes for grant:', scopes);
+      console.log('📋 Scopes type:', typeof scopes, 'is array:', Array.isArray(scopes));
+    } else {
+      console.error('❌ Failed to fetch grant details:', grantResponse.status, grantResponse.statusText);
+      const errorText = await grantResponse.text();
+      console.error('Error response:', errorText);
     }
   } catch (error) {
-    console.error('Failed to fetch grant scopes:', error);
+    console.error('❌ Failed to fetch grant scopes:', error);
   }
 
   return {
