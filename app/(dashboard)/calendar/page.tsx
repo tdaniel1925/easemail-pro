@@ -1,68 +1,81 @@
+/**
+ * World-Class Calendar Page
+ * Inspired by Outlook, Google Calendar, and Superhuman
+ */
+
 'use client';
 
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Loader2, RefreshCw, Sparkles, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useState, Suspense, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import {
+  Plus,
+  RefreshCw,
+  Sparkles,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIconLucide,
+  Loader2
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import { useAccount } from '@/contexts/AccountContext';
+import { useToast } from '@/components/ui/use-toast';
+
+// Calendar Components
 import EventModal from '@/components/calendar/EventModal';
 import EventDetailsModal from '@/components/calendar/EventDetailsModal';
+import DraggableMonthView from '@/components/calendar/DraggableMonthView';
 import WeekView from '@/components/calendar/WeekView';
 import DayView from '@/components/calendar/DayView';
 import AgendaView from '@/components/calendar/AgendaView';
-import DraggableMonthView from '@/components/calendar/DraggableMonthView';
 import YearView from '@/components/calendar/YearView';
 import ListView from '@/components/calendar/ListView';
 import QuickAdd from '@/components/calendar/QuickAdd';
 import EventSearch from '@/components/calendar/EventSearch';
-import { CalendarFilters } from '@/components/calendar/CalendarFilters';
-import { cn } from '@/lib/utils';
-import { CalendarSkeleton } from '@/components/ui/skeleton';
-import { useAccount } from '@/contexts/AccountContext';
-import AccountSwitcher from '@/components/account/AccountSwitcher';
-import { useToast } from '@/components/ui/use-toast';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth } from 'date-fns';
 
 type ViewType = 'month' | 'week' | 'day' | 'agenda' | 'year' | 'list';
 
 function CalendarContent() {
   const { selectedAccount } = useAccount();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+
+  // View State
+  const [view, setView] = useState<ViewType>('month');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState<ViewType>('month');
+  const [currentYear, setCurrentYear] = useState(new Date());
+
+  // Data State
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+
+  // Modal State
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
-  const [syncing, setSyncing] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  // Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const [selectedCalendarTypes, setSelectedCalendarTypes] = useState<string[]>([
     'personal', 'work', 'family', 'holiday', 'birthday', 'meeting', 'task'
   ]);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearchActive, setIsSearchActive] = useState(false);
-  const [currentYear, setCurrentYear] = useState(new Date());
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
-  const searchParams = useSearchParams();
 
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
+  // Mini Calendar State
+  const [miniCalendarMonth, setMiniCalendarMonth] = useState(new Date());
 
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    return { firstDay, daysInMonth };
-  };
-
-  const { firstDay, daysInMonth } = getDaysInMonth(currentMonth);
-
-  // Filter events based on selected calendar types and search
+  // Filtered events based on search and calendar types
   const filteredEvents = useMemo(() => {
-    // Use search results if search is active
     const baseEvents = isSearchActive ? searchResults : events;
 
     if (selectedCalendarTypes.length === 0) return [];
@@ -73,24 +86,7 @@ function CalendarContent() {
     });
   }, [events, searchResults, isSearchActive, selectedCalendarTypes]);
 
-  // Handle search results
-  const handleSearchResults = useCallback((results: any[]) => {
-    setSearchResults(results);
-    setIsSearchActive(results.length !== events.length || results.length === 0);
-  }, [events.length]);
-
-  // Go to today
-  const goToToday = useCallback(() => {
-    const today = new Date();
-    setCurrentMonth(today);
-    setCurrentDate(today);
-    setCurrentYear(today);
-    if (view === 'month' || view === 'week' || view === 'day') {
-      setCurrentMonth(today);
-    }
-  }, [view]);
-
-  // Get available calendar types from current events
+  // Get available calendar types
   const availableTypes = useMemo(() => {
     const types = new Set<string>();
     events.forEach(event => {
@@ -100,24 +96,13 @@ function CalendarContent() {
     return Array.from(types);
   }, [events]);
 
-  const previousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
-  };
-
-  // Fetch events for selected account
+  // Fetch events
   const fetchEvents = useCallback(async () => {
-    // Clear previous error
     setError(null);
 
-    // Validate account selection (only show errors after initial load)
     if (!selectedAccount) {
       setEvents([]);
       setLoading(false);
-      // Only show error if we've completed initial load
       if (initialLoadDone) {
         setError('Please select an account to view calendar events');
       }
@@ -128,9 +113,8 @@ function CalendarContent() {
     if (!selectedAccount.nylasGrantId) {
       setEvents([]);
       setLoading(false);
-      // Only show error if we've completed initial load
       if (initialLoadDone) {
-        setError('This account is not connected. Please reconnect your account to enable calendar access.');
+        setError('This account is not connected. Please reconnect your account.');
       }
       setInitialLoadDone(true);
       return;
@@ -138,7 +122,6 @@ function CalendarContent() {
 
     try {
       setLoading(true);
-      // Get first and last day of current month
       const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
 
@@ -174,48 +157,85 @@ function CalendarContent() {
     fetchEvents();
   }, [fetchEvents]);
 
-  // Check for openNew query parameter
-  useEffect(() => {
-    const openNew = searchParams.get('openNew');
-    if (openNew === 'true') {
-      setSelectedDate(new Date());
-      setSelectedEvent(null);
-      setIsEventModalOpen(true);
-      // Clear the query parameter
-      window.history.replaceState({}, '', '/calendar');
+  // Handle search results
+  const handleSearchResults = useCallback((results: any[]) => {
+    setSearchResults(results);
+    setIsSearchActive(results.length !== events.length);
+  }, [events.length]);
+
+  // Sync calendar
+  const handleSync = async () => {
+    if (!selectedAccount?.nylasGrantId) {
+      toast({
+        title: 'No Account Selected',
+        description: 'Please select an account to sync.',
+        variant: 'destructive',
+      });
+      return;
     }
-  }, [searchParams]);
 
-  // Listen for event modal open requests from MiniCalendar
-  useEffect(() => {
-    const handleOpenEventModal = (event: any) => {
-      const { date } = event.detail;
-      setSelectedDate(date || new Date());
-      setSelectedEvent(null);
-      setIsEventModalOpen(true);
-    };
+    setSyncing(true);
+    try {
+      const response = await fetch('/api/calendar/sync/nylas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: selectedAccount.id }),
+      });
 
-    window.addEventListener('openEventModal' as any, handleOpenEventModal);
-    return () => window.removeEventListener('openEventModal' as any, handleOpenEventModal);
-  }, []);
+      const data = await response.json();
 
-  // Get events for a specific day (using filtered events)
-  const getEventsForDay = (day: number) => {
-    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    const dateStr = date.toISOString().split('T')[0];
-
-    return filteredEvents.filter(event => {
-      const eventStart = new Date(event.startTime);
-      const eventDateStr = eventStart.toISOString().split('T')[0];
-      return eventDateStr === dateStr;
-    });
+      if (response.ok && data.success) {
+        toast({
+          title: 'Sync Complete',
+          description: `Successfully synced ${data.synced || 0} events`,
+        });
+        await fetchEvents();
+      } else {
+        toast({
+          title: 'Sync Failed',
+          description: data.error || 'Failed to sync calendar',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Sync failed:', error);
+      toast({
+        title: 'Sync Failed',
+        description: 'An error occurred while syncing',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncing(false);
+    }
   };
 
-  const isToday = (day: number) => {
+  // Navigation functions
+  const goToToday = () => {
     const today = new Date();
-    return day === today.getDate() &&
-      currentMonth.getMonth() === today.getMonth() &&
-      currentMonth.getFullYear() === today.getFullYear();
+    setCurrentMonth(today);
+    setCurrentDate(today);
+    setCurrentYear(today);
+    setMiniCalendarMonth(today);
+  };
+
+  const previousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  };
+
+  // Event handlers
+  const handleNewEvent = () => {
+    setSelectedEvent(null);
+    setSelectedDate(new Date());
+    setIsEventModalOpen(true);
+  };
+
+  const handleEventClick = (event: any) => {
+    setSelectedEvent(event);
+    setIsEventDetailsOpen(true);
   };
 
   const handleDayClick = (day: number) => {
@@ -225,114 +245,24 @@ function CalendarContent() {
     setIsEventModalOpen(true);
   };
 
-  const handleEventClick = (e: React.MouseEvent, event: any) => {
-    e.stopPropagation();
-    setSelectedEvent(event);
-    setIsEventDetailsOpen(true);
-  };
-
   const handleEditEvent = () => {
     setIsEventDetailsOpen(false);
     setIsEventModalOpen(true);
   };
 
-  const handleNewEvent = () => {
-    setSelectedEvent(null);
-    setSelectedDate(new Date());
-    setIsEventModalOpen(true);
-  };
-
-  const handleSync = async () => {
-    // Validate selected account
-    if (!selectedAccount) {
-      toast({
-        title: 'No Account Selected',
-        description: 'Please select an account to sync calendar events.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!selectedAccount.nylasGrantId) {
-      toast({
-        title: 'Account Not Connected',
-        description: 'This account is not connected. Please reconnect to sync.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setSyncing(true);
-    try {
-      // All accounts use Nylas, so use the Nylas sync endpoint
-      const syncResponse = await fetch('/api/calendar/sync/nylas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: selectedAccount.id }),
-      });
-
-      const syncData = await syncResponse.json();
-
-      if (syncResponse.ok && syncData.success) {
-        toast({
-          title: 'Sync Complete',
-          description: `Successfully synced ${syncData.synced || 0} events`,
-        });
-        // Refresh events
-        await fetchEvents();
-      } else {
-        // Handle permission errors with actionable guidance
-        const errorMessage = syncData.error || 'Sync failed';
-        const isPermissionError = errorMessage.includes('Calendar access not granted') ||
-                                 errorMessage.includes('calendar permissions');
-
-        toast({
-          title: isPermissionError ? 'Calendar Permissions Required' : 'Sync Failed',
-          description: isPermissionError
-            ? 'This account needs calendar access. Please go to Settings > Accounts to reconnect with calendar permissions.'
-            : errorMessage,
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      console.error('Sync failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to sync calendar';
-      toast({
-        title: 'Sync Failed',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   const handleEventMove = async (eventId: string, newDate: Date) => {
     try {
-      // Find the event
       const event = events.find(e => e.id === eventId);
-      if (!event) {
-        toast({
-          title: 'Event Not Found',
-          description: 'Could not find the event to move',
-          variant: 'destructive',
-        });
-        return;
-      }
+      if (!event) return;
 
-      // Calculate time difference
       const oldStart = new Date(event.startTime);
       const oldEnd = new Date(event.endTime);
       const timeDiff = oldEnd.getTime() - oldStart.getTime();
 
-      // Set new start time (keep same time of day)
       const newStart = new Date(newDate);
       newStart.setHours(oldStart.getHours(), oldStart.getMinutes());
-
-      // Calculate new end time
       const newEnd = new Date(newStart.getTime() + timeDiff);
 
-      // Update event
       const response = await fetch(`/api/calendar/events/${eventId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -342,187 +272,163 @@ function CalendarContent() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to move event: ${response.statusText}`);
-      }
-
       const data = await response.json();
 
       if (data.success) {
-        toast({
-          title: 'Event Moved',
-          description: 'Event has been successfully moved to the new date',
-        });
-        // Refresh events
+        toast({ title: 'Event Moved', description: 'Event updated successfully' });
         await fetchEvents();
       } else {
         throw new Error(data.error || 'Failed to move event');
       }
-    } catch (error) {
-      console.error('Error moving event:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to move event';
+    } catch (error: any) {
       toast({
-        title: 'Error Moving Event',
-        description: errorMessage,
+        title: 'Error',
+        description: error.message,
         variant: 'destructive',
       });
-      // Refresh to show correct state
       await fetchEvents();
     }
   };
 
+  // Mini calendar functions
+  const getEventsForDate = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return events.filter(event => {
+      const eventDate = format(new Date(event.startTime), 'yyyy-MM-dd');
+      return eventDate === dateStr;
+    });
+  };
+
+  const hasEventsOnDate = (date: Date) => {
+    return getEventsForDate(date).length > 0;
+  };
+
+  const miniMonthStart = startOfMonth(miniCalendarMonth);
+  const miniMonthEnd = endOfMonth(miniCalendarMonth);
+  const miniDays = eachDayOfInterval({ start: miniMonthStart, end: miniMonthEnd });
+  const miniFirstDayOfWeek = miniMonthStart.getDay();
+  const miniEmptyCells = Array(miniFirstDayOfWeek).fill(null);
+
   return (
-    <div className="flex w-full h-screen bg-background">
-      <div className="flex-1 flex flex-col p-8 overflow-y-auto">
+    <div className="flex h-screen bg-background">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">Calendar</h1>
-              <p className="text-sm text-muted-foreground">Manage your schedule and events</p>
-              <a
-                href="/inbox"
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mt-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m12 19-7-7 7-7"/>
-                  <path d="M19 12H5"/>
-                </svg>
-                Back to Inbox
-              </a>
-            </div>
-            {/* Account Switcher */}
-            <div className="ml-4">
-              <AccountSwitcher showManagementOptions={false} />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            {/* Today Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToToday}
-              className="font-medium"
-            >
-              Today
-            </Button>
+        <div className="border-b border-border bg-card">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              {/* Left: Title & Navigation */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <CalendarIconLucide className="h-6 w-6 text-primary" />
+                  <h1 className="text-2xl font-bold">Calendar</h1>
+                </div>
 
-            {/* View selector */}
-            <div className="flex gap-1 border border-border rounded-lg p-1">
-              <Button
-                variant={view === 'month' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setView('month')}
-              >
-                Month
-              </Button>
-              <Button
-                variant={view === 'week' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setView('week')}
-              >
-                Week
-              </Button>
-              <Button
-                variant={view === 'day' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setView('day')}
-              >
-                Day
-              </Button>
-              <Button
-                variant={view === 'year' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setView('year')}
-              >
-                Year
-              </Button>
-              <Button
-                variant={view === 'agenda' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setView('agenda')}
-              >
-                Agenda
-              </Button>
-              <Button
-                variant={view === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setView('list')}
-              >
-                List
-              </Button>
+                <div className="flex items-center gap-2 ml-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToToday}
+                  >
+                    Today
+                  </Button>
+
+                  <div className="flex items-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={previousMonth}
+                      className="h-8 w-8"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="min-w-[140px] text-center">
+                      <span className="font-semibold">
+                        {format(currentMonth, 'MMMM yyyy')}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={nextMonth}
+                      className="h-8 w-8"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Actions */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSync}
+                  disabled={syncing}
+                >
+                  <RefreshCw className={cn("h-4 w-4 mr-2", syncing && "animate-spin")} />
+                  Sync
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsQuickAddOpen(true)}
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Quick Add
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={handleNewEvent}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Event
+                </Button>
+              </div>
             </div>
 
-            {/* Calendar Type Filters */}
-            <CalendarFilters
-              selectedTypes={selectedCalendarTypes}
-              onTypesChange={setSelectedCalendarTypes}
-              availableTypes={availableTypes}
-            />
+            {/* Second Row: Search & View Selector */}
+            <div className="flex items-center justify-between mt-4 gap-4">
+              {/* Search */}
+              <div className="flex-1 max-w-md">
+                <EventSearch
+                  events={events}
+                  onResultsChange={handleSearchResults}
+                />
+              </div>
 
-            <Button
-              variant="outline"
-              onClick={handleSync}
-              disabled={syncing}
-            >
-              <RefreshCw className={cn("h-4 w-4 mr-2", syncing && "animate-spin")} />
-              Sync
-            </Button>
-            <Button variant="outline" onClick={() => setIsQuickAddOpen(true)}>
-              <Sparkles className="h-4 w-4 mr-2" />
-              Quick Add
-            </Button>
-            <Button onClick={handleNewEvent}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Event
-            </Button>
+              {/* View Selector */}
+              <div className="flex gap-1 bg-muted p-1 rounded-lg">
+                {(['month', 'week', 'day', 'year', 'agenda', 'list'] as ViewType[]).map((v) => (
+                  <Button
+                    key={v}
+                    variant={view === v ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setView(v)}
+                    className="capitalize"
+                  >
+                    {v}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Event Search */}
-        <div className="mb-4">
-          <EventSearch
-            events={events}
-            onResultsChange={handleSearchResults}
-          />
-        </div>
-
-        {/* Error Banner */}
-        {error && (
-          <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-destructive">Unable to load calendar</h3>
-              <p className="text-sm text-destructive/90 mt-1">{error}</p>
-              {error.includes('reconnect') && (
-                <p className="text-sm text-destructive/80 mt-2">
-                  Go to <a href="/settings" className="underline font-medium">Settings → Accounts</a> to reconnect with calendar permissions.
-                </p>
-              )}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchEvents()}
-              className="flex-shrink-0"
-            >
-              Retry
-            </Button>
-          </div>
-        )}
-
-        {/* Calendar Card */}
-        <div className="flex-1 bg-card border border-border rounded-lg overflow-auto">
-          {loading ? (
-            <div className="flex items-center justify-center h-96">
+        {/* Calendar Content */}
+        <div className="flex-1 overflow-auto p-6">
+          {loading && !initialLoadDone ? (
+            <div className="flex items-center justify-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : error ? (
-            <div className="flex items-center justify-center h-96">
+            <div className="flex items-center justify-center h-full">
               <div className="text-center space-y-3">
-                <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
-                <p className="text-muted-foreground">Calendar events could not be loaded</p>
-                <Button onClick={() => fetchEvents()}>Try Again</Button>
+                <p className="text-muted-foreground">{error}</p>
+                <Button onClick={fetchEvents}>Retry</Button>
               </div>
             </div>
           ) : (
@@ -534,17 +440,14 @@ function CalendarContent() {
                   onMonthChange={setCurrentMonth}
                   onEventMove={handleEventMove}
                   onDayClick={handleDayClick}
-                  onEventClick={handleEventClick}
+                  onEventClick={(e, event) => handleEventClick(event)}
                 />
               )}
 
               {view === 'week' && (
                 <WeekView
                   events={filteredEvents}
-                  onEventClick={(event) => {
-                    setSelectedEvent(event);
-                    setIsEventDetailsOpen(true);
-                  }}
+                  onEventClick={handleEventClick}
                   onTimeSlotClick={(date, hour) => {
                     const clickedDate = new Date(date);
                     clickedDate.setHours(hour);
@@ -560,10 +463,7 @@ function CalendarContent() {
               {view === 'day' && (
                 <DayView
                   events={filteredEvents}
-                  onEventClick={(event) => {
-                    setSelectedEvent(event);
-                    setIsEventDetailsOpen(true);
-                  }}
+                  onEventClick={handleEventClick}
                   onTimeSlotClick={(date, hour) => {
                     const clickedDate = new Date(date);
                     clickedDate.setHours(hour);
@@ -576,16 +476,6 @@ function CalendarContent() {
                 />
               )}
 
-              {view === 'agenda' && (
-                <AgendaView
-                  events={filteredEvents}
-                  onEventClick={(event) => {
-                    setSelectedEvent(event);
-                    setIsEventDetailsOpen(true);
-                  }}
-                />
-              )}
-
               {view === 'year' && (
                 <YearView
                   currentYear={currentYear}
@@ -595,10 +485,14 @@ function CalendarContent() {
                     setCurrentDate(date);
                     setView('month');
                   }}
-                  onEventClick={(event) => {
-                    setSelectedEvent(event);
-                    setIsEventDetailsOpen(true);
-                  }}
+                  onEventClick={handleEventClick}
+                />
+              )}
+
+              {view === 'agenda' && (
+                <AgendaView
+                  events={filteredEvents}
+                  onEventClick={handleEventClick}
                 />
               )}
 
@@ -606,10 +500,7 @@ function CalendarContent() {
                 <ListView
                   events={filteredEvents}
                   currentDate={currentDate}
-                  onEventClick={(event) => {
-                    setSelectedEvent(event);
-                    setIsEventDetailsOpen(true);
-                  }}
+                  onEventClick={handleEventClick}
                 />
               )}
             </>
@@ -617,7 +508,140 @@ function CalendarContent() {
         </div>
       </div>
 
-      {/* Event Details Modal (View Only) */}
+      {/* Right Sidebar */}
+      <div className="w-80 border-l border-border bg-card flex flex-col">
+        {/* Mini Calendar */}
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm">
+              {format(miniCalendarMonth, 'MMMM yyyy')}
+            </h3>
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setMiniCalendarMonth(
+                  new Date(miniCalendarMonth.getFullYear(), miniCalendarMonth.getMonth() - 1)
+                )}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setMiniCalendarMonth(
+                  new Date(miniCalendarMonth.getFullYear(), miniCalendarMonth.getMonth() + 1)
+                )}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Weekday Headers */}
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
+              <div key={idx} className="text-center text-xs font-medium text-muted-foreground">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar Grid */}
+          <div className="grid grid-cols-7 gap-1">
+            {miniEmptyCells.map((_, index) => (
+              <div key={`empty-${index}`} className="aspect-square" />
+            ))}
+
+            {miniDays.map((day) => {
+              const isSelected = isSameDay(day, currentDate);
+              const isTodayDate = isToday(day);
+              const hasEvents = hasEventsOnDate(day);
+              const isCurrentMonth = isSameMonth(day, miniCalendarMonth);
+
+              return (
+                <button
+                  key={day.toString()}
+                  onClick={() => {
+                    setCurrentDate(day);
+                    setCurrentMonth(day);
+                    if (view !== 'month') setView('month');
+                  }}
+                  className={cn(
+                    "aspect-square relative rounded-md text-xs font-medium transition-colors",
+                    "hover:bg-accent",
+                    isSelected && "bg-primary text-primary-foreground hover:bg-primary/90",
+                    !isSelected && isTodayDate && "bg-accent font-bold ring-2 ring-primary",
+                    !isCurrentMonth && "text-muted-foreground/40",
+                    !isSelected && !isTodayDate && isCurrentMonth && "text-foreground"
+                  )}
+                >
+                  <span className="flex items-center justify-center h-full">
+                    {format(day, 'd')}
+                  </span>
+                  {hasEvents && !isSelected && (
+                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
+                      <div className="w-1 h-1 rounded-full bg-primary" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Upcoming Events */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <h3 className="font-semibold text-sm mb-3">Upcoming Events</h3>
+          <div className="space-y-2">
+            {filteredEvents
+              .filter(event => new Date(event.startTime) >= new Date())
+              .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+              .slice(0, 10)
+              .map((event) => {
+                const eventDate = new Date(event.startTime);
+                const isEventToday = isToday(eventDate);
+
+                return (
+                  <button
+                    key={event.id}
+                    onClick={() => handleEventClick(event)}
+                    className="w-full text-left p-3 rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className={cn(
+                        "w-1 h-full rounded-full mt-1",
+                        event.color === 'blue' && 'bg-blue-500',
+                        event.color === 'green' && 'bg-green-500',
+                        event.color === 'red' && 'bg-red-500',
+                        event.color === 'purple' && 'bg-purple-500',
+                        event.color === 'orange' && 'bg-orange-500',
+                        event.color === 'pink' && 'bg-pink-500',
+                        !event.color && 'bg-primary'
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{event.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {isEventToday ? 'Today' : format(eventDate, 'MMM d')} • {format(eventDate, 'h:mm a')}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+
+            {filteredEvents.filter(e => new Date(e.startTime) >= new Date()).length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No upcoming events
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Modals */}
       <EventDetailsModal
         isOpen={isEventDetailsOpen}
         onClose={() => {
@@ -630,12 +654,9 @@ function CalendarContent() {
           setIsEventDetailsOpen(false);
           setSelectedEvent(null);
         }}
-        onSuccess={() => {
-          fetchEvents();
-        }}
+        onSuccess={fetchEvents}
       />
 
-      {/* Event Modal (Create/Edit) */}
       <EventModal
         isOpen={isEventModalOpen}
         onClose={() => {
@@ -645,18 +666,13 @@ function CalendarContent() {
         }}
         event={selectedEvent}
         defaultDate={selectedDate || undefined}
-        onSuccess={() => {
-          fetchEvents();
-        }}
+        onSuccess={fetchEvents}
       />
 
-      {/* Quick Add */}
       <QuickAdd
         isOpen={isQuickAddOpen}
         onClose={() => setIsQuickAddOpen(false)}
-        onEventCreated={() => {
-          fetchEvents();
-        }}
+        onEventCreated={fetchEvents}
       />
     </div>
   );
@@ -664,9 +680,12 @@ function CalendarContent() {
 
 export default function CalendarPage() {
   return (
-    <Suspense fallback={<CalendarSkeleton />}>
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    }>
       <CalendarContent />
     </Suspense>
   );
 }
-
