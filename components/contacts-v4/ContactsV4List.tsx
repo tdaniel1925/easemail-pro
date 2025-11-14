@@ -23,7 +23,6 @@ import {
   Filter,
   Building2,
   Tag as TagIcon,
-  AlertCircle,
   MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -999,14 +998,6 @@ function ContactCard({ contact, onDelete, onToggleFavorite, onEdit, onSendSMS, i
                   +{contact.tags.length - 3}
                 </span>
               )}
-            </div>
-          )}
-
-          {/* Sync Status */}
-          {contact.sync_status !== 'synced' && (
-            <div className="mb-4 flex items-center justify-center gap-2 text-xs">
-              <AlertCircle className="h-3 w-3 text-yellow-500" />
-              <span className="text-yellow-600">{contact.sync_status.replace('_', ' ')}</span>
             </div>
           )}
 
