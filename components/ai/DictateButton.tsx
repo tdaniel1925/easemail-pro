@@ -11,13 +11,13 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, MicOff, Sparkles, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { 
-  DictationService, 
+import {
+  DictationService,
   SmartPunctuationProcessor,
-  DictationUsageTracker 
+  DictationUsageTracker
 } from '@/lib/ai/dictation-service';
 import { cn } from '@/lib/utils';
 
@@ -339,10 +339,133 @@ export function DictationWidget({
   interimText: string;
   onStop: () => void;
 }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationRef = useRef<number>();
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const isActiveRef = useRef(false);
+
+  // Setup audio visualization
+  useEffect(() => {
+    if (!isActive) {
+      isActiveRef.current = false;
+      return;
+    }
+
+    isActiveRef.current = true;
+
+    const setupAudioVisualization = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: false,
+            autoGainControl: true,
+          }
+        });
+
+        streamRef.current = stream;
+
+        const audioContext = new AudioContext();
+        const analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.8;
+        source.connect(analyser);
+
+        audioContextRef.current = audioContext;
+        analyserRef.current = analyser;
+
+        animateWaveform();
+      } catch (error) {
+        console.error('Failed to setup audio visualization:', error);
+      }
+    };
+
+    setupAudioVisualization();
+
+    return () => {
+      isActiveRef.current = false;
+
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
+    };
+  }, [isActive]);
+
+  // Animate waveform
+  const animateWaveform = useCallback(() => {
+    const canvas = canvasRef.current;
+    const analyser = analyserRef.current;
+
+    if (!canvas || !analyser || !isActiveRef.current) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
+
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const barCount = 20;
+    const barWidth = (width / barCount) * 0.7;
+    const gap = (width / barCount) * 0.3;
+
+    for (let i = 0; i < barCount; i++) {
+      const percent = i / (barCount - 1);
+      const index = Math.floor(Math.pow(percent, 0.5) * bufferLength);
+      const value = dataArray[index] / 255;
+
+      const minBarHeight = 4;
+      const barHeight = Math.max(minBarHeight, value * height * 0.9);
+      const x = i * (barWidth + gap);
+      const y = (height - barHeight) / 2;
+
+      const opacity = 0.4 + (value * 0.6);
+      ctx.fillStyle = `rgba(59, 130, 246, ${opacity})`;
+      ctx.fillRect(x, y, barWidth, barHeight);
+    }
+
+    if (isActiveRef.current) {
+      animationRef.current = requestAnimationFrame(animateWaveform);
+    }
+  }, []);
+
+  // Update canvas size
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !isActive) return;
+
+    const updateSize = () => {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    };
+
+    setTimeout(updateSize, 100);
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, [isActive]);
+
   if (!isActive) return null;
 
   return (
-    <div className="fixed bottom-20 right-4 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-4 w-80 animate-in slide-in-from-bottom">
+    <div className="fixed bottom-20 right-4 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 w-80 animate-in slide-in-from-bottom">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
@@ -353,23 +476,17 @@ export function DictationWidget({
         </Button>
       </div>
 
-      {/* Audio Waveform Visualization */}
-      <div className="flex items-center justify-center gap-1 h-12 mb-3">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="w-1 bg-blue-500 rounded-full animate-pulse"
-            style={{
-              height: `${Math.random() * 100}%`,
-              animationDelay: `${i * 50}ms`,
-            }}
-          />
-        ))}
+      {/* Real-time Audio Waveform Visualization */}
+      <div className="relative h-12 mb-3 rounded-lg border bg-card overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full"
+        />
       </div>
 
       {/* Interim Text */}
       {interimText && (
-        <div className="text-sm text-gray-600 italic border-t border-gray-100 pt-3">
+        <div className="text-sm text-gray-600 dark:text-gray-300 italic border-t border-gray-100 dark:border-gray-700 pt-3">
           "{interimText}..."
         </div>
       )}
