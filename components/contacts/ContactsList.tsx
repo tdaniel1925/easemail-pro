@@ -22,11 +22,10 @@ import {
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { useAccount } from '@/contexts/AccountContext';
-import AccountSwitcher from '@/components/account/AccountSwitcher';
 
 interface Contact {
   id: string;
-  email: string;
+  email?: string;
   firstName?: string;
   lastName?: string;
   fullName?: string;
@@ -39,10 +38,11 @@ interface Contact {
   emailCount?: number;
   lastEmailAt?: Date;
   createdAt?: Date;
+  accountId?: string;
 }
 
 export default function ContactsList() {
-  const { selectedAccount } = useAccount();
+  const { accounts } = useAccount();
   const router = useRouter();
   const { toast } = useToast();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -52,6 +52,7 @@ export default function ContactsList() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
+  const [filterByAccountId, setFilterByAccountId] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -81,22 +82,22 @@ export default function ContactsList() {
 
   useEffect(() => {
     fetchContacts();
-  }, [selectedAccount]);
+  }, [filterByAccountId]);
 
   useEffect(() => {
     filterAndSortContacts();
   }, [contacts, searchQuery, selectedFilter, sortBy]);
 
   const fetchContacts = async () => {
-    if (!selectedAccount?.id) {
-      setContacts([]);
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
-      const response = await fetch(`/api/contacts?accountId=${selectedAccount.id}`);
+
+      // If "all" is selected, don't pass accountId filter
+      const url = filterByAccountId === 'all'
+        ? '/api/contacts'
+        : `/api/contacts?accountId=${filterByAccountId}`;
+
+      const response = await fetch(url);
       const data = await response.json();
 
       if (data.success) {
@@ -137,8 +138,8 @@ export default function ContactsList() {
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'name':
-          const nameA = a.fullName || `${a.firstName || ''} ${a.lastName || ''}`.trim() || a.email;
-          const nameB = b.fullName || `${b.firstName || ''} ${b.lastName || ''}`.trim() || b.email;
+          const nameA = a.fullName || `${a.firstName || ''} ${a.lastName || ''}`.trim() || a.email || a.phone || 'Unknown';
+          const nameB = b.fullName || `${b.firstName || ''} ${b.lastName || ''}`.trim() || b.email || b.phone || 'Unknown';
           return nameA.localeCompare(nameB);
         
         case 'recent':
@@ -370,10 +371,12 @@ export default function ContactsList() {
       return;
     }
     
-    const contactName = contact.displayName || contact.fullName || 
-      `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 
-      contact.email;
-    
+    const contactName = contact.displayName || contact.fullName ||
+      `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
+      contact.email ||
+      contact.phone ||
+      'Unknown Contact';
+
     setSMSContact({
       id: contact.id,
       name: contactName,
@@ -519,8 +522,19 @@ export default function ContactsList() {
               <h1 className="text-2xl font-bold">Contacts</h1>
               <p className="text-muted-foreground">{filteredContacts.length} contacts</p>
             </div>
-            {/* Account Switcher */}
-            <AccountSwitcher />
+            {/* Account Filter */}
+            <select
+              className="h-10 px-3 rounded-md border border-input bg-background min-w-[200px]"
+              value={filterByAccountId}
+              onChange={(e) => setFilterByAccountId(e.target.value)}
+            >
+              <option value="all">All Accounts</option>
+              {accounts.filter(acc => acc.isActive).map(account => (
+                <option key={account.id} value={account.id}>
+                  {account.emailAddress}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex gap-2">
             <Button
@@ -779,7 +793,7 @@ function ContactCard({ contact, onDelete, onEdit, onEmail, onSMS, onClick, isSel
           {contact.company && (
             <p className="text-sm text-muted-foreground mb-1">{contact.company}</p>
           )}
-          <p className="text-sm text-muted-foreground mb-3">{contact.email}</p>
+          <p className="text-sm text-muted-foreground mb-3">{contact.email || contact.phone || 'No contact info'}</p>
           
           {contact.tags && contact.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 justify-center mb-4">
@@ -811,12 +825,12 @@ function ContactCard({ contact, onDelete, onEdit, onEmail, onSMS, onClick, isSel
           </div>
 
           <div className="flex gap-2 justify-center items-center">
-            <Button 
+            <Button
               variant="outline"
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
-                onEmail(contact.email);
+                if (contact.email) onEmail(contact.email);
               }}
               disabled={!contact.email}
               title={contact.email ? "Send Email" : "Add email to send"}
@@ -955,12 +969,12 @@ function ContactListItem({ contact, onDelete, onEdit, onEmail, onSMS, onClick, i
                   )}
                 </div>
                 <div className="flex gap-1">
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="icon"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEmail(contact.email);
+                      if (contact.email) onEmail(contact.email);
                     }}
                     disabled={!contact.email}
                     title={contact.email ? "Send Email" : "Add email to send"}

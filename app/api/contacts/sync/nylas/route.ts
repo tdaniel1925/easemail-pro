@@ -125,6 +125,16 @@ async function streamingSync(request: NextRequest) {
             const primaryEmail = nylasContact.emails?.find((e: any) => e.type === 'work' || e.type === 'personal')?.email
               || nylasContact.emails?.[0]?.email;
 
+            // Get primary phone
+            const primaryPhone = nylasContact.phoneNumbers?.find((p: any) => p.type === 'work' || p.type === 'mobile')?.number
+              || nylasContact.phoneNumbers?.[0]?.number;
+
+            // Skip contacts without both email AND phone (at least one is required)
+            if (!primaryEmail && !primaryPhone) {
+              skipped++;
+              continue;
+            }
+
             const emailLower = primaryEmail ? primaryEmail.toLowerCase() : null;
 
             // Check if contact already exists
@@ -135,7 +145,7 @@ async function streamingSync(request: NextRequest) {
               ),
             });
 
-            const existingByEmail = !existingByProvider && primaryEmail ? await db.query.contacts.findFirst({
+            const existingByEmail = !existingByProvider && emailLower ? await db.query.contacts.findFirst({
               where: and(
                 eq(contacts.userId, user.id),
                 eq(contacts.email, emailLower)
@@ -148,14 +158,14 @@ async function streamingSync(request: NextRequest) {
               skipped++;
             } else {
               // Get contact details
-              const primaryPhone = nylasContact.phoneNumbers?.find((p: any) => p.type === 'work' || p.type === 'mobile')?.number
-                || nylasContact.phoneNumbers?.[0]?.number;
               const company = nylasContact.companyName || null;
               const jobTitle = nylasContact.jobTitle || null;
               const firstName = nylasContact.givenName || null;
               const lastName = nylasContact.surname || null;
               const fullName = firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || null;
-              const displayName = fullName || (emailLower ? emailLower.split('@')[0] : 'Unknown');
+              const displayName = fullName ||
+                (emailLower ? emailLower.split('@')[0] : null) ||
+                (primaryPhone ? `Contact ${primaryPhone}` : 'Unknown Contact');
               const website = nylasContact.webPages?.[0]?.url || null;
               const notes = nylasContact.notes ? nylasContact.notes.join('\n') : null;
               const tags = nylasContact.groups?.map((g: any) => g.name || g.id) || [];
@@ -296,6 +306,16 @@ async function legacySync(request: NextRequest) {
       try {
         const primaryEmail = nylasContact.emails?.find((e: any) => e.type === 'work' || e.type === 'personal')?.email
           || nylasContact.emails?.[0]?.email;
+
+        const primaryPhone = nylasContact.phoneNumbers?.find((p: any) => p.type === 'work' || p.type === 'mobile')?.number
+          || nylasContact.phoneNumbers?.[0]?.number;
+
+        // Skip contacts without both email AND phone (at least one is required)
+        if (!primaryEmail && !primaryPhone) {
+          skipped.push({ contact: nylasContact, reason: 'No email or phone' });
+          continue;
+        }
+
         const emailLower = primaryEmail ? primaryEmail.toLowerCase() : null;
 
         const existingByProvider = await db.query.contacts.findFirst({
@@ -305,7 +325,7 @@ async function legacySync(request: NextRequest) {
           ),
         });
 
-        const existingByEmail = !existingByProvider && primaryEmail ? await db.query.contacts.findFirst({
+        const existingByEmail = !existingByProvider && emailLower ? await db.query.contacts.findFirst({
           where: and(
             eq(contacts.userId, user.id),
             eq(contacts.email, emailLower)
@@ -319,14 +339,14 @@ async function legacySync(request: NextRequest) {
           continue;
         }
 
-        const primaryPhone = nylasContact.phoneNumbers?.find((p: any) => p.type === 'work' || p.type === 'mobile')?.number
-          || nylasContact.phoneNumbers?.[0]?.number;
         const company = nylasContact.companyName || null;
         const jobTitle = nylasContact.jobTitle || null;
         const firstName = nylasContact.givenName || null;
         const lastName = nylasContact.surname || null;
         const fullName = firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || null;
-        const displayName = fullName || (emailLower ? emailLower.split('@')[0] : 'Unknown');
+        const displayName = fullName ||
+          (emailLower ? emailLower.split('@')[0] : null) ||
+          (primaryPhone ? `Contact ${primaryPhone}` : 'Unknown Contact');
         const website = nylasContact.webPages?.[0]?.url || null;
         const notes = nylasContact.notes ? nylasContact.notes.join('\n') : null;
         const tags = nylasContact.groups?.map((g: any) => g.name || g.id) || [];

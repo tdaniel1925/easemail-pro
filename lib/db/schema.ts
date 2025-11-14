@@ -298,8 +298,8 @@ export const contacts = pgTable('contacts', {
   provider: varchar('provider', { length: 50 }),
   providerContactId: varchar('provider_contact_id', { length: 255 }),
   
-  // Basic info
-  email: varchar('email', { length: 255 }).notNull(),
+  // Basic info (at least one of email or phone is required via DB constraint)
+  email: varchar('email', { length: 255 }),
   firstName: varchar('first_name', { length: 255 }),
   lastName: varchar('last_name', { length: 255 }),
   fullName: varchar('full_name', { length: 255 }),
