@@ -168,7 +168,21 @@ export default function InboxV3Page() {
             <select
               value={selectedAccountId || ''}
               onChange={(e) => {
-                setSelectedAccountId(e.target.value);
+                const selectedNylasGrantId = e.target.value;
+                setSelectedAccountId(selectedNylasGrantId);
+
+                // Also update the database account ID for sending emails and saving drafts
+                const selectedAccount = accounts.find(
+                  acc => acc.nylasGrantId === selectedNylasGrantId || acc.id === selectedNylasGrantId
+                );
+                if (selectedAccount) {
+                  setSelectedDbAccountId(selectedAccount.id);
+                  console.log('[Account Switch] Updated account IDs:', {
+                    nylasGrantId: selectedNylasGrantId,
+                    dbAccountId: selectedAccount.id
+                  });
+                }
+
                 setSelectedFolderId(null);
               }}
               className="w-full px-3 py-2 border rounded-lg text-sm bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]"

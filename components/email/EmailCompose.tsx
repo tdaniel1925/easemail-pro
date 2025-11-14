@@ -558,22 +558,20 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     try {
       if (!silent) console.log('💾 Saving draft...');
 
-      // Use PUT if we have a draft ID (update), otherwise POST (create)
-      const method = currentDraftId ? 'PUT' : 'POST';
+      // Build request body
       const requestBody: any = {
         accountId,
         to: to.map(r => r.email).join(', ') || '', // Allow empty recipients
         cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
         bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
         subject,
-        bodyText: body,
-        bodyHtml: body, // Could be enhanced with HTML conversion
+        body: body, // API expects 'body', not 'bodyText' or 'bodyHtml'
         attachments: [],
         replyToEmailId: replyTo?.messageId,
         replyType: type,
       };
 
-      // Add draft ID for PUT requests
+      // Add draft ID if updating an existing draft
       if (currentDraftId) {
         requestBody.draftId = currentDraftId;
       }
@@ -813,16 +811,16 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
           bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
           subject,
-          bodyText: body,
-          bodyHtml: body,
+          body: body, // API expects 'body', not 'bodyText' or 'bodyHtml'
           attachments: [],
           replyToEmailId: replyTo?.messageId,
           replyType: type,
+          draftId: currentDraftId, // Include draft ID for updates
         };
 
         // Use sendBeacon for reliable delivery during page unload
         const blob = new Blob([JSON.stringify(draftData)], { type: 'application/json' });
-        navigator.sendBeacon('/api/nylas/drafts', blob);
+        navigator.sendBeacon('/api/nylas-v3/drafts', blob);
 
         // Show browser confirmation dialog
         e.preventDefault();
