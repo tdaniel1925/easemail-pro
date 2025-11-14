@@ -3,7 +3,7 @@ import ContactsV4List from '@/components/contacts-v4/ContactsV4List';
 import { ContactListSkeleton } from '@/components/ui/skeleton';
 
 export const metadata = {
-  title: 'Contacts V4 | EaseMail',
+  title: 'Contacts | EaseMail',
   description: 'Manage your contacts with real-time sync',
 };
 

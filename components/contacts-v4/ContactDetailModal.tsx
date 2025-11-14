@@ -29,6 +29,7 @@ import { getInitials, generateAvatarColor, cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import type { ContactV4, NylasEmail, NylasPhoneNumber, NylasPhysicalAddress } from '@/lib/types/contacts-v4';
 import { formatDistanceToNow } from 'date-fns';
+import { SMSModal } from '@/components/sms/SMSModal';
 
 interface ContactDetailModalProps {
   isOpen: boolean;
@@ -49,6 +50,8 @@ export default function ContactDetailModal({
   const [loading, setLoading] = useState(true);
   const [contact, setContact] = useState<ContactV4 | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
+  const [smsContact, setSMSContact] = useState<{ id: string; name: string; phoneNumber: string } | null>(null);
 
   // Fetch contact details
   useEffect(() => {
@@ -154,6 +157,21 @@ export default function ContactDetailModal({
       }
     });
     window.dispatchEvent(event);
+  };
+
+  const handleSendSMS = (phoneNumber: string) => {
+    if (!contact) return;
+    setSMSContact({
+      id: contact.id,
+      name: contact.displayName,
+      phoneNumber
+    });
+    setIsSMSModalOpen(true);
+  };
+
+  const handleCloseSMS = () => {
+    setIsSMSModalOpen(false);
+    setSMSContact(null);
   };
 
   if (loading || !contact) {
@@ -263,6 +281,16 @@ export default function ContactDetailModal({
               >
                 <Mail className="h-4 w-4 mr-2" />
                 Email
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => primaryPhone && handleSendSMS(primaryPhone.number)}
+                disabled={!primaryPhone}
+                title={primaryPhone ? "Send SMS" : "No phone available"}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                SMS
               </Button>
               <Button
                 variant="outline"
@@ -494,6 +522,12 @@ export default function ContactDetailModal({
           </div>
         </Tabs>
       </DialogContent>
+
+      <SMSModal
+        isOpen={isSMSModalOpen}
+        onClose={handleCloseSMS}
+        contact={smsContact}
+      />
     </Dialog>
   );
 }

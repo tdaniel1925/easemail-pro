@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search,
   Plus,
@@ -23,7 +23,8 @@ import {
   Filter,
   Building2,
   Tag as TagIcon,
-  AlertCircle
+  AlertCircle,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,7 @@ import { useAccount } from '@/contexts/AccountContext';
 import type { ContactListItem, ContactSearchFilters, GetContactsResponse, ContactV4 } from '@/lib/types/contacts-v4';
 import ContactDetailModal from './ContactDetailModal';
 import ContactFormModal from './ContactFormModal';
+import { SMSModal } from '@/components/sms/SMSModal';
 
 export default function ContactsV4List() {
   const { accounts } = useAccount();
@@ -85,10 +87,24 @@ export default function ContactsV4List() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ContactV4 | null>(null);
 
+  // Infinite scroll
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // SMS modal
+  const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
+  const [smsContact, setSMSContact] = useState<{ id: string; name: string; phoneNumber: string } | null>(null);
+
   // Fetch contacts
-  const fetchContacts = useCallback(async (resetOffset = false) => {
+  const fetchContacts = useCallback(async (resetOffset = false, append = false) => {
     try {
-      setLoading(true);
+      if (resetOffset) {
+        setLoading(true);
+      } else if (append) {
+        setIsLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
 
       const currentOffset = resetOffset ? 0 : offset;
       const params = new URLSearchParams();
@@ -113,7 +129,11 @@ export default function ContactsV4List() {
       const data: GetContactsResponse = await response.json();
 
       if (data.success) {
-        setContacts(data.contacts);
+        if (append) {
+          setContacts(prev => [...prev, ...data.contacts]);
+        } else {
+          setContacts(data.contacts);
+        }
         setTotal(data.total);
         setHasMore(data.has_more);
         if (resetOffset) {
@@ -131,6 +151,7 @@ export default function ContactsV4List() {
       });
     } finally {
       setLoading(false);
+      setIsLoadingMore(false);
     }
   }, [selectedAccountId, searchQuery, filters, offset, limit, toast]);
 
@@ -457,11 +478,39 @@ export default function ContactsV4List() {
     window.URL.revokeObjectURL(url);
   };
 
-  // Pagination
-  const handleLoadMore = () => {
-    setOffset(offset + limit);
-    fetchContacts();
-  };
+  // Pagination - now uses infinite scroll
+  const handleLoadMore = useCallback(() => {
+    if (hasMore && !isLoadingMore && !loading) {
+      const newOffset = offset + limit;
+      setOffset(newOffset);
+      // Fetch with append=true to add to existing contacts
+      fetchContacts(false, true);
+    }
+  }, [hasMore, isLoadingMore, loading, offset, limit, fetchContacts]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && hasMore && !isLoadingMore && !loading) {
+          handleLoadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentRef = loadMoreRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [hasMore, isLoadingMore, loading, handleLoadMore]);
 
   // Detail modal
   const handleOpenDetail = (contactId: string) => {
@@ -522,6 +571,17 @@ export default function ContactsV4List() {
     fetchContacts(true);
   };
 
+  // SMS handlers
+  const handleSendSMS = (contactId: string, name: string, phoneNumber: string) => {
+    setSMSContact({ id: contactId, name, phoneNumber });
+    setIsSMSModalOpen(true);
+  };
+
+  const handleCloseSMS = () => {
+    setIsSMSModalOpen(false);
+    setSMSContact(null);
+  };
+
   if (loading && contacts.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -579,7 +639,7 @@ export default function ContactsV4List() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold">Contacts V4</h1>
+              <h1 className="text-2xl font-bold">Contacts</h1>
               <p className="text-muted-foreground">{total} contacts</p>
             </div>
 
@@ -757,6 +817,7 @@ export default function ContactsV4List() {
                   onDelete={handleDelete}
                   onToggleFavorite={handleToggleFavorite}
                   onEdit={handleEditContact}
+                  onSendSMS={handleSendSMS}
                   isSelected={selectedContactIds.has(contact.id)}
                   onToggleSelect={toggleSelectContact}
                   onClick={handleOpenDetail}
@@ -764,19 +825,15 @@ export default function ContactsV4List() {
               ))}
             </div>
 
-            {/* Load More */}
+            {/* Infinite scroll trigger */}
             {hasMore && (
-              <div className="flex justify-center mt-6">
-                <Button variant="outline" onClick={handleLoadMore} disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    'Load More'
-                  )}
-                </Button>
+              <div ref={loadMoreRef} className="flex justify-center mt-6 py-4">
+                {isLoadingMore && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Loading more contacts...</span>
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -790,6 +847,7 @@ export default function ContactsV4List() {
                   onDelete={handleDelete}
                   onToggleFavorite={handleToggleFavorite}
                   onEdit={handleEditContact}
+                  onSendSMS={handleSendSMS}
                   isSelected={selectedContactIds.has(contact.id)}
                   onToggleSelect={toggleSelectContact}
                   onClick={handleOpenDetail}
@@ -797,19 +855,15 @@ export default function ContactsV4List() {
               ))}
             </div>
 
-            {/* Load More */}
+            {/* Infinite scroll trigger */}
             {hasMore && (
-              <div className="flex justify-center mt-6">
-                <Button variant="outline" onClick={handleLoadMore} disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    'Load More'
-                  )}
-                </Button>
+              <div ref={loadMoreRef} className="flex justify-center mt-6 py-4">
+                {isLoadingMore && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Loading more contacts...</span>
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -835,6 +889,13 @@ export default function ContactsV4List() {
         accountId={selectedAccountId}
         onSaved={handleContactSaved}
       />
+
+      {/* SMS Modal */}
+      <SMSModal
+        isOpen={isSMSModalOpen}
+        onClose={handleCloseSMS}
+        contact={smsContact}
+      />
     </div>
   );
 }
@@ -848,12 +909,13 @@ interface ContactCardProps {
   onDelete: (id: string) => void;
   onToggleFavorite: (id: string, currentStatus: boolean) => void;
   onEdit: (id: string) => void;
+  onSendSMS: (contactId: string, name: string, phoneNumber: string) => void;
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onClick?: (id: string) => void;
 }
 
-function ContactCard({ contact, onDelete, onToggleFavorite, onEdit, isSelected, onToggleSelect, onClick }: ContactCardProps) {
+function ContactCard({ contact, onDelete, onToggleFavorite, onEdit, onSendSMS, isSelected, onToggleSelect, onClick }: ContactCardProps) {
   const avatarColor = generateAvatarColor(contact.primary_email || contact.display_name);
   const accountColor = getAccountColor(contact.account_id);
 
@@ -954,6 +1016,7 @@ function ContactCard({ contact, onDelete, onToggleFavorite, onEdit, isSelected, 
               size="sm"
               disabled={!contact.primary_email}
               title={contact.primary_email ? "Send Email" : "No email available"}
+              onClick={(e) => e.stopPropagation()}
             >
               <Mail className="h-4 w-4" />
             </Button>
@@ -963,8 +1026,24 @@ function ContactCard({ contact, onDelete, onToggleFavorite, onEdit, isSelected, 
               size="sm"
               disabled={!contact.primary_phone}
               title={contact.primary_phone ? "Call" : "No phone available"}
+              onClick={(e) => e.stopPropagation()}
             >
               <Phone className="h-4 w-4" />
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!contact.primary_phone}
+              title={contact.primary_phone ? "Send SMS" : "No phone available"}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (contact.primary_phone) {
+                  onSendSMS(contact.id, contact.display_name, contact.primary_phone);
+                }
+              }}
+            >
+              <MessageSquare className="h-4 w-4" />
             </Button>
 
             <DropdownMenu>
@@ -1012,12 +1091,13 @@ interface ContactListItemProps {
   onDelete: (id: string) => void;
   onToggleFavorite: (id: string, currentStatus: boolean) => void;
   onEdit: (id: string) => void;
+  onSendSMS: (contactId: string, name: string, phoneNumber: string) => void;
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   onClick?: (id: string) => void;
 }
 
-function ContactListItem({ contact, onDelete, onToggleFavorite, onEdit, isSelected, onToggleSelect, onClick }: ContactListItemProps) {
+function ContactListItem({ contact, onDelete, onToggleFavorite, onEdit, onSendSMS, isSelected, onToggleSelect, onClick }: ContactListItemProps) {
   const avatarColor = generateAvatarColor(contact.primary_email || contact.display_name);
   const accountColor = getAccountColor(contact.account_id);
 
@@ -1105,6 +1185,7 @@ function ContactListItem({ contact, onDelete, onToggleFavorite, onEdit, isSelect
               size="icon"
               disabled={!contact.primary_email}
               title={contact.primary_email ? "Send Email" : "No email available"}
+              onClick={(e) => e.stopPropagation()}
             >
               <Mail className="h-4 w-4" />
             </Button>
@@ -1113,8 +1194,23 @@ function ContactListItem({ contact, onDelete, onToggleFavorite, onEdit, isSelect
               size="icon"
               disabled={!contact.primary_phone}
               title={contact.primary_phone ? "Call" : "No phone available"}
+              onClick={(e) => e.stopPropagation()}
             >
               <Phone className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={!contact.primary_phone}
+              title={contact.primary_phone ? "Send SMS" : "No phone available"}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (contact.primary_phone) {
+                  onSendSMS(contact.id, contact.display_name, contact.primary_phone);
+                }
+              }}
+            >
+              <MessageSquare className="h-4 w-4" />
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
