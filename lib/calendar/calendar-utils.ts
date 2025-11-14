@@ -14,6 +14,8 @@ export interface CalendarEvent {
   calendarType?: string;
   color?: string;
   status?: string;
+  location?: string;
+  attendees?: any[];
 }
 
 /**

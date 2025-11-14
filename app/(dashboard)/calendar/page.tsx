@@ -10,7 +10,7 @@ import DayView from '@/components/calendar/DayView';
 import AgendaView from '@/components/calendar/AgendaView';
 import DraggableMonthView from '@/components/calendar/DraggableMonthView';
 import QuickAdd from '@/components/calendar/QuickAdd';
-import CalendarFilters from '@/components/calendar/CalendarFilters';
+import { CalendarFilters } from '@/components/calendar/CalendarFilters';
 import { cn } from '@/lib/utils';
 import { CalendarSkeleton } from '@/components/ui/skeleton';
 import { useAccount } from '@/contexts/AccountContext';
@@ -60,6 +60,16 @@ function CalendarContent() {
       return selectedCalendarTypes.includes(eventType);
     });
   }, [events, selectedCalendarTypes]);
+
+  // Get available calendar types from current events
+  const availableTypes = useMemo(() => {
+    const types = new Set<string>();
+    events.forEach(event => {
+      const eventType = event.calendarType || 'personal';
+      types.add(eventType);
+    });
+    return Array.from(types);
+  }, [events]);
 
   const previousMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
@@ -401,6 +411,7 @@ function CalendarContent() {
             <CalendarFilters
               selectedTypes={selectedCalendarTypes}
               onTypesChange={setSelectedCalendarTypes}
+              availableTypes={availableTypes}
             />
 
             <Button

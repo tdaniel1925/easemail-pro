@@ -74,7 +74,7 @@ export function EventCard({
             <Badge
               variant="secondary"
               className="h-5 w-5 p-0 flex items-center justify-center"
-              title={`Repeats ${parseRecurrenceRule(event.recurrenceRule)}`}
+              title={`Repeats ${parseRecurrenceRule(event.recurrenceRule || null)}`}
             >
               <Repeat className="h-3 w-3" />
             </Badge>

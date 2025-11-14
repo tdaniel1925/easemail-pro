@@ -93,6 +93,11 @@ export default function InboxV4({
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(50);
 
+  // Reset folder to inbox when account changes or on page refresh
+  useEffect(() => {
+    setCurrentFolder('inbox');
+  }, [selectedAccount]);
+
   // Filter and search emails
   const filteredEmails = useMemo(() => {
     let filtered = emails;
