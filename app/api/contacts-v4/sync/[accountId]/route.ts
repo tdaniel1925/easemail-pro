@@ -35,12 +35,22 @@ export async function POST(
 }
 
 /**
- * GET - Get sync state
+ * GET - Get sync state OR trigger streaming sync
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: { accountId: string } }
 ) {
+  const { searchParams } = new URL(request.url);
+  const isStreaming = searchParams.get('stream') === 'true';
+  const forceFullSync = searchParams.get('full') === 'true';
+
+  // If streaming is requested, use SSE sync
+  if (isStreaming) {
+    return streamingSync(params.accountId, forceFullSync);
+  }
+
+  // Otherwise, return sync state as JSON
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
