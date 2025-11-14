@@ -228,33 +228,28 @@ function CalendarContent() {
         body: JSON.stringify({ accountId: selectedAccount.id }),
       });
 
-      if (syncResponse) {
-        const syncData = await syncResponse.json();
+      const syncData = await syncResponse.json();
 
-        if (syncData.success) {
-          toast({
-            title: 'Sync Complete',
-            description: `Successfully synced ${syncData.synced || 0} events`,
-          });
-          // Refresh events
-          await fetchEvents();
-        } else {
-          // Handle permission errors with actionable guidance
-          const errorMessage = syncData.error || 'Sync failed';
-          const isPermissionError = errorMessage.includes('Calendar access not granted') ||
-                                   errorMessage.includes('calendar permissions');
+      if (syncResponse.ok && syncData.success) {
+        toast({
+          title: 'Sync Complete',
+          description: `Successfully synced ${syncData.synced || 0} events`,
+        });
+        // Refresh events
+        await fetchEvents();
+      } else {
+        // Handle permission errors with actionable guidance
+        const errorMessage = syncData.error || 'Sync failed';
+        const isPermissionError = errorMessage.includes('Calendar access not granted') ||
+                                 errorMessage.includes('calendar permissions');
 
-          toast({
-            title: isPermissionError ? 'Calendar Permissions Required' : 'Sync Failed',
-            description: isPermissionError
-              ? 'This account needs calendar access. Please go to Settings > Accounts to reconnect with calendar permissions.'
-              : errorMessage,
-            variant: 'destructive',
-          });
-
-          // Don't throw, just return early
-          return;
-        }
+        toast({
+          title: isPermissionError ? 'Calendar Permissions Required' : 'Sync Failed',
+          description: isPermissionError
+            ? 'This account needs calendar access. Please go to Settings > Accounts to reconnect with calendar permissions.'
+            : errorMessage,
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('Sync failed:', error);
