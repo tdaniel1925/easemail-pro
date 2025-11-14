@@ -364,14 +364,20 @@ export class ContactsV4SyncService {
       ),
     });
 
-    // Create lookup map by nylas_contact_id
-    const existingMap = new Map(
+    // Create lookup maps by nylas_contact_id AND by primary email
+    const existingByNylasIdMap = new Map(
       existingContacts
         .filter(c => c.nylasContactId)
         .map(c => [c.nylasContactId!, c])
     );
 
-    console.log(`📋 Found ${existingContacts.length} existing contacts`);
+    const existingByEmailMap = new Map(
+      existingContacts
+        .filter(c => c.primaryEmail)
+        .map(c => [c.primaryEmail!.toLowerCase(), c])
+    );
+
+    console.log(`📋 Found ${existingContacts.length} existing contacts (${existingByNylasIdMap.size} with Nylas ID, ${existingByEmailMap.size} with email)`);
 
     // Prepare batch inserts/updates
     const contactsToInsert: any[] = [];
@@ -387,8 +393,23 @@ export class ContactsV4SyncService {
           continue;
         }
 
-        // Check if contact exists
-        const existing = existingMap.get(nylasContact.id);
+        // Check if contact exists by Nylas ID first, then by email
+        let existing = existingByNylasIdMap.get(nylasContact.id);
+
+        // If not found by Nylas ID, check by primary email to detect duplicates
+        if (!existing && nylasContact.emails?.length) {
+          const primaryEmail = nylasContact.emails[0].email?.toLowerCase();
+          if (primaryEmail) {
+            existing = existingByEmailMap.get(primaryEmail);
+            if (existing) {
+              console.log(`🔍 Duplicate detected by email: ${primaryEmail} (existing ID: ${existing.id}, Nylas ID: ${nylasContact.id})`);
+              // Update the existing contact with the Nylas ID if it doesn't have one
+              if (!existing.nylasContactId) {
+                console.log(`✅ Linking existing contact ${existing.id} with Nylas ID ${nylasContact.id}`);
+              }
+            }
+          }
+        }
 
         if (existing) {
           // Check for conflicts
@@ -406,6 +427,9 @@ export class ContactsV4SyncService {
               id: existing.id,
               data: {
                 ...updateData,
+                // Ensure Nylas ID is set (important for duplicates found by email)
+                nylasContactId: nylasContact.id,
+                nylasGrantId: nylasContact.grant_id,
                 remoteUpdatedAt: nylasContact.updated_at
                   ? new Date(nylasContact.updated_at * 1000)
                   : null,

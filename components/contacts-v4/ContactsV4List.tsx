@@ -397,6 +397,46 @@ export default function ContactsV4List() {
     }
   };
 
+  // Bulk delete contacts
+  const handleBulkDelete = async () => {
+    if (selectedContactIds.size === 0) return;
+
+    if (!confirm(`Are you sure you want to delete ${selectedContactIds.size} contacts? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/contacts-v4/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contactIds: Array.from(selectedContactIds),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: 'Contacts deleted',
+          description: `Successfully deleted ${data.deleted} contacts`,
+        });
+        setSelectedContactIds(new Set());
+        setIsAllSelected(false);
+        fetchContacts(true);
+      } else {
+        throw new Error(data.error || 'Failed to delete contacts');
+      }
+    } catch (error) {
+      console.error('Failed to bulk delete contacts:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete contacts',
+        variant: 'destructive'
+      });
+    }
+  };
+
   // Toggle favorite
   const handleToggleFavorite = async (contactId: string, currentStatus: boolean) => {
     try {
@@ -623,6 +663,14 @@ export default function ContactsV4List() {
               <Button variant="outline" size="sm" onClick={handleExport}>
                 <Download className="h-4 w-4 mr-2" />
                 Export Selected
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Selected
               </Button>
               <Button
                 variant="outline"

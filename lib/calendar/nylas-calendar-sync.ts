@@ -33,12 +33,24 @@ export async function syncFromNylasCalendar(
     }
 
     // Check if account has calendar scopes
+    console.log('🔍 Checking calendar scopes for account:', {
+      accountId: account.id,
+      email: account.emailAddress,
+      nylasScopes: account.nylasScopes,
+      scopesType: typeof account.nylasScopes,
+      scopesIsArray: Array.isArray(account.nylasScopes)
+    });
+
     const hasCalendarScopes = account.nylasScopes?.some(
       scope => scope.includes('calendar') || scope.includes('Calendar')
     );
 
     if (!hasCalendarScopes) {
-      console.warn('⚠️ Account does not have calendar scopes');
+      console.warn('⚠️ Account does not have calendar scopes', {
+        nylasScopes: account.nylasScopes,
+        hasScopes: !!account.nylasScopes,
+        scopeCount: account.nylasScopes?.length
+      });
       return {
         success: false,
         synced: 0,
