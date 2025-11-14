@@ -270,7 +270,6 @@ function CalendarContent() {
               ? 'This account needs calendar access. Please go to Settings > Accounts to reconnect with calendar permissions.'
               : errorMessage,
             variant: 'destructive',
-            duration: isPermissionError ? 8000 : 5000,
           });
 
           // Don't throw, just return early
