@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (!emailResult.success) {
-        console.error('⚠️ Failed to send invitation email:', emailResult.error);
+        console.error('⚠️ Failed to send invitation email');
         // Don't fail the request - user was created successfully
       } else {
         console.log(`✅ Invitation email sent to ${email}`);
