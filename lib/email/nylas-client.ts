@@ -61,10 +61,33 @@ export async function exchangeNylasCode(code: string) {
     code,
   });
 
+  // Get grant details to fetch scopes using REST API
+  let scopes: string[] = [];
+  try {
+    const grantResponse = await fetch(
+      `${process.env.NYLAS_API_URI || 'https://api.us.nylas.com'}/v3/grants/${response.grantId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.NYLAS_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (grantResponse.ok) {
+      const grantData = await grantResponse.json();
+      scopes = grantData.data?.scope || grantData.data?.scopes || [];
+      console.log('📋 Retrieved scopes for grant:', scopes);
+    }
+  } catch (error) {
+    console.error('Failed to fetch grant scopes:', error);
+  }
+
   return {
     grantId: response.grantId,
     email: response.email,
     provider: response.provider,
+    scopes,
   };
 }
 

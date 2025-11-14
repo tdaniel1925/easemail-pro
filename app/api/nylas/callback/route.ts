@@ -95,8 +95,9 @@ export async function GET(request: NextRequest) {
     const grantId = grantResponse.grantId;
     const email = grantResponse.email;
     const provider = grantResponse.provider;
-    
-    console.log('✅ Grant received:', { grantId, email, provider });
+    const scopes = grantResponse.scopes;
+
+    console.log('✅ Grant received:', { grantId, email, provider, scopes });
     
     // Check if account already exists (reconnection scenario)
     console.log('🔍 Checking for existing account...');
@@ -113,6 +114,7 @@ export async function GET(request: NextRequest) {
         .set({
           nylasGrantId: grantId,
           providerAccountId: grantId,
+          nylasScopes: scopes,
           syncStatus: 'active',
           lastError: null, // Clear any previous errors
           isActive: true,
@@ -134,6 +136,7 @@ export async function GET(request: NextRequest) {
         nylasGrantId: grantId,
         nylasEmail: email,
         nylasProvider: provider,
+        nylasScopes: scopes,
         syncStatus: 'initializing',
         isActive: true,
         autoSync: true,
