@@ -253,7 +253,7 @@ export default function InboxV3Page() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {selectedFolderName === 'sms' ? (
           <SMSInboxV3 />
-        ) : selectedFolderName?.toLowerCase() === 'drafts' && selectedDbAccountId ? (
+        ) : (selectedFolderName?.toLowerCase() === 'drafts' || selectedFolderName?.toLowerCase() === 'draft') && selectedDbAccountId ? (
           <>
             {console.log('[Inbox] Rendering DraftsView with accountId:', selectedDbAccountId)}
             <DraftsView
@@ -265,7 +265,7 @@ export default function InboxV3Page() {
               }}
             />
           </>
-        ) : selectedFolderName?.toLowerCase() === 'drafts' && !selectedDbAccountId ? (
+        ) : (selectedFolderName?.toLowerCase() === 'drafts' || selectedFolderName?.toLowerCase() === 'draft') && !selectedDbAccountId ? (
           <>
             {console.error('[Inbox] ❌ Drafts folder selected but no selectedDbAccountId!')}
             <div className="flex items-center justify-center h-full">
