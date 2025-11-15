@@ -59,6 +59,16 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const { confirm, Dialog } = useConfirm();
   const { toast } = useToast();
 
+  // Debug: Log accountId prop
+  useEffect(() => {
+    if (isOpen) {
+      console.log('[EmailCompose] Opened with accountId:', accountId, 'Type:', typeof accountId);
+      if (!accountId) {
+        console.error('[EmailCompose] ❌ No accountId provided! Draft saving will be disabled.');
+      }
+    }
+  }, [isOpen, accountId]);
+
   const [isMinimized, setIsMinimized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showCc, setShowCc] = useState(false);

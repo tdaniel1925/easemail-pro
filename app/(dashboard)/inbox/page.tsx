@@ -55,6 +55,11 @@ export default function InboxV3Page() {
     // AND store the database ID for sending emails
     const firstValidAccount = accounts.find(acc => acc.nylasGrantId);
     if (firstValidAccount) {
+      console.log('[Inbox] Auto-selecting first account:', {
+        nylasGrantId: firstValidAccount.nylasGrantId,
+        dbAccountId: firstValidAccount.id,
+        emailAddress: firstValidAccount.emailAddress,
+      });
       setSelectedAccountId(firstValidAccount.nylasGrantId); // For Nylas API
       setSelectedDbAccountId(firstValidAccount.id); // For send email API
     } else {
@@ -153,7 +158,10 @@ export default function InboxV3Page() {
         {/* Action Buttons - Fixed */}
         <div className="flex-shrink-0 p-3 border-b border-border space-y-2">
           <Button
-            onClick={() => setIsComposeOpen(true)}
+            onClick={() => {
+              console.log('[Inbox] Compose clicked. selectedDbAccountId:', selectedDbAccountId);
+              setIsComposeOpen(true);
+            }}
             className="w-full gap-2"
             disabled={!selectedAccountId}
           >
