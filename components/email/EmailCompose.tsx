@@ -556,7 +556,10 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     setSavingStatus('saving');
 
     try {
-      if (!silent) console.log('💾 Saving draft...');
+      if (!silent) {
+        console.log('💾 Saving draft...');
+        console.log('[Draft] Account ID being sent:', accountId, 'Type:', typeof accountId);
+      }
 
       // Build request body
       const requestBody: any = {

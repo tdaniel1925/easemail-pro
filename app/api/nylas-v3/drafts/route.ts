@@ -42,23 +42,38 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Verify account ownership
+    console.log('[Draft] Looking up account:', accountId);
+    console.log('[Draft] Current user ID:', user.id);
+
     let account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.nylasGrantId, accountId),
     });
 
     if (!account) {
+      console.log('[Draft] Not found by nylasGrantId, trying by database ID...');
       account = await db.query.emailAccounts.findFirst({
         where: eq(emailAccounts.id, accountId),
       });
     }
 
     if (!account) {
+      console.error('[Draft] ❌ Account not found:', accountId);
       return NextResponse.json({
         error: 'Account not found. Please reconnect your email account.'
       }, { status: 404 });
     }
 
+    console.log('[Draft] Found account:', {
+      id: account.id,
+      emailAddress: account.emailAddress,
+      provider: account.emailProvider,
+      userId: account.userId,
+      currentUserId: user.id,
+      match: account.userId === user.id
+    });
+
     if (account.userId !== user.id) {
+      console.error('[Draft] ❌ User ID mismatch! Account userId:', account.userId, 'Current user:', user.id);
       return NextResponse.json({
         error: 'Unauthorized access to account'
       }, { status: 403 });
