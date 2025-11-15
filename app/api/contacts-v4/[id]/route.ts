@@ -10,8 +10,57 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { contactsV4 } from '@/lib/db/schema-contacts-v4';
 import { eq, and } from 'drizzle-orm';
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
+
+// ✅ SECURITY: Input validation schema for contact updates
+const emailSchema = z.object({
+  email: z.string().email(),
+  type: z.enum(['work', 'personal', 'other']).optional(),
+});
+
+const phoneSchema = z.object({
+  number: z.string().min(1).max(50),
+  type: z.enum(['mobile', 'work', 'home', 'other']).optional(),
+});
+
+const addressSchema = z.object({
+  street: z.string().max(255).optional(),
+  city: z.string().max(100).optional(),
+  state: z.string().max(100).optional(),
+  postal_code: z.string().max(20).optional(),
+  country: z.string().max(100).optional(),
+  type: z.enum(['work', 'home', 'other']).optional(),
+});
+
+const contactUpdateSchema = z.object({
+  updates: z.object({
+    given_name: z.string().max(255).optional(),
+    middle_name: z.string().max(255).optional(),
+    surname: z.string().max(255).optional(),
+    suffix: z.string().max(50).optional(),
+    nickname: z.string().max(255).optional(),
+    emails: z.array(emailSchema).max(10).optional(),
+    phone_numbers: z.array(phoneSchema).max(10).optional(),
+    physical_addresses: z.array(addressSchema).max(5).optional(),
+    web_pages: z.array(z.string().url()).max(10).optional(),
+    im_addresses: z.array(z.string().max(255)).max(10).optional(),
+    job_title: z.string().max(255).optional(),
+    company_name: z.string().max(255).optional(),
+    manager_name: z.string().max(255).optional(),
+    office_location: z.string().max(255).optional(),
+    department: z.string().max(255).optional(),
+    birthday: z.string().optional(),
+    notes: z.string().max(5000).optional(),
+    groups: z.array(z.object({
+      name: z.string().max(255),
+    })).max(20).optional(),
+    tags: z.array(z.string().max(100)).max(50).optional(),
+    is_favorite: z.boolean().optional(),
+  }),
+  sync_immediately: z.boolean().optional(),
+});
 
 /**
  * GET - Get contact by ID
@@ -73,14 +122,21 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { updates, sync_immediately } = body;
 
-    if (!updates) {
+    // ✅ SECURITY: Validate input with Zod schema
+    const validationResult = contactUpdateSchema.safeParse(body);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'updates object is required' },
+        {
+          success: false,
+          error: 'Invalid contact data',
+          details: validationResult.error.issues,
+        },
         { status: 400 }
       );
     }
+
+    const { updates, sync_immediately } = validationResult.data;
 
     // Prepare update data
     const updateData: any = {
@@ -137,9 +193,10 @@ export async function PUT(
       contact: transformContactToResponse(updatedContact),
     });
   } catch (error: any) {
+    // ✅ SECURITY: Log detailed error internally, return generic message
     console.error('❌ Update contact error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to update contact' },
+      { success: false, error: 'Failed to update contact' },
       { status: 500 }
     );
   }
