@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Pencil, MessageSquare, Users, Calendar, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,6 +44,34 @@ export default function InboxV3Page() {
   // Get accounts
   const { accounts, loading: accountsLoading } = useAccounts();
 
+  // Load saved account preference on mount
+  useEffect(() => {
+    const savedAccountId = localStorage.getItem('selectedAccountId');
+    const savedDbAccountId = localStorage.getItem('selectedDbAccountId');
+
+    if (savedAccountId && savedDbAccountId && accounts.length > 0) {
+      // Check if saved account still exists
+      const savedAccount = accounts.find(
+        acc => acc.nylasGrantId === savedAccountId || acc.id === savedAccountId
+      );
+
+      if (savedAccount) {
+        console.log('[Inbox] Restoring saved account:', savedAccount.emailAddress);
+        setSelectedAccountId(savedAccountId);
+        setSelectedDbAccountId(savedDbAccountId);
+        return;
+      }
+    }
+  }, [accounts]);
+
+  // Save account preference when it changes
+  useEffect(() => {
+    if (selectedAccountId && selectedDbAccountId) {
+      localStorage.setItem('selectedAccountId', selectedAccountId);
+      localStorage.setItem('selectedDbAccountId', selectedDbAccountId);
+    }
+  }, [selectedAccountId, selectedDbAccountId]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
@@ -55,6 +83,11 @@ export default function InboxV3Page() {
     // AND store the database ID for sending emails
     const firstValidAccount = accounts.find(acc => acc.nylasGrantId);
     if (firstValidAccount) {
+      console.log('[Inbox] Auto-selecting first account:', {
+        nylasGrantId: firstValidAccount.nylasGrantId,
+        dbAccountId: firstValidAccount.id,
+        emailAddress: firstValidAccount.emailAddress,
+      });
       setSelectedAccountId(firstValidAccount.nylasGrantId); // For Nylas API
       setSelectedDbAccountId(firstValidAccount.id); // For send email API
     } else {
@@ -153,7 +186,10 @@ export default function InboxV3Page() {
         {/* Action Buttons - Fixed */}
         <div className="flex-shrink-0 p-3 border-b border-border space-y-2">
           <Button
-            onClick={() => setIsComposeOpen(true)}
+            onClick={() => {
+              console.log('[Inbox] Compose clicked. selectedDbAccountId:', selectedDbAccountId);
+              setIsComposeOpen(true);
+            }}
             className="w-full gap-2"
             disabled={!selectedAccountId}
           >
@@ -168,7 +204,21 @@ export default function InboxV3Page() {
             <select
               value={selectedAccountId || ''}
               onChange={(e) => {
-                setSelectedAccountId(e.target.value);
+                const selectedNylasGrantId = e.target.value;
+                setSelectedAccountId(selectedNylasGrantId);
+
+                // Also update the database account ID for sending emails and saving drafts
+                const selectedAccount = accounts.find(
+                  acc => acc.nylasGrantId === selectedNylasGrantId || acc.id === selectedNylasGrantId
+                );
+                if (selectedAccount) {
+                  setSelectedDbAccountId(selectedAccount.id);
+                  console.log('[Account Switch] Updated account IDs:', {
+                    nylasGrantId: selectedNylasGrantId,
+                    dbAccountId: selectedAccount.id
+                  });
+                }
+
                 setSelectedFolderId(null);
               }}
               className="w-full px-3 py-2 border rounded-lg text-sm bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]"
@@ -231,15 +281,27 @@ export default function InboxV3Page() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {selectedFolderName === 'sms' ? (
           <SMSInboxV3 />
-        ) : selectedFolderName?.toLowerCase() === 'drafts' && selectedAccountId ? (
-          <DraftsView
-            accountId={selectedAccountId}
-            onResumeDraft={(draft) => {
-              console.log('[inbox-v3] Resuming draft:', draft);
-              setComposeDraft(draft);
-              setIsComposeOpen(true);
-            }}
-          />
+        ) : (selectedFolderName?.toLowerCase() === 'drafts' || selectedFolderName?.toLowerCase() === 'draft') && selectedDbAccountId ? (
+          <>
+            {console.log('[Inbox] Rendering DraftsView with accountId:', selectedDbAccountId)}
+            <DraftsView
+              accountId={selectedDbAccountId}
+              onResumeDraft={(draft) => {
+                console.log('[inbox-v3] Resuming draft:', draft);
+                setComposeDraft(draft);
+                setIsComposeOpen(true);
+              }}
+            />
+          </>
+        ) : (selectedFolderName?.toLowerCase() === 'drafts' || selectedFolderName?.toLowerCase() === 'draft') && !selectedDbAccountId ? (
+          <>
+            {console.error('[Inbox] ❌ Drafts folder selected but no selectedDbAccountId!')}
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center p-8">
+                <p className="text-red-600">No account selected</p>
+              </div>
+            </div>
+          </>
         ) : selectedAccountId && !selectedMessageId ? (
           <EmailListEnhancedV3
             accountId={selectedAccountId}

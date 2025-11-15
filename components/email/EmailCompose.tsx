@@ -59,6 +59,16 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const { confirm, Dialog } = useConfirm();
   const { toast } = useToast();
 
+  // Debug: Log accountId prop
+  useEffect(() => {
+    if (isOpen) {
+      console.log('[EmailCompose] Opened with accountId:', accountId, 'Type:', typeof accountId);
+      if (!accountId) {
+        console.error('[EmailCompose] ❌ No accountId provided! Draft saving will be disabled.');
+      }
+    }
+  }, [isOpen, accountId]);
+
   const [isMinimized, setIsMinimized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showCc, setShowCc] = useState(false);
@@ -536,7 +546,10 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   };
 
   const handleSaveDraft = useCallback(async (silent = false) => {
+    console.log('[Draft Save] Called with:', { silent, accountId, to: to.length, subject: subject.length, body: body.length });
+
     if (!accountId) {
+      console.log('[Draft Save] ❌ No accountId, aborting');
       if (!silent) {
         toast({
           title: 'No Account Selected',
@@ -549,31 +562,34 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
     // Don't save completely empty drafts
     if (to.length === 0 && !subject.trim() && !body.trim()) {
+      console.log('[Draft Save] ❌ Empty draft (no to/subject/body), skipping save');
       return;
     }
 
+    console.log('[Draft Save] ✅ Validation passed, proceeding with save...');
     setIsSavingDraft(true);
     setSavingStatus('saving');
 
     try {
-      if (!silent) console.log('💾 Saving draft...');
+      if (!silent) {
+        console.log('💾 Saving draft...');
+        console.log('[Draft] Account ID being sent:', accountId, 'Type:', typeof accountId);
+      }
 
-      // Use PUT if we have a draft ID (update), otherwise POST (create)
-      const method = currentDraftId ? 'PUT' : 'POST';
+      // Build request body
       const requestBody: any = {
         accountId,
         to: to.map(r => r.email).join(', ') || '', // Allow empty recipients
         cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
         bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
         subject,
-        bodyText: body,
-        bodyHtml: body, // Could be enhanced with HTML conversion
+        body: body, // API expects 'body', not 'bodyText' or 'bodyHtml'
         attachments: [],
         replyToEmailId: replyTo?.messageId,
         replyType: type,
       };
 
-      // Add draft ID for PUT requests
+      // Add draft ID if updating an existing draft
       if (currentDraftId) {
         requestBody.draftId = currentDraftId;
       }
@@ -601,6 +617,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         setIsDirty(false);
         setSavingStatus('saved');
         setIsFirstChange(false); // Mark that first save is complete
+
+        // Trigger refresh to update draft folder count
+        window.dispatchEvent(new CustomEvent('refreshEmails'));
 
         // Clear saved status after 2 seconds
         setTimeout(() => {
@@ -813,16 +832,16 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
           bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
           subject,
-          bodyText: body,
-          bodyHtml: body,
+          body: body, // API expects 'body', not 'bodyText' or 'bodyHtml'
           attachments: [],
           replyToEmailId: replyTo?.messageId,
           replyType: type,
+          draftId: currentDraftId, // Include draft ID for updates
         };
 
         // Use sendBeacon for reliable delivery during page unload
         const blob = new Blob([JSON.stringify(draftData)], { type: 'application/json' });
-        navigator.sendBeacon('/api/nylas/drafts', blob);
+        navigator.sendBeacon('/api/nylas-v3/drafts', blob);
 
         // Show browser confirmation dialog
         e.preventDefault();

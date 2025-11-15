@@ -40,24 +40,35 @@ export function DraftsView({ accountId, onResumeDraft }: DraftsViewProps) {
   const { confirm, Dialog } = useConfirm();
   const { toast } = useToast();
 
+  console.log('[DraftsView] Component mounted/updated with accountId:', accountId);
+
   // Fetch drafts for the account
   const fetchDrafts = async () => {
-    if (!accountId) return;
+    if (!accountId) {
+      console.log('[DraftsView] No accountId provided, skipping fetch');
+      return;
+    }
+
+    console.log('[DraftsView] Fetching drafts for accountId:', accountId);
 
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/nylas-v3/drafts?accountId=${accountId}`);
+      const url = `/api/nylas-v3/drafts?accountId=${accountId}`;
+      console.log('[DraftsView] Fetching from:', url);
+
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error('Failed to fetch drafts');
       }
 
       const data = await response.json();
+      console.log('[DraftsView] Received drafts:', data.drafts?.length || 0);
       setDrafts(data.drafts || []);
     } catch (err) {
-      console.error('Error fetching drafts:', err);
+      console.error('[DraftsView] Error fetching drafts:', err);
       setError(err instanceof Error ? err.message : 'Failed to load drafts');
     } finally {
       setLoading(false);
@@ -66,6 +77,17 @@ export function DraftsView({ accountId, onResumeDraft }: DraftsViewProps) {
 
   useEffect(() => {
     fetchDrafts();
+  }, [accountId]);
+
+  // Listen for draft saves and refresh
+  useEffect(() => {
+    const handleRefresh = () => {
+      console.log('[DraftsView] Refreshing drafts list...');
+      fetchDrafts();
+    };
+
+    window.addEventListener('refreshEmails', handleRefresh);
+    return () => window.removeEventListener('refreshEmails', handleRefresh);
   }, [accountId]);
 
   const handleDeleteDraft = async (draftId: string, e: React.MouseEvent) => {
