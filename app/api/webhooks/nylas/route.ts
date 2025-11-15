@@ -13,20 +13,31 @@ function verifyWebhookSignature(payload: string, signature: string): boolean {
     console.warn('⚠️ NYLAS_WEBHOOK_SECRET not set - skipping signature verification');
     return true; // Allow in development
   }
-  
+
   try {
     const hmac = crypto.createHmac('sha256', process.env.NYLAS_WEBHOOK_SECRET);
     const digest = hmac.update(payload).digest('hex');
-    
+
     // Log for debugging (first 20 chars only for security)
     console.log('[Webhook] Signature verification:', {
+      receivedLength: signature.length,
+      expectedLength: digest.length,
       receivedSignature: signature.substring(0, 20) + '...',
       calculatedSignature: digest.substring(0, 20) + '...',
       payloadLength: payload.length,
       match: signature === digest
     });
-    
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest));
+
+    // Check if lengths match before comparison (timingSafeEqual requires equal lengths)
+    if (signature.length !== digest.length) {
+      console.error('❌ Signature length mismatch:', {
+        received: signature.length,
+        expected: digest.length,
+      });
+      return false;
+    }
+
+    return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(digest, 'hex'));
   } catch (error) {
     console.error('❌ Signature verification error:', error);
     return false;

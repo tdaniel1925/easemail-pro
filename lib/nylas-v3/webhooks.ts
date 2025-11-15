@@ -29,15 +29,39 @@ export function verifyWebhookSignature(
     return false;
   }
 
+  // Skip verification if webhook secret is not configured (dev mode)
+  if (!nylasConfig.webhookSecret) {
+    console.warn('⚠️ NYLAS_WEBHOOK_SECRET not configured - skipping signature verification');
+    return true;
+  }
+
   try {
     const hmac = crypto.createHmac('sha256', nylasConfig.webhookSecret);
     hmac.update(payload);
     const expectedSignature = hmac.digest('hex');
 
+    // Log signature comparison for debugging (truncated for security)
+    console.log('[Webhook] Signature verification:', {
+      receivedLength: signature.length,
+      expectedLength: expectedSignature.length,
+      receivedPrefix: signature.substring(0, 8),
+      expectedPrefix: expectedSignature.substring(0, 8),
+      payloadLength: payload.length,
+    });
+
+    // Check if lengths match before comparison (timingSafeEqual requires equal lengths)
+    if (signature.length !== expectedSignature.length) {
+      console.error('❌ Signature length mismatch:', {
+        received: signature.length,
+        expected: expectedSignature.length,
+      });
+      return false;
+    }
+
     // Use timing-safe comparison to prevent timing attacks
     return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
+      Buffer.from(signature, 'hex'),
+      Buffer.from(expectedSignature, 'hex')
     );
   } catch (error) {
     console.error('❌ Webhook signature verification error:', error);
