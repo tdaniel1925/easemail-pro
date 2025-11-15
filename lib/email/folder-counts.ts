@@ -1,19 +1,24 @@
 /**
  * Real-Time Folder Counts
- * 
+ *
  * Calculates folder counts from local database instead of relying on Nylas API.
  * This provides:
  * - Real-time updates (no stale data)
  * - Instant feedback when emails are read/moved/deleted
  * - Works offline
  * - More reliable than synced counts
- * 
+ *
  * Like Superhuman: Counts update immediately on user actions
  */
 
 import { db } from '@/lib/db/drizzle';
 import { emails, emailAccounts } from '@/lib/db/schema';
 import { eq, sql, and } from 'drizzle-orm';
+import { z } from 'zod';
+
+// Input validation schemas to prevent SQL injection
+const accountIdSchema = z.string().uuid('Invalid account ID format');
+const folderNameSchema = z.string().min(1).max(255).regex(/^[a-zA-Z0-9_\-\/\s]+$/, 'Invalid folder name format');
 
 export interface FolderCount {
   folder: string;
@@ -29,15 +34,18 @@ export interface FolderCountsResult {
 
 /**
  * Get real-time folder counts for an account
- * 
+ *
  * @param accountId - The email account ID
  * @returns Object with folder counts (total and unread)
  */
 export async function getFolderCounts(accountId: string): Promise<FolderCountsResult> {
   try {
+    // ✅ SECURITY: Validate input to prevent SQL injection
+    const validatedAccountId = accountIdSchema.parse(accountId);
+
     // Validate account exists
     const account = await db.query.emailAccounts.findFirst({
-      where: eq(emailAccounts.id, accountId),
+      where: eq(emailAccounts.id, validatedAccountId),
     });
 
     if (!account) {
@@ -50,7 +58,7 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
 
     // Query folder counts using SQL aggregation
     // This is MUCH faster than counting in JavaScript
-    // ✅ FIX: Use LATERAL join instead of CASE with set-returning function
+    // ✅ SECURITY: Using validated accountId in parameterized query
     const rawResult = await db.execute<{ folder: string; totalCount: number; unreadCount: number }>(sql`
       SELECT
         COALESCE(TRIM(BOTH '"' FROM folder_name::text), 'inbox') as folder,
@@ -63,7 +71,7 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
           e.folder as folder_name
         FROM emails e
         WHERE
-          e.account_id = ${accountId}
+          e.account_id = ${validatedAccountId}
           AND e.is_trashed = false
           AND e.is_archived = false
           AND e.folder IS NOT NULL
@@ -84,7 +92,7 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
           END
         ) AS folder_elem
         WHERE
-          e.account_id = ${accountId}
+          e.account_id = ${validatedAccountId}
           AND e.is_trashed = false
           AND e.is_archived = false
           AND folder_elem IS NOT NULL
@@ -99,10 +107,11 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
     const result = Array.isArray(rawResult) ? rawResult : [];
 
     // Get local draft count (stored in email_drafts table, not emails table)
+    // ✅ SECURITY: Using validated accountId
     const draftCountResult = await db.execute<{ count: number }>(sql`
       SELECT COUNT(*)::int as count
       FROM email_drafts
-      WHERE account_id = ${accountId}
+      WHERE account_id = ${validatedAccountId}
     `);
     const draftCount = Array.isArray(draftCountResult) && draftCountResult.length > 0
       ? Number(draftCountResult[0].count)
@@ -129,7 +138,7 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
       });
     }
 
-    console.log(`📊 Calculated folder counts for account ${accountId} (${draftCount} local drafts):`, countsWithDrafts);
+    console.log(`📊 Calculated folder counts for account ${validatedAccountId} (${draftCount} local drafts):`, countsWithDrafts);
 
     return {
       success: true,
@@ -137,17 +146,25 @@ export async function getFolderCounts(accountId: string): Promise<FolderCountsRe
     };
   } catch (error) {
     console.error('❌ Failed to get folder counts:', error);
+    // ✅ SECURITY: Don't leak internal error details to caller
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        counts: [],
+        error: 'Invalid account ID format',
+      };
+    }
     return {
       success: false,
       counts: [],
-      error: (error as Error).message,
+      error: 'Failed to retrieve folder counts',
     };
   }
 }
 
 /**
  * Get count for a specific folder
- * 
+ *
  * @param accountId - The email account ID
  * @param folderName - The folder name (e.g., 'inbox', 'sent')
  * @returns Total and unread counts for that folder
@@ -157,23 +174,27 @@ export async function getFolderCount(
   folderName: string
 ): Promise<{ totalCount: number; unreadCount: number }> {
   try {
-    // ✅ FIX: Check both folder field AND folders array for the folder name
+    // ✅ SECURITY: Validate inputs to prevent SQL injection
+    const validatedAccountId = accountIdSchema.parse(accountId);
+    const validatedFolderName = folderNameSchema.parse(folderName);
+
+    // ✅ SECURITY: Check both folder field AND folders array for the folder name
     const rawResult = await db.execute<{ totalCount: number; unreadCount: number }>(sql`
       SELECT
         COUNT(DISTINCT e.id)::int as "totalCount",
         COUNT(DISTINCT e.id) FILTER (WHERE e.is_read = false)::int as "unreadCount"
       FROM emails e
       WHERE
-        e.account_id = ${accountId}
+        e.account_id = ${validatedAccountId}
         AND e.is_trashed = false
         AND e.is_archived = false
         AND (
-          LOWER(e.folder) = LOWER(${folderName})
-          OR e.folders ? ${folderName}
+          LOWER(e.folder) = LOWER(${validatedFolderName})
+          OR e.folders ? ${validatedFolderName}
           OR EXISTS (
             SELECT 1
             FROM jsonb_array_elements_text(e.folders) as folder_elem
-            WHERE LOWER(folder_elem) = LOWER(${folderName})
+            WHERE LOWER(folder_elem) = LOWER(${validatedFolderName})
           )
         )
     `);
@@ -190,19 +211,23 @@ export async function getFolderCount(
       unreadCount: Number(result[0].unreadCount) || 0,
     };
   } catch (error) {
-    console.error(`❌ Failed to get count for folder ${folderName}:`, error);
+    // ✅ SECURITY: Log error but don't expose details
+    console.error(`❌ Failed to get count for folder:`, error);
     return { totalCount: 0, unreadCount: 0 };
   }
 }
 
 /**
  * Get inbox count (special case - includes all non-trashed, non-archived emails)
- * 
+ *
  * @param accountId - The email account ID
  * @returns Total and unread counts for inbox
  */
 export async function getInboxCount(accountId: string): Promise<{ totalCount: number; unreadCount: number }> {
   try {
+    // ✅ SECURITY: Validate input to prevent SQL injection
+    const validatedAccountId = accountIdSchema.parse(accountId);
+
     const result = await db
       .select({
         totalCount: sql<number>`COUNT(*)::int`,
@@ -211,7 +236,7 @@ export async function getInboxCount(accountId: string): Promise<{ totalCount: nu
       .from(emails)
       .where(
         and(
-          eq(emails.accountId, accountId),
+          eq(emails.accountId, validatedAccountId),
           eq(emails.isTrashed, false),
           eq(emails.isArchived, false)
         )

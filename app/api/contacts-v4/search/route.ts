@@ -8,8 +8,40 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { contactsV4 } from '@/lib/db/schema-contacts-v4';
 import { eq, and, or, ilike, sql } from 'drizzle-orm';
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
+
+// ✅ SECURITY: Input validation schemas to prevent SQL injection
+const searchParamsSchema = z.object({
+  q: z.string().max(500).optional(),
+  account: z.string().uuid().optional(),
+  groups: z.string().max(1000).optional(),
+  tags: z.string().max(1000).optional(),
+  companies: z.string().max(1000).optional(),
+  is_favorite: z.enum(['true', 'false']).optional(),
+  has_email: z.enum(['true', 'false']).optional(),
+  has_phone: z.enum(['true', 'false']).optional(),
+  source: z.enum(['address_book', 'domain', 'inbox', 'easemail']).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
+// Sanitize search strings to prevent SQL injection
+const sanitizeSearchString = (input: string): string => {
+  // Remove SQL special characters and limit length
+  return input
+    .replace(/[%;\\]/g, '') // Remove SQL wildcards and escape chars
+    .substring(0, 255);
+};
+
+// Validate array items
+const validateArrayItems = (items: string[], maxLength: number = 100): string[] => {
+  return items
+    .filter(item => item.length > 0 && item.length <= maxLength)
+    .map(item => sanitizeSearchString(item))
+    .slice(0, 50); // Limit array size
+};
 
 /**
  * GET - Advanced contact search
@@ -37,23 +69,47 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
 
-    // Parse query parameters
-    const query = searchParams.get('q');
-    const accountId = searchParams.get('account');
-    const groupsParam = searchParams.get('groups');
-    const tagsParam = searchParams.get('tags');
-    const companiesParam = searchParams.get('companies');
-    const isFavorite = searchParams.get('is_favorite');
-    const hasEmail = searchParams.get('has_email');
-    const hasPhone = searchParams.get('has_phone');
-    const source = searchParams.get('source');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    // ✅ SECURITY: Validate all query parameters
+    const rawParams = {
+      q: searchParams.get('q') || undefined,
+      account: searchParams.get('account') || undefined,
+      groups: searchParams.get('groups') || undefined,
+      tags: searchParams.get('tags') || undefined,
+      companies: searchParams.get('companies') || undefined,
+      is_favorite: searchParams.get('is_favorite') || undefined,
+      has_email: searchParams.get('has_email') || undefined,
+      has_phone: searchParams.get('has_phone') || undefined,
+      source: searchParams.get('source') || undefined,
+      limit: searchParams.get('limit') || '50',
+      offset: searchParams.get('offset') || '0',
+    };
 
-    // Parse arrays
-    const groups = groupsParam ? groupsParam.split(',').map(g => g.trim()) : [];
-    const tags = tagsParam ? tagsParam.split(',').map(t => t.trim()) : [];
-    const companies = companiesParam ? companiesParam.split(',').map(c => c.trim()) : [];
+    // Validate parameters against schema
+    const validationResult = searchParamsSchema.safeParse(rawParams);
+    if (!validationResult.success) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid search parameters',
+        details: validationResult.error.issues,
+      }, { status: 400 });
+    }
+
+    const validated = validationResult.data;
+
+    // Parse and sanitize query parameters
+    const query = validated.q ? sanitizeSearchString(validated.q) : null;
+    const accountId = validated.account;
+    const isFavorite = validated.is_favorite;
+    const hasEmail = validated.has_email;
+    const hasPhone = validated.has_phone;
+    const source = validated.source;
+    const limit = validated.limit || 50;
+    const offset = validated.offset || 0;
+
+    // Parse and validate arrays
+    const groups = validated.groups ? validateArrayItems(validated.groups.split(',').map(g => g.trim())) : [];
+    const tags = validated.tags ? validateArrayItems(validated.tags.split(',').map(t => t.trim())) : [];
+    const companies = validated.companies ? validateArrayItems(validated.companies.split(',').map(c => c.trim())) : [];
 
     // Build base conditions
     const conditions = [
@@ -116,25 +172,26 @@ export async function GET(request: NextRequest) {
     }
 
     // Text search across multiple fields
+    // ✅ SECURITY: Using sanitized query (already validated and sanitized above)
     if (query) {
-      const searchLower = query.toLowerCase();
+      const searchPattern = `%${query}%`;
       conditions.push(
         or(
-          ilike(contactsV4.displayName, `%${searchLower}%`),
-          ilike(contactsV4.givenName, `%${searchLower}%`),
-          ilike(contactsV4.surname, `%${searchLower}%`),
-          ilike(contactsV4.companyName, `%${searchLower}%`),
-          ilike(contactsV4.jobTitle, `%${searchLower}%`),
-          ilike(contactsV4.notes, `%${searchLower}%`),
-          // Search in emails
+          ilike(contactsV4.displayName, searchPattern),
+          ilike(contactsV4.givenName, searchPattern),
+          ilike(contactsV4.surname, searchPattern),
+          ilike(contactsV4.companyName, searchPattern),
+          ilike(contactsV4.jobTitle, searchPattern),
+          ilike(contactsV4.notes, searchPattern),
+          // Search in emails - using parameterized query
           sql`EXISTS (
             SELECT 1 FROM jsonb_array_elements(${contactsV4.emails}) AS email_obj
-            WHERE LOWER(email_obj->>'email') LIKE ${`%${searchLower}%`}
+            WHERE LOWER(email_obj->>'email') LIKE LOWER(${searchPattern})
           )`,
-          // Search in phone numbers
+          // Search in phone numbers - using parameterized query
           sql`EXISTS (
             SELECT 1 FROM jsonb_array_elements(${contactsV4.phoneNumbers}) AS phone_obj
-            WHERE phone_obj->>'number' LIKE ${`%${searchLower}%`}
+            WHERE phone_obj->>'number' LIKE ${searchPattern}
           )`
         )!
       );
@@ -198,11 +255,14 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
+    // ✅ SECURITY: Log detailed error internally, return generic message
     console.error('❌ Search contacts error:', error);
+
+    // Return generic error without leaking internal details
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'Failed to search contacts',
+        error: 'Failed to search contacts',
       },
       { status: 500 }
     );

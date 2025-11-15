@@ -18,10 +18,23 @@ import { passwordResetTokens, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { createAdminClient } from '@/lib/supabase/server';
 import { authRateLimit, enforceRateLimit } from '@/lib/security/rate-limiter';
+import { z } from 'zod';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+// ✅ SECURITY: Input validation schema
+const resetPasswordSchema = z.object({
+  token: z.string().min(32).max(512),
+  newPassword: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password must be less than 128 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[!@#$%^&*()\-_=+\[\]{}|;:,.<>?]/, 'Password must contain at least one special character'),
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,67 +55,33 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { token, newPassword } = body;
 
-    // Validation
-    if (!token || typeof token !== 'string') {
+    // ✅ SECURITY: Validate input with Zod schema
+    const validationResult = resetPasswordSchema.safeParse(body);
+    if (!validationResult.success) {
+      const firstError = validationResult.error.issues[0];
       return NextResponse.json(
-        { success: false, error: 'Token is required' },
+        { success: false, error: firstError.message },
         { status: 400 }
       );
     }
 
-    if (!newPassword || typeof newPassword !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'New password is required' },
-        { status: 400 }
-      );
-    }
+    const { token, newPassword } = validationResult.data;
 
-    // Password strength validation
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        { success: false, error: 'Password must be at least 8 characters' },
-        { status: 400 }
-      );
-    }
-
-    if (!/[A-Z]/.test(newPassword)) {
-      return NextResponse.json(
-        { success: false, error: 'Password must contain at least one uppercase letter' },
-        { status: 400 }
-      );
-    }
-
-    if (!/[a-z]/.test(newPassword)) {
-      return NextResponse.json(
-        { success: false, error: 'Password must contain at least one lowercase letter' },
-        { status: 400 }
-      );
-    }
-
-    if (!/[0-9]/.test(newPassword)) {
-      return NextResponse.json(
-        { success: false, error: 'Password must contain at least one number' },
-        { status: 400 }
-      );
-    }
-
-    if (!/[!@#$%^&*()\-_=+\[\]{}|;:,.<>?]/.test(newPassword)) {
-      return NextResponse.json(
-        { success: false, error: 'Password must contain at least one special character' },
-        { status: 400 }
-      );
-    }
-
-    // Find and validate token
+    // ✅ SECURITY: Find and validate token
     const resetToken = await db.query.passwordResetTokens.findFirst({
       where: eq(passwordResetTokens.token, token),
     });
 
+    const now = new Date();
+
+    // ✅ SECURITY: Use constant error message to prevent timing attacks
+    // Don't reveal whether token exists, is expired, or is used
+    const genericError = 'Invalid or expired reset link';
+
     if (!resetToken) {
       return NextResponse.json(
-        { success: false, error: 'Invalid or expired reset link' },
+        { success: false, error: genericError },
         { status: 400 }
       );
     }
@@ -110,16 +89,15 @@ export async function POST(request: NextRequest) {
     // Check if token has been used
     if (resetToken.usedAt) {
       return NextResponse.json(
-        { success: false, error: 'This reset link has already been used' },
+        { success: false, error: genericError },
         { status: 400 }
       );
     }
 
     // Check if token is expired
-    const now = new Date();
     if (resetToken.expiresAt < now) {
       return NextResponse.json(
-        { success: false, error: 'This reset link has expired' },
+        { success: false, error: genericError },
         { status: 400 }
       );
     }
@@ -152,6 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark token as used
+    // NOTE: Consider adding a cron job to delete expired/used tokens after 7 days for cleanup
     await db.update(passwordResetTokens)
       .set({ usedAt: now })
       .where(eq(passwordResetTokens.id, resetToken.id));

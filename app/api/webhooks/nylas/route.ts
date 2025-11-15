@@ -9,9 +9,14 @@ import * as Sentry from '@sentry/nextjs';
 
 // Verify webhook signature
 function verifyWebhookSignature(payload: string, signature: string): boolean {
+  // ✅ SECURITY: Never allow bypassing signature verification in production
   if (!process.env.NYLAS_WEBHOOK_SECRET) {
-    console.warn('⚠️ NYLAS_WEBHOOK_SECRET not set - skipping signature verification');
-    return true; // Allow in development
+    if (process.env.NODE_ENV === 'production') {
+      console.error('❌ CRITICAL: NYLAS_WEBHOOK_SECRET not set in production!');
+      throw new Error('Webhook secret must be configured in production');
+    }
+    console.warn('⚠️ DEV MODE: NYLAS_WEBHOOK_SECRET not set - allowing webhook');
+    return true; // Only allow in development
   }
 
   try {
@@ -55,11 +60,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
   
-  // Verify signature (can be disabled with DISABLE_WEBHOOK_VERIFICATION=true for debugging)
-  const skipVerification = process.env.DISABLE_WEBHOOK_VERIFICATION === 'true';
-  
+  // ✅ SECURITY: Verify signature (only allow bypass in development)
+  const skipVerification = process.env.NODE_ENV !== 'production' &&
+                           process.env.DISABLE_WEBHOOK_VERIFICATION === 'true';
+
   if (skipVerification) {
-    console.warn('⚠️ Webhook signature verification DISABLED (DISABLE_WEBHOOK_VERIFICATION=true)');
+    console.warn('⚠️ DEV MODE: Webhook signature verification DISABLED');
   } else if (!verifyWebhookSignature(payload, signature)) {
     console.error('❌ Invalid webhook signature');
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
