@@ -44,6 +44,34 @@ export default function InboxV3Page() {
   // Get accounts
   const { accounts, loading: accountsLoading } = useAccounts();
 
+  // Load saved account preference on mount
+  useEffect(() => {
+    const savedAccountId = localStorage.getItem('selectedAccountId');
+    const savedDbAccountId = localStorage.getItem('selectedDbAccountId');
+
+    if (savedAccountId && savedDbAccountId && accounts.length > 0) {
+      // Check if saved account still exists
+      const savedAccount = accounts.find(
+        acc => acc.nylasGrantId === savedAccountId || acc.id === savedAccountId
+      );
+
+      if (savedAccount) {
+        console.log('[Inbox] Restoring saved account:', savedAccount.emailAddress);
+        setSelectedAccountId(savedAccountId);
+        setSelectedDbAccountId(savedDbAccountId);
+        return;
+      }
+    }
+  }, [accounts]);
+
+  // Save account preference when it changes
+  useEffect(() => {
+    if (selectedAccountId && selectedDbAccountId) {
+      localStorage.setItem('selectedAccountId', selectedAccountId);
+      localStorage.setItem('selectedDbAccountId', selectedDbAccountId);
+    }
+  }, [selectedAccountId, selectedDbAccountId]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
