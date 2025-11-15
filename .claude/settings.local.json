@@ -23,7 +23,11 @@
       "Bash(cmd.exe /c \"taskkill /F /IM node.exe && timeout /t 3 /nobreak && cd /d \"\"C:\\dev\\EaseMail - The Future\"\" && if exist .next rmdir /s /q .next && npm run dev\")",
       "Bash(timeout /t 8 /nobreak)",
       "Bash(cmd.exe /c \"taskkill /F /PID 76792 && timeout /t 2 /nobreak && cd /d \"\"C:\\dev\\EaseMail - The Future\"\" && if exist .next rmdir /s /q .next && npm run dev\")",
-      "Bash(\"C:\\dev\\EaseMail - The Future\\app\\api\\contacts-v4\\[id]\\route.ts\")"
+      "Bash(\"C:\\dev\\EaseMail - The Future\\app\\api\\contacts-v4\\[id]\\route.ts\")",
+      "Bash(timeout 120 bash:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash push:*)",
+      "Bash(git stash pop:*)"
     ],
     "deny": [],
     "ask": []

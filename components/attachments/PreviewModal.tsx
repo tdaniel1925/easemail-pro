@@ -48,9 +48,9 @@ export function PreviewModal({
               <Dialog.Title className="truncate text-lg font-medium text-gray-900">
                 {attachment.filename}
               </Dialog.Title>
-              <p className="truncate text-sm text-gray-500">
+              <Dialog.Description className="truncate text-sm text-gray-500">
                 {attachment.senderName || attachment.senderEmail}
-              </p>
+              </Dialog.Description>
             </div>
             <div className="ml-4 flex gap-2">
               <button

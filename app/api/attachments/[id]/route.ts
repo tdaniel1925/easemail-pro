@@ -12,10 +12,12 @@ import { getAttachmentUrl } from '@/lib/attachments/upload';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
+    const { id: attachmentId } = await params;
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -27,18 +29,17 @@ export async function GET(
         },
       }
     );
-    
+
     // Get authenticated user
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    
+
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const userId = session.user.id;
-    const attachmentId = params.id;
 
     // Check if this is a preview or download request
     const pathname = request.nextUrl.pathname;
@@ -54,6 +55,12 @@ export async function GET(
       .single();
 
     if (error || !attachment) {
+      console.error('Attachment fetch error:', {
+        attachmentId,
+        userId,
+        error: error?.message,
+        code: error?.code,
+      });
       return NextResponse.json(
         { error: 'Attachment not found' },
         { status: 404 }
