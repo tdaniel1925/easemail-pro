@@ -618,6 +618,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         setSavingStatus('saved');
         setIsFirstChange(false); // Mark that first save is complete
 
+        // Trigger refresh to update draft folder count
+        window.dispatchEvent(new CustomEvent('refreshEmails'));
+
         // Clear saved status after 2 seconds
         setTimeout(() => {
           setSavingStatus('idle');

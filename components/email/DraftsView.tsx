@@ -68,6 +68,17 @@ export function DraftsView({ accountId, onResumeDraft }: DraftsViewProps) {
     fetchDrafts();
   }, [accountId]);
 
+  // Listen for draft saves and refresh
+  useEffect(() => {
+    const handleRefresh = () => {
+      console.log('[DraftsView] Refreshing drafts list...');
+      fetchDrafts();
+    };
+
+    window.addEventListener('refreshEmails', handleRefresh);
+    return () => window.removeEventListener('refreshEmails', handleRefresh);
+  }, [accountId]);
+
   const handleDeleteDraft = async (draftId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering resume
 
