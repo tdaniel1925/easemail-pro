@@ -11,6 +11,7 @@ import {
   Download as ArrowDownTrayIcon,
   Mail as EnvelopeIcon,
 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import type { Attachment } from '@/lib/attachments/types';
 import { formatFileSize } from '@/lib/attachments/utils';
 import { format } from 'date-fns';
@@ -99,16 +100,77 @@ export function PreviewModal({
 }
 
 function PreviewContent({ attachment }: { attachment: Attachment }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const isImage = attachment.mimeType.startsWith('image/');
   const isPDF = attachment.mimeType === 'application/pdf';
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchPreviewUrl() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await fetch(`/api/attachments/${attachment.id}/preview`);
+
+        if (!response.ok) {
+          throw new Error('Failed to load preview');
+        }
+
+        const data = await response.json();
+
+        if (mounted) {
+          setPreviewUrl(data.url);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load preview');
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchPreviewUrl();
+
+    return () => {
+      mounted = false;
+    };
+  }, [attachment.id]);
+
+  if (loading) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600" />
+          <p className="mt-4 text-sm text-gray-500">Loading preview...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !previewUrl) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <div className="text-center text-red-600">
+          <p className="text-sm">{error || 'Failed to load preview'}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isImage) {
     return (
       <div className="flex items-center justify-center">
         <img
-          src={`/api/attachments/${attachment.id}/preview`}
+          src={previewUrl}
           alt={attachment.filename}
           className="max-h-[70vh] rounded-lg shadow-lg"
+          onError={() => setError('Failed to load image')}
         />
       </div>
     );
@@ -117,9 +179,10 @@ function PreviewContent({ attachment }: { attachment: Attachment }) {
   if (isPDF) {
     return (
       <iframe
-        src={`/api/attachments/${attachment.id}/preview`}
+        src={previewUrl}
         className="h-[70vh] w-full rounded-lg shadow-lg"
         title={attachment.filename}
+        onError={() => setError('Failed to load PDF')}
       />
     );
   }
