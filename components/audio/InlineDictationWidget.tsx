@@ -12,7 +12,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, Square, Sparkles, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WaveformVisualizer } from '@/components/audio/WaveformVisualizer';
@@ -44,6 +44,13 @@ export function InlineDictationWidget({
   const dictationRef = useRef<DictationService | null>(null);
   const punctuationRef = useRef(new SmartPunctuationProcessor());
   const fullTranscriptRef = useRef<string>('');
+  
+  // Audio analysis refs for direct audio level detection
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const animationRef = useRef<number>();
+  const isListeningRef = useRef(false);
 
   // Initialize dictation service
   useEffect(() => {
@@ -65,6 +72,28 @@ export function InlineDictationWidget({
     };
   }, []);
 
+  // Function to update audio level from analyser
+  const updateAudioLevel = useCallback(() => {
+    if (!analyserRef.current || !isListeningRef.current) {
+      return;
+    }
+
+    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+    analyserRef.current.getByteFrequencyData(dataArray);
+    
+    // Calculate average audio level
+    const sum = dataArray.reduce((a, b) => a + b, 0);
+    const average = sum / dataArray.length;
+    const normalizedLevel = (average / 255) * 100;
+    
+    // Apply amplification for better visibility (similar to voice message mode)
+    setAudioLevel(Math.min(100, Math.round(normalizedLevel * 1.5)));
+
+    if (isListeningRef.current) {
+      animationRef.current = requestAnimationFrame(updateAudioLevel);
+    }
+  }, []);
+
   // Start dictation
   const handleStart = async () => {
     if (!dictationRef.current || !isSupported) {
@@ -76,10 +105,44 @@ export function InlineDictationWidget({
     setAccumulatedText('');
     fullTranscriptRef.current = '';
 
+    // Get microphone stream for audio analysis
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: false, // Better for visualization
+          autoGainControl: true,
+        },
+      });
+
+      streamRef.current = stream;
+
+      // Set up audio analysis (same as voice message mode)
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      const source = audioContext.createMediaStreamSource(stream);
+      
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+      source.connect(analyser);
+
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+    } catch (error) {
+      console.error('Failed to setup audio visualization:', error);
+      // Don't fail dictation if visualization setup fails
+    }
+
     await dictationRef.current.startDictation({
       onStart: () => {
         setIsListening(true);
+        isListeningRef.current = true;
         console.log('[Dictation] Started listening');
+        
+        // Start audio level monitoring after listening begins
+        if (analyserRef.current) {
+          updateAudioLevel();
+        }
       },
 
       onResult: (result) => {
@@ -103,16 +166,38 @@ export function InlineDictationWidget({
 
       onEnd: () => {
         setIsListening(false);
+        isListeningRef.current = false;
         console.log('[Dictation] Stopped listening');
+        
+        // Cleanup audio analysis
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+        }
+        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+          audioContextRef.current.close();
+        }
+        setAudioLevel(0);
       },
 
       onError: (errorType) => {
         setIsListening(false);
+        isListeningRef.current = false;
         handleDictationError(errorType);
-      },
-
-      onAudioLevel: (level) => {
-        setAudioLevel(level);
+        
+        // Cleanup on error
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+        }
+        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+          audioContextRef.current.close();
+        }
+        setAudioLevel(0);
       },
     });
   };
@@ -122,8 +207,20 @@ export function InlineDictationWidget({
     if (dictationRef.current) {
       dictationRef.current.stopDictation();
       setIsListening(false);
+      isListeningRef.current = false;
       setAudioLevel(0);
       setIsProcessing(true);
+      
+      // Cleanup audio resources
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
       
       // Process the complete transcript
       setTimeout(() => {
@@ -155,6 +252,21 @@ export function InlineDictationWidget({
 
     setError(errorMessages[errorType as keyof typeof errorMessages] || 'An error occurred');
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);
 
   return (
     <div className="my-4 p-4 border border-border rounded-lg bg-card shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
