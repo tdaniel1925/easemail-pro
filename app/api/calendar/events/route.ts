@@ -1,15 +1,16 @@
 /**
  * Calendar Events API
  * GET - List events
- * POST - Create event
+ * POST - Create event (with 2-way sync to Google/Microsoft Calendar)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { calendarEvents } from '@/lib/db/schema';
+import { calendarEvents, emailAccounts } from '@/lib/db/schema';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { createRecurringInstances } from '@/lib/calendar/recurring-events';
+import { createCalendarSyncService } from '@/lib/services/calendar-sync-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,7 +123,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'End time is required' }, { status: 400 });
     }
     
-    // Create event
+    // Get user's primary calendar account for 2-way sync
+    const accounts = await db.query.emailAccounts.findMany({
+      where: eq(emailAccounts.userId, user.id),
+    });
+
+    const primaryAccount = accounts.find(acc =>
+      acc.nylasGrantId &&
+      (acc.provider === 'google' || acc.provider === 'microsoft') &&
+      acc.nylasScopes?.some((s: string) => s.toLowerCase().includes('calendar'))
+    );
+
+    // Create event locally
     const [event] = await db.insert(calendarEvents).values({
       userId: user.id,
       title: data.title,
@@ -145,31 +157,64 @@ export async function POST(request: NextRequest) {
       status: data.status || 'confirmed',
       metadata: data.metadata || {},
     }).returning();
-    
-    console.log('✅ Calendar event created:', event.id);
-    
+
+    console.log('✅ Calendar event created locally:', event.id);
+
+    // 2-WAY SYNC: Push event to Google/Microsoft Calendar via Nylas
+    if (primaryAccount && !data.skipSync) {
+      try {
+        const syncService = createCalendarSyncService({
+          accountId: primaryAccount.id,
+          userId: user.id,
+          grantId: primaryAccount.nylasGrantId!,
+          provider: primaryAccount.provider as 'google' | 'microsoft',
+        });
+
+        const pushResult = await syncService.createEvent(event);
+
+        if (pushResult.success && pushResult.eventId) {
+          // Update local event with the remote event ID
+          const updateField = primaryAccount.provider === 'google'
+            ? { googleEventId: pushResult.eventId, googleSyncStatus: 'synced' }
+            : { microsoftEventId: pushResult.eventId, microsoftSyncStatus: 'synced' };
+
+          await db.update(calendarEvents)
+            .set(updateField)
+            .where(eq(calendarEvents.id, event.id));
+
+          console.log(`✅ Event synced to ${primaryAccount.provider} calendar:`, pushResult.eventId);
+        } else {
+          console.warn('⚠️ Failed to sync event to calendar:', pushResult.error);
+        }
+      } catch (syncError: any) {
+        console.error('⚠️ 2-way sync error:', syncError);
+        // Don't fail the request if sync fails - event is still created locally
+      }
+    }
+
     // If recurring, generate initial instances
     if (data.isRecurring && event.recurrenceRule) {
       try {
         const sixMonthsFromNow = new Date();
         sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
-        
+
         const instancesCreated = await createRecurringInstances(
           event.id,
           new Date(),
           sixMonthsFromNow
         );
-        
+
         console.log(`✅ Created ${instancesCreated} recurring instances`);
       } catch (recurError) {
         console.error('⚠️ Failed to create recurring instances:', recurError);
         // Don't fail the whole request, just log the error
       }
     }
-    
+
     return NextResponse.json({
       success: true,
       event,
+      synced: !!primaryAccount,
     });
 
   } catch (error: any) {

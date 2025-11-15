@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable, closestCenter } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight, Repeat, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Repeat, AlertTriangle, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -22,7 +22,7 @@ interface DraggableMonthViewProps {
   onEventClick: (e: React.MouseEvent, event: any) => void;
 }
 
-function DraggableEvent({ event, allEvents }: { event: any; allEvents: any[] }) {
+function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEvents: any[]; onEventClick: (e: React.MouseEvent, event: any) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: event.id,
     data: event,
@@ -36,15 +36,17 @@ function DraggableEvent({ event, allEvents }: { event: any; allEvents: any[] }) 
   const conflicts = findConflictingEvents(event, allEvents);
   const hasConflict = conflicts.length > 0;
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEventClick(e, event);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
-      {...attributes}
-      onClick={(e) => e.stopPropagation()}
       className={cn(
-        'text-xs px-1 py-0.5 rounded truncate cursor-move flex items-center gap-0.5',
+        'text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5 group relative',
         event.color === 'blue' && 'bg-blue-500/20 text-blue-700 dark:text-blue-300',
         event.color === 'green' && 'bg-green-500/20 text-green-700 dark:text-green-300',
         event.color === 'red' && 'bg-red-500/20 text-red-700 dark:text-red-300',
@@ -55,14 +57,30 @@ function DraggableEvent({ event, allEvents }: { event: any; allEvents: any[] }) 
         hasConflict && 'ring-1 ring-destructive/30'
       )}
     >
-      {event.isRecurring && <Repeat className="h-2.5 w-2.5 flex-shrink-0" />}
-      {hasConflict && <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0 text-destructive" />}
-      <span className="truncate">{event.title}</span>
+      {/* Drag Handle - only this part triggers drag */}
+      <div
+        {...listeners}
+        {...attributes}
+        className="cursor-move opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+        title="Drag to move event"
+      >
+        <GripVertical className="h-3 w-3" />
+      </div>
+
+      {/* Clickable Event Content */}
+      <div
+        onClick={handleClick}
+        className="flex-1 flex items-center gap-0.5 cursor-pointer hover:opacity-80 truncate"
+      >
+        {event.isRecurring && <Repeat className="h-2.5 w-2.5 flex-shrink-0" />}
+        {hasConflict && <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0 text-destructive" />}
+        <span className="truncate">{event.title}</span>
+      </div>
     </div>
   );
 }
 
-function DroppableDay({ day, isToday, events, allEvents, onDayClick }: any) {
+function DroppableDay({ day, isToday, events, allEvents, onDayClick, onEventClick }: any) {
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${day.day}`,
     data: { date: day.date },
@@ -87,7 +105,7 @@ function DroppableDay({ day, isToday, events, allEvents, onDayClick }: any) {
       </div>
       <div className="space-y-0.5">
         {events.slice(0, 3).map((event: any) => (
-          <DraggableEvent key={event.id} event={event} allEvents={allEvents} />
+          <DraggableEvent key={event.id} event={event} allEvents={allEvents} onEventClick={onEventClick} />
         ))}
         {events.length > 3 && (
           <div className="text-xs text-muted-foreground">
@@ -224,6 +242,7 @@ export default function DraggableMonthView({
               events={day.events}
               allEvents={events}
               onDayClick={onDayClick}
+              onEventClick={onEventClick}
             />
           ))}
         </div>

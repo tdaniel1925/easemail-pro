@@ -33,20 +33,44 @@ export async function syncFromNylasCalendar(
     console.log('🔍 Checking calendar scopes for account:', {
       accountId: account.id,
       email: account.emailAddress,
+      provider: account.nylasProvider || account.emailProvider,
       nylasScopes: account.nylasScopes,
       scopesType: typeof account.nylasScopes,
-      scopesIsArray: Array.isArray(account.nylasScopes)
+      scopesIsArray: Array.isArray(account.nylasScopes),
+      scopeCount: Array.isArray(account.nylasScopes) ? account.nylasScopes.length : 0,
     });
 
-    const hasCalendarScopes = account.nylasScopes?.some(
-      scope => scope.includes('calendar') || scope.includes('Calendar')
+    // Validate scopes exist and are in correct format
+    if (!account.nylasScopes || !Array.isArray(account.nylasScopes)) {
+      console.error('❌ Invalid scope format:', {
+        scopesValue: account.nylasScopes,
+        type: typeof account.nylasScopes,
+      });
+      return {
+        success: false,
+        synced: 0,
+        error: 'Account scopes are not properly configured. Please reconnect your account.'
+      };
+    }
+
+    if (account.nylasScopes.length === 0) {
+      console.error('❌ Empty scopes array - OAuth may have failed');
+      return {
+        success: false,
+        synced: 0,
+        error: 'No permissions granted during account connection. Please reconnect with calendar access.'
+      };
+    }
+
+    // Check for calendar-specific scopes
+    const hasCalendarScopes = account.nylasScopes.some(
+      scope => scope.toLowerCase().includes('calendar')
     );
 
     if (!hasCalendarScopes) {
-      console.warn('⚠️ Account does not have calendar scopes', {
-        nylasScopes: account.nylasScopes,
-        hasScopes: !!account.nylasScopes,
-        scopeCount: account.nylasScopes?.length
+      console.warn('⚠️ Account does not have calendar scopes:', {
+        availableScopes: account.nylasScopes,
+        provider: account.nylasProvider || account.emailProvider,
       });
       return {
         success: false,
@@ -54,6 +78,11 @@ export async function syncFromNylasCalendar(
         error: 'Calendar access not granted. Please reconnect with calendar permissions.'
       };
     }
+
+    console.log('✅ Calendar scopes verified:', {
+      hasCalendarAccess: true,
+      relevantScopes: account.nylasScopes.filter(s => s.toLowerCase().includes('calendar')),
+    });
 
     // Determine provider
     const provider = (account.nylasProvider === 'google' ||

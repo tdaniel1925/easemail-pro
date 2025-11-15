@@ -452,11 +452,164 @@ export class CalendarSyncService {
   }
 
   // ============================================
+  // 2-WAY SYNC: PUSH CHANGES TO NYLAS
+  // ============================================
+
+  /**
+   * Create a new event in Google/Microsoft Calendar via Nylas
+   */
+  async createEvent(eventData: any): Promise<{ success: boolean; eventId?: string; error?: string }> {
+    try {
+      const nylasEvent = this.transformToNylas(eventData);
+
+      const response = await fetch(`${NYLAS_API_URI}/v3/grants/${this.grantId}/events`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${NYLAS_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...nylasEvent,
+          calendar_id: this.calendarId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Nylas API error: ${errorData.error || response.statusText}`);
+      }
+
+      const data = await response.json();
+      const nylasEventId = data.data.id;
+
+      console.log(`✅ Event created in ${this.provider} calendar:`, nylasEventId);
+
+      return { success: true, eventId: nylasEventId };
+    } catch (error: any) {
+      console.error('❌ Failed to create event in calendar:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Update an existing event in Google/Microsoft Calendar via Nylas
+   */
+  async updateEvent(eventId: string, eventData: any): Promise<{ success: boolean; error?: string }> {
+    try {
+      const nylasEvent = this.transformToNylas(eventData);
+
+      const response = await fetch(`${NYLAS_API_URI}/v3/grants/${this.grantId}/events/${eventId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${NYLAS_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...nylasEvent,
+          calendar_id: this.calendarId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Nylas API error: ${errorData.error || response.statusText}`);
+      }
+
+      console.log(`✅ Event updated in ${this.provider} calendar:`, eventId);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('❌ Failed to update event in calendar:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Delete an event from Google/Microsoft Calendar via Nylas
+   */
+  async deleteEvent(eventId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await fetch(`${NYLAS_API_URI}/v3/grants/${this.grantId}/events/${eventId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${NYLAS_API_KEY}`,
+        },
+      });
+
+      if (!response.ok && response.status !== 404) {
+        const errorData = await response.json();
+        throw new Error(`Nylas API error: ${errorData.error || response.statusText}`);
+      }
+
+      console.log(`✅ Event deleted from ${this.provider} calendar:`, eventId);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('❌ Failed to delete event from calendar:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ============================================
   // DATA TRANSFORMATION
   // ============================================
 
   /**
+   * Transform local event to Nylas format for pushing to calendar provider
+   */
+  private transformToNylas(event: any): any {
+    // Transform time based on whether it's all-day or not
+    let when: any;
+    if (event.allDay) {
+      // All-day event
+      const startDate = new Date(event.startTime).toISOString().split('T')[0];
+      const endDate = new Date(event.endTime).toISOString().split('T')[0];
+
+      if (startDate === endDate) {
+        when = {
+          object: 'date',
+          date: startDate,
+        };
+      } else {
+        when = {
+          object: 'datespan',
+          start_date: startDate,
+          end_date: endDate,
+        };
+      }
+    } else {
+      // Timed event
+      when = {
+        object: 'timespan',
+        start_time: Math.floor(new Date(event.startTime).getTime() / 1000),
+        end_time: Math.floor(new Date(event.endTime).getTime() / 1000),
+        timezone: event.timezone || 'UTC',
+      };
+    }
+
+    // Transform attendees/participants
+    const participants = event.attendees?.map((a: any) => ({
+      email: a.email,
+      name: a.name,
+      status: a.status,
+    }));
+
+    return {
+      title: event.title,
+      description: event.description || '',
+      location: event.location || '',
+      when,
+      busy: !event.isPrivate, // If private, mark as free
+      participants,
+      recurrence: event.recurrenceRule ? event.recurrenceRule.split(';') : undefined,
+      reminders: event.reminders,
+      metadata: event.metadata,
+    };
+  }
+
+  /**
    * Transform Nylas event to local format
+   * Now captures ALL event data including reminders, metadata, busy status, and organizer name
    */
   private transformFromNylas(nylas: NylasEvent): any {
     // Parse event times
@@ -483,6 +636,27 @@ export class CalendarSyncService {
       endTime = new Date(startTime.getTime() + 3600000); // 1 hour
     }
 
+    // Transform attendees to include full participant data
+    const attendees = nylas.participants?.map(p => ({
+      email: p.email,
+      name: p.name || null,
+      status: (p.status as 'accepted' | 'declined' | 'maybe' | 'pending') || 'pending',
+    })) || [];
+
+    // Transform reminders to our format
+    const reminders = nylas.reminders?.map((reminder: any) => ({
+      type: reminder.type || 'popup',
+      minutesBefore: reminder.minutes || 0,
+    })) || [];
+
+    // Build metadata object with additional Nylas data
+    const metadata: Record<string, any> = {
+      ...nylas.metadata,
+      nylasCreatedAt: nylas.created_at ? new Date(nylas.created_at * 1000).toISOString() : null,
+      nylasUpdatedAt: nylas.updated_at ? new Date(nylas.updated_at * 1000).toISOString() : null,
+      nylasGrantId: nylas.grant_id,
+    };
+
     const baseData = {
       title: nylas.title || '(No title)',
       description: nylas.description || null,
@@ -495,8 +669,12 @@ export class CalendarSyncService {
       timezone,
       calendarType: 'personal' as const,
       status: nylas.status === 'cancelled' ? 'cancelled' as const : 'confirmed' as const,
-      attendees: nylas.participants || [],
+      attendees,
       organizerEmail: nylas.organizer?.email || null,
+      // Enhanced fields
+      reminders,
+      metadata,
+      isPrivate: nylas.busy === false, // If not busy, likely private time block
     };
 
     // Add provider-specific fields

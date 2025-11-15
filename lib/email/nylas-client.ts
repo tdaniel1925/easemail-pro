@@ -76,17 +76,29 @@ export async function exchangeNylasCode(code: string) {
 
     if (grantResponse.ok) {
       const grantData = await grantResponse.json();
-      console.log('🔍 Full grant data:', JSON.stringify(grantData, null, 2));
+      console.log('🔍 Grant API Response Structure:', {
+        hasData: !!grantData.data,
+        dataKeys: grantData.data ? Object.keys(grantData.data) : [],
+        rootKeys: Object.keys(grantData),
+      });
 
-      // Try multiple possible field paths
-      scopes = grantData.data?.scope ||
-               grantData.data?.scopes ||
-               grantData.scope ||
-               grantData.scopes ||
-               [];
+      // Nylas v3 API returns: { data: { id, provider, scope, email, ... }, request_id }
+      // The scope field is an array of strings at data.scope
+      if (grantData.data?.scope) {
+        scopes = Array.isArray(grantData.data.scope) ? grantData.data.scope : [];
+      } else if (grantData.scope) {
+        // Fallback: check root level (shouldn't happen with v3 API)
+        scopes = Array.isArray(grantData.scope) ? grantData.scope : [];
+      } else {
+        console.warn('⚠️ No scope field found in grant response');
+        scopes = [];
+      }
 
-      console.log('📋 Retrieved scopes for grant:', scopes);
-      console.log('📋 Scopes type:', typeof scopes, 'is array:', Array.isArray(scopes));
+      console.log('✅ Scopes retrieved:', {
+        count: scopes.length,
+        scopes: scopes,
+        hasCalendar: scopes.some(s => s.toLowerCase().includes('calendar')),
+      });
     } else {
       console.error('❌ Failed to fetch grant details:', grantResponse.status, grantResponse.statusText);
       const errorText = await grantResponse.text();
