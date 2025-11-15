@@ -254,14 +254,26 @@ export default function InboxV3Page() {
         {selectedFolderName === 'sms' ? (
           <SMSInboxV3 />
         ) : selectedFolderName?.toLowerCase() === 'drafts' && selectedDbAccountId ? (
-          <DraftsView
-            accountId={selectedDbAccountId}
-            onResumeDraft={(draft) => {
-              console.log('[inbox-v3] Resuming draft:', draft);
-              setComposeDraft(draft);
-              setIsComposeOpen(true);
-            }}
-          />
+          <>
+            {console.log('[Inbox] Rendering DraftsView with accountId:', selectedDbAccountId)}
+            <DraftsView
+              accountId={selectedDbAccountId}
+              onResumeDraft={(draft) => {
+                console.log('[inbox-v3] Resuming draft:', draft);
+                setComposeDraft(draft);
+                setIsComposeOpen(true);
+              }}
+            />
+          </>
+        ) : selectedFolderName?.toLowerCase() === 'drafts' && !selectedDbAccountId ? (
+          <>
+            {console.error('[Inbox] ❌ Drafts folder selected but no selectedDbAccountId!')}
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center p-8">
+                <p className="text-red-600">No account selected</p>
+              </div>
+            </div>
+          </>
         ) : selectedAccountId && !selectedMessageId ? (
           <EmailListEnhancedV3
             accountId={selectedAccountId}
