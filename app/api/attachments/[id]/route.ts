@@ -5,9 +5,11 @@
  * GET /api/attachments/[id]/download
  */
 
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db/drizzle';
+import { attachments } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { createClient } from '@/lib/supabase/server';
 import { getAttachmentUrl } from '@/lib/attachments/upload';
 
 export async function GET(
@@ -15,51 +17,38 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = await cookies();
     const { id: attachmentId } = await params;
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-        },
-      }
-    );
-
     // Get authenticated user
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = user.id;
 
     // Check if this is a preview or download request
     const pathname = request.nextUrl.pathname;
     const isPreview = pathname.endsWith('/preview');
     const isDownload = pathname.endsWith('/download');
 
-    // Fetch attachment
-    const { data: attachment, error } = await supabase
-      .from('attachments')
-      .select('*')
-      .eq('id', attachmentId)
-      .eq('user_id', userId)
-      .single();
+    // Fetch attachment using Drizzle
+    const [attachment] = await db
+      .select()
+      .from(attachments)
+      .where(and(
+        eq(attachments.id, attachmentId),
+        eq(attachments.userId, userId)
+      ))
+      .limit(1);
 
-    if (error || !attachment) {
+    if (!attachment) {
       console.error('Attachment fetch error:', {
         attachmentId,
         userId,
-        error: error?.message,
-        code: error?.code,
+        message: 'Attachment not found in database',
       });
       return NextResponse.json(
         { error: 'Attachment not found' },
@@ -70,31 +59,50 @@ export async function GET(
     // Handle preview request
     if (isPreview) {
       // Use thumbnail if available, otherwise use original
-      const path = attachment.thumbnail_path || attachment.storage_path;
+      const path = attachment.thumbnailPath || attachment.storagePath;
+
+      if (!path) {
+        return NextResponse.json(
+          { error: 'No storage path available' },
+          { status: 404 }
+        );
+      }
+
       const url = await getAttachmentUrl(path, 3600); // 1 hour expiry
 
       return NextResponse.json({
         url,
-        type: attachment.mime_type.startsWith('image/') ? 'image' : 
-              attachment.mime_type === 'application/pdf' ? 'pdf' : 
+        type: attachment.mimeType.startsWith('image/') ? 'image' :
+              attachment.mimeType === 'application/pdf' ? 'pdf' :
               'unsupported',
       });
     }
 
     // Handle download request
     if (isDownload) {
-      const url = await getAttachmentUrl(attachment.storage_path, 3600);
+      if (!attachment.storagePath) {
+        return NextResponse.json(
+          { error: 'No storage path available' },
+          { status: 404 }
+        );
+      }
 
-      // Increment access count
-      await supabase.rpc('increment_attachment_access', {
-        attachment_uuid: attachmentId,
-      });
+      const url = await getAttachmentUrl(attachment.storagePath, 3600);
+
+      // Increment access count (use Drizzle instead of RPC)
+      await db
+        .update(attachments)
+        .set({
+          accessCount: (attachment.accessCount || 0) + 1,
+          lastAccessedAt: new Date(),
+        })
+        .where(eq(attachments.id, attachmentId));
 
       return NextResponse.json({
         url,
         filename: attachment.filename,
-        mimeType: attachment.mime_type,
-        sizeBytes: attachment.file_size_bytes,
+        mimeType: attachment.mimeType,
+        sizeBytes: attachment.fileSizeBytes,
       });
     }
 
