@@ -69,11 +69,12 @@ export async function GET(
       }
 
       const url = await getAttachmentUrl(path, 3600); // 1 hour expiry
+      const mimeType = attachment.mimeType || '';
 
       return NextResponse.json({
         url,
-        type: attachment.mimeType.startsWith('image/') ? 'image' :
-              attachment.mimeType === 'application/pdf' ? 'pdf' :
+        type: mimeType.startsWith('image/') ? 'image' :
+              mimeType === 'application/pdf' ? 'pdf' :
               'unsupported',
       });
     }
