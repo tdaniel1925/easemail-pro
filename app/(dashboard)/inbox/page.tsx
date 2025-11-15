@@ -253,9 +253,9 @@ export default function InboxV3Page() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {selectedFolderName === 'sms' ? (
           <SMSInboxV3 />
-        ) : selectedFolderName?.toLowerCase() === 'drafts' && selectedAccountId ? (
+        ) : selectedFolderName?.toLowerCase() === 'drafts' && selectedDbAccountId ? (
           <DraftsView
-            accountId={selectedAccountId}
+            accountId={selectedDbAccountId}
             onResumeDraft={(draft) => {
               console.log('[inbox-v3] Resuming draft:', draft);
               setComposeDraft(draft);
