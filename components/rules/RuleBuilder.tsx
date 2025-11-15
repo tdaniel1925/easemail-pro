@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { X, Plus, Trash2, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAccounts } from '@/lib/hooks/use-accounts';
 import type {
   EmailRule,
   RuleCondition,
@@ -48,47 +49,72 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
   );
   const [stopProcessing, setStopProcessing] = useState(rule?.stopProcessing ?? false);
   const [saving, setSaving] = useState(false);
-  const [folders, setFolders] = useState<Array<{ displayName: string; folderType: string }>>([]);
+  const [folders, setFolders] = useState<Array<{ id: string; name: string; type: string }>>([]);
   const [loadingFolders, setLoadingFolders] = useState(false);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
-  // Fetch user's current account on mount
-  useEffect(() => {
-    const fetchAccount = async () => {
-      try {
-        const response = await fetch('/api/nylas/accounts');
-        const data = await response.json();
-        if (data.success && data.accounts.length > 0) {
-          setSelectedAccountId(data.accounts[0].id);
-        }
-      } catch (error) {
-        console.error('Error fetching account:', error);
-      }
-    };
-    fetchAccount();
-  }, []);
+  // Use accounts hook
+  const { accounts, loading: accountsLoading } = useAccounts();
 
-  // Fetch user's folders from the API (same endpoint as sidebar)
+  // Fetch folders from all accounts
   useEffect(() => {
-    const fetchFolders = async () => {
-      if (!selectedAccountId) return; // Wait for account to be loaded
-      
+    const fetchAllFolders = async () => {
+      if (accountsLoading || accounts.length === 0) return;
+
       setLoadingFolders(true);
+      console.log('[RuleBuilder] Fetching folders for', accounts.length, 'accounts');
+
       try {
-        const response = await fetch(`/api/nylas/folders/sync?accountId=${selectedAccountId}`);
-        const data = await response.json();
-        if (data.success && data.folders) {
-          setFolders(data.folders);
-        }
+        // Fetch folders from all accounts in parallel
+        const folderPromises = accounts.map(async (account) => {
+          if (!account.nylasGrantId) {
+            console.warn('[RuleBuilder] Account missing nylasGrantId:', account.emailAddress);
+            return [];
+          }
+
+          try {
+            console.log('[RuleBuilder] Fetching folders for account:', account.emailAddress);
+            const response = await fetch(`/api/nylas-v3/folders?accountId=${account.nylasGrantId}`);
+
+            if (!response.ok) {
+              console.error('[RuleBuilder] Failed to fetch folders for', account.emailAddress, response.status);
+              return [];
+            }
+
+            const data = await response.json();
+
+            if (data.success && data.folders) {
+              console.log('[RuleBuilder] Fetched', data.folders.length, 'folders for', account.emailAddress);
+
+              // Map folders to consistent format
+              return data.folders.map((folder: any) => ({
+                id: folder.id,
+                name: folder.name || folder.displayName,
+                type: folder.type || folder.folderType || 'folder',
+                accountEmail: account.emailAddress, // Include account email for reference
+              }));
+            }
+
+            return [];
+          } catch (error) {
+            console.error('[RuleBuilder] Error fetching folders for', account.emailAddress, error);
+            return [];
+          }
+        });
+
+        const allFoldersArrays = await Promise.all(folderPromises);
+        const allFolders = allFoldersArrays.flat();
+
+        console.log('[RuleBuilder] Total folders fetched:', allFolders.length);
+        setFolders(allFolders);
       } catch (error) {
-        console.error('Error fetching folders:', error);
+        console.error('[RuleBuilder] Error fetching folders:', error);
       } finally {
         setLoadingFolders(false);
       }
     };
-    
-    fetchFolders();
-  }, [selectedAccountId]);
+
+    fetchAllFolders();
+  }, [accounts, accountsLoading]);
 
   // Field options
   const fieldOptions: { value: ConditionField; label: string }[] = [
@@ -435,14 +461,19 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
                                 <SelectContent>
                                   {folders.length > 0 ? (
                                     folders.map((folder) => (
-                                      <SelectItem key={folder.displayName} value={folder.displayName}>
-                                        {folder.displayName}
+                                      <SelectItem key={`${folder.id}-${folder.accountEmail}`} value={folder.name}>
+                                        {folder.name}
+                                        {(folder as any).accountEmail && (
+                                          <span className="text-xs text-muted-foreground ml-2">
+                                            ({(folder as any).accountEmail})
+                                          </span>
+                                        )}
                                       </SelectItem>
                                     ))
                                   ) : (
                                     !loadingFolders && (
                                       <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                                        No folders available
+                                        {accountsLoading ? 'Loading accounts...' : 'No folders available'}
                                       </div>
                                     )
                                   )}
