@@ -90,15 +90,6 @@ export async function GET(
 
       const url = await getAttachmentUrl(attachment.storagePath, 3600);
 
-      // Increment access count (use Drizzle instead of RPC)
-      await db
-        .update(attachments)
-        .set({
-          accessCount: (attachment.accessCount || 0) + 1,
-          lastAccessedAt: new Date(),
-        })
-        .where(eq(attachments.id, attachmentId));
-
       return NextResponse.json({
         url,
         filename: attachment.filename,
