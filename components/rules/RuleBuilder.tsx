@@ -49,7 +49,7 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
   );
   const [stopProcessing, setStopProcessing] = useState(rule?.stopProcessing ?? false);
   const [saving, setSaving] = useState(false);
-  const [folders, setFolders] = useState<Array<{ id: string; name: string; type: string }>>([]);
+  const [folders, setFolders] = useState<Array<{ id: string; name: string; type: string; accountEmail?: string }>>([]);
   const [loadingFolders, setLoadingFolders] = useState(false);
 
   // Use accounts hook
