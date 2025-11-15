@@ -546,7 +546,10 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   };
 
   const handleSaveDraft = useCallback(async (silent = false) => {
+    console.log('[Draft Save] Called with:', { silent, accountId, to: to.length, subject: subject.length, body: body.length });
+
     if (!accountId) {
+      console.log('[Draft Save] ❌ No accountId, aborting');
       if (!silent) {
         toast({
           title: 'No Account Selected',
@@ -559,9 +562,11 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
     // Don't save completely empty drafts
     if (to.length === 0 && !subject.trim() && !body.trim()) {
+      console.log('[Draft Save] ❌ Empty draft (no to/subject/body), skipping save');
       return;
     }
 
+    console.log('[Draft Save] ✅ Validation passed, proceeding with save...');
     setIsSavingDraft(true);
     setSavingStatus('saving');
 
