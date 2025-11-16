@@ -269,41 +269,48 @@ export function InlineDictationWidget({
   }, []);
 
   return (
-    <div className="my-4 p-4 border border-border rounded-lg bg-card shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
+    <div className="my-4 p-5 border border-border rounded-xl bg-gradient-to-br from-card via-card to-muted/10 shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
           <div className="relative">
-            <Mic className={cn(
-              "w-5 h-5 transition-colors",
-              isListening ? "text-primary" : "text-muted-foreground"
-            )} />
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200",
+              isListening ? "bg-primary/10 ring-1 ring-primary/20" : "bg-muted/50"
+            )}>
+              <Mic className={cn(
+                "w-5 h-5 transition-colors duration-200",
+                isListening ? "text-primary" : "text-muted-foreground"
+              )} />
+            </div>
             {isListening && (
-              <div className="absolute inset-0 w-5 h-5 rounded-full bg-primary animate-ping opacity-50" />
+              <div className="absolute inset-0 w-10 h-10 rounded-full bg-primary animate-ping opacity-30" />
             )}
           </div>
-          <span className="text-sm font-medium">
-            {isProcessing ? 'Processing...' : isListening ? 'Listening...' : 'Dictation Ready'}
-          </span>
-          {userTier !== 'free' && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-              {userTier.toUpperCase()}
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-foreground">
+              {isProcessing ? 'Processing...' : isListening ? 'Listening...' : 'Dictation Ready'}
             </span>
-          )}
+            {userTier !== 'free' && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium w-fit mt-1">
+                {userTier.toUpperCase()}
+              </span>
+            )}
+          </div>
         </div>
         
         <Button
           variant="ghost"
           size="sm"
           onClick={onCancel}
-          className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+          className="text-muted-foreground hover:text-foreground h-8 w-8 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
         >
           <X className="h-4 w-4" />
         </Button>
       </div>
 
       {/* Waveform Visualizer */}
-      <div className="mb-3">
+      <div className="mb-4">
         <WaveformVisualizer
           audioLevel={audioLevel}
           isActive={isListening}
@@ -313,10 +320,10 @@ export function InlineDictationWidget({
 
       {/* Error Display */}
       {error && (
-        <div className="mb-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/30 animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-destructive flex-1">
+            <div className="text-sm text-destructive flex-1 font-medium">
               {error}
             </div>
           </div>
@@ -325,13 +332,13 @@ export function InlineDictationWidget({
 
       {/* Transcription Display */}
       {(accumulatedText || interimText) && (
-        <div className="mb-4 p-3 rounded-lg bg-primary/10 border border-primary/20 animate-in fade-in slide-in-from-top-1 duration-200">
-          <div className="flex items-start gap-2">
+        <div className="mb-4 p-4 rounded-lg bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border border-primary/20 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="flex items-start gap-3">
             <Sparkles className="w-4 h-4 text-primary mt-1 flex-shrink-0" />
-            <div className="text-sm flex-1">
-              <span className="text-foreground">{accumulatedText}</span>
+            <div className="text-sm flex-1 space-y-1">
+              <span className="text-foreground font-medium leading-relaxed block">{accumulatedText}</span>
               {interimText && (
-                <span className="text-muted-foreground italic">{interimText}</span>
+                <span className="text-muted-foreground italic block animate-pulse">{interimText}</span>
               )}
             </div>
           </div>
@@ -345,21 +352,25 @@ export function InlineDictationWidget({
           size="lg"
           onClick={handleStartStop}
           disabled={isProcessing || !isSupported}
-          className="gap-2 min-w-[200px]"
+          className={cn(
+            "gap-2 min-w-[220px] h-11 text-base font-semibold transition-all duration-200",
+            isListening && "shadow-md hover:shadow-lg",
+            !isListening && "shadow-sm hover:shadow-md"
+          )}
         >
           {isProcessing ? (
             <>
-              <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
               Processing...
             </>
           ) : isListening ? (
             <>
-              <Square className="w-4 h-4" />
+              <Square className="w-5 h-5" />
               Stop & Process
             </>
           ) : (
             <>
-              <Mic className="w-4 h-4" />
+              <Mic className="w-5 h-5" />
               Start Dictation
             </>
           )}
@@ -368,7 +379,7 @@ export function InlineDictationWidget({
 
       {/* Helper Text */}
       {!isListening && !isProcessing && !error && (
-        <p className="text-xs text-center text-muted-foreground mt-3">
+        <p className="text-xs text-center text-muted-foreground mt-4 font-medium">
           Click to start speaking. Your words will be transcribed in real-time.
         </p>
       )}

@@ -113,10 +113,12 @@ export function EqualizerWaveform({
         const intensity = smoothed;
         const opacity = 0.4 + (intensity * 0.6);
 
-        // Use gradient for bars
+        // Use enhanced gradient for bars with multiple stops
         const gradient = ctx.createLinearGradient(0, y, 0, canvasHeight);
-        gradient.addColorStop(0, `rgba(${primaryColor}, ${Math.min(1, opacity + 0.2)})`);
-        gradient.addColorStop(1, `rgba(${primaryColor}, ${opacity})`);
+        gradient.addColorStop(0, `rgba(${primaryColor}, ${Math.min(1, opacity + 0.25)})`);
+        gradient.addColorStop(0.3, `rgba(${primaryColor}, ${opacity})`);
+        gradient.addColorStop(0.7, `rgba(${primaryColor}, ${opacity * 0.85})`);
+        gradient.addColorStop(1, `rgba(${primaryColor}, ${opacity * 0.7})`);
 
         ctx.fillStyle = gradient;
         ctx.fillRect(x, y, barWidth, barHeight);
@@ -124,9 +126,20 @@ export function EqualizerWaveform({
         // Add glow effect for active bars
         if (intensity > 0.3) {
           ctx.shadowColor = `rgba(${primaryColor}, ${intensity * 0.5})`;
-          ctx.shadowBlur = 8;
+          ctx.shadowBlur = 10;
           ctx.fillRect(x, y, barWidth, barHeight);
           ctx.shadowBlur = 0;
+          ctx.shadowColor = 'transparent';
+        }
+
+        // Add subtle highlight on top of taller bars
+        if (intensity > 0.5 && barHeight > minBarHeight + 8) {
+          const highlightHeight = Math.min(barHeight * 0.15, 6);
+          const highlightGradient = ctx.createLinearGradient(0, y, 0, y + highlightHeight);
+          highlightGradient.addColorStop(0, `rgba(255, 255, 255, ${intensity * 0.15})`);
+          highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+          ctx.fillStyle = highlightGradient;
+          ctx.fillRect(x, y, barWidth, highlightHeight);
         }
       }
 

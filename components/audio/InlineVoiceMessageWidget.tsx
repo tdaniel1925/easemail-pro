@@ -181,36 +181,48 @@ export function InlineVoiceMessageWidget({
   }, []);
 
   return (
-    <div className="my-4 p-4 border border-border rounded-lg bg-card shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
+    <div className="my-4 p-5 border border-border rounded-xl bg-gradient-to-br from-card via-card to-muted/10 shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
           <div className="relative">
-            <Mic className={cn(
-              "w-5 h-5 transition-colors",
-              isRecording ? "text-red-500" : "text-muted-foreground"
-            )} />
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200",
+              isRecording ? "bg-red-500/10 ring-1 ring-red-500/20" : "bg-muted/50"
+            )}>
+              <Mic className={cn(
+                "w-5 h-5 transition-colors duration-200",
+                isRecording ? "text-red-500" : "text-muted-foreground"
+              )} />
+            </div>
             {isRecording && (
-              <div className="absolute inset-0 w-5 h-5 rounded-full bg-red-500 animate-ping opacity-50" />
+              <div className="absolute inset-0 w-10 h-10 rounded-full bg-red-500 animate-ping opacity-30" />
             )}
           </div>
-          <span className="text-sm font-medium">
-            {isProcessing ? 'Processing...' : isRecording ? `Recording... ${formatTime(duration)}` : recordedBlob ? `Recorded (${formatTime(duration)})` : 'Voice Message'}
-          </span>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-foreground">
+              {isProcessing ? 'Processing...' : isRecording ? `Recording... ${formatTime(duration)}` : recordedBlob ? `Recorded (${formatTime(duration)})` : 'Voice Message'}
+            </span>
+            {isRecording && (
+              <span className="text-xs text-muted-foreground mt-1">
+                Recording in progress
+              </span>
+            )}
+          </div>
         </div>
         
         <Button
           variant="ghost"
           size="sm"
           onClick={onCancel}
-          className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+          className="text-muted-foreground hover:text-foreground h-8 w-8 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
         >
           <X className="h-4 w-4" />
         </Button>
       </div>
 
       {/* Waveform Visualizer */}
-      <div className="mb-3">
+      <div className="mb-4">
         <WaveformVisualizer
           audioLevel={recordedBlob ? (isPlaying ? 50 : 0) : audioLevel}
           isActive={isRecording || isPlaying}
@@ -219,7 +231,7 @@ export function InlineVoiceMessageWidget({
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center gap-3 flex-wrap">
         {!recordedBlob ? (
           // Recording controls
           <Button
@@ -227,21 +239,25 @@ export function InlineVoiceMessageWidget({
             size="lg"
             onClick={isRecording ? stopRecording : startRecording}
             disabled={isProcessing}
-            className="gap-2 min-w-[200px]"
+            className={cn(
+              "gap-2 min-w-[220px] h-11 text-base font-semibold transition-all duration-200",
+              isRecording && "shadow-md hover:shadow-lg",
+              !isRecording && "shadow-sm hover:shadow-md"
+            )}
           >
             {isProcessing ? (
               <>
-                <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                <div className="h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 Processing...
               </>
             ) : isRecording ? (
               <>
-                <Square className="w-4 h-4" />
+                <Square className="w-5 h-5" />
                 Stop Recording
               </>
             ) : (
               <>
-                <Mic className="w-4 h-4" />
+                <Mic className="w-5 h-5" />
                 Start Recording
               </>
             )}
@@ -252,7 +268,7 @@ export function InlineVoiceMessageWidget({
             <Button
               variant="outline"
               onClick={togglePlayback}
-              className="gap-2"
+              className="gap-2 h-11 font-medium transition-colors"
             >
               {isPlaying ? (
                 <>
@@ -269,7 +285,7 @@ export function InlineVoiceMessageWidget({
             <Button
               variant="outline"
               onClick={handleRerecord}
-              className="gap-2"
+              className="gap-2 h-11 font-medium hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 transition-colors"
             >
               <Trash2 className="w-4 h-4" />
               Re-record
@@ -277,7 +293,7 @@ export function InlineVoiceMessageWidget({
             <Button
               variant="default"
               onClick={handleAttach}
-              className="gap-2"
+              className="gap-2 h-11 font-semibold shadow-md hover:shadow-lg transition-all"
             >
               <Check className="w-4 h-4" />
               Attach ({formatTime(duration)})
@@ -288,7 +304,7 @@ export function InlineVoiceMessageWidget({
 
       {/* Helper Text */}
       {!isRecording && !recordedBlob && !isProcessing && (
-        <p className="text-xs text-center text-muted-foreground mt-3">
+        <p className="text-xs text-center text-muted-foreground mt-4 font-medium">
           Record a voice message to attach to your email
         </p>
       )}

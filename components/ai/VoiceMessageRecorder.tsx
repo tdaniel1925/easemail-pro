@@ -381,15 +381,22 @@ export function VoiceMessageRecorderModal({
 
           {/* Waveform */}
           {status !== 'stopped' && (
-            <div className="relative h-32 rounded-lg border bg-card overflow-hidden">
+            <div className="relative h-36 rounded-xl border-2 border-border/50 bg-gradient-to-b from-muted/30 via-muted/20 to-muted/30 overflow-hidden shadow-inner">
               <canvas
                 ref={canvasRef}
                 className="w-full h-full"
               />
               {status === 'ready' && (
-                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                  <Mic className="w-12 h-12 opacity-30" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
+                  <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-3">
+                    <Mic className="w-8 h-8 opacity-50" />
+                  </div>
+                  <p className="text-sm font-medium">Ready to record</p>
                 </div>
+              )}
+              {/* Subtle center line when recording */}
+              {status === 'recording' && (
+                <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent pointer-events-none" />
               )}
             </div>
           )}
