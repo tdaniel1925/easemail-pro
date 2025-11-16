@@ -35,12 +35,14 @@ export async function POST(request: NextRequest) {
       // Build the where conditions
       const conditions = [eq(attachments.userId, userId)];
 
-      // Search filter
+      // Search filter (filename, sender, subject)
       if (params.search) {
         conditions.push(
           or(
             like(attachments.filename, `%${params.search}%`),
-            like(attachments.summary, `%${params.search}%`)
+            like(attachments.senderEmail, `%${params.search}%`),
+            like(attachments.senderName, `%${params.search}%`),
+            like(attachments.emailSubject, `%${params.search}%`)
           )!
         );
       }
@@ -57,15 +59,15 @@ export async function POST(request: NextRequest) {
 
       // Sender filter
       if (params.senders && params.senders.length > 0) {
-        conditions.push(inArray(attachments.sender, params.senders));
+        conditions.push(inArray(attachments.senderEmail, params.senders));
       }
 
       // Date range filter
       if (params.dateFrom) {
-        conditions.push(gte(attachments.createdAt, new Date(params.dateFrom)));
+        conditions.push(gte(attachments.emailDate, new Date(params.dateFrom)));
       }
       if (params.dateTo) {
-        conditions.push(lte(attachments.createdAt, new Date(params.dateTo)));
+        conditions.push(lte(attachments.emailDate, new Date(params.dateTo)));
       }
 
       // Delete attachments matching filters
