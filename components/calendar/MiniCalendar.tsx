@@ -171,28 +171,46 @@ export function MiniCalendar() {
       const popupWidth = 280; // max-w-[280px]
       const popupHeight = Math.min(dayEvents.length * 60 + 40, 240); // Estimate based on events, max 240px
       const gap = 8;
+      const padding = 16; // p-4 = 16px padding
 
-      // Calculate initial position (below the day cell)
+      // Get viewport dimensions
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+
+      // Calculate initial position (below the day cell, relative to calendar container)
       let top = rect.bottom - calendarRect.top + gap;
       let left = rect.left - calendarRect.left;
 
-      // Adjust horizontal position if popup would overflow right edge
-      const rightOverflow = (left + popupWidth) - calendarRect.width;
-      if (rightOverflow > 0) {
-        left = Math.max(0, left - rightOverflow - gap);
-      }
+      // Check if popup would overflow the viewport (not just the container)
+      const popupBottomInViewport = rect.bottom + gap + popupHeight;
+      const popupRightInViewport = rect.left + popupWidth;
 
-      // Adjust vertical position if popup would overflow bottom edge
-      const bottomOverflow = (top + popupHeight) - calendarRect.height;
-      if (bottomOverflow > 0) {
+      // Adjust vertical position if popup would overflow viewport bottom
+      if (popupBottomInViewport > viewportHeight) {
         // Try positioning above the day cell instead
         const topPosition = rect.top - calendarRect.top - popupHeight - gap;
-        if (topPosition >= 0) {
+        if (topPosition >= padding && rect.top - popupHeight - gap > 0) {
           top = topPosition;
         } else {
-          // If it doesn't fit above either, keep it below but adjust to fit
-          top = Math.max(0, calendarRect.height - popupHeight - gap);
+          // Position it at the bottom of the visible area
+          top = viewportHeight - calendarRect.top - popupHeight - padding;
         }
+      }
+
+      // Adjust horizontal position if popup would overflow viewport right
+      if (popupRightInViewport > viewportWidth) {
+        const overflow = popupRightInViewport - viewportWidth + padding;
+        left = Math.max(padding, left - overflow);
+      }
+
+      // Ensure popup doesn't go beyond left edge
+      if (left < padding) {
+        left = padding;
+      }
+
+      // Ensure popup doesn't go beyond top edge
+      if (top < padding) {
+        top = padding;
       }
 
       setHoveredDay(day);
