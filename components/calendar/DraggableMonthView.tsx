@@ -197,41 +197,40 @@ export default function DraggableMonthView({
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
 
-      // Calculate initial position (below the day cell, relative to calendar container)
-      let top = rect.bottom - calendarRect.top + gap;
-      let left = rect.left - calendarRect.left;
+      // Calculate initial position in viewport coordinates
+      let topInViewport = rect.bottom + gap;
+      let leftInViewport = rect.left;
 
-      // Check if popup would overflow the viewport
-      const popupBottomInViewport = rect.bottom + gap + popupHeight;
-      const popupRightInViewport = rect.left + popupWidth;
-
-      // Adjust vertical position if popup would overflow viewport bottom
-      if (popupBottomInViewport > viewportHeight) {
+      // Check if popup would overflow viewport bottom
+      if (topInViewport + popupHeight > viewportHeight - padding) {
         // Try positioning above the day cell instead
-        const topPosition = rect.top - calendarRect.top - popupHeight - gap;
-        if (topPosition >= padding && rect.top - popupHeight - gap > 0) {
-          top = topPosition;
+        const topAbove = rect.top - popupHeight - gap;
+        if (topAbove >= padding) {
+          topInViewport = topAbove;
         } else {
-          // Position it at the bottom of the visible area
-          top = viewportHeight - calendarRect.top - popupHeight - padding;
+          // Position at the top of the viewport with padding
+          topInViewport = padding;
         }
       }
 
-      // Adjust horizontal position if popup would overflow viewport right
-      if (popupRightInViewport > viewportWidth) {
-        const overflow = popupRightInViewport - viewportWidth + padding;
-        left = Math.max(padding, left - overflow);
+      // Check if popup would overflow viewport right
+      if (leftInViewport + popupWidth > viewportWidth - padding) {
+        leftInViewport = Math.max(padding, viewportWidth - popupWidth - padding);
       }
 
       // Ensure popup doesn't go beyond left edge
-      if (left < padding) {
-        left = padding;
+      if (leftInViewport < padding) {
+        leftInViewport = padding;
       }
 
       // Ensure popup doesn't go beyond top edge
-      if (top < padding) {
-        top = padding;
+      if (topInViewport < padding) {
+        topInViewport = padding;
       }
+
+      // Convert from viewport coordinates to container-relative coordinates
+      const top = topInViewport - calendarRect.top;
+      const left = leftInViewport - calendarRect.left;
 
       setHoveredDay(day);
       setPopupPosition({
