@@ -125,7 +125,7 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
         ) : (
           <div className="h-full">
             <AIAssistantSidebar
-              isOpen={true}
+              isOpen={activeTab === 'ai'}
               onClose={() => handleTabChange('calendar')}
               fullPage={true}
             />

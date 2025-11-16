@@ -91,10 +91,10 @@ export async function POST(request: NextRequest) {
     // Call OpenAI
     const openai = getOpenAIClient();
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o',
       messages,
       temperature: 0.7,
-      max_tokens: 800,
+      max_tokens: 1500,
     });
 
     const responseText = completion.choices[0].message.content || 'I apologize, but I could not generate a response. Please try again.';
@@ -103,13 +103,13 @@ export async function POST(request: NextRequest) {
     await trackAICost({
       userId,
       feature: 'assistant',
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o',
       inputTokens: completion.usage?.prompt_tokens || 0,
       outputTokens: completion.usage?.completion_tokens || 0,
     });
 
     // Parse response to extract action buttons
-    const actions = extractActions(responseText, message);
+    const actions = extractActions(responseText);
 
     return NextResponse.json({
       success: true,
@@ -133,18 +133,24 @@ export async function POST(request: NextRequest) {
 /**
  * Extract action buttons from AI response text
  * Looks for patterns like [Button Text] and maps to actual actions
+ * Only extracts valid action buttons to avoid false positives
  */
-function extractActions(responseText: string, userMessage: string): Array<{ text: string; action: string; path?: string }> {
+function extractActions(responseText: string): Array<{ text: string; action: string; path?: string }> {
   const actions: Array<{ text: string; action: string; path?: string }> = [];
-  
-  // Extract [Button Text] patterns
-  const buttonPattern = /\[([^\]]+)\]/g;
+
+  // Extract [Button Text] patterns - only at start of line or after whitespace
+  const buttonPattern = /(?:^|\s)\[([^\]]+)\](?:\s|$)/gm;
   const matches = Array.from(responseText.matchAll(buttonPattern));
-  
+
   for (const match of matches) {
-    const buttonText = match[1];
+    const buttonText = match[1].trim();
     const lowerText = buttonText.toLowerCase();
-    
+
+    // Skip if it looks like a bracketed note rather than a button (e.g., [Note: ...], [see above])
+    if (lowerText.startsWith('note') || lowerText.startsWith('see') || lowerText.startsWith('example')) {
+      continue;
+    }
+
     // Check if this matches a known quick action
     const quickAction = QUICK_ACTIONS[lowerText];
     if (quickAction) {
@@ -154,39 +160,33 @@ function extractActions(responseText: string, userMessage: string): Array<{ text
         path: quickAction.path,
       });
     } else {
-      // Try to infer action from button text
-      if (lowerText.includes('compose') || lowerText.includes('write email')) {
-        actions.push({
-          text: buttonText,
-          action: 'navigate',
-          path: '/inbox?compose=true',
-        });
-      } else if (lowerText.includes('contact')) {
-        actions.push({
-          text: buttonText,
-          action: 'navigate',
-          path: '/contacts',
-        });
-      } else if (lowerText.includes('calendar')) {
-        actions.push({
-          text: buttonText,
-          action: 'navigate',
-          path: '/calendar',
-        });
-      } else if (lowerText.includes('settings')) {
-        actions.push({
-          text: buttonText,
-          action: 'navigate',
-          path: '/settings',
-        });
-      } else if (lowerText.includes('rule') || lowerText.includes('automation')) {
-        actions.push({
-          text: buttonText,
-          action: 'navigate',
-          path: '/rules',
-        });
-      } else {
-        // Generic action - no path
+      // Try to infer action from button text with more specific matching
+      const actionKeywords = [
+        { keywords: ['compose', 'write email', 'new email'], path: '/inbox?compose=true' },
+        { keywords: ['contact', 'view contact', 'add contact'], path: '/contacts' },
+        { keywords: ['calendar', 'event', 'schedule'], path: '/calendar' },
+        { keywords: ['settings', 'preferences', 'configure'], path: '/settings' },
+        { keywords: ['rule', 'automation', 'filter'], path: '/rules' },
+        { keywords: ['inbox', 'emails'], path: '/inbox' },
+        { keywords: ['attachment'], path: '/attachments' },
+        { keywords: ['sms', 'text message'], path: '/sms' },
+      ];
+
+      let matched = false;
+      for (const { keywords, path } of actionKeywords) {
+        if (keywords.some(keyword => lowerText.includes(keyword))) {
+          actions.push({
+            text: buttonText,
+            action: 'navigate',
+            path,
+          });
+          matched = true;
+          break;
+        }
+      }
+
+      // Only add as generic action if it seems like a button (action verbs, short text)
+      if (!matched && buttonText.length <= 30 && /^[A-Z]/.test(buttonText)) {
         actions.push({
           text: buttonText,
           action: 'info',
@@ -194,7 +194,7 @@ function extractActions(responseText: string, userMessage: string): Array<{ text
       }
     }
   }
-  
+
   return actions;
 }
 
