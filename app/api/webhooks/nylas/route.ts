@@ -1,59 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 import { db } from '@/lib/db/drizzle';
 import { webhookEvents, emailAccounts, emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 import { normalizeFolderToCanonical } from '@/lib/email/folder-utils';
+import { verifyWebhookSignature } from '@/lib/nylas-v3/webhooks';
 import * as Sentry from '@sentry/nextjs';
 
-// Verify webhook signature
-function verifyWebhookSignature(payload: string, signature: string): boolean {
-  // ✅ SECURITY: Never allow bypassing signature verification in production
-  if (!process.env.NYLAS_WEBHOOK_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error('❌ CRITICAL: NYLAS_WEBHOOK_SECRET not set in production!');
-      throw new Error('Webhook secret must be configured in production');
-    }
-    console.warn('⚠️ DEV MODE: NYLAS_WEBHOOK_SECRET not set - allowing webhook');
-    return true; // Only allow in development
-  }
-
-  try {
-    const hmac = crypto.createHmac('sha256', process.env.NYLAS_WEBHOOK_SECRET);
-    const digest = hmac.update(payload).digest('hex');
-
-    // Log for debugging (first 20 chars only for security)
-    console.log('[Webhook] Signature verification:', {
-      receivedLength: signature.length,
-      expectedLength: digest.length,
-      receivedSignature: signature.substring(0, 20) + '...',
-      calculatedSignature: digest.substring(0, 20) + '...',
-      payloadLength: payload.length,
-      match: signature === digest
-    });
-
-    // Check if lengths match before comparison (timingSafeEqual requires equal lengths)
-    if (signature.length !== digest.length) {
-      console.error('❌ Signature length mismatch:', {
-        received: signature.length,
-        expected: digest.length,
-      });
-      return false;
-    }
-
-    return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(digest, 'hex'));
-  } catch (error) {
-    console.error('❌ Signature verification error:', error);
-    return false;
-  }
-}
-
 export async function POST(request: NextRequest) {
-  const signature = request.headers.get('x-nylas-signature') || '';
+  // Get signature from header (case-insensitive)
+  const signature = request.headers.get('x-nylas-signature') || 
+                    request.headers.get('X-Nylas-Signature') || '';
+  
   let payload: string;
   
   try {
+    // Read raw payload as text (must be exact bytes received)
     payload = await request.text();
   } catch (error) {
     console.error('❌ Failed to read request body:', error);
@@ -66,9 +28,24 @@ export async function POST(request: NextRequest) {
 
   if (skipVerification) {
     console.warn('⚠️ DEV MODE: Webhook signature verification DISABLED');
-  } else if (!verifyWebhookSignature(payload, signature)) {
-    console.error('❌ Invalid webhook signature');
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+  } else {
+    // Enhanced logging for debugging
+    if (!signature) {
+      console.error('❌ Missing webhook signature header', {
+        headers: Object.fromEntries(request.headers.entries()),
+      });
+      return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+    }
+
+    if (!verifyWebhookSignature(payload, signature)) {
+      console.error('❌ Invalid webhook signature', {
+        signatureLength: signature.length,
+        payloadLength: payload.length,
+        hasSecret: !!process.env.NYLAS_WEBHOOK_SECRET,
+        secretLength: process.env.NYLAS_WEBHOOK_SECRET?.length || 0,
+      });
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+    }
   }
   
   let event: any;

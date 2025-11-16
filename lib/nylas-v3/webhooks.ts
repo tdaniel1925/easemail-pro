@@ -25,7 +25,12 @@ export function verifyWebhookSignature(
   signature: string
 ): boolean {
   if (!signature || !payload) {
-    console.error('❌ Missing webhook signature or payload');
+    console.error('❌ Missing webhook signature or payload', {
+      hasSignature: !!signature,
+      hasPayload: !!payload,
+      signatureLength: signature?.length || 0,
+      payloadLength: payload?.length || 0,
+    });
     return false;
   }
 
@@ -36,33 +41,67 @@ export function verifyWebhookSignature(
   }
 
   try {
+    // Clean signature (remove any whitespace or prefix)
+    const cleanSignature = signature.trim();
+    
+    // Create HMAC with webhook secret
     const hmac = crypto.createHmac('sha256', nylasConfig.webhookSecret);
-    hmac.update(payload);
+    hmac.update(payload, 'utf8'); // Explicitly specify encoding
     const expectedSignature = hmac.digest('hex');
 
     // Log signature comparison for debugging (truncated for security)
     console.log('[Webhook] Signature verification:', {
-      receivedLength: signature.length,
+      receivedLength: cleanSignature.length,
       expectedLength: expectedSignature.length,
-      receivedPrefix: signature.substring(0, 8),
-      expectedPrefix: expectedSignature.substring(0, 8),
+      receivedPrefix: cleanSignature.substring(0, 12),
+      expectedPrefix: expectedSignature.substring(0, 12),
       payloadLength: payload.length,
+      payloadHash: crypto.createHash('sha256').update(payload).digest('hex').substring(0, 12),
     });
 
     // Check if lengths match before comparison (timingSafeEqual requires equal lengths)
-    if (signature.length !== expectedSignature.length) {
+    if (cleanSignature.length !== expectedSignature.length) {
       console.error('❌ Signature length mismatch:', {
-        received: signature.length,
+        received: cleanSignature.length,
         expected: expectedSignature.length,
+        receivedFormat: cleanSignature.match(/^[0-9a-f]+$/i) ? 'hex' : 'unknown',
       });
       return false;
     }
 
-    // Use timing-safe comparison to prevent timing attacks
-    return crypto.timingSafeEqual(
-      Buffer.from(signature, 'hex'),
-      Buffer.from(expectedSignature, 'hex')
-    );
+    // Try hex comparison first (standard Nylas format)
+    try {
+      const receivedBuffer = Buffer.from(cleanSignature, 'hex');
+      const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+      
+      if (receivedBuffer.length !== expectedBuffer.length) {
+        console.error('❌ Buffer length mismatch after hex decode', {
+          receivedBufferLength: receivedBuffer.length,
+          expectedBufferLength: expectedBuffer.length,
+        });
+        return false;
+      }
+
+      // Use timing-safe comparison to prevent timing attacks
+      const isValid = crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
+      
+      if (!isValid) {
+        console.error('❌ Signature mismatch (hex format)', {
+          receivedFirst16: cleanSignature.substring(0, 16),
+          expectedFirst16: expectedSignature.substring(0, 16),
+        });
+      }
+      
+      return isValid;
+    } catch (hexError) {
+      // If hex decode fails, the signature might be in a different format
+      console.error('❌ Failed to decode signature as hex:', {
+        error: hexError instanceof Error ? hexError.message : String(hexError),
+        signaturePreview: cleanSignature.substring(0, 20),
+        isHexFormat: /^[0-9a-f]+$/i.test(cleanSignature),
+      });
+      return false;
+    }
   } catch (error) {
     console.error('❌ Webhook signature verification error:', error);
     return false;

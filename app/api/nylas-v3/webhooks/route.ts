@@ -42,23 +42,32 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Get raw payload and signature
+    // 1. Get raw payload and signature (case-insensitive header lookup)
     const rawPayload = await request.text();
-    const signature = request.headers.get('x-nylas-signature');
+    const signature = request.headers.get('x-nylas-signature') || 
+                      request.headers.get('X-Nylas-Signature') || '';
 
     if (!signature) {
-      console.error('❌ Missing webhook signature');
+      console.error('❌ Missing webhook signature', {
+        availableHeaders: Array.from(request.headers.keys()),
+      });
       return NextResponse.json(
         { error: 'Missing signature' },
         { status: 401 }
       );
     }
 
-    // 2. Verify signature
+    // 2. Verify signature with enhanced logging
     const isValid = verifyWebhookSignature(rawPayload, signature);
 
     if (!isValid) {
-      console.error('❌ Invalid webhook signature');
+      console.error('❌ Invalid webhook signature', {
+        signatureLength: signature.length,
+        payloadLength: rawPayload.length,
+        hasSecret: !!nylasConfig.webhookSecret,
+        secretLength: nylasConfig.webhookSecret?.length || 0,
+        payloadPreview: rawPayload.substring(0, 100),
+      });
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 401 }
