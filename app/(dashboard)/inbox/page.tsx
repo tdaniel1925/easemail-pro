@@ -21,6 +21,7 @@ import EaseMailLogoFull from '@/components/ui/EaseMailLogoFull';
 import SettingsMenuNew from '@/components/layout/SettingsMenuNew';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import WelcomeScreen from '@/components/email/WelcomeScreen';
 
 export default function InboxV3Page() {
   const searchParams = useSearchParams();
@@ -172,6 +173,11 @@ export default function InboxV3Page() {
     setComposeType('reply');
     setIsComposeOpen(true);
   };
+
+  // Show welcome screen if no accounts are connected
+  if (!accountsLoading && accounts.length === 0) {
+    return <WelcomeScreen />;
+  }
 
   return (
     <>
