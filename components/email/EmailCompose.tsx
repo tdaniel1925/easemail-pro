@@ -1363,7 +1363,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
               <div className="flex items-center justify-between p-3">
                 <div className="flex items-center gap-2">
-                  <Button onClick={handleSend} className="gap-2" disabled={isSending || !accountId}>
+                  <Button onClick={() => handleSend()} className="gap-2" disabled={isSending || !accountId}>
                     <Send className="h-4 w-4" />
                     {isSending ? 'Sending...' : 'Send'}
                   </Button>
