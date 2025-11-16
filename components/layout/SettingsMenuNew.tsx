@@ -132,15 +132,6 @@ export default function SettingsMenuNew({ onLogout, onNavigate }: SettingsMenuNe
               <span>Settings</span>
             </button>
 
-            {/* Profile */}
-            <button
-              onClick={() => handleMenuClick('/profile')}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent transition-colors text-left"
-            >
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span>Profile</span>
-            </button>
-
             <div className="border-t border-border my-2"></div>
 
             {/* Logout */}

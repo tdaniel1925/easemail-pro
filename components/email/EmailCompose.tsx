@@ -385,7 +385,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     setSkipSignatureCheck(false); // Reset skip flag
   };
 
-  const handleSend = async () => {
+  const handleSend = async (skipSignature: boolean = false) => {
     // Clear previous validation errors
     setValidationError(null);
 
@@ -421,16 +421,16 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     console.log('[EmailCompose] Account ID:', accountId, 'Type:', typeof accountId);
 
     // Check for signature - show prompt if no signatures exist and user hasn't hidden it
-    // Skip this check if user already clicked "Continue without signature"
+    // Skip this check if user already clicked "Continue without signature" (skipSignature param)
     console.log('[EmailCompose] Signature check:', {
       signaturesCount: signatures.length,
       hidePrompt: hideSignaturePromptPreference,
       type: type,
-      skipSignatureCheck: skipSignatureCheck,
-      showPrompt: signatures.length === 0 && !hideSignaturePromptPreference && type === 'compose' && !skipSignatureCheck
+      skipSignature: skipSignature,
+      showPrompt: signatures.length === 0 && !hideSignaturePromptPreference && type === 'compose' && !skipSignature
     });
 
-    if (signatures.length === 0 && !hideSignaturePromptPreference && type === 'compose' && !skipSignatureCheck) {
+    if (signatures.length === 0 && !hideSignaturePromptPreference && type === 'compose' && !skipSignature) {
       console.log('[EmailCompose] ✅ Showing signature prompt');
       setShowSignaturePrompt(true);
       return;
@@ -861,27 +861,28 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   // Signature prompt handlers
   const handleNeverShowSignaturePrompt = async () => {
     try {
-      await fetch('/api/user/preferences', {
+      const response = await fetch('/api/user/preferences', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hideSignaturePrompt: true }),
       });
-      setHideSignaturePromptPreference(true);
-      console.log('[EmailCompose] Signature prompt hidden permanently');
+
+      if (response.ok) {
+        setHideSignaturePromptPreference(true);
+        console.log('[EmailCompose] Signature prompt hidden permanently');
+      } else {
+        console.error('[EmailCompose] Failed to save preference - response not ok');
+      }
     } catch (error) {
       console.error('[EmailCompose] Failed to save preference:', error);
     }
   };
 
   const handleContinueWithoutSignature = () => {
-    console.log('[EmailCompose] Continuing without signature - setting skip flag');
+    console.log('[EmailCompose] Continuing without signature - proceeding with send');
     setShowSignaturePrompt(false);
-    // Set flag to skip signature check on retry
-    setSkipSignatureCheck(true);
-    // Retry sending after a brief delay to ensure state is updated
-    setTimeout(() => {
-      handleSend();
-    }, 100);
+    // Call handleSend with skipSignature=true to bypass signature check
+    handleSend(true);
   };
 
   const handleURLSubmit = (url: string) => {
