@@ -64,8 +64,6 @@ export async function POST(request: NextRequest) {
       console.error('❌ Invalid webhook signature', {
         signatureLength: signature.length,
         payloadLength: rawPayload.length,
-        hasSecret: !!nylasConfig.webhookSecret,
-        secretLength: nylasConfig.webhookSecret?.length || 0,
         payloadPreview: rawPayload.substring(0, 100),
       });
       return NextResponse.json(
