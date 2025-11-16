@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X, Save, Eye, Code, Type, Bold, Italic, Underline, Link as LinkIcon, Palette } from 'lucide-react';
+import { X, Save, Eye, Code, Type, Bold, Italic, Underline, Link as LinkIcon, Palette, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { EmailSignature } from '@/lib/signatures/types';
 import { URLInputDialog } from '@/components/ui/url-input-dialog';
@@ -52,7 +52,9 @@ export function SignatureEditorModal({
   const [showHtml, setShowHtml] = useState(false);
   const [showURLDialog, setShowURLDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
   // Initialize form with signature data
@@ -127,6 +129,75 @@ export function SignatureEditorModal({
 
   const handleURLSubmit = (url: string) => {
     applyFormatting('createLink', url);
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      // Upload image
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/attachments/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+
+      const data = await response.json();
+      const imageUrl = data.attachment.storageUrl;
+
+      // Insert image into editor
+      if (editorRef.current) {
+        editorRef.current.focus();
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.style.maxWidth = '200px';
+        img.style.height = 'auto';
+        img.alt = file.name;
+
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(img);
+          range.collapse(false);
+        } else {
+          editorRef.current.appendChild(img);
+        }
+
+        setContentHtml(editorRef.current.innerHTML);
+      }
+
+      toast.success('Image uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Failed to upload image');
+    } finally {
+      setIsUploadingImage(false);
+      // Reset input
+      if (imageInputRef.current) {
+        imageInputRef.current.value = '';
+      }
+    }
   };
 
   return (
@@ -237,6 +308,22 @@ export function SignatureEditorModal({
                   >
                     <LinkIcon className="h-4 w-4" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="p-2 hover:bg-accent rounded"
+                    title="Insert Image"
+                    disabled={isUploadingImage}
+                  >
+                    <ImageIcon className="h-4 w-4" />
+                  </button>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
                 </div>
 
                 {/* Editor */}

@@ -26,6 +26,7 @@ export function MiniCalendar() {
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
   const pathname = usePathname();
   const calendarRef = useRef<HTMLDivElement>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
@@ -167,16 +168,29 @@ export function MiniCalendar() {
     const calendarRect = calendarRef.current?.getBoundingClientRect();
 
     if (calendarRect) {
-      setHoveredDay(day);
-      setPopupPosition({
-        top: rect.bottom - calendarRect.top + 8,
-        left: rect.left - calendarRect.left,
-      });
+      // Clear any existing timeout
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+
+      // Only show popup after a brief delay to avoid interfering with clicks
+      hoverTimeoutRef.current = setTimeout(() => {
+        setHoveredDay(day);
+        setPopupPosition({
+          top: rect.bottom - calendarRect.top + 8,
+          left: rect.left - calendarRect.left,
+        });
+      }, 200);
     }
   };
 
   // Handle mouse leave
   const handleDayMouseLeave = () => {
+    // Clear timeout if mouse leaves before popup shows
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
     setHoveredDay(null);
     setPopupPosition(null);
   };
