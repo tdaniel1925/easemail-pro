@@ -5,9 +5,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable, closestCenter } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight, Repeat, AlertTriangle, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Repeat, AlertTriangle, GripVertical, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -80,16 +80,24 @@ function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEve
   );
 }
 
-function DroppableDay({ day, isToday, events, allEvents, onDayClick, onEventClick }: any) {
+function DroppableDay({ day, isToday, events, allEvents, onDayClick, onEventClick, onDayMouseEnter, onDayMouseLeave }: any) {
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${day.day}`,
     data: { date: day.date },
   });
 
+  const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (events.length > 0) {
+      onDayMouseEnter(day.day, e);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       onClick={() => onDayClick(day.day)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={onDayMouseLeave}
       className={cn(
         'aspect-square border border-border rounded-sm p-2 cursor-pointer transition-colors overflow-hidden',
         isToday && 'bg-primary/10 border-primary',
@@ -126,6 +134,9 @@ export default function DraggableMonthView({
   onEventClick,
 }: DraggableMonthViewProps) {
   const [activeEvent, setActiveEvent] = useState<any>(null);
+  const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
@@ -158,12 +169,82 @@ export default function DraggableMonthView({
   const getEventsForDay = (day: number) => {
     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const dateStr = date.toISOString().split('T')[0];
-    
+
     return events.filter(event => {
       const eventStart = parseISO(event.startTime);
       const eventDateStr = eventStart.toISOString().split('T')[0];
       return eventDateStr === dateStr;
     });
+  };
+
+  // Handle mouse enter on day cell
+  const handleDayMouseEnter = (day: number, event: React.MouseEvent<HTMLDivElement>) => {
+    const dayEvents = getEventsForDay(day);
+    if (dayEvents.length === 0) return;
+
+    const cell = event.currentTarget;
+    const rect = cell.getBoundingClientRect();
+    const calendarRect = calendarRef.current?.getBoundingClientRect();
+
+    if (calendarRect) {
+      // Estimated popup dimensions
+      const popupWidth = 320; // Larger for main calendar
+      const popupHeight = Math.min(dayEvents.length * 70 + 60, 400); // Estimate based on events
+      const gap = 8;
+      const padding = 16;
+
+      // Get viewport dimensions
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+
+      // Calculate initial position (below the day cell, relative to calendar container)
+      let top = rect.bottom - calendarRect.top + gap;
+      let left = rect.left - calendarRect.left;
+
+      // Check if popup would overflow the viewport
+      const popupBottomInViewport = rect.bottom + gap + popupHeight;
+      const popupRightInViewport = rect.left + popupWidth;
+
+      // Adjust vertical position if popup would overflow viewport bottom
+      if (popupBottomInViewport > viewportHeight) {
+        // Try positioning above the day cell instead
+        const topPosition = rect.top - calendarRect.top - popupHeight - gap;
+        if (topPosition >= padding && rect.top - popupHeight - gap > 0) {
+          top = topPosition;
+        } else {
+          // Position it at the bottom of the visible area
+          top = viewportHeight - calendarRect.top - popupHeight - padding;
+        }
+      }
+
+      // Adjust horizontal position if popup would overflow viewport right
+      if (popupRightInViewport > viewportWidth) {
+        const overflow = popupRightInViewport - viewportWidth + padding;
+        left = Math.max(padding, left - overflow);
+      }
+
+      // Ensure popup doesn't go beyond left edge
+      if (left < padding) {
+        left = padding;
+      }
+
+      // Ensure popup doesn't go beyond top edge
+      if (top < padding) {
+        top = padding;
+      }
+
+      setHoveredDay(day);
+      setPopupPosition({
+        top,
+        left,
+      });
+    }
+  };
+
+  // Handle mouse leave
+  const handleDayMouseLeave = () => {
+    setHoveredDay(null);
+    setPopupPosition(null);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -220,7 +301,7 @@ export default function DraggableMonthView({
         </div>
 
         {/* Month Grid */}
-        <div className="grid grid-cols-7 gap-2">
+        <div ref={calendarRef} className="grid grid-cols-7 gap-2 relative">
           {/* Day headers */}
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
             <div key={day} className="text-center font-semibold text-sm text-muted-foreground py-2">
@@ -243,8 +324,78 @@ export default function DraggableMonthView({
               allEvents={events}
               onDayClick={onDayClick}
               onEventClick={onEventClick}
+              onDayMouseEnter={handleDayMouseEnter}
+              onDayMouseLeave={handleDayMouseLeave}
             />
           ))}
+
+          {/* Hover Popup */}
+          {hoveredDay !== null && popupPosition && (
+            <div
+              className="absolute z-50 min-w-[280px] max-w-[320px] bg-popover border border-border rounded-lg shadow-lg p-4"
+              style={{
+                top: `${popupPosition.top}px`,
+                left: `${popupPosition.left}px`,
+              }}
+              onMouseEnter={() => setHoveredDay(hoveredDay)}
+              onMouseLeave={handleDayMouseLeave}
+            >
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-foreground">
+                  {monthNames[currentMonth.getMonth()]} {hoveredDay}, {currentMonth.getFullYear()}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {getEventsForDay(hoveredDay).length} {getEventsForDay(hoveredDay).length === 1 ? 'event' : 'events'}
+                </p>
+              </div>
+              <div className="space-y-2 max-h-[350px] overflow-y-auto">
+                {getEventsForDay(hoveredDay).map((event) => {
+                  const startTime = parseISO(event.startTime);
+                  const endTime = parseISO(event.endTime);
+                  const timeStr = `${format(startTime, 'h:mm a')} - ${format(endTime, 'h:mm a')}`;
+
+                  return (
+                    <div
+                      key={event.id}
+                      className="flex items-start gap-2 p-2.5 rounded-md bg-muted/50 hover:bg-muted transition-colors cursor-pointer border border-border/50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDayMouseLeave();
+                        onEventClick(e, event);
+                      }}
+                    >
+                      <div className={cn(
+                        'w-1 h-full rounded-full flex-shrink-0 mt-0.5',
+                        event.color === 'blue' && 'bg-blue-500',
+                        event.color === 'green' && 'bg-green-500',
+                        event.color === 'red' && 'bg-red-500',
+                        event.color === 'purple' && 'bg-purple-500',
+                        event.color === 'orange' && 'bg-orange-500',
+                        event.color === 'pink' && 'bg-pink-500',
+                        !event.color && 'bg-primary'
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground mb-0.5">{event.title}</p>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">{timeStr}</p>
+                        </div>
+                        {event.location && (
+                          <p className="text-xs text-muted-foreground mt-1 truncate">{event.location}</p>
+                        )}
+                        {event.isRecurring && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <Repeat className="h-3 w-3 text-muted-foreground" />
+                            <p className="text-xs text-muted-foreground">Recurring</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
