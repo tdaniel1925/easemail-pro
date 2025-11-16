@@ -167,10 +167,38 @@ export function MiniCalendar() {
     const calendarRect = calendarRef.current?.getBoundingClientRect();
 
     if (calendarRect) {
+      // Estimated popup dimensions
+      const popupWidth = 280; // max-w-[280px]
+      const popupHeight = Math.min(dayEvents.length * 60 + 40, 240); // Estimate based on events, max 240px
+      const gap = 8;
+
+      // Calculate initial position (below the day cell)
+      let top = rect.bottom - calendarRect.top + gap;
+      let left = rect.left - calendarRect.left;
+
+      // Adjust horizontal position if popup would overflow right edge
+      const rightOverflow = (left + popupWidth) - calendarRect.width;
+      if (rightOverflow > 0) {
+        left = Math.max(0, left - rightOverflow - gap);
+      }
+
+      // Adjust vertical position if popup would overflow bottom edge
+      const bottomOverflow = (top + popupHeight) - calendarRect.height;
+      if (bottomOverflow > 0) {
+        // Try positioning above the day cell instead
+        const topPosition = rect.top - calendarRect.top - popupHeight - gap;
+        if (topPosition >= 0) {
+          top = topPosition;
+        } else {
+          // If it doesn't fit above either, keep it below but adjust to fit
+          top = Math.max(0, calendarRect.height - popupHeight - gap);
+        }
+      }
+
       setHoveredDay(day);
       setPopupPosition({
-        top: rect.bottom - calendarRect.top + 8,
-        left: rect.left - calendarRect.left,
+        top,
+        left,
       });
     }
   };
