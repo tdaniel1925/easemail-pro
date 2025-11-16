@@ -51,6 +51,7 @@ function AttachmentsContent() {
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isAllSelected, setIsAllSelected] = useState(false);
+  const [selectAllAcrossPages, setSelectAllAcrossPages] = useState(false); // New: Select all across all pages
 
   // Fetch AI setting with cleanup
   useEffect(() => {
@@ -157,12 +158,31 @@ function AttachmentsContent() {
   };
 
   // Bulk selection handlers
-  const toggleSelectAll = () => {
+  const toggleSelectAllOnPage = () => {
     if (isAllSelected || selectedIds.size > 0) {
       setSelectedIds(new Set());
       setIsAllSelected(false);
+      setSelectAllAcrossPages(false);
     } else if (data?.data) {
       setSelectedIds(new Set(data.data.map(a => a.id)));
+      setIsAllSelected(true);
+      setSelectAllAcrossPages(false);
+    }
+  };
+
+  const selectAllAttachments = () => {
+    if (selectAllAcrossPages) {
+      // Deselect all
+      setSelectedIds(new Set());
+      setSelectAllAcrossPages(false);
+      setIsAllSelected(false);
+    } else {
+      // Select all across all pages
+      setSelectAllAcrossPages(true);
+      // Also select all on current page
+      if (data?.data) {
+        setSelectedIds(new Set(data.data.map(a => a.id)));
+      }
       setIsAllSelected(true);
     }
   };
@@ -176,11 +196,13 @@ function AttachmentsContent() {
     }
     setSelectedIds(newSelected);
     setIsAllSelected(Boolean(data?.data && newSelected.size === data.data.length));
+    setSelectAllAcrossPages(false); // Disable select all across pages when manually selecting
   };
 
   const clearSelection = () => {
     setSelectedIds(new Set());
     setIsAllSelected(false);
+    setSelectAllAcrossPages(false);
   };
 
   const handleBulkDownload = async () => {
@@ -192,23 +214,60 @@ function AttachmentsContent() {
   };
 
   const handleBulkDelete = async () => {
+    const countToDelete = selectAllAcrossPages ? (data?.pagination.total || 0) : selectedIds.size;
+
     const confirmed = await confirm({
       title: 'Delete Attachments',
-      message: `Are you sure you want to delete ${selectedIds.size} selected attachments? This action cannot be undone.`,
+      message: `Are you sure you want to delete ${countToDelete} ${selectAllAcrossPages ? 'attachment(s)' : 'selected attachment(s)'}? This action cannot be undone.`,
       variant: 'danger',
     });
 
     if (!confirmed) return;
 
     try {
-      // Implement bulk delete API call here
-      // For now, just show success message
-      setSuccess(`Deleted ${selectedIds.size} attachments`);
+      if (selectAllAcrossPages) {
+        // Delete all attachments matching current filters
+        const response = await fetch('/api/attachments/bulk-delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            deleteAll: true,
+            filters: params, // Use current search/filter params
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to delete attachments');
+        }
+
+        const result = await response.json();
+        setSuccess(`Deleted ${result.deletedCount || countToDelete} attachment(s)`);
+      } else {
+        // Delete specific selected attachments
+        const response = await fetch('/api/attachments/bulk-delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            attachmentIds: Array.from(selectedIds),
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Failed to delete attachments');
+        }
+
+        const result = await response.json();
+        setSuccess(`Deleted ${result.deletedCount || selectedIds.size} attachment(s)`);
+      }
+
       clearSelection();
       refetch();
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.message || 'Failed to delete attachments');
+      setTimeout(() => setError(null), 5000);
     }
   };
 
@@ -247,35 +306,60 @@ function AttachmentsContent() {
         )}
 
         {/* Bulk Actions Toolbar */}
-        {selectedIds.size > 0 && (
+        {(selectedIds.size > 0 || selectAllAcrossPages) && (
           <div className="border-b bg-accent px-6 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
                   checked={isAllSelected}
-                  onChange={toggleSelectAll}
+                  onChange={toggleSelectAllOnPage}
                   className="h-4 w-4 rounded border-gray-300"
                 />
-                <span className="font-medium">{selectedIds.size} selected</span>
+                <span className="font-medium">
+                  {selectAllAcrossPages
+                    ? `All ${data?.pagination.total || 0} attachments selected`
+                    : `${selectedIds.size} selected on this page`
+                  }
+                </span>
+                {selectAllAcrossPages && (
+                  <span className="text-xs text-muted-foreground">
+                    (across all pages)
+                  </span>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={toggleSelectAll}
-                  title={isAllSelected ? "Deselect All" : "Select All"}
+                  onClick={toggleSelectAllOnPage}
+                  title={isAllSelected ? "Deselect All on Page" : "Select All on Page"}
                 >
                   {isAllSelected ? <Square className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
-                  {isAllSelected ? "Deselect All" : "Select All"}
+                  {isAllSelected ? "Deselect Page" : "Select Page"}
                 </Button>
+                {data?.pagination.total && data.pagination.total > (data?.data.length || 0) && (
+                  <Button
+                    variant={selectAllAcrossPages ? "default" : "outline"}
+                    size="sm"
+                    onClick={selectAllAttachments}
+                    title={selectAllAcrossPages ? "Deselect All Attachments" : `Select All ${data.pagination.total} Attachments`}
+                  >
+                    <CheckSquare className="h-4 w-4 mr-2" />
+                    {selectAllAcrossPages
+                      ? "Deselect All"
+                      : `Select All ${data.pagination.total}`
+                    }
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleBulkDownload}
+                  disabled={selectedIds.size === 0}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Download Selected
+                  Download {selectAllAcrossPages ? 'All' : 'Selected'}
                 </Button>
                 <Button
                   variant="outline"
@@ -284,12 +368,13 @@ function AttachmentsContent() {
                   className="text-destructive hover:text-destructive"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Selected
+                  Delete {selectAllAcrossPages ? 'All' : 'Selected'}
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={clearSelection}
+                  title="Clear selection"
                 >
                   <X className="h-4 w-4" />
                 </Button>
