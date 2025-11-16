@@ -10,6 +10,7 @@ import {
   processWebhookEvent,
   WebhookHandlers,
 } from '@/lib/nylas-v3/webhooks';
+import { nylasConfig } from '@/lib/nylas-v3/config';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
