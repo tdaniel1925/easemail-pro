@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Plus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,10 @@ export function MiniCalendar() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
   const pathname = usePathname();
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
@@ -136,11 +139,46 @@ export function MiniCalendar() {
   const dayHasEvents = (day: number) => {
     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const dateStr = date.toISOString().split('T')[0];
-    
+
     return events.some(event => {
       const eventStart = new Date(event.startTime);
       return eventStart.toISOString().split('T')[0] === dateStr;
     });
+  };
+
+  // Get events for a specific day
+  const getEventsForDay = (day: number) => {
+    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const dateStr = date.toISOString().split('T')[0];
+
+    return events.filter(event => {
+      const eventStart = new Date(event.startTime);
+      return eventStart.toISOString().split('T')[0] === dateStr;
+    }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  };
+
+  // Handle mouse enter on day cell
+  const handleDayMouseEnter = (day: number, event: React.MouseEvent<HTMLButtonElement>) => {
+    const dayEvents = getEventsForDay(day);
+    if (dayEvents.length === 0) return;
+
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const calendarRect = calendarRef.current?.getBoundingClientRect();
+
+    if (calendarRect) {
+      setHoveredDay(day);
+      setPopupPosition({
+        top: rect.bottom - calendarRect.top + 8,
+        left: rect.left - calendarRect.left,
+      });
+    }
+  };
+
+  // Handle mouse leave
+  const handleDayMouseLeave = () => {
+    setHoveredDay(null);
+    setPopupPosition(null);
   };
 
   return (
@@ -163,7 +201,7 @@ export function MiniCalendar() {
       </div>
 
       {/* Calendar */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div ref={calendarRef} className="flex-1 overflow-y-auto p-4 space-y-4 relative">
         {/* Month Navigation */}
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold">
@@ -216,6 +254,8 @@ export function MiniCalendar() {
                 onClick={() => {
                   setSelectedDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day));
                 }}
+                onMouseEnter={(e) => handleDayMouseEnter(day, e)}
+                onMouseLeave={handleDayMouseLeave}
                 className={cn(
                   'aspect-square rounded-md text-xs font-medium transition-colors flex flex-col items-center justify-center relative',
                   todayDate && 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -231,6 +271,64 @@ export function MiniCalendar() {
             );
           })}
         </div>
+
+        {/* Hover Popup */}
+        {hoveredDay !== null && popupPosition && (
+          <div
+            className="absolute z-50 min-w-[220px] max-w-[280px] bg-popover border border-border rounded-lg shadow-lg p-3"
+            style={{
+              top: `${popupPosition.top}px`,
+              left: `${popupPosition.left}px`,
+            }}
+            onMouseEnter={() => setHoveredDay(hoveredDay)}
+            onMouseLeave={handleDayMouseLeave}
+          >
+            <div className="mb-2">
+              <p className="text-xs font-semibold text-foreground">
+                {monthNames[currentMonth.getMonth()]} {hoveredDay}, {currentMonth.getFullYear()}
+              </p>
+            </div>
+            <div className="space-y-2 max-h-[200px] overflow-y-auto">
+              {getEventsForDay(hoveredDay).map((event) => {
+                const startTime = new Date(event.startTime);
+                const endTime = new Date(event.endTime);
+                const timeStr = `${startTime.toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit'
+                })} - ${endTime.toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit'
+                })}`;
+
+                return (
+                  <div
+                    key={event.id}
+                    className="flex items-start gap-2 p-2 rounded-md bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+                    onClick={() => window.location.href = '/calendar'}
+                  >
+                    <div className={cn(
+                      'w-1 h-full rounded-full flex-shrink-0 mt-0.5',
+                      event.color === 'blue' && 'bg-blue-500',
+                      event.color === 'green' && 'bg-green-500',
+                      event.color === 'red' && 'bg-red-500',
+                      event.color === 'purple' && 'bg-purple-500',
+                      event.color === 'orange' && 'bg-orange-500',
+                      event.color === 'pink' && 'bg-pink-500',
+                      !event.color && 'bg-primary'
+                    )} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate text-foreground">{event.title}</p>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Clock className="h-3 w-3 text-muted-foreground" />
+                        <p className="text-[10px] text-muted-foreground">{timeStr}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Upcoming Events */}
         <div className="pt-4 border-t border-border">
