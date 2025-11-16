@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Pencil, MessageSquare, Users, Calendar, Paperclip } from 'lucide-react';
+import { Pencil, MessageSquare, Users, Calendar, Paperclip, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FolderSidebarV3 } from '@/components/nylas-v3/folder-sidebar-v3';
 import { EmailListEnhancedV3 } from '@/components/nylas-v3/email-list-enhanced-v3';
@@ -272,6 +272,13 @@ export default function InboxV3Page() {
             >
               <Paperclip className="h-4 w-4" />
               Attachments
+            </a>
+            <a
+              href="/accounts-v3"
+              className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-lg transition-colors"
+            >
+              <UserPlus className="h-4 w-4" />
+              Add Account
             </a>
 
             {/* Settings Menu */}
