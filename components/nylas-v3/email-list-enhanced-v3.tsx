@@ -62,6 +62,7 @@ interface EmailMessage {
   }>;
   labels?: string[];
   threadId?: string | null;
+  threadEmailCount?: number; // Number of emails in this thread
   body?: string;
 }
 
@@ -1109,11 +1110,11 @@ function EmailCard({
                 )}>
                   {message.subject || '(no subject)'}
                 </p>
-                {/* Thread Indicator Badge - Only show if threadId exists and is not empty */}
-                {message.threadId && message.threadId.trim() !== '' && (
+                {/* Thread Indicator Badge - Only show if thread has multiple emails */}
+                {message.threadId && message.threadId.trim() !== '' && (message.threadEmailCount ?? 1) > 1 && (
                   <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs flex-shrink-0 shadow-sm">
                     <MessageSquare className="h-3 w-3" />
-                    <span className="font-semibold">Thread</span>
+                    <span className="font-semibold">{message.threadEmailCount}</span>
                   </div>
                 )}
               </div>

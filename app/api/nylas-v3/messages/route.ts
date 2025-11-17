@@ -79,9 +79,41 @@ export async function GET(request: NextRequest) {
       unread: unread === 'true' ? true : unread === 'false' ? false : undefined,
     });
 
+    // 4. Enrich messages with thread email counts from our database
+    const enrichedMessages = await Promise.all(
+      result.messages.map(async (message: any) => {
+        if (message.thread_id) {
+          try {
+            // Query our email_threads table for the email count
+            const { emailThreads } = await import('@/lib/db/schema-threads');
+            const { eq } = await import('drizzle-orm');
+
+            const thread = await db.query.emailThreads.findFirst({
+              where: eq(emailThreads.id, message.thread_id),
+              columns: {
+                emailCount: true,
+              },
+            });
+
+            return {
+              ...message,
+              threadEmailCount: thread?.emailCount || 1,
+            };
+          } catch (error) {
+            console.error('Error fetching thread count for message:', error);
+            return {
+              ...message,
+              threadEmailCount: 1,
+            };
+          }
+        }
+        return message;
+      })
+    );
+
     return NextResponse.json({
       success: true,
-      messages: result.messages,
+      messages: enrichedMessages,
       nextCursor: result.nextCursor,
       hasMore: result.hasMore,
     });
