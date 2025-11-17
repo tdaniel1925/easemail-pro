@@ -186,37 +186,37 @@ export function MiniCalendar() {
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
 
-        // Start with position below the day cell (in viewport coordinates)
-        let topInViewport = rect.bottom + 8;
-        let leftInViewport = rect.left;
+        // Start with position below the day cell (already in viewport coordinates)
+        let top = rect.bottom + 8;
+        let left = rect.left;
 
         // Check if popup would overflow bottom of viewport
-        if (topInViewport + popupHeight > viewportHeight - padding) {
+        if (top + popupHeight > viewportHeight - padding) {
           // Try positioning above the day cell
           const topAbove = rect.top - popupHeight - 8;
           if (topAbove >= padding) {
-            topInViewport = topAbove;
+            top = topAbove;
           } else {
             // If it doesn't fit above either, position at bottom with scroll
-            topInViewport = Math.max(padding, viewportHeight - popupHeight - padding);
+            top = Math.max(padding, viewportHeight - popupHeight - padding);
           }
         }
 
         // Check if popup would overflow right edge of viewport
-        if (leftInViewport + popupWidth > viewportWidth - padding) {
+        if (left + popupWidth > viewportWidth - padding) {
           // Shift left to fit in viewport
-          leftInViewport = Math.max(padding, viewportWidth - popupWidth - padding);
+          left = Math.max(padding, viewportWidth - popupWidth - padding);
         }
 
         // Ensure popup doesn't overflow left edge
-        if (leftInViewport < padding) {
-          leftInViewport = padding;
+        if (left < padding) {
+          left = padding;
         }
 
-        // Convert viewport coordinates to container-relative coordinates
+        // Use viewport coordinates directly for fixed positioning
         setPopupPosition({
-          top: topInViewport - calendarRect.top,
-          left: leftInViewport - calendarRect.left,
+          top,
+          left,
         });
       }, 200);
     }
@@ -327,7 +327,7 @@ export function MiniCalendar() {
         {/* Hover Popup */}
         {hoveredDay !== null && popupPosition && (
           <div
-            className="absolute z-50 min-w-[220px] max-w-[280px] bg-popover border border-border rounded-lg shadow-lg p-3"
+            className="fixed z-50 min-w-[220px] max-w-[280px] bg-popover border border-border rounded-lg shadow-lg p-3"
             style={{
               top: `${popupPosition.top}px`,
               left: `${popupPosition.left}px`,
