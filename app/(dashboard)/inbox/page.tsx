@@ -19,6 +19,7 @@ import { DraftsView } from '@/components/email/DraftsView';
 import { useAccounts } from '@/lib/hooks/use-accounts';
 import EaseMailLogoFull from '@/components/ui/EaseMailLogoFull';
 import SettingsMenuNew from '@/components/layout/SettingsMenuNew';
+import AccountSwitcher from '@/components/account/AccountSwitcher';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
@@ -199,38 +200,9 @@ export default function InboxV3Page() {
         </div>
 
         {/* Account Selector - Fixed */}
-        {accounts.length > 0 && (
-          <div className="flex-shrink-0 p-3 border-b border-border">
-            <select
-              value={selectedAccountId || ''}
-              onChange={(e) => {
-                const selectedNylasGrantId = e.target.value;
-                setSelectedAccountId(selectedNylasGrantId);
-
-                // Also update the database account ID for sending emails and saving drafts
-                const selectedAccount = accounts.find(
-                  acc => acc.nylasGrantId === selectedNylasGrantId || acc.id === selectedNylasGrantId
-                );
-                if (selectedAccount) {
-                  setSelectedDbAccountId(selectedAccount.id);
-                  console.log('[Account Switch] Updated account IDs:', {
-                    nylasGrantId: selectedNylasGrantId,
-                    dbAccountId: selectedAccount.id
-                  });
-                }
-
-                setSelectedFolderId(null);
-              }}
-              className="w-full px-3 py-2 border rounded-lg text-sm bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]"
-            >
-              {accounts.map((account: any) => (
-                <option key={account.id} value={account.nylasGrantId || account.id} className="bg-background text-foreground">
-                  {account.emailAddress}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="flex-shrink-0 p-3 border-b border-border">
+          <AccountSwitcher />
+        </div>
 
         {/* Folders - Scrollable */}
         <div className="flex-1 overflow-y-auto">
