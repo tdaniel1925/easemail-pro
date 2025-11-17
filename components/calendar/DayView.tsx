@@ -8,7 +8,8 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { format, addDays, isSameDay, parseISO } from 'date-fns';
+import { format, addDays, isSameDay } from 'date-fns';
+import { parseEventStartTime, parseEventEndTime, getEventTitle } from '@/lib/calendar/event-utils';
 
 interface DayViewProps {
   events: any[];
@@ -43,19 +44,23 @@ export default function DayView({
 
   // Filter events for current day
   const dayEvents = events.filter(event => {
-    const eventStart = parseISO(event.startTime);
-    return isSameDay(eventStart, currentDate);
+    const eventStart = parseEventStartTime(event);
+    return eventStart && isSameDay(eventStart, currentDate);
   });
 
   // Calculate event position and height
   const getEventStyle = (event: any) => {
-    const start = parseISO(event.startTime);
-    const end = parseISO(event.endTime);
-    
+    const start = parseEventStartTime(event);
+    const end = parseEventEndTime(event);
+
+    if (!start || !end) {
+      return { top: '0px', height: '80px' };
+    }
+
     const startHour = start.getHours() + start.getMinutes() / 60;
     const endHour = end.getHours() + end.getMinutes() / 60;
     const duration = endHour - startHour;
-    
+
     return {
       top: `${startHour * 80}px`, // 80px per hour for more space
       height: `${Math.max(duration * 80, 40)}px`, // Minimum 40px
@@ -111,9 +116,11 @@ export default function DayView({
             <div className="absolute inset-0 pointer-events-none px-2">
               {dayEvents.map(event => {
                 const style = getEventStyle(event);
-                const start = parseISO(event.startTime);
-                const end = parseISO(event.endTime);
-                
+                const start = parseEventStartTime(event);
+                const end = parseEventEndTime(event);
+
+                if (!start || !end) return null;
+
                 return (
                   <div
                     key={event.id}

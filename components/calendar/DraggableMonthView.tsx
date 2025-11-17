@@ -158,11 +158,27 @@ export default function DraggableMonthView({
   const getEventsForDay = (day: number) => {
     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const dateStr = date.toISOString().split('T')[0];
-    
+
     return events.filter(event => {
-      const eventStart = parseISO(event.startTime);
-      const eventDateStr = eventStart.toISOString().split('T')[0];
-      return eventDateStr === dateStr;
+      try {
+        // Parse event date from Nylas v3 format
+        let eventStart;
+        if (event.when?.startTime) {
+          eventStart = new Date(event.when.startTime * 1000);
+        } else if (event.when?.date) {
+          eventStart = new Date(event.when.date);
+        } else if (event.startTime) {
+          eventStart = parseISO(event.startTime);
+        } else {
+          return false;
+        }
+
+        const eventDateStr = eventStart.toISOString().split('T')[0];
+        return eventDateStr === dateStr;
+      } catch (err) {
+        console.error('Error parsing event date:', err, event);
+        return false;
+      }
     });
   };
 

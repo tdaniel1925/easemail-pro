@@ -45,24 +45,52 @@ export default function WeekView({
   // Group events by day
   const eventsByDay = weekDays.map(day => {
     return events.filter(event => {
-      const eventStart = parseISO(event.startTime);
-      return isSameDay(eventStart, day);
+      try {
+        let eventStart;
+        if (event.when?.startTime) {
+          eventStart = new Date(event.when.startTime * 1000);
+        } else if (event.when?.date) {
+          eventStart = new Date(event.when.date);
+        } else if (event.startTime) {
+          eventStart = parseISO(event.startTime);
+        } else {
+          return false;
+        }
+        return isSameDay(eventStart, day);
+      } catch (err) {
+        console.error('Error parsing event date:', err, event);
+        return false;
+      }
     });
   });
 
   // Calculate event position and height
   const getEventStyle = (event: any) => {
-    const start = parseISO(event.startTime);
-    const end = parseISO(event.endTime);
-    
-    const startHour = start.getHours() + start.getMinutes() / 60;
-    const endHour = end.getHours() + end.getMinutes() / 60;
-    const duration = endHour - startHour;
-    
-    return {
-      top: `${startHour * 60}px`, // 60px per hour
-      height: `${Math.max(duration * 60, 30)}px`, // Minimum 30px
-    };
+    try {
+      let start, end;
+
+      if (event.when?.startTime && event.when?.endTime) {
+        start = new Date(event.when.startTime * 1000);
+        end = new Date(event.when.endTime * 1000);
+      } else if (event.startTime && event.endTime) {
+        start = parseISO(event.startTime);
+        end = parseISO(event.endTime);
+      } else {
+        return { top: 0, height: 60 };
+      }
+
+      const startHour = start.getHours() + start.getMinutes() / 60;
+      const endHour = end.getHours() + end.getMinutes() / 60;
+      const duration = endHour - startHour;
+
+      return {
+        top: `${startHour * 60}px`, // 60px per hour
+        height: `${Math.max(duration * 60, 30)}px`, // Minimum 30px
+      };
+    } catch (err) {
+      console.error('Error calculating event style:', err, event);
+      return { top: 0, height: 60 };
+    }
   };
 
   return (
