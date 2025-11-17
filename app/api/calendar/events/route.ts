@@ -7,10 +7,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { calendarEvents, emailAccounts } from '@/lib/db/schema';
+import { calendarEvents, emailAccounts, users } from '@/lib/db/schema';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { createRecurringInstances } from '@/lib/calendar/recurring-events';
 import { createCalendarSyncService } from '@/lib/services/calendar-sync-service';
+import { sendCalendarInvitations } from '@/lib/calendar/invitation-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -123,6 +124,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'End time is required' }, { status: 400 });
     }
     
+    // Validate: Cannot create events in the past
+    const startTimeDate = new Date(data.startTime);
+    const now = new Date();
+    
+    if (startTimeDate < now) {
+      return NextResponse.json({ 
+        error: 'Cannot create events in the past. Please select a future date and time.' 
+      }, { status: 400 });
+    }
+    
     // Get user's primary calendar account for 2-way sync
     const accounts = await db.query.emailAccounts.findMany({
       where: eq(emailAccounts.userId, user.id),
@@ -210,6 +221,9 @@ export async function POST(request: NextRequest) {
         // Don't fail the whole request, just log the error
       }
     }
+
+    // Note: Invitations are now sent via the review modal, not automatically
+    // The review modal will call /api/calendar/events/[eventId]/send-invitations
 
     return NextResponse.json({
       success: true,

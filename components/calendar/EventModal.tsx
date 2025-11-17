@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format } from 'date-fns';
+import EmailAutocomplete from '@/components/email/EmailAutocomplete';
+import InvitationReviewModal from './InvitationReviewModal';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -32,6 +34,7 @@ const COLORS = [
 export default function EventModal({ isOpen, onClose, event, onSuccess, defaultDate }: EventModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [organizerInfo, setOrganizerInfo] = useState<{ name: string; email: string } | null>(null);
   
   // Form state
   const [title, setTitle] = useState('');
@@ -44,6 +47,7 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
   const [allDay, setAllDay] = useState(false);
   const [color, setColor] = useState('blue');
   const [reminder, setReminder] = useState<number>(15); // minutes before
+  const [attendees, setAttendees] = useState<Array<{email: string, name?: string}>>([]);
   
   // Recurrence state
   const [isRecurring, setIsRecurring] = useState(false);
@@ -53,6 +57,51 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
   const [recurrenceCount, setRecurrenceCount] = useState(10);
   const [recurrenceUntil, setRecurrenceUntil] = useState('');
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [createdEvent, setCreatedEvent] = useState<any>(null);
+
+  // Fetch organizer info
+  useEffect(() => {
+    if (isOpen && !organizerInfo) {
+      // Get user info from Supabase
+      import('@/lib/supabase/client').then(({ createClient }) => {
+        const supabase = createClient();
+        supabase.auth.getUser().then(async ({ data: { user } }) => {
+          if (user) {
+            // Try to get full user info from API
+            try {
+              const response = await fetch(`/api/user/${user.id}`);
+              if (response.ok) {
+                const userData = await response.json();
+                setOrganizerInfo({
+                  name: userData.fullName || user.email || 'Event Organizer',
+                  email: user.email || '',
+                });
+              } else {
+                throw new Error('Failed to fetch user');
+              }
+            } catch {
+              // Fallback to just email
+              setOrganizerInfo({
+                name: user.email || 'Event Organizer',
+                email: user.email || '',
+              });
+            }
+          } else {
+            setOrganizerInfo({
+              name: 'Event Organizer',
+              email: '',
+            });
+          }
+        }).catch(() => {
+          setOrganizerInfo({
+            name: 'Event Organizer',
+            email: '',
+          });
+        });
+      });
+    }
+  }, [isOpen, organizerInfo]);
 
   // Initialize form with event data or defaults
   useEffect(() => {
@@ -73,6 +122,14 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
       
       if (event.reminders && event.reminders.length > 0) {
         setReminder(event.reminders[0].minutesBefore);
+      }
+      
+      // Load existing attendees
+      if (event.attendees && Array.isArray(event.attendees)) {
+        setAttendees(event.attendees.map((a: any) => ({
+          email: a.email,
+          name: a.name || undefined,
+        })));
       }
     } else if (defaultDate) {
       const date = format(defaultDate, 'yyyy-MM-dd');
@@ -127,6 +184,24 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
         ? new Date(`${endDate}T23:59:59`).toISOString()
         : new Date(`${endDate}T${endTime}`).toISOString();
 
+      // Validate: Cannot create events in the past
+      const now = new Date();
+      const startDateObj = new Date(startDateTime);
+      const endDateObj = new Date(endDateTime);
+      
+      if (startDateObj < now) {
+        setError('Cannot create events in the past. Please select a future date and time.');
+        setLoading(false);
+        return;
+      }
+      
+      // Validate: End time must be after start time
+      if (endDateObj <= startDateObj) {
+        setError('End date and time must be after start date and time.');
+        setLoading(false);
+        return;
+      }
+
       const eventData = {
         title,
         description: description || null,
@@ -141,6 +216,11 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
         recurrenceEndDate: isRecurring && recurrenceEnd === 'until' && recurrenceUntil 
           ? new Date(recurrenceUntil).toISOString()
           : null,
+        attendees: attendees.map(a => ({
+          email: a.email,
+          name: a.name || undefined,
+          status: 'pending' as const,
+        })),
       };
 
       const url = event 
@@ -161,11 +241,16 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
         throw new Error(data.error || 'Failed to save event');
       }
 
-      onSuccess?.();
-      onClose();
-      
-      // Reset form
-      resetForm();
+      // If event has attendees and this is a new event, show review modal
+      if (!event && attendees.length > 0 && data.event) {
+        setCreatedEvent(data.event);
+        setShowReviewModal(true);
+        // Don't close modal yet - wait for review
+      } else {
+        onSuccess?.();
+        onClose();
+        resetForm();
+      }
 
     } catch (err: any) {
       console.error('Event save error:', err);
@@ -193,6 +278,7 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
     setRecurrenceCount(10);
     setRecurrenceUntil('');
     setSelectedWeekdays([]);
+    setAttendees([]);
     setError(null);
   };
 
@@ -260,6 +346,7 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
                   required
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
                 />
               </div>
               {!allDay && (
@@ -283,6 +370,7 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
                   required
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  min={startDate || new Date().toISOString().split('T')[0]}
                 />
               </div>
               {!allDay && (
@@ -310,6 +398,19 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Add location"
+            />
+          </div>
+
+          {/* Attendees */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <label className="text-sm font-medium">Attendees</label>
+            </div>
+            <EmailAutocomplete
+              value={attendees}
+              onChange={setAttendees}
+              placeholder="Add attendees by name or email"
             />
           </div>
 
@@ -508,6 +609,44 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
             </Button>
           </div>
         </form>
+
+        {/* Invitation Review Modal */}
+        {showReviewModal && createdEvent && organizerInfo ? (
+          <InvitationReviewModal
+            isOpen={showReviewModal}
+            onClose={() => {
+              setShowReviewModal(false);
+              onSuccess?.();
+              onClose();
+              resetForm();
+            }}
+            event={{
+              id: createdEvent.id,
+              title: createdEvent.title,
+              description: createdEvent.description,
+              location: createdEvent.location,
+              startTime: new Date(createdEvent.startTime),
+              endTime: new Date(createdEvent.endTime),
+              allDay: createdEvent.allDay,
+              timezone: createdEvent.timezone,
+              organizerEmail: createdEvent.organizerEmail,
+            }}
+            attendees={attendees}
+            organizer={organizerInfo}
+            onSend={async (invitationData) => {
+              const response = await fetch(`/api/calendar/events/${createdEvent.id}/send-invitations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(invitationData),
+              });
+
+              const result = await response.json();
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to send invitations');
+              }
+            }}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );
