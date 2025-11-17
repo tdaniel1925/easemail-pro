@@ -176,9 +176,47 @@ export function MiniCalendar() {
       // Only show popup after a brief delay to avoid interfering with clicks
       hoverTimeoutRef.current = setTimeout(() => {
         setHoveredDay(day);
+
+        // Calculate popup dimensions (approximate)
+        const popupWidth = 280;
+        const popupHeight = Math.min(250, 80 + dayEvents.length * 60);
+        const padding = 16;
+
+        // Get viewport dimensions
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Start with position below the day cell (in viewport coordinates)
+        let topInViewport = rect.bottom + 8;
+        let leftInViewport = rect.left;
+
+        // Check if popup would overflow bottom of viewport
+        if (topInViewport + popupHeight > viewportHeight - padding) {
+          // Try positioning above the day cell
+          const topAbove = rect.top - popupHeight - 8;
+          if (topAbove >= padding) {
+            topInViewport = topAbove;
+          } else {
+            // If it doesn't fit above either, position at bottom with scroll
+            topInViewport = Math.max(padding, viewportHeight - popupHeight - padding);
+          }
+        }
+
+        // Check if popup would overflow right edge of viewport
+        if (leftInViewport + popupWidth > viewportWidth - padding) {
+          // Shift left to fit in viewport
+          leftInViewport = Math.max(padding, viewportWidth - popupWidth - padding);
+        }
+
+        // Ensure popup doesn't overflow left edge
+        if (leftInViewport < padding) {
+          leftInViewport = padding;
+        }
+
+        // Convert viewport coordinates to container-relative coordinates
         setPopupPosition({
-          top: rect.bottom - calendarRect.top + 8,
-          left: rect.left - calendarRect.left,
+          top: topInViewport - calendarRect.top,
+          left: leftInViewport - calendarRect.left,
         });
       }, 200);
     }
