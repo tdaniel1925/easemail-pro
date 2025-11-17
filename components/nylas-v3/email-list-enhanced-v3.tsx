@@ -662,6 +662,9 @@ function EmailCard({
   const [showThread, setShowThread] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [showThreadPreview, setShowThreadPreview] = useState(false);
+  const [threadPreviewData, setThreadPreviewData] = useState<any>(null);
+  const [loadingThreadPreview, setLoadingThreadPreview] = useState(false);
 
   // Viewport detection for previews
   const { ref, inView } = useInView({
@@ -788,6 +791,34 @@ function EmailCard({
   const displayEmail = fullEmail || message;
   const displayText = smartPreview || message.snippet;
   const showSmartPreview = showAISummaries && !!smartPreview;
+
+  // Fetch thread preview data
+  const fetchThreadPreview = async () => {
+    if (!message.threadId || threadPreviewData || loadingThreadPreview) return;
+
+    setLoadingThreadPreview(true);
+    try {
+      const response = await fetch(`/api/threads/${message.threadId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setThreadPreviewData(data.thread);
+      }
+    } catch (error) {
+      console.error('Failed to fetch thread preview:', error);
+    } finally {
+      setLoadingThreadPreview(false);
+    }
+  };
+
+  // Handle thread badge hover
+  const handleThreadBadgeMouseEnter = () => {
+    setShowThreadPreview(true);
+    fetchThreadPreview();
+  };
+
+  const handleThreadBadgeMouseLeave = () => {
+    setShowThreadPreview(false);
+  };
 
   const handleAction = async (e: React.MouseEvent, action: string) => {
     e.stopPropagation();
@@ -1112,9 +1143,115 @@ function EmailCard({
                 </p>
                 {/* Thread Indicator Badge - Only show if thread has multiple emails */}
                 {message.threadId && message.threadId.trim() !== '' && (message.threadEmailCount ?? 1) > 1 && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs flex-shrink-0 shadow-sm">
+                  <div
+                    className="relative flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs flex-shrink-0 shadow-sm hover:bg-blue-700 transition-colors cursor-pointer"
+                    onMouseEnter={handleThreadBadgeMouseEnter}
+                    onMouseLeave={handleThreadBadgeMouseLeave}
+                  >
                     <MessageSquare className="h-3 w-3" />
                     <span className="font-semibold">{message.threadEmailCount}</span>
+
+                    {/* Thread Preview Popup */}
+                    {showThreadPreview && isMounted && createPortal(
+                      <div
+                        className="fixed z-[10000] bg-popover border-2 border-primary rounded-lg shadow-2xl p-4 w-[380px] animate-in fade-in zoom-in-95 duration-150"
+                        style={{
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)'
+                        }}
+                        onMouseEnter={() => setShowThreadPreview(true)}
+                        onMouseLeave={() => setShowThreadPreview(false)}
+                      >
+                        {loadingThreadPreview ? (
+                          <div className="flex items-center justify-center py-8">
+                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                            <span className="ml-2 text-sm text-muted-foreground">Loading thread...</span>
+                          </div>
+                        ) : threadPreviewData ? (
+                          <div className="space-y-3">
+                            {/* Header */}
+                            <div className="flex items-center gap-2 pb-3 border-b border-border">
+                              <MessageSquare className="h-4 w-4 text-primary" />
+                              <h4 className="text-sm font-semibold">Thread Preview</h4>
+                              <span className="ml-auto text-xs text-muted-foreground">
+                                {threadPreviewData.emailCount} emails
+                              </span>
+                            </div>
+
+                            {/* Participants */}
+                            {threadPreviewData.participants && threadPreviewData.participants.length > 0 && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-1.5">Participants</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {threadPreviewData.participants.slice(0, 4).map((p: any, idx: number) => (
+                                    <span
+                                      key={idx}
+                                      className="px-2 py-0.5 bg-accent rounded-full text-xs"
+                                    >
+                                      {p.name || p.email}
+                                    </span>
+                                  ))}
+                                  {threadPreviewData.participants.length > 4 && (
+                                    <span className="px-2 py-0.5 text-xs text-muted-foreground">
+                                      +{threadPreviewData.participants.length - 4} more
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* AI Summary */}
+                            {threadPreviewData.aiSummary && (
+                              <div>
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                                  <p className="text-xs font-medium text-muted-foreground">AI Summary</p>
+                                </div>
+                                <p className="text-xs text-foreground leading-relaxed line-clamp-3">
+                                  {threadPreviewData.aiSummary}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Latest Email */}
+                            {threadPreviewData.emails && threadPreviewData.emails.length > 0 && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-1.5">Latest Email</p>
+                                <div className="bg-accent/50 rounded-md p-2">
+                                  <p className="text-xs font-medium truncate">
+                                    {threadPreviewData.emails[0].fromName || threadPreviewData.emails[0].fromEmail}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                    {threadPreviewData.emails[0].snippet}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Click to view full */}
+                            <div className="pt-2 border-t border-border">
+                              <button
+                                className="w-full text-xs text-primary hover:text-primary/80 font-medium flex items-center justify-center gap-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowThreadPreview(false);
+                                  setShowThread(true);
+                                }}
+                              >
+                                <Sparkles className="h-3 w-3" />
+                                View Full Thread Summary
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center text-sm text-muted-foreground py-4">
+                            No thread data available
+                          </div>
+                        )}
+                      </div>,
+                      document.body
+                    )}
                   </div>
                 )}
               </div>
