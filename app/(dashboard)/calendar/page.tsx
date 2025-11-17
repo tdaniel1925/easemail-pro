@@ -35,6 +35,7 @@ import YearView from '@/components/calendar/YearView';
 import ListView from '@/components/calendar/ListView';
 import QuickAdd from '@/components/calendar/QuickAdd';
 import EventSearch from '@/components/calendar/EventSearch';
+import CalendarSelector from '@/components/calendar/CalendarSelector';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth } from 'date-fns';
 
 type ViewType = 'month' | 'week' | 'day' | 'agenda' | 'year' | 'list';
@@ -75,6 +76,9 @@ function CalendarContent() {
   // Mini Calendar State
   const [miniCalendarMonth, setMiniCalendarMonth] = useState(new Date());
   const [selectedMiniDate, setSelectedMiniDate] = useState<Date | null>(null);
+
+  // Calendar Selection State
+  const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>([]);
 
   // Filtered events based on search and calendar types
   const filteredEvents = useMemo(() => {
@@ -127,9 +131,18 @@ function CalendarContent() {
       const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
 
-      const response = await fetch(
-        `/api/calendar/events?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}&grantId=${selectedAccount.nylasGrantId}`
-      );
+      // Convert to Unix timestamps for Nylas v3 API
+      const startTimestamp = Math.floor(startDate.getTime() / 1000);
+      const endTimestamp = Math.floor(endDate.getTime() / 1000);
+
+      // Build API URL with calendar filtering
+      let apiUrl = `/api/nylas-v3/calendars/events?accountId=${selectedAccount.nylasGrantId}&start=${startTimestamp}&end=${endTimestamp}`;
+
+      if (selectedCalendarIds.length > 0) {
+        apiUrl += `&calendarIds=${selectedCalendarIds.join(',')}`;
+      }
+
+      const response = await fetch(apiUrl);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch events: ${response.statusText}`);
@@ -153,7 +166,7 @@ function CalendarContent() {
     } finally {
       setLoading(false);
     }
-  }, [currentMonth, selectedAccount, initialLoadDone]);
+  }, [currentMonth, selectedAccount, selectedCalendarIds, initialLoadDone]);
 
   useEffect(() => {
     fetchEvents();
@@ -606,6 +619,13 @@ function CalendarContent() {
             })}
           </div>
         </div>
+
+        {/* Calendar Selector */}
+        <CalendarSelector
+          accountId={selectedAccount?.nylasGrantId || null}
+          selectedCalendarIds={selectedCalendarIds}
+          onCalendarSelectionChange={setSelectedCalendarIds}
+        />
 
         {/* Upcoming Events */}
         <div className="flex-1 overflow-y-auto p-4">

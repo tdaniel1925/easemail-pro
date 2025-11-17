@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get('accountId');
     const calendarId = searchParams.get('calendarId');
+    const calendarIds = searchParams.get('calendarIds'); // Comma-separated list
     const start = searchParams.get('start'); // Unix timestamp
     const end = searchParams.get('end'); // Unix timestamp
 
@@ -58,34 +59,75 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 3. Build query parameters
-    const queryParams: any = {};
+    // 3. Determine which calendars to fetch
+    const calendarsToFetch: string[] = [];
 
-    if (calendarId) {
-      queryParams.calendar_id = calendarId;
-    }
-
-    if (start) {
-      queryParams.start = parseInt(start);
-    }
-
-    if (end) {
-      queryParams.end = parseInt(end);
+    if (calendarIds) {
+      // Multiple calendar IDs provided
+      calendarsToFetch.push(...calendarIds.split(',').filter(id => id.trim()));
+    } else if (calendarId) {
+      // Single calendar ID provided
+      calendarsToFetch.push(calendarId);
     }
 
     // 4. Fetch events from Nylas v3
     const nylas = getNylasClient();
+    let allEvents: any[] = [];
 
-    const events = await nylas.events.list({
-      identifier: account.nylasGrantId,
-      queryParams,
-    });
+    if (calendarsToFetch.length > 0) {
+      // Fetch events for each selected calendar
+      const eventPromises = calendarsToFetch.map(async (calId) => {
+        const queryParams: any = {
+          calendar_id: calId,
+        };
 
-    console.log('[Calendar Events] Fetched events:', events.data.length);
+        if (start) {
+          queryParams.start = parseInt(start);
+        }
+
+        if (end) {
+          queryParams.end = parseInt(end);
+        }
+
+        try {
+          const events = await nylas.events.list({
+            identifier: account.nylasGrantId!,
+            queryParams,
+          });
+          return events.data;
+        } catch (err) {
+          console.error(`[Calendar Events] Error fetching events for calendar ${calId}:`, err);
+          return [];
+        }
+      });
+
+      const eventArrays = await Promise.all(eventPromises);
+      allEvents = eventArrays.flat();
+    } else {
+      // No specific calendars selected, fetch all events
+      const queryParams: any = {};
+
+      if (start) {
+        queryParams.start = parseInt(start);
+      }
+
+      if (end) {
+        queryParams.end = parseInt(end);
+      }
+
+      const events = await nylas.events.list({
+        identifier: account.nylasGrantId,
+        queryParams,
+      });
+
+      allEvents = events.data;
+    }
+
+    console.log('[Calendar Events] Fetched events:', allEvents.length);
 
     return NextResponse.json({
       success: true,
-      events: events.data,
+      events: allEvents,
     });
   } catch (error) {
     console.error('[Calendar Events] Error fetching events:', error);

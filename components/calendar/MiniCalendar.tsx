@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 import { useAccount } from '@/contexts/AccountContext';
+import CalendarSelector from './CalendarSelector';
 
 interface Event {
   id: string;
@@ -24,6 +25,7 @@ export function MiniCalendar() {
   const [error, setError] = useState<string | null>(null);
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
+  const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>([]);
   const pathname = usePathname();
   const calendarRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -78,12 +80,12 @@ export function MiniCalendar() {
       currentMonth.getFullYear() === selectedDate.getFullYear();
   };
 
-  // Fetch events for current month from ALL accounts
+  // Fetch events for current month from selected account
   const fetchEvents = useCallback(async () => {
     setError(null);
 
-    // If no accounts exist, return empty
-    if (!accounts || accounts.length === 0) {
+    // If no selected account or no grant ID, return empty
+    if (!selectedAccount || !selectedAccount.nylasGrantId) {
       setEvents([]);
       setLoading(false);
       return;
@@ -94,10 +96,18 @@ export function MiniCalendar() {
       const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
 
-      // Fetch events from ALL accounts (no grantId filter)
-      const response = await fetch(
-        `/api/calendar/events?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
-      );
+      // Convert to Unix timestamps for Nylas v3 API
+      const startTimestamp = Math.floor(startDate.getTime() / 1000);
+      const endTimestamp = Math.floor(endDate.getTime() / 1000);
+
+      // Build API URL with calendar filtering
+      let apiUrl = `/api/nylas-v3/calendars/events?accountId=${selectedAccount.nylasGrantId}&start=${startTimestamp}&end=${endTimestamp}`;
+
+      if (selectedCalendarIds.length > 0) {
+        apiUrl += `&calendarIds=${selectedCalendarIds.join(',')}`;
+      }
+
+      const response = await fetch(apiUrl);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch events: ${response.statusText}`);
@@ -119,7 +129,7 @@ export function MiniCalendar() {
     } finally {
       setLoading(false);
     }
-  }, [currentMonth, accounts]);
+  }, [currentMonth, selectedAccount, selectedCalendarIds]);
 
   useEffect(() => {
     fetchEvents();
@@ -381,6 +391,16 @@ export function MiniCalendar() {
             </div>
           </div>
         )}
+
+        {/* Calendar Selector */}
+        <div className="pt-4 border-t border-border">
+          <CalendarSelector
+            accountId={selectedAccount?.nylasGrantId || null}
+            selectedCalendarIds={selectedCalendarIds}
+            onCalendarSelectionChange={setSelectedCalendarIds}
+            className="border-0"
+          />
+        </div>
 
         {/* Upcoming Events */}
         <div className="pt-4 border-t border-border">
