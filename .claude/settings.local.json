@@ -27,7 +27,13 @@
       "Bash(timeout 120 bash:*)",
       "Bash(git pull:*)",
       "Bash(git stash push:*)",
-      "Bash(git stash pop:*)"
+      "Bash(git stash pop:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)",
+      "Bash(git remote:*)",
+      "Bash(git checkout:*)",
+      "Bash(vercel --version:*)",
+      "Bash(vercel:*)"
     ],
     "deny": [],
     "ask": []
