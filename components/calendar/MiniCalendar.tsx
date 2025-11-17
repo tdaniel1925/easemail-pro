@@ -136,23 +136,6 @@ export function MiniCalendar() {
     fetchEvents();
   }, [fetchEvents]);
 
-  // Get upcoming events (next 7 days)
-  const upcomingEvents = events
-    .filter(event => {
-      const eventDate = parseEventStartTime(event);
-      if (!eventDate) return false;
-      const now = new Date();
-      const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      return eventDate >= now && eventDate <= weekFromNow;
-    })
-    .sort((a, b) => {
-      const aStart = parseEventStartTime(a);
-      const bStart = parseEventStartTime(b);
-      if (!aStart || !bStart) return 0;
-      return aStart.getTime() - bStart.getTime();
-    })
-    .slice(0, 3);
-
   // Check if a day has events
   const dayHasEvents = (day: number) => {
     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
@@ -423,89 +406,6 @@ export function MiniCalendar() {
             onCalendarSelectionChange={setSelectedCalendarIds}
             className="border-0"
           />
-        </div>
-
-        {/* Upcoming Events */}
-        <div className="pt-4 border-t border-border">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold">Upcoming</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 text-xs px-2"
-              onClick={() => {
-                // Navigate to calendar page
-                window.location.href = '/calendar';
-              }}
-            >
-              View All
-            </Button>
-          </div>
-
-          <div className="space-y-2">
-            {error ? (
-              <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-destructive">{error}</p>
-                  </div>
-                </div>
-              </div>
-            ) : loading ? (
-              <div className="text-xs text-muted-foreground py-4 text-center">
-                Loading...
-              </div>
-            ) : upcomingEvents.length === 0 ? (
-              <div className="text-xs text-muted-foreground py-4 text-center">
-                No upcoming events
-              </div>
-            ) : (
-              upcomingEvents.map((event) => {
-                const eventDate = parseEventStartTime(event);
-                if (!eventDate) return null;
-
-                const isEventToday = eventDate.toDateString() === new Date().toDateString();
-                const isTomorrow = eventDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
-
-                let timeLabel = '';
-                if (isEventToday) {
-                  timeLabel = `Today ${eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-                } else if (isTomorrow) {
-                  timeLabel = `Tomorrow ${eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-                } else {
-                  // Use toLocaleString for combined date and time formatting
-                  timeLabel = eventDate.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-                }
-
-                return (
-                  <div
-                    key={event.id}
-                    className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
-                    onClick={() => window.location.href = '/calendar'}
-                  >
-                    <div className={cn(
-                      'w-1 h-full rounded-full flex-shrink-0 mt-0.5',
-                      event.color === 'blue' && 'bg-blue-500',
-                      event.color === 'green' && 'bg-green-500',
-                      event.color === 'red' && 'bg-red-500',
-                      event.color === 'purple' && 'bg-purple-500',
-                      event.color === 'orange' && 'bg-orange-500',
-                      event.color === 'pink' && 'bg-pink-500',
-                      !event.color && 'bg-primary'
-                    )} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate">{getEventTitle(event)}</p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <p className="text-[10px] text-muted-foreground">{timeLabel}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
         </div>
 
         {/* Quick Actions */}
