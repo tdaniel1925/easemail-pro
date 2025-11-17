@@ -311,8 +311,25 @@ function CalendarContent() {
   const getEventsForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     return events.filter(event => {
-      const eventDate = format(new Date(event.startTime), 'yyyy-MM-dd');
-      return eventDate === dateStr;
+      try {
+        // Nylas v3 events use 'when' object with different formats
+        let eventStartTime;
+        if (event.when?.startTime) {
+          eventStartTime = new Date(event.when.startTime * 1000); // Unix timestamp
+        } else if (event.when?.date) {
+          eventStartTime = new Date(event.when.date);
+        } else if (event.startTime) {
+          eventStartTime = new Date(event.startTime);
+        } else {
+          return false;
+        }
+
+        const eventDate = format(eventStartTime, 'yyyy-MM-dd');
+        return eventDate === dateStr;
+      } catch (err) {
+        console.error('Error parsing event date:', err, event);
+        return false;
+      }
     });
   };
 
@@ -647,19 +664,53 @@ function CalendarContent() {
           <div className="space-y-2">
             {filteredEvents
               .filter(event => {
-                const eventDate = new Date(event.startTime);
-                if (selectedMiniDate) {
-                  // Show only events for the selected date
-                  return format(eventDate, 'yyyy-MM-dd') === format(selectedMiniDate, 'yyyy-MM-dd');
-                } else {
-                  // Show all upcoming events
-                  return eventDate >= new Date();
+                try {
+                  // Parse event date from Nylas v3 format
+                  let eventStartTime;
+                  if (event.when?.startTime) {
+                    eventStartTime = new Date(event.when.startTime * 1000);
+                  } else if (event.when?.date) {
+                    eventStartTime = new Date(event.when.date);
+                  } else if (event.startTime) {
+                    eventStartTime = new Date(event.startTime);
+                  } else {
+                    return false;
+                  }
+
+                  if (selectedMiniDate) {
+                    // Show only events for the selected date
+                    return format(eventStartTime, 'yyyy-MM-dd') === format(selectedMiniDate, 'yyyy-MM-dd');
+                  } else {
+                    // Show all upcoming events
+                    return eventStartTime >= new Date();
+                  }
+                } catch (err) {
+                  console.error('Error filtering event:', err, event);
+                  return false;
                 }
               })
-              .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+              .sort((a, b) => {
+                const getTime = (event: any) => {
+                  if (event.when?.startTime) return event.when.startTime * 1000;
+                  if (event.when?.date) return new Date(event.when.date).getTime();
+                  if (event.startTime) return new Date(event.startTime).getTime();
+                  return 0;
+                };
+                return getTime(a) - getTime(b);
+              })
               .slice(0, 10)
               .map((event) => {
-                const eventDate = new Date(event.startTime);
+                // Parse event date
+                let eventDate;
+                if (event.when?.startTime) {
+                  eventDate = new Date(event.when.startTime * 1000);
+                } else if (event.when?.date) {
+                  eventDate = new Date(event.when.date);
+                } else if (event.startTime) {
+                  eventDate = new Date(event.startTime);
+                } else {
+                  eventDate = new Date();
+                }
                 const isEventToday = isToday(eventDate);
 
                 return (
@@ -691,11 +742,25 @@ function CalendarContent() {
               })}
 
             {filteredEvents.filter(e => {
-              const eventDate = new Date(e.startTime);
-              if (selectedMiniDate) {
-                return format(eventDate, 'yyyy-MM-dd') === format(selectedMiniDate, 'yyyy-MM-dd');
-              } else {
-                return eventDate >= new Date();
+              try {
+                let eventStartTime;
+                if (e.when?.startTime) {
+                  eventStartTime = new Date(e.when.startTime * 1000);
+                } else if (e.when?.date) {
+                  eventStartTime = new Date(e.when.date);
+                } else if (e.startTime) {
+                  eventStartTime = new Date(e.startTime);
+                } else {
+                  return false;
+                }
+
+                if (selectedMiniDate) {
+                  return format(eventStartTime, 'yyyy-MM-dd') === format(selectedMiniDate, 'yyyy-MM-dd');
+                } else {
+                  return eventStartTime >= new Date();
+                }
+              } catch (err) {
+                return false;
               }
             }).length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-8">
