@@ -1100,14 +1100,23 @@ function EmailCard({
               </div>
             </div>
 
-            {/* Subject Line - Always Show */}
+            {/* Subject Line with Thread Badge */}
             {!isExpanded && (
-              <p className={cn(
-                'text-sm mb-1.5 truncate',
-                message.unread ? 'font-semibold text-foreground' : 'font-medium text-foreground/90'
-              )}>
-                {message.subject || '(no subject)'}
-              </p>
+              <div className="flex items-center gap-2 mb-1.5">
+                <p className={cn(
+                  'text-sm truncate flex-1',
+                  message.unread ? 'font-semibold text-foreground' : 'font-medium text-foreground/90'
+                )}>
+                  {message.subject || '(no subject)'}
+                </p>
+                {/* Thread Indicator Badge */}
+                {message.threadId && (
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0">
+                    <MessageSquare className="h-3 w-3" />
+                    <span className="font-medium">Thread</span>
+                  </div>
+                )}
+              </div>
             )}
 
             {!isExpanded && (
@@ -1158,6 +1167,24 @@ function EmailCard({
                     <Forward className="h-4 w-4" />
                   </Button>
                   <div className="flex-1" />
+                  {/* AI Thread Summary Button */}
+                  {message.threadId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "h-8 px-2",
+                        showThread ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary"
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowThread(!showThread);
+                      }}
+                      title="View AI Thread Summary"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1410,15 +1437,17 @@ function EmailCard({
         </div>
       )}
 
-      {/* Thread Summary Panel */}
+      {/* Thread Summary Panel with Animation */}
       {showThread && message.threadId && (
-        <ThreadSummaryPanelV3
-          threadId={message.threadId}
-          onEmailClick={(emailId) => {
-            console.log('Navigate to email:', emailId);
-          }}
-          onClose={() => setShowThread(false)}
-        />
+        <div className="animate-in slide-in-from-top-2 duration-200">
+          <ThreadSummaryPanelV3
+            threadId={message.threadId}
+            onEmailClick={(emailId) => {
+              console.log('Navigate to email:', emailId);
+            }}
+            onClose={() => setShowThread(false)}
+          />
+        </div>
       )}
     </div>
   );
