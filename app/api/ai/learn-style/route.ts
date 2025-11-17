@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     console.log('[learn-style] Found', sentMessages.length, 'sent emails');
 
     // 3. Extract email bodies for analysis
-    const emailTexts = sentMessages
+    const emailTexts: string[] = sentMessages
       .filter((msg: any) => msg.body)
       .map((msg: any) => {
         // Get plain text or strip HTML
