@@ -407,19 +407,6 @@ export function MiniCalendar() {
             className="border-0"
           />
         </div>
-
-        {/* Quick Actions */}
-        <div className="pt-3 border-t border-border space-y-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full h-8 text-xs"
-            onClick={handleNewEvent}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            New Event
-          </Button>
-        </div>
       </div>
     </div>
   );
