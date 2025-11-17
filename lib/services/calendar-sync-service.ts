@@ -588,11 +588,24 @@ export class CalendarSyncService {
     }
 
     // Transform attendees/participants
-    const participants = event.attendees?.map((a: any) => ({
-      email: a.email,
-      name: a.name,
-      status: a.status,
-    }));
+    // Map local status to Nylas status: 'pending' -> 'noreply', others stay the same
+    const participants = event.attendees?.map((a: any) => {
+      let nylasStatus = a.status;
+      if (a.status === 'pending') {
+        nylasStatus = 'noreply';
+      } else if (a.status === 'accepted') {
+        nylasStatus = 'yes';
+      } else if (a.status === 'declined') {
+        nylasStatus = 'no';
+      }
+      // 'maybe' stays as 'maybe'
+      
+      return {
+        email: a.email,
+        name: a.name,
+        status: nylasStatus || 'noreply',
+      };
+    });
 
     return {
       title: event.title,
@@ -637,11 +650,25 @@ export class CalendarSyncService {
     }
 
     // Transform attendees to include full participant data
-    const attendees = nylas.participants?.map(p => ({
-      email: p.email,
-      name: p.name || null,
-      status: (p.status as 'accepted' | 'declined' | 'maybe' | 'pending') || 'pending',
-    })) || [];
+    // Map Nylas status to local status: 'noreply' -> 'pending', 'yes' -> 'accepted', 'no' -> 'declined'
+    const attendees = nylas.participants?.map(p => {
+      let localStatus: 'accepted' | 'declined' | 'maybe' | 'pending' = 'pending';
+      if (p.status === 'yes' || p.status === 'accepted') {
+        localStatus = 'accepted';
+      } else if (p.status === 'no' || p.status === 'declined') {
+        localStatus = 'declined';
+      } else if (p.status === 'maybe') {
+        localStatus = 'maybe';
+      } else {
+        localStatus = 'pending'; // 'noreply' or undefined -> 'pending'
+      }
+      
+      return {
+        email: p.email,
+        name: p.name || null,
+        status: localStatus,
+      };
+    }) || [];
 
     // Transform reminders to our format
     const reminders = nylas.reminders?.map((reminder: any) => ({

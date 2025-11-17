@@ -611,7 +611,7 @@ function CalendarContent() {
         <div className="flex-1 overflow-y-auto p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm">
-              {selectedMiniDate ? format(selectedMiniDate, 'MMM d Events') : 'Upcoming Events'}
+              {selectedMiniDate ? format(selectedMiniDate, "MMM d 'Events'") : 'Upcoming Events'}
             </h3>
             {selectedMiniDate && (
               <Button

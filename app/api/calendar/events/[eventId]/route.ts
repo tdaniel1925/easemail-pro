@@ -103,6 +103,18 @@ export async function PATCH(
     if (data.isPrivate !== undefined) updates.isPrivate = data.isPrivate;
     if (data.status !== undefined) updates.status = data.status;
     
+    // Validate: Cannot move events to the past
+    if (updates.startTime) {
+      const startTimeDate = new Date(updates.startTime);
+      const now = new Date();
+      
+      if (startTimeDate < now) {
+        return NextResponse.json({ 
+          error: 'Cannot move events to the past. Please select a future date and time.' 
+        }, { status: 400 });
+      }
+    }
+    
     // Update event
     const [event] = await db.update(calendarEvents)
       .set(updates)

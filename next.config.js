@@ -21,6 +21,10 @@ const nextConfig = {
     },
     instrumentationHook: true,
   },
+  // Increase header size limit to handle large cookies/sessions
+  serverRuntimeConfig: {
+    maxHeaderSize: 16384, // 16KB (default is 8KB)
+  },
   // ✅ SECURITY: Add security headers
   async headers() {
     return [
