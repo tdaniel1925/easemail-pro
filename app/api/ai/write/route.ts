@@ -71,11 +71,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 6. Generate email
-    console.log(`🤖 AI Write request from user ${userId}`);
+    // 6. Fetch user's writing style profile
+    const { data: preferences } = await supabase
+      .from('user_preferences')
+      .select('email_writing_style, use_personal_style')
+      .eq('user_id', userId)
+      .single();
+
+    const hasPersonalStyle = preferences?.email_writing_style && preferences?.use_personal_style !== false;
+
+    console.log(`🤖 AI Write request from user ${userId}. Using personal style:`, hasPersonalStyle);
+
+    // 7. Generate email with writing style
     const result = await aiWriteService.generateEmail({
       ...body,
       userId,
+      writingStyle: hasPersonalStyle ? preferences.email_writing_style : undefined,
     });
 
     // 6. Fetch user's default signature

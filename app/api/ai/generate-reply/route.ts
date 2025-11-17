@@ -78,13 +78,19 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // Generate reply using OpenAI
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a professional email assistant helping to compose replies.
+    // Fetch user's writing style profile
+    const { data: preferences } = await supabase
+      .from('user_preferences')
+      .select('email_writing_style, use_personal_style')
+      .eq('user_id', userId)
+      .single();
+
+    const hasPersonalStyle = preferences?.email_writing_style && preferences?.use_personal_style !== false;
+
+    console.log('📝 Using personal writing style:', hasPersonalStyle);
+
+    // Build system prompt with or without personal style
+    let systemPrompt = `You are a professional email assistant helping to compose replies.
 
 Rules:
 - Write a professional but friendly reply
@@ -94,9 +100,21 @@ Rules:
 - Keep it natural and conversational
 - DO NOT include subject line or email headers
 - DO NOT include signature (that will be added separately)
-- Just write the body of the reply
+- Just write the body of the reply`;
 
-The reply should be ready to send with minimal editing.`
+    if (hasPersonalStyle) {
+      systemPrompt += `\n\n**IMPORTANT: Write in the user's personal writing style:**\n${preferences.email_writing_style}`;
+    }
+
+    systemPrompt += `\n\nThe reply should be ready to send with minimal editing.`;
+
+    // Generate reply using OpenAI
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
         },
         {
           role: 'user',

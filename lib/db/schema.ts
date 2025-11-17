@@ -471,7 +471,12 @@ export const userPreferences = pgTable('user_preferences', {
   aiEnabled: boolean('ai_enabled').default(true),
   aiAutoSummarize: boolean('ai_auto_summarize').default(true),
   aiAttachmentProcessing: boolean('ai_attachment_processing').default(false), // Default OFF for security
-  
+
+  // Writing Style Learning
+  emailWritingStyle: text('email_writing_style'), // AI-generated style profile
+  emailStyleLearnedAt: timestamp('email_style_learned_at'), // When style was last learned
+  usePersonalStyle: boolean('use_personal_style').default(true), // Toggle for using learned style
+
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 

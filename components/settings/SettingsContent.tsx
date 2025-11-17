@@ -14,9 +14,10 @@ import { useConfirm } from '@/components/ui/confirm-dialog';
 import ThemeSelector from '@/components/theme/ThemeSelector';
 import { UtilitiesContent } from '@/components/settings/UtilitiesContent';
 import { FeatureFlagsContent } from '@/components/settings/FeatureFlagsContent';
+import { WritingStyleSettings } from '@/components/settings/WritingStyleSettings';
 import { useToast } from '@/components/ui/use-toast';
 
-type SettingsSection = 'sync' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'utilities' | 'features' | 'help';
+type SettingsSection = 'sync' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'ai-writing' | 'utilities' | 'features' | 'help';
 
 export default function SettingsContent() {
   const router = useRouter();
@@ -30,6 +31,7 @@ export default function SettingsContent() {
     { id: 'notifications' as const, name: 'Notifications', icon: Bell, keywords: ['notifications', 'alerts', 'sound', 'desktop', 'quiet hours'] },
     { id: 'privacy' as const, name: 'Privacy & Security', icon: Shield, keywords: ['privacy', 'security', 'ai', 'tracking', 'images', 'protection'] },
     { id: 'integrations' as const, name: 'Integrations', icon: Plug, keywords: ['integrations', 'zoom', 'slack', 'connect', 'third party'] },
+    { id: 'ai-writing' as const, name: 'AI & Writing Style', icon: Sparkles, keywords: ['ai', 'writing', 'style', 'tone', 'personalize', 'learn', 'compose'] },
     { id: 'utilities' as const, name: 'Utilities', icon: Wrench, keywords: ['utilities', 'tools', 'diagnostics', 'database'] },
     { id: 'features' as const, name: 'Feature Flags', icon: Beaker, keywords: ['features', 'experimental', 'beta', 'flags'] },
     { id: 'help' as const, name: 'Help & Support', icon: HelpCircle, keywords: ['help', 'support', 'guide', 'tutorial', 'shortcuts', 'onboarding'] },
@@ -113,6 +115,7 @@ export default function SettingsContent() {
         {activeSection === 'notifications' && <NotificationsSettings />}
         {activeSection === 'privacy' && <PrivacySettings />}
         {activeSection === 'integrations' && <IntegrationsSettings />}
+        {activeSection === 'ai-writing' && <WritingStyleSettings />}
         {activeSection === 'utilities' && <UtilitiesContent />}
         {activeSection === 'features' && <FeatureFlagsContent />}
         {activeSection === 'help' && <HelpSupportSettings />}

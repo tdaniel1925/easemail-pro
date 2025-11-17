@@ -42,6 +42,7 @@ export interface AIWriteInput {
     language?: string;
   };
   userId?: string;
+  writingStyle?: string; // User's personal writing style profile
 }
 
 export interface GeneratedEmail {
@@ -189,7 +190,7 @@ export class AIWriteService {
   private buildSystemPrompt(input: AIWriteInput): string {
     const { tone = 'professional', length = 'normal', formality = 'professional' } = input.preferences || {};
 
-    return `You are an expert email writer. Generate professional, clear, and engaging emails.
+    let systemPrompt = `You are an expert email writer. Generate professional, clear, and engaging emails.
 
 TONE: ${tone}
 LENGTH: ${length}
@@ -205,9 +206,14 @@ RULES:
 7. Proofread for grammar and spelling
 8. Format emails with clear paragraph breaks (use double line breaks between paragraphs)
 9. Each paragraph should address one main idea
-10. Use professional spacing for readability
+10. Use professional spacing for readability`;
 
-RESPONSE FORMAT:
+    // Add writing style profile if available
+    if (input.writingStyle) {
+      systemPrompt += `\n\n**IMPORTANT: Write in the user's personal writing style:**\n${input.writingStyle}`;
+    }
+
+    systemPrompt += `\n\nRESPONSE FORMAT:
 Return ONLY a JSON object with this structure:
 {
   "subject": "Email subject line",
@@ -216,6 +222,8 @@ Return ONLY a JSON object with this structure:
 
 IMPORTANT: Use double line breaks (\\n\\n) between paragraphs for proper formatting.
 Do not include any text outside the JSON object.`;
+
+    return systemPrompt;
   }
 
   /**
