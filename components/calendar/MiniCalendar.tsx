@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 import { useAccount } from '@/contexts/AccountContext';
 import CalendarSelector from './CalendarSelector';
+import { parseEventStartTime, getEventTitle } from '@/lib/calendar/event-utils';
 
 interface Event {
   id: string;
@@ -138,12 +139,18 @@ export function MiniCalendar() {
   // Get upcoming events (next 7 days)
   const upcomingEvents = events
     .filter(event => {
-      const eventDate = new Date(event.startTime);
+      const eventDate = parseEventStartTime(event);
+      if (!eventDate) return false;
       const now = new Date();
       const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       return eventDate >= now && eventDate <= weekFromNow;
     })
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+    .sort((a, b) => {
+      const aStart = parseEventStartTime(a);
+      const bStart = parseEventStartTime(b);
+      if (!aStart || !bStart) return 0;
+      return aStart.getTime() - bStart.getTime();
+    })
     .slice(0, 3);
 
   // Check if a day has events
@@ -152,8 +159,13 @@ export function MiniCalendar() {
     const dateStr = date.toISOString().split('T')[0];
 
     return events.some(event => {
-      const eventStart = new Date(event.startTime);
-      return eventStart.toISOString().split('T')[0] === dateStr;
+      const eventStart = parseEventStartTime(event);
+      if (!eventStart) return false;
+      try {
+        return eventStart.toISOString().split('T')[0] === dateStr;
+      } catch (err) {
+        return false;
+      }
     });
   };
 
@@ -163,9 +175,19 @@ export function MiniCalendar() {
     const dateStr = date.toISOString().split('T')[0];
 
     return events.filter(event => {
-      const eventStart = new Date(event.startTime);
-      return eventStart.toISOString().split('T')[0] === dateStr;
-    }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+      const eventStart = parseEventStartTime(event);
+      if (!eventStart) return false;
+      try {
+        return eventStart.toISOString().split('T')[0] === dateStr;
+      } catch (err) {
+        return false;
+      }
+    }).sort((a, b) => {
+      const aStart = parseEventStartTime(a);
+      const bStart = parseEventStartTime(b);
+      if (!aStart || !bStart) return 0;
+      return aStart.getTime() - bStart.getTime();
+    });
   };
 
   // Handle mouse enter on day cell
@@ -352,15 +374,16 @@ export function MiniCalendar() {
             </div>
             <div className="space-y-2 max-h-[200px] overflow-y-auto">
               {getEventsForDay(hoveredDay).map((event) => {
-                const startTime = new Date(event.startTime);
-                const endTime = new Date(event.endTime);
-                const timeStr = `${startTime.toLocaleTimeString('en-US', {
+                const startTime = parseEventStartTime(event);
+                const endTime = parseEventStartTime(event); // Use start for now since we may not have end
+
+                const timeStr = startTime ? `${startTime.toLocaleTimeString('en-US', {
                   hour: 'numeric',
                   minute: '2-digit'
-                })} - ${endTime.toLocaleTimeString('en-US', {
+                })}${endTime ? ` - ${endTime.toLocaleTimeString('en-US', {
                   hour: 'numeric',
                   minute: '2-digit'
-                })}`;
+                })}` : ''}` : 'Time TBD';
 
                 return (
                   <div
@@ -379,7 +402,7 @@ export function MiniCalendar() {
                       !event.color && 'bg-primary'
                     )} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate text-foreground">{event.title}</p>
+                      <p className="text-xs font-medium truncate text-foreground">{getEventTitle(event)}</p>
                       <div className="flex items-center gap-1 mt-0.5">
                         <Clock className="h-3 w-3 text-muted-foreground" />
                         <p className="text-[10px] text-muted-foreground">{timeStr}</p>
@@ -439,10 +462,12 @@ export function MiniCalendar() {
               </div>
             ) : (
               upcomingEvents.map((event) => {
-                const eventDate = new Date(event.startTime);
+                const eventDate = parseEventStartTime(event);
+                if (!eventDate) return null;
+
                 const isEventToday = eventDate.toDateString() === new Date().toDateString();
                 const isTomorrow = eventDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
-                
+
                 let timeLabel = '';
                 if (isEventToday) {
                   timeLabel = `Today ${eventDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
@@ -470,7 +495,7 @@ export function MiniCalendar() {
                       !event.color && 'bg-primary'
                     )} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate">{event.title}</p>
+                      <p className="text-xs font-medium truncate">{getEventTitle(event)}</p>
                       <div className="flex items-center gap-1 mt-0.5">
                         <Clock className="h-3 w-3 text-muted-foreground" />
                         <p className="text-[10px] text-muted-foreground">{timeLabel}</p>
