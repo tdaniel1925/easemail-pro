@@ -1109,11 +1109,11 @@ function EmailCard({
                 )}>
                   {message.subject || '(no subject)'}
                 </p>
-                {/* Thread Indicator Badge */}
-                {message.threadId && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0">
+                {/* Thread Indicator Badge - Only show if threadId exists and is not empty */}
+                {message.threadId && message.threadId.trim() !== '' && (
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs flex-shrink-0 shadow-sm">
                     <MessageSquare className="h-3 w-3" />
-                    <span className="font-medium">Thread</span>
+                    <span className="font-semibold">Thread</span>
                   </div>
                 )}
               </div>
