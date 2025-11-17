@@ -228,7 +228,17 @@ export async function GET(
     const organizerEmail = event.organizerEmail || organizer?.email || '';
 
     // Update attendee status
-    const attendees = (event.attendees as Array<{ email: string; name?: string; status?: string }>) || [];
+    type AttendeeStatus = 'pending' | 'accepted' | 'declined' | 'maybe';
+    type Attendee = { email: string; name?: string; status: AttendeeStatus };
+    
+    const attendees: Attendee[] = ((event.attendees as Array<{ email: string; name?: string; status?: string }>) || []).map(a => ({
+      email: a.email,
+      name: a.name,
+      status: (a.status && ['pending', 'accepted', 'declined', 'maybe'].includes(a.status))
+        ? a.status as AttendeeStatus
+        : 'pending' as AttendeeStatus,
+    }));
+    
     const attendeeIndex = attendees.findIndex(
       a => a.email.toLowerCase() === email.toLowerCase()
     );
@@ -245,12 +255,30 @@ export async function GET(
       );
     }
 
-    // Update attendee status
-    const updatedAttendees = [...attendees];
-    updatedAttendees[attendeeIndex] = {
-      ...updatedAttendees[attendeeIndex],
-      status: response,
+    // Map response to attendee status (tentative -> maybe)
+    const statusMap: Record<'accepted' | 'declined' | 'tentative', AttendeeStatus> = {
+      accepted: 'accepted',
+      declined: 'declined',
+      tentative: 'maybe',
     };
+
+    const newStatus: AttendeeStatus = statusMap[response];
+
+    // Update attendee status - ensure all attendees have a valid status
+    const updatedAttendees: Attendee[] = attendees.map((attendee, index) => {
+      if (index === attendeeIndex) {
+        return {
+          email: attendee.email,
+          name: attendee.name,
+          status: newStatus,
+        };
+      }
+      return {
+        email: attendee.email,
+        name: attendee.name,
+        status: attendee.status,
+      };
+    });
 
     // Update event in database
     await db.update(calendarEvents)
