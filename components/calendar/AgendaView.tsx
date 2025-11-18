@@ -9,6 +9,18 @@ import { format, parseISO, isSameDay, startOfDay } from 'date-fns';
 import { Calendar, MapPin, Clock, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// Utility to strip HTML tags and decode HTML entities
+function sanitizeEventText(text: string | undefined | null): string {
+  if (!text) return '';
+
+  // First, decode HTML entities
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  const decoded = doc.documentElement.textContent || '';
+
+  // Remove any remaining HTML tags
+  return decoded.replace(/<[^>]*>/g, '').trim();
+}
+
 interface AgendaViewProps {
   events: any[];
   onEventClick: (event: any) => void;
@@ -113,12 +125,12 @@ export default function AgendaView({ events, onEventClick }: AgendaViewProps) {
                         {/* Event details */}
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors">
-                            {event.title}
+                            {sanitizeEventText(event.title)}
                           </h3>
 
                           {event.description && (
                             <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                              {event.description}
+                              {sanitizeEventText(event.description)}
                             </p>
                           )}
 
@@ -126,7 +138,7 @@ export default function AgendaView({ events, onEventClick }: AgendaViewProps) {
                             {event.location && (
                               <div className="flex items-center gap-1">
                                 <MapPin className="h-3.5 w-3.5" />
-                                <span>{event.location}</span>
+                                <span>{sanitizeEventText(event.location)}</span>
                               </div>
                             )}
 

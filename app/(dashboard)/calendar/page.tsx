@@ -46,8 +46,17 @@ function CalendarContent() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
 
-  // View State
-  const [view, setView] = useState<ViewType>('month');
+  // View State with localStorage persistence
+  const [view, setView] = useState<ViewType>(() => {
+    // Load saved view preference from localStorage
+    if (typeof window !== 'undefined') {
+      const savedView = localStorage.getItem('calendar-default-view');
+      if (savedView && ['month', 'week', 'day', 'year', 'agenda', 'list'].includes(savedView)) {
+        return savedView as ViewType;
+      }
+    }
+    return 'month';
+  });
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentYear, setCurrentYear] = useState(new Date());
@@ -482,7 +491,13 @@ function CalendarContent() {
                     key={v}
                     variant={view === v ? 'default' : 'ghost'}
                     size="sm"
-                    onClick={() => setView(v)}
+                    onClick={() => {
+                      setView(v);
+                      // Save preference to localStorage
+                      if (typeof window !== 'undefined') {
+                        localStorage.setItem('calendar-default-view', v);
+                      }
+                    }}
                     className="capitalize"
                   >
                     {v}

@@ -46,7 +46,10 @@
       "Bash(cmd.exe /c \"taskkill /F /PID 89152\")",
       "Bash(node scripts/run-calcom-migration.js:*)",
       "Bash(node scripts/verify-calcom-migration.js:*)",
-      "Bash(powershell -Command \"Start-Sleep -Seconds 5\")"
+      "Bash(powershell -Command \"Start-Sleep -Seconds 5\")",
+      "Bash(cat:*)",
+      "Bash(powershell:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []
