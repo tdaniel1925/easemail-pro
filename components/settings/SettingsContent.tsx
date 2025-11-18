@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker, Search } from 'lucide-react';
+import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker, Search, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,9 +15,10 @@ import ThemeSelector from '@/components/theme/ThemeSelector';
 import { UtilitiesContent } from '@/components/settings/UtilitiesContent';
 import { FeatureFlagsContent } from '@/components/settings/FeatureFlagsContent';
 import { WritingStyleSettings } from '@/components/settings/WritingStyleSettings';
+import CalcomSettings from '@/components/settings/CalcomSettings';
 import { useToast } from '@/components/ui/use-toast';
 
-type SettingsSection = 'sync' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'ai-writing' | 'utilities' | 'features' | 'help';
+type SettingsSection = 'sync' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'calcom' | 'ai-writing' | 'utilities' | 'features' | 'help';
 
 export default function SettingsContent() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function SettingsContent() {
     { id: 'notifications' as const, name: 'Notifications', icon: Bell, keywords: ['notifications', 'alerts', 'sound', 'desktop', 'quiet hours'] },
     { id: 'privacy' as const, name: 'Privacy & Security', icon: Shield, keywords: ['privacy', 'security', 'ai', 'tracking', 'images', 'protection'] },
     { id: 'integrations' as const, name: 'Integrations', icon: Plug, keywords: ['integrations', 'zoom', 'slack', 'connect', 'third party'] },
+    { id: 'calcom' as const, name: 'Cal.com Calendar', icon: Calendar, keywords: ['calendar', 'calcom', 'cal.com', 'bookings', 'appointments', 'meetings', 'schedule'] },
     { id: 'ai-writing' as const, name: 'AI & Writing Style', icon: Sparkles, keywords: ['ai', 'writing', 'style', 'tone', 'personalize', 'learn', 'compose'] },
     { id: 'utilities' as const, name: 'Utilities', icon: Wrench, keywords: ['utilities', 'tools', 'diagnostics', 'database'] },
     { id: 'features' as const, name: 'Feature Flags', icon: Beaker, keywords: ['features', 'experimental', 'beta', 'flags'] },
@@ -171,6 +173,11 @@ export default function SettingsContent() {
         {activeSection === 'notifications' && <NotificationsSettings />}
         {activeSection === 'privacy' && <PrivacySettings />}
         {activeSection === 'integrations' && <IntegrationsSettings />}
+        {activeSection === 'calcom' && (
+          <div className="p-4 md:p-6">
+            <CalcomSettings />
+          </div>
+        )}
         {activeSection === 'ai-writing' && <WritingStyleSettings />}
         {activeSection === 'utilities' && <UtilitiesContent />}
         {activeSection === 'features' && <FeatureFlagsContent />}
