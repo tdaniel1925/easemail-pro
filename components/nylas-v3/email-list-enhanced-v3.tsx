@@ -751,9 +751,9 @@ function EmailCard({
 
   const smartPreview = extractSmartPreview(message.snippet || message.body || '');
 
-  // Handle hover for popup
+  // Handle hover for popup (only when not expanded)
   const handleMouseEnter = () => {
-    if (showAISummaries) {
+    if (showAISummaries && !isExpanded) {
       setShowPopup(true);
     }
   };

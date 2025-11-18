@@ -309,7 +309,7 @@ export default function InboxV3Page() {
       </div>
 
       {/* Right Sidebar - Contact Panel */}
-      <div className="w-80 border-l border-border flex flex-col overflow-hidden">
+      <div className="hidden lg:flex w-80 border-l border-border flex-col overflow-hidden">
         <ContactPanelV3
           email={selectedMessage}
           activeTab={rightPanelTab}
