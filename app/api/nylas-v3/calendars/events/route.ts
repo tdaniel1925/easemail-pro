@@ -37,15 +37,20 @@ export async function GET(request: NextRequest) {
 
     // 2. Verify account ownership
     // accountId is actually the nylasGrantId, not the database id
+    console.log('[Calendar Events] Looking up account with nylasGrantId:', accountId);
     const account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.nylasGrantId, accountId),
     });
 
     if (!account) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+      console.error('[Calendar Events] Account not found for nylasGrantId:', accountId);
+      return NextResponse.json({ error: 'Account not found', accountId }, { status: 404 });
     }
 
+    console.log('[Calendar Events] Found account:', account.id, 'userId:', account.userId, 'requestUserId:', user.id);
+
     if (account.userId !== user.id) {
+      console.error('[Calendar Events] User ID mismatch. Account userId:', account.userId, 'Request userId:', user.id);
       return NextResponse.json(
         { error: 'Unauthorized access to account' },
         { status: 403 }

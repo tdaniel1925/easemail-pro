@@ -9,16 +9,27 @@ import { parseISO } from 'date-fns';
  */
 export function parseEventStartTime(event: any): Date | null {
   try {
+    // Nylas v3 format with Unix timestamp
     if (event.when?.startTime) {
       return new Date(event.when.startTime * 1000);
-    } else if (event.when?.date) {
+    }
+    // All-day event format
+    else if (event.when?.date) {
       return new Date(event.when.date);
-    } else if (event.startTime) {
+    }
+    // Legacy ISO string format or local database format
+    else if (event.startTime) {
       return parseISO(event.startTime);
     }
+    // Try start_time (Cal.com format)
+    else if (event.start_time) {
+      return parseISO(event.start_time);
+    }
+
+    console.warn('[Event Utils] Could not parse start time for event:', event.id, event);
     return null;
   } catch (err) {
-    console.error('Error parsing event start time:', err, event);
+    console.error('[Event Utils] Error parsing event start time:', err, event);
     return null;
   }
 }
@@ -28,17 +39,29 @@ export function parseEventStartTime(event: any): Date | null {
  */
 export function parseEventEndTime(event: any): Date | null {
   try {
+    // Nylas v3 format with Unix timestamp
     if (event.when?.endTime) {
       return new Date(event.when.endTime * 1000);
-    } else if (event.when?.date) {
-      // All-day events: end date is the same as start date
-      return new Date(event.when.date);
-    } else if (event.endTime) {
+    }
+    // All-day events: end date is the same as start date
+    else if (event.when?.date) {
+      const endOfDay = new Date(event.when.date);
+      endOfDay.setHours(23, 59, 59, 999);
+      return endOfDay;
+    }
+    // Legacy ISO string format or local database format
+    else if (event.endTime) {
       return parseISO(event.endTime);
     }
+    // Try end_time (Cal.com format)
+    else if (event.end_time) {
+      return parseISO(event.end_time);
+    }
+
+    console.warn('[Event Utils] Could not parse end time for event:', event.id, event);
     return null;
   } catch (err) {
-    console.error('Error parsing event end time:', err, event);
+    console.error('[Event Utils] Error parsing event end time:', err, event);
     return null;
   }
 }
