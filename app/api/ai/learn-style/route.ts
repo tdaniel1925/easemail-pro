@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
 
     console.log('[learn-style] 📧 Fetching sent emails for:', account.email_address);
 
-    const nylasApiUrl = `${process.env.NEXT_PUBLIC_NYLAS_API_URI}/v3/grants/${nylasGrantId}/messages?limit=50&search_query_native=in:sent`;
+    const nylasApiUri = process.env.NYLAS_API_URI || 'https://api.us.nylas.com';
+    const nylasApiUrl = `${nylasApiUri}/v3/grants/${nylasGrantId}/messages?limit=50&search_query_native=in:sent`;
     console.log('[learn-style] Nylas API URL:', nylasApiUrl);
 
     const sentResponse = await fetch(nylasApiUrl, {
