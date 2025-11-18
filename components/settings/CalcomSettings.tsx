@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, Check, RefreshCw, X, ExternalLink, Webhook, Key, AlertCircle } from 'lucide-react';
+import { Calendar, Check, RefreshCw, X, ExternalLink, Webhook, Key, AlertCircle, Clock, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 
 interface CalcomConnection {
   id: string;
@@ -33,6 +34,7 @@ export default function CalcomSettings() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
   const [connected, setConnected] = useState(false);
   const [connection, setConnection] = useState<CalcomConnection | null>(null);
   const [bookings, setBookings] = useState<CalcomBooking[]>([]);
@@ -180,17 +182,26 @@ export default function CalcomSettings() {
 
   const syncBookings = async () => {
     setSyncing(true);
+    setSyncProgress(0);
+
     try {
+      // Simulate progress steps
+      setSyncProgress(20);
+
       const response = await fetch('/api/calcom/bookings');
+      setSyncProgress(60);
+
       const data = await response.json();
+      setSyncProgress(80);
 
       if (data.success) {
+        setBookings(data.bookings || []);
+        setSyncProgress(100);
+
         toast({
           title: 'Sync Complete',
           description: `Synced ${data.count} booking(s) from Cal.com`,
         });
-
-        setBookings(data.bookings || []);
 
         // Update connection last synced
         if (connection) {
@@ -200,6 +211,7 @@ export default function CalcomSettings() {
           });
         }
       } else {
+        setSyncProgress(0);
         toast({
           title: 'Sync Failed',
           description: data.error || data.details,
@@ -207,13 +219,18 @@ export default function CalcomSettings() {
         });
       }
     } catch (error) {
+      setSyncProgress(0);
       toast({
         title: 'Error',
         description: 'Failed to sync bookings',
         variant: 'destructive',
       });
     } finally {
-      setSyncing(false);
+      // Reset progress after a brief delay
+      setTimeout(() => {
+        setSyncing(false);
+        setSyncProgress(0);
+      }, 500);
     }
   };
 
@@ -225,6 +242,21 @@ export default function CalcomSettings() {
       hour: 'numeric',
       minute: '2-digit',
     });
+  };
+
+  const getRelativeTime = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    return formatDate(dateString);
   };
 
   return (
@@ -351,12 +383,35 @@ export default function CalcomSettings() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Last Synced:</span>
-                <span className="font-medium">
-                  {connection?.lastSynced ? formatDate(connection.lastSynced) : 'Never'}
-                </span>
+              {/* Last Synced Info */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>Last Synced:</span>
+                  </div>
+                  <span className="font-medium">
+                    {connection?.lastSynced ? getRelativeTime(connection.lastSynced) : 'Never'}
+                  </span>
+                </div>
+                {connection?.lastSynced && (
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(connection.lastSynced)}
+                  </p>
+                )}
               </div>
+
+              {/* Sync Progress */}
+              {syncing && (
+                <div className="space-y-2">
+                  <Progress value={syncProgress} className="h-2" />
+                  <p className="text-xs text-center text-muted-foreground">
+                    Syncing bookings from Cal.com... {syncProgress}%
+                  </p>
+                </div>
+              )}
+
+              {/* Sync Button */}
               <Button onClick={syncBookings} disabled={syncing} variant="outline" className="w-full">
                 {syncing ? (
                   <>
@@ -370,6 +425,15 @@ export default function CalcomSettings() {
                   </>
                 )}
               </Button>
+
+              {/* Auto-Sync Info Alert */}
+              <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Manual Sync Only:</strong> Bookings are synced when you click the button above.
+                  For automatic real-time updates, set up webhooks below.
+                </AlertDescription>
+              </Alert>
             </CardContent>
           </Card>
 
@@ -377,18 +441,19 @@ export default function CalcomSettings() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Webhook className="h-5 w-5" />
-                Webhook Setup
+                <Zap className="h-5 w-5 text-yellow-500" />
+                Automatic Real-Time Sync (Webhooks)
               </CardTitle>
               <CardDescription>
-                Get real-time updates when bookings are created, cancelled, or modified
+                Get instant updates when bookings are created, cancelled, or modified - no manual sync needed!
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  To receive real-time booking updates, configure this webhook URL in your Cal.com settings.
+              <Alert className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+                <Zap className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <AlertDescription className="text-sm text-green-800 dark:text-green-200">
+                  <strong>Recommended:</strong> Set up webhooks to automatically sync new bookings in real-time
+                  without clicking "Sync Bookings Now".
                 </AlertDescription>
               </Alert>
 
