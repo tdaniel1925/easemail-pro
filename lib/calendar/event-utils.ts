@@ -79,3 +79,30 @@ export function getEventTitle(event: any): string {
 export function isAllDayEvent(event: any): boolean {
   return !!event.when?.date || event.allDay === true;
 }
+
+/**
+ * Transform Nylas v3 event format to calendar component format
+ * This normalizes the event data structure so components can work with it consistently
+ */
+export function transformNylasEvent(event: any): any {
+  const startTime = parseEventStartTime(event);
+  const endTime = parseEventEndTime(event);
+
+  if (!startTime || !endTime) {
+    console.warn('[Event Utils] Could not transform event - missing valid times:', event.id);
+    return null;
+  }
+
+  return {
+    ...event,
+    // Add top-level startTime and endTime for calendar components
+    startTime: startTime.toISOString(),
+    endTime: endTime.toISOString(),
+    // Preserve original when data
+    when: event.when,
+    // Normalize title
+    title: getEventTitle(event),
+    // Normalize all-day flag
+    allDay: isAllDayEvent(event),
+  };
+}

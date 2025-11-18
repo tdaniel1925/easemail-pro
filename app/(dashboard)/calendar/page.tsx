@@ -37,6 +37,7 @@ import QuickAdd from '@/components/calendar/QuickAdd';
 import EventSearch from '@/components/calendar/EventSearch';
 import CalendarSelector from '@/components/calendar/CalendarSelector';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth } from 'date-fns';
+import { transformNylasEvent } from '@/lib/calendar/event-utils';
 
 type ViewType = 'month' | 'week' | 'day' | 'agenda' | 'year' | 'list';
 
@@ -161,33 +162,27 @@ function CalendarContent() {
       const data = await response.json();
 
       if (data.success) {
-        // Filter out events with invalid dates to prevent RangeError
-        const validEvents = (data.events || []).filter((event: any) => {
-          try {
-            // Test if event has valid time data
-            if (event.when?.startTime) {
-              const testDate = new Date(event.when.startTime * 1000);
-              return !isNaN(testDate.getTime());
-            } else if (event.when?.date) {
-              const testDate = new Date(event.when.date);
-              return !isNaN(testDate.getTime());
-            } else if (event.startTime) {
-              const testDate = new Date(event.startTime);
-              return !isNaN(testDate.getTime());
-            }
-            console.warn('[Calendar] Event has no valid time data:', event.id);
-            return false;
-          } catch (err) {
-            console.warn('[Calendar] Invalid event filtered out:', event.id, err);
-            return false;
-          }
-        });
+        // Transform Nylas events to calendar component format
+        const transformedEvents = (data.events || [])
+          .map((event: any) => transformNylasEvent(event))
+          .filter((event: any) => event !== null); // Remove events that couldn't be transformed
 
-        if (validEvents.length < (data.events || []).length) {
-          console.warn(`[Calendar] Filtered out ${(data.events || []).length - validEvents.length} invalid events`);
+        console.log('[Calendar] Transformed events:', transformedEvents.length);
+        if (transformedEvents.length > 0) {
+          console.log('[Calendar] Sample transformed event:', {
+            id: transformedEvents[0].id,
+            title: transformedEvents[0].title,
+            startTime: transformedEvents[0].startTime,
+            endTime: transformedEvents[0].endTime,
+            when: transformedEvents[0].when,
+          });
         }
 
-        setEvents(validEvents);
+        if (transformedEvents.length < (data.events || []).length) {
+          console.warn(`[Calendar] Filtered out ${(data.events || []).length - transformedEvents.length} events that couldn't be transformed`);
+        }
+
+        setEvents(transformedEvents);
         setError(null);
       } else {
         throw new Error(data.error || 'Failed to fetch events');
