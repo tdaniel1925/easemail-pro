@@ -172,9 +172,13 @@ export function WritingStyleSettings() {
         }, 2000);
       } else {
         setLearningProgress(null);
+        
+        // Show detailed error message
+        console.error('Learn style failed:', data);
+        
         toast({
           title: 'Failed to Learn Style',
-          description: data.error || 'An error occurred',
+          description: data.details || data.error || 'An error occurred',
           variant: 'destructive',
         });
       }
