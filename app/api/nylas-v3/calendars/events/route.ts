@@ -109,23 +109,50 @@ export async function GET(request: NextRequest) {
       const eventArrays = await Promise.all(eventPromises);
       allEvents = eventArrays.flat();
     } else {
-      // No specific calendars selected, fetch all events
-      const queryParams: any = {};
+      // No specific calendars selected, fetch calendars first then get events for all
+      try {
+        const calendarsResponse = await nylas.calendars.list({
+          identifier: account.nylasGrantId,
+        });
 
-      if (start) {
-        queryParams.start = parseInt(start);
+        const calendarIds = calendarsResponse.data
+          .filter((cal: any) => !cal.readOnly) // Only fetch writable calendars
+          .map((cal: any) => cal.id);
+
+        console.log('[Calendar Events] No calendars selected, fetching from all calendars:', calendarIds.length);
+
+        // Fetch events for each calendar
+        const eventPromises = calendarIds.map(async (calId: string) => {
+          const queryParams: any = {
+            calendar_id: calId,
+          };
+
+          if (start) {
+            queryParams.start = parseInt(start);
+          }
+
+          if (end) {
+            queryParams.end = parseInt(end);
+          }
+
+          try {
+            const events = await nylas.events.list({
+              identifier: account.nylasGrantId!,
+              queryParams,
+            });
+            return events.data;
+          } catch (err) {
+            console.error(`[Calendar Events] Error fetching events for calendar ${calId}:`, err);
+            return [];
+          }
+        });
+
+        const eventArrays = await Promise.all(eventPromises);
+        allEvents = eventArrays.flat();
+      } catch (err) {
+        console.error('[Calendar Events] Error fetching calendars:', err);
+        allEvents = [];
       }
-
-      if (end) {
-        queryParams.end = parseInt(end);
-      }
-
-      const events = await nylas.events.list({
-        identifier: account.nylasGrantId,
-        queryParams,
-      });
-
-      allEvents = events.data;
     }
 
     console.log('[Calendar Events] Fetched events:', allEvents.length);
