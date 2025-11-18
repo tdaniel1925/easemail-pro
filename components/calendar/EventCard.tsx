@@ -12,6 +12,18 @@ import {
   isEventHappeningNow,
 } from '@/lib/calendar/calendar-utils';
 
+// Utility to strip HTML tags and decode HTML entities
+function sanitizeEventText(text: string | undefined | null): string {
+  if (!text) return '';
+
+  // First, decode HTML entities
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  const decoded = doc.documentElement.textContent || '';
+
+  // Remove any remaining HTML tags
+  return decoded.replace(/<[^>]*>/g, '').trim();
+}
+
 interface EventCardProps {
   event: CalendarEvent;
   allEvents?: CalendarEvent[];
@@ -56,7 +68,7 @@ export function EventCard({
       {/* Event Title */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-sm truncate">{event.title}</h4>
+          <h4 className="font-medium text-sm truncate">{sanitizeEventText(event.title)}</h4>
 
           {/* Time */}
           {showTime && (
@@ -108,7 +120,7 @@ export function EventCard({
         {event.location && (
           <div className="flex items-center gap-1 text-xs opacity-75">
             <MapPin className="h-3 w-3" />
-            <span className="truncate">{event.location}</span>
+            <span className="truncate">{sanitizeEventText(event.location)}</span>
           </div>
         )}
 
@@ -129,7 +141,7 @@ export function EventCard({
           <ul className="space-y-0.5">
             {conflicts.slice(0, 2).map(conflictEvent => (
               <li key={conflictEvent.id} className="truncate">
-                • {conflictEvent.title}
+                • {sanitizeEventText(conflictEvent.title)}
               </li>
             ))}
             {conflicts.length > 2 && (

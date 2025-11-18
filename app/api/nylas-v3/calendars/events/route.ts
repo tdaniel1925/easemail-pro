@@ -157,9 +157,42 @@ export async function GET(request: NextRequest) {
 
     console.log('[Calendar Events] Fetched events:', allEvents.length);
 
+    // Log events with missing time data for debugging
+    const eventsWithoutTime = allEvents.filter((event: any) => {
+      return !event.when?.startTime && !event.when?.date && !event.startTime && !event.start_time;
+    });
+
+    if (eventsWithoutTime.length > 0) {
+      console.warn('[Calendar Events] Found events without valid time data:', eventsWithoutTime.length);
+      eventsWithoutTime.slice(0, 3).forEach((event: any) => {
+        console.warn('[Calendar Events] Event missing time:', {
+          id: event.id,
+          title: event.title,
+          when: event.when,
+          hasStartTime: !!event.startTime,
+          hasStart_time: !!event.start_time,
+        });
+      });
+    }
+
+    // Filter out events without valid time data at the API level
+    const validEvents = allEvents.filter((event: any) => {
+      const hasValidTime = !!(
+        event.when?.startTime ||
+        event.when?.date ||
+        event.startTime ||
+        event.start_time
+      );
+      return hasValidTime;
+    });
+
+    if (validEvents.length < allEvents.length) {
+      console.warn(`[Calendar Events] Filtered out ${allEvents.length - validEvents.length} events without valid time data`);
+    }
+
     return NextResponse.json({
       success: true,
-      events: allEvents,
+      events: validEvents,
     });
   } catch (error) {
     console.error('[Calendar Events] Error fetching events:', error);

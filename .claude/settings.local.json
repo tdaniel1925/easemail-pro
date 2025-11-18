@@ -43,7 +43,10 @@
       "Bash(node scripts/verify-migration.js:*)",
       "Bash(cmd.exe /c \"taskkill /F /IM node.exe && timeout /t 2 /nobreak && cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && npm run dev\")",
       "Bash(powershell -Command \"Start-Sleep -Seconds 10\")",
-      "Bash(cmd.exe /c \"taskkill /F /PID 89152\")"
+      "Bash(cmd.exe /c \"taskkill /F /PID 89152\")",
+      "Bash(node scripts/run-calcom-migration.js:*)",
+      "Bash(node scripts/verify-calcom-migration.js:*)",
+      "Bash(powershell -Command \"Start-Sleep -Seconds 5\")"
     ],
     "deny": [],
     "ask": []

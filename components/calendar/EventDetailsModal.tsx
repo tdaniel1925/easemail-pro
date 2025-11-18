@@ -41,6 +41,18 @@ interface MeetingLink {
   label: string;
 }
 
+// Utility to strip HTML tags and decode HTML entities
+function sanitizeEventText(text: string | undefined | null): string {
+  if (!text) return '';
+
+  // First, decode HTML entities
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  const decoded = doc.documentElement.textContent || '';
+
+  // Remove any remaining HTML tags
+  return decoded.replace(/<[^>]*>/g, '').trim();
+}
+
 export default function EventDetailsModal({
   isOpen,
   onClose,
@@ -221,7 +233,7 @@ export default function EventDetailsModal({
         <DialogHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <DialogTitle className="text-2xl pr-8">{event.title}</DialogTitle>
+              <DialogTitle className="text-2xl pr-8">{sanitizeEventText(event.title)}</DialogTitle>
               {timeUntil && (
                 <p className="text-sm text-muted-foreground mt-1">
                   Starts {timeUntil}
@@ -324,7 +336,7 @@ export default function EventDetailsModal({
               <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
                 <p className="font-medium">Location</p>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{event.location}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{sanitizeEventText(event.location)}</p>
               </div>
             </div>
           )}
@@ -335,7 +347,7 @@ export default function EventDetailsModal({
               <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
                 <p className="font-medium">Description</p>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{event.description}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{sanitizeEventText(event.description)}</p>
               </div>
             </div>
           )}
