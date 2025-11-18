@@ -161,7 +161,33 @@ function CalendarContent() {
       const data = await response.json();
 
       if (data.success) {
-        setEvents(data.events || []);
+        // Filter out events with invalid dates to prevent RangeError
+        const validEvents = (data.events || []).filter((event: any) => {
+          try {
+            // Test if event has valid time data
+            if (event.when?.startTime) {
+              const testDate = new Date(event.when.startTime * 1000);
+              return !isNaN(testDate.getTime());
+            } else if (event.when?.date) {
+              const testDate = new Date(event.when.date);
+              return !isNaN(testDate.getTime());
+            } else if (event.startTime) {
+              const testDate = new Date(event.startTime);
+              return !isNaN(testDate.getTime());
+            }
+            console.warn('[Calendar] Event has no valid time data:', event.id);
+            return false;
+          } catch (err) {
+            console.warn('[Calendar] Invalid event filtered out:', event.id, err);
+            return false;
+          }
+        });
+
+        if (validEvents.length < (data.events || []).length) {
+          console.warn(`[Calendar] Filtered out ${(data.events || []).length - validEvents.length} invalid events`);
+        }
+
+        setEvents(validEvents);
         setError(null);
       } else {
         throw new Error(data.error || 'Failed to fetch events');
