@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Mail, Shield, Trash2, ArrowLeft, Search, MoreVertical, Ban, Key, UserX, CheckCircle, Edit, X, Crown, Zap, Sparkles, UserCog, UserPlus } from 'lucide-react';
+import { Users, Mail, Shield, Trash2, ArrowLeft, Search, MoreVertical, Ban, Key, UserX, CheckCircle, Edit, X, Crown, Zap, Sparkles, UserCog, UserPlus, FileText, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
@@ -42,6 +42,11 @@ interface User {
   createdAt: Date;
   updatedAt: Date;
   suspended?: boolean; // New field for user suspension
+  // Invitation fields
+  invitationToken?: string | null;
+  invitationExpiresAt?: Date | null;
+  invitationAcceptedAt?: Date | null;
+  invitedBy?: string | null;
   _count?: {
     emailAccounts: number;
   };
@@ -58,6 +63,12 @@ export default function UsersManagement() {
   const [impersonating, setImpersonating] = useState(false);
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
+  
+  // Activity log state
+  const [activityLogModalOpen, setActivityLogModalOpen] = useState(false);
+  const [viewingActivityUser, setViewingActivityUser] = useState<User | null>(null);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
 
   // Toast notification state
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -209,6 +220,28 @@ export default function UsersManagement() {
     } catch (error) {
       console.error('Failed to resend invitation:', error);
       showToast('error', 'Failed to resend invitation');
+    }
+  };
+
+  const handleViewActivityLog = async (user: User) => {
+    setViewingActivityUser(user);
+    setActivityLogModalOpen(true);
+    setLoadingActivities(true);
+    
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}/activity?limit=50`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setActivities(data.activities);
+      } else {
+        showToast('error', 'Failed to load activity log');
+      }
+    } catch (error) {
+      console.error('Failed to load activity log:', error);
+      showToast('error', 'Failed to load activity log');
+    } finally {
+      setLoadingActivities(false);
     }
   };
 
@@ -504,6 +537,19 @@ export default function UsersManagement() {
                                 Suspended
                               </span>
                             )}
+                            {/* Invitation Status Badge */}
+                            {!user.invitationAcceptedAt && user.invitationToken && (
+                              <span className="text-xs bg-yellow-500/20 text-yellow-600 px-2 py-0.5 rounded border border-yellow-500/30 flex items-center gap-1">
+                                <Mail className="h-3 w-3" />
+                                Pending Invitation
+                              </span>
+                            )}
+                            {user.invitationAcceptedAt && (
+                              <span className="text-xs bg-green-500/20 text-green-600 px-2 py-0.5 rounded border border-green-500/30 flex items-center gap-1">
+                                <CheckCircle className="h-3 w-3" />
+                                Accepted
+                              </span>
+                            )}
                             {(() => {
                               const badge = getSubscriptionBadge(user.subscriptionTier);
                               const BadgeIcon = badge.icon;
@@ -580,6 +626,17 @@ export default function UsersManagement() {
                               <UserCog className="h-4 w-4 mr-2 text-blue-500" />
                               <span className="text-blue-500">Impersonate User</span>
                             </DropdownMenuItem>
+
+                            {/* Activity Log for Beta/Pro/Enterprise Users */}
+                            {(user.subscriptionTier === 'beta' || user.subscriptionTier === 'pro' || user.subscriptionTier === 'enterprise') && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleViewActivityLog(user)}>
+                                  <FileText className="h-4 w-4 mr-2" />
+                                  View Activity Log
+                                </DropdownMenuItem>
+                              </>
+                            )}
 
                             <DropdownMenuSeparator />
 
@@ -1009,6 +1066,91 @@ export default function UsersManagement() {
               {impersonating ? 'Impersonating...' : 'Confirm Impersonation'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Activity Log Modal */}
+      <Dialog open={activityLogModalOpen} onOpenChange={setActivityLogModalOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Activity Log - {viewingActivityUser?.fullName || viewingActivityUser?.email}</DialogTitle>
+            <DialogDescription>
+              Recent activity for this {viewingActivityUser?.subscriptionTier === 'beta' ? 'beta' : ''} user
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingActivities ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+              <p className="text-sm text-muted-foreground mt-2">Loading activities...</p>
+            </div>
+          ) : activities.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No activity logs found for this user
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {activities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className={`p-3 border rounded-lg ${
+                    activity.status === 'error' ? 'border-red-200 bg-red-50/50' :
+                    activity.status === 'warning' ? 'border-yellow-200 bg-yellow-50/50' :
+                    'border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">{activity.activityName}</span>
+                        <span className="text-xs px-2 py-0.5 rounded bg-muted">
+                          {activity.activityType}
+                        </span>
+                        {activity.status === 'error' && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">
+                            Error
+                          </span>
+                        )}
+                        {activity.isFlagged && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700">
+                            Flagged
+                          </span>
+                        )}
+                      </div>
+                      {activity.path && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {activity.method && <span className="font-mono">{activity.method}</span>} {activity.path}
+                        </div>
+                      )}
+                      {activity.errorMessage && (
+                        <div className="text-xs text-red-600 mt-1">
+                          {activity.errorMessage}
+                        </div>
+                      )}
+                      {activity.metadata && Object.keys(activity.metadata).length > 0 && (
+                        <details className="text-xs text-muted-foreground mt-1">
+                          <summary className="cursor-pointer hover:text-foreground">Metadata</summary>
+                          <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-x-auto">
+                            {JSON.stringify(activity.metadata, null, 2)}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground whitespace-nowrap">
+                      {formatDate(activity.createdAt.toString())}
+                    </div>
+                  </div>
+                  {activity.browser && (
+                    <div className="text-xs text-muted-foreground mt-2 flex items-center gap-4">
+                      <span>Browser: {activity.browser}</span>
+                      {activity.os && <span>OS: {activity.os}</span>}
+                      {activity.device && <span>Device: {activity.device}</span>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </AdminLayout>
