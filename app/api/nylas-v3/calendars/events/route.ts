@@ -177,13 +177,50 @@ export async function GET(request: NextRequest) {
 
     // Filter out events without valid time data at the API level
     const validEvents = allEvents.filter((event: any) => {
-      const hasValidTime = !!(
-        event.when?.startTime ||
-        event.when?.date ||
-        event.startTime ||
-        event.start_time
-      );
-      return hasValidTime;
+      try {
+        // Check if event has time data
+        const hasValidTime = !!(
+          event.when?.startTime ||
+          event.when?.date ||
+          event.startTime ||
+          event.start_time
+        );
+
+        if (!hasValidTime) {
+          return false;
+        }
+
+        // Validate that the date can actually be parsed and is valid
+        let testDate: Date | null = null;
+
+        if (event.when?.startTime) {
+          testDate = new Date(event.when.startTime * 1000);
+        } else if (event.when?.date) {
+          testDate = new Date(event.when.date);
+        } else if (event.startTime) {
+          testDate = new Date(event.startTime);
+        } else if (event.start_time) {
+          testDate = new Date(event.start_time);
+        }
+
+        // Check if date is valid and within reasonable range
+        if (!testDate || isNaN(testDate.getTime())) {
+          console.warn('[Calendar Events] Invalid date for event:', event.id, event.title);
+          return false;
+        }
+
+        // Check if date is within reasonable range (year 1900 to 2100)
+        const year = testDate.getFullYear();
+        if (year < 1900 || year > 2100) {
+          console.warn('[Calendar Events] Date out of range for event:', event.id, event.title, year);
+          return false;
+        }
+
+        return true;
+      } catch (err) {
+        console.warn('[Calendar Events] Error validating event:', event.id, err);
+        return false;
+      }
     });
 
     if (validEvents.length < allEvents.length) {

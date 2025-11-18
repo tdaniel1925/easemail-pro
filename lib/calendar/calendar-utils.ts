@@ -22,13 +22,23 @@ export interface CalendarEvent {
  * Check if two events overlap/conflict
  */
 export function eventsOverlap(event1: CalendarEvent, event2: CalendarEvent): boolean {
-  const start1 = new Date(event1.startTime);
-  const end1 = new Date(event1.endTime);
-  const start2 = new Date(event2.startTime);
-  const end2 = new Date(event2.endTime);
+  try {
+    const start1 = new Date(event1.startTime);
+    const end1 = new Date(event1.endTime);
+    const start2 = new Date(event2.startTime);
+    const end2 = new Date(event2.endTime);
 
-  // Events overlap if one starts before the other ends
-  return start1 < end2 && start2 < end1;
+    // Validate dates
+    if (isNaN(start1.getTime()) || isNaN(end1.getTime()) || isNaN(start2.getTime()) || isNaN(end2.getTime())) {
+      return false;
+    }
+
+    // Events overlap if one starts before the other ends
+    return start1 < end2 && start2 < end1;
+  } catch (err) {
+    console.error('[Calendar Utils] Error checking event overlap:', err);
+    return false;
+  }
 }
 
 /**
@@ -54,11 +64,21 @@ export function findConflictingEvents(
  * Check if an event is happening right now
  */
 export function isEventHappeningNow(event: CalendarEvent): boolean {
-  const now = new Date();
-  const start = new Date(event.startTime);
-  const end = new Date(event.endTime);
+  try {
+    const now = new Date();
+    const start = new Date(event.startTime);
+    const end = new Date(event.endTime);
 
-  return now >= start && now <= end;
+    // Validate dates
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return false;
+    }
+
+    return now >= start && now <= end;
+  } catch (err) {
+    console.error('[Calendar Utils] Error checking if event is happening now:', err);
+    return false;
+  }
 }
 
 /**
@@ -145,20 +165,35 @@ export function groupEventsByDay(events: CalendarEvent[]): Map<string, CalendarE
   const grouped = new Map<string, CalendarEvent[]>();
 
   events.forEach(event => {
-    const date = new Date(event.startTime);
-    const dateKey = date.toISOString().split('T')[0];
+    try {
+      const date = new Date(event.startTime);
 
-    if (!grouped.has(dateKey)) {
-      grouped.set(dateKey, []);
+      // Validate date
+      if (isNaN(date.getTime())) {
+        console.warn('[Calendar Utils] Invalid date for event:', event.id);
+        return;
+      }
+
+      const dateKey = date.toISOString().split('T')[0];
+
+      if (!grouped.has(dateKey)) {
+        grouped.set(dateKey, []);
+      }
+      grouped.get(dateKey)!.push(event);
+    } catch (err) {
+      console.error('[Calendar Utils] Error grouping event by day:', err, event);
     }
-    grouped.get(dateKey)!.push(event);
   });
 
   // Sort events within each day
   grouped.forEach((dayEvents, key) => {
-    dayEvents.sort((a, b) =>
-      new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-    );
+    dayEvents.sort((a, b) => {
+      try {
+        return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+      } catch (err) {
+        return 0;
+      }
+    });
   });
 
   return grouped;
@@ -168,30 +203,50 @@ export function groupEventsByDay(events: CalendarEvent[]): Map<string, CalendarE
  * Format event time range
  */
 export function formatEventTime(event: CalendarEvent): string {
-  if (event.allDay) {
-    return 'All day';
-  }
+  try {
+    if (event.allDay) {
+      return 'All day';
+    }
 
-  const start = new Date(event.startTime);
-  const end = new Date(event.endTime);
+    const start = new Date(event.startTime);
+    const end = new Date(event.endTime);
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', {
+    // Validate dates
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return 'Invalid time';
+    }
+
+    const formatTime = (date: Date) => {
+      return date.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
     });
   };
 
-  return `${formatTime(start)} - ${formatTime(end)}`;
+    return `${formatTime(start)} - ${formatTime(end)}`;
+  } catch (err) {
+    console.error('[Calendar Utils] Error formatting event time:', err, event);
+    return 'Invalid time';
+  }
 }
 
 /**
  * Check if event spans multiple days
  */
 export function isMultiDayEvent(event: CalendarEvent): boolean {
-  const start = new Date(event.startTime);
-  const end = new Date(event.endTime);
+  try {
+    const start = new Date(event.startTime);
+    const end = new Date(event.endTime);
 
-  return start.toDateString() !== end.toDateString();
+    // Validate dates
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return false;
+    }
+
+    return start.toDateString() !== end.toDateString();
+  } catch (err) {
+    console.error('[Calendar Utils] Error checking if event is multi-day:', err);
+    return false;
+  }
 }
