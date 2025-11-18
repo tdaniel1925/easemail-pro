@@ -193,6 +193,25 @@ export default function UsersManagement() {
     }
   };
 
+  const handleResendInvitation = async (userId: string, userEmail: string) => {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/resend-invitation`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showToast('success', `Invitation email resent to ${userEmail}`);
+      } else {
+        showToast('error', data.error || 'Failed to resend invitation');
+      }
+    } catch (error) {
+      console.error('Failed to resend invitation:', error);
+      showToast('error', 'Failed to resend invitation');
+    }
+  };
+
   const handleImpersonateUser = async () => {
     if (!impersonateConfirm) return;
 
@@ -550,6 +569,11 @@ export default function UsersManagement() {
                             <DropdownMenuItem onClick={() => handleResetPassword(user.id, user.email)}>
                               <Key className="h-4 w-4 mr-2" />
                               Reset Password
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem onClick={() => handleResendInvitation(user.id, user.email)}>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Resend Invitation
                             </DropdownMenuItem>
 
                             <DropdownMenuItem onClick={() => setImpersonateConfirm({ userId: user.id, userEmail: user.email })}>
