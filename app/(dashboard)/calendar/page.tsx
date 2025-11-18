@@ -27,6 +27,7 @@ import { useToast } from '@/components/ui/use-toast';
 // Calendar Components
 import EventModal from '@/components/calendar/EventModal';
 import EventDetailsModal from '@/components/calendar/EventDetailsModal';
+import DayEventsModal from '@/components/calendar/DayEventsModal';
 import DraggableMonthView from '@/components/calendar/DraggableMonthView';
 import WeekView from '@/components/calendar/WeekView';
 import DayView from '@/components/calendar/DayView';
@@ -72,8 +73,11 @@ function CalendarContent() {
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isDayModalOpen, setIsDayModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [dayModalDate, setDayModalDate] = useState<Date | null>(null);
+  const [dayModalClickedTime, setDayModalClickedTime] = useState<string | undefined>(undefined);
 
   // Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -297,9 +301,9 @@ function CalendarContent() {
 
   const handleDayClick = (day: number) => {
     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    setSelectedDate(date);
-    setSelectedEvent(null);
-    setIsEventModalOpen(true);
+    setDayModalDate(date);
+    setDayModalClickedTime(undefined);
+    setIsDayModalOpen(true);
   };
 
   const handleEditEvent = () => {
@@ -539,11 +543,9 @@ function CalendarContent() {
                   events={filteredEvents}
                   onEventClick={handleEventClick}
                   onTimeSlotClick={(date, hour) => {
-                    const clickedDate = new Date(date);
-                    clickedDate.setHours(hour);
-                    setSelectedDate(clickedDate);
-                    setSelectedEvent(null);
-                    setIsEventModalOpen(true);
+                    setDayModalDate(date);
+                    setDayModalClickedTime(`${hour}:00`);
+                    setIsDayModalOpen(true);
                   }}
                   currentDate={currentDate}
                   onDateChange={setCurrentDate}
@@ -555,11 +557,9 @@ function CalendarContent() {
                   events={filteredEvents}
                   onEventClick={handleEventClick}
                   onTimeSlotClick={(date, hour) => {
-                    const clickedDate = new Date(date);
-                    clickedDate.setHours(hour);
-                    setSelectedDate(clickedDate);
-                    setSelectedEvent(null);
-                    setIsEventModalOpen(true);
+                    setDayModalDate(date);
+                    setDayModalClickedTime(`${hour}:00`);
+                    setIsDayModalOpen(true);
                   }}
                   currentDate={currentDate}
                   onDateChange={setCurrentDate}
@@ -818,6 +818,34 @@ function CalendarContent() {
       </div>
 
       {/* Modals */}
+      <DayEventsModal
+        isOpen={isDayModalOpen}
+        onClose={() => {
+          setIsDayModalOpen(false);
+          setDayModalDate(null);
+          setDayModalClickedTime(undefined);
+        }}
+        date={dayModalDate || new Date()}
+        events={dayModalDate ? getEventsForDate(dayModalDate) : []}
+        onEventClick={(event) => {
+          setSelectedEvent(event);
+          setIsEventDetailsOpen(true);
+        }}
+        onAddEvent={(prefilledData) => {
+          setIsDayModalOpen(false);
+          setSelectedDate(prefilledData?.date || new Date());
+          // If a specific time was clicked, set the hour
+          if (dayModalClickedTime) {
+            const [hour] = dayModalClickedTime.split(':').map(Number);
+            const dateWithTime = new Date(prefilledData?.date || new Date());
+            dateWithTime.setHours(hour);
+            setSelectedDate(dateWithTime);
+          }
+          setSelectedEvent(null);
+          setIsEventModalOpen(true);
+        }}
+      />
+
       <EventDetailsModal
         isOpen={isEventDetailsOpen}
         onClose={() => {
