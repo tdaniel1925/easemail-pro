@@ -457,7 +457,7 @@ export function EmailListEnhancedV3({
       {/* Header - Fixed */}
       <div className="flex-shrink-0 min-h-[3.5rem] px-3 md:px-4 border-b border-border flex items-center">
         {selectMode ? (
-          /* Bulk Action Toolbar */}
+          // Bulk Action Toolbar
           <div className="flex items-center gap-2 w-full overflow-x-auto">
             <button
               onClick={handleSelectAll}
@@ -507,7 +507,7 @@ export function EmailListEnhancedV3({
             </Button>
           </div>
         ) : (
-          /* Normal Toolbar */}
+          // Normal Toolbar
           <div className="flex items-center gap-2 md:gap-4 w-full">
             <div className="flex-shrink-0">
               <h2 className="text-xs md:text-sm font-medium capitalize">{folderName}</h2>
