@@ -145,6 +145,16 @@ function CalendarContent() {
       const response = await fetch(apiUrl);
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[Calendar] API Error:', response.status, errorData);
+
+        if (response.status === 403) {
+          throw new Error('Account access denied. Please reconnect your email account in Settings.');
+        } else if (response.status === 404) {
+          throw new Error('Calendar account not found. Please reconnect your email account in Settings.');
+        } else if (response.status === 400) {
+          throw new Error('Calendar account not properly connected. Please reconnect in Settings.');
+        }
         throw new Error(`Failed to fetch events: ${response.statusText}`);
       }
 
