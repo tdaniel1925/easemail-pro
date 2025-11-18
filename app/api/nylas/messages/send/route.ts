@@ -241,10 +241,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert into emails table with folder = 'sent'
+    // IMPORTANT: Use actual providerMessageId to prevent duplicates when sync pulls it back
     const [savedEmail] = await db.insert(emails).values({
       accountId: account.id,
       provider: account.emailProvider,
-      providerMessageId: sanitizeText(providerMessageId) || `local-${Date.now()}`,
+      providerMessageId: sanitizeText(providerMessageId) || null, // ✅ Use actual ID or null (don't create fake local ID)
       messageId: sanitizeText(providerMessageId),
       threadId: sanitizeText(threadId),
       providerThreadId: sanitizeText(threadId),
