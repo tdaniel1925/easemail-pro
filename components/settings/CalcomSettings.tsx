@@ -21,13 +21,18 @@ interface CalcomConnection {
 
 interface CalcomBooking {
   id: string;
+  booking_uid: string;
   title: string;
+  description?: string;
   start_time: string;
   end_time: string;
   status: string;
   attendees: any[];
   location?: string;
   meeting_url?: string;
+  organizer_name?: string;
+  organizer_email?: string;
+  event_type_title?: string;
 }
 
 export default function CalcomSettings() {
@@ -543,14 +548,49 @@ export default function CalcomSettings() {
                       className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
                     >
                       <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 space-y-1">
                         <p className="font-medium truncate">{booking.title}</p>
+                        {booking.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {booking.description}
+                          </p>
+                        )}
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(booking.start_time)}
+                          🕒 {new Date(booking.start_time).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })} - {new Date(booking.end_time).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}
                         </p>
-                        {booking.attendees.length > 0 && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            With: {booking.attendees.map((a: any) => a.name || a.email).join(', ')}
+                        {booking.location && (
+                          <p className="text-xs text-muted-foreground">
+                            📍 {booking.location}
+                          </p>
+                        )}
+                        {booking.meeting_url && (
+                          <a
+                            href={booking.meeting_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            🔗 Join Meeting
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                        {booking.attendees && booking.attendees.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            👥 {booking.attendees.map((a: any) => a.name || a.email).join(', ')}
+                          </p>
+                        )}
+                        {booking.organizer_name && (
+                          <p className="text-xs text-muted-foreground">
+                            Organized by: {booking.organizer_name}
                           </p>
                         )}
                       </div>
