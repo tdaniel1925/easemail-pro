@@ -241,11 +241,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert into emails table with folder = 'sent'
-    // IMPORTANT: Use actual providerMessageId to prevent duplicates when sync pulls it back
+    // IMPORTANT: Don't save to DB if we don't have the actual provider message ID
+    // This prevents duplicates when sync pulls it back from the provider
+    if (!providerMessageId) {
+      console.warn('⚠️ No provider message ID returned - email sent but not saved locally');
+      return NextResponse.json({
+        success: true,
+        message: 'Email sent successfully (will appear after sync)',
+        providerMessageId: null,
+      });
+    }
+
     const [savedEmail] = await db.insert(emails).values({
       accountId: account.id,
       provider: account.emailProvider,
-      providerMessageId: sanitizeText(providerMessageId) || null, // ✅ Use actual ID or null (don't create fake local ID)
+      providerMessageId: sanitizeText(providerMessageId), // ✅ Use actual ID from provider
       messageId: sanitizeText(providerMessageId),
       threadId: sanitizeText(threadId),
       providerThreadId: sanitizeText(threadId),
