@@ -80,6 +80,7 @@
     "openai": "^4.78.0",
     "papaparse": "^5.4.1",
     "pdf-parse": "^2.4.5",
+    "pg": "^8.16.3",
     "postgres": "^3.4.5",
     "react": "^18.2.0",
     "react-dnd": "^16.0.1",

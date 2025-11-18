@@ -272,38 +272,38 @@ export function EmailViewerV3({
       <Dialog />
       <div className="flex flex-col h-full bg-card overflow-hidden">
       {/* Header - Fixed */}
-      <div className="flex-shrink-0 p-4 border-b border-border">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">{message.subject || '(No Subject)'}</h2>
-          <div className="flex items-center gap-2">
+      <div className="flex-shrink-0 p-3 md:p-4 border-b border-border">
+        <div className="flex items-start md:items-center justify-between mb-3 md:mb-4 gap-2">
+          <h2 className="text-base md:text-xl font-semibold flex-1 line-clamp-2">{message.subject || '(No Subject)'}</h2>
+          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleStar}
-              className={cn(isStarred && 'text-yellow-500')}
+              className={cn('h-8 w-8 md:h-10 md:w-10', isStarred && 'text-yellow-500')}
             >
               <Star className={cn('h-4 w-4', isStarred && 'fill-yellow-500')} />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handlePrint} title="Print email">
+            <Button variant="ghost" size="icon" onClick={handlePrint} title="Print email" className="hidden sm:flex h-8 w-8 md:h-10 md:w-10">
               <Printer className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleArchive}>
+            <Button variant="ghost" size="icon" onClick={handleArchive} className="hidden sm:flex h-8 w-8 md:h-10 md:w-10">
               <Archive className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleDelete}>
+            <Button variant="ghost" size="icon" onClick={handleDelete} className="h-8 w-8 md:h-10 md:w-10">
               <Trash2 className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="hidden sm:flex h-8 w-8 md:h-10 md:w-10">
               <MoreVertical className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 md:h-10 md:w-10">
               <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
         {/* Sender Info */}
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium text-white flex-shrink-0"
@@ -311,16 +311,17 @@ export function EmailViewerV3({
             >
               {getInitials(senderName)}
             </div>
-            <div>
-              <p className="font-medium">{senderName}</p>
-              <p className="text-sm text-muted-foreground">{sender.email}</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium truncate">{senderName}</p>
+              <p className="text-sm text-muted-foreground truncate">{sender.email}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {formatDate(new Date(message.date * 1000))}
               </p>
             </div>
           </div>
 
-          <div className="flex gap-2">
+          {/* Desktop Action Buttons */}
+          <div className="hidden md:flex gap-2 flex-shrink-0">
             <Button variant="outline" size="sm" onClick={handleReply}>
               <Reply className="h-4 w-4 mr-2" />
               Reply
@@ -471,20 +472,20 @@ export function EmailViewerV3({
         )}
       </div>
 
-      {/* Reply Footer - Fixed */}
-      <div className="flex-shrink-0 p-4 border-t border-border">
+      {/* Reply Footer - Fixed - Visible on mobile, hidden on desktop (desktop has top buttons) */}
+      <div className="flex-shrink-0 p-3 md:hidden border-t border-border">
         <div className="flex gap-2">
-          <Button className="flex-1" onClick={handleReply}>
-            <Reply className="h-4 w-4 mr-2" />
-            Reply
+          <Button className="flex-1 h-11" onClick={handleReply}>
+            <Reply className="h-4 w-4 mr-1" />
+            <span className="text-sm">Reply</span>
           </Button>
-          <Button variant="outline" className="flex-1" onClick={handleReplyAll}>
-            <ReplyAll className="h-4 w-4 mr-2" />
-            Reply All
+          <Button variant="outline" className="flex-1 h-11" onClick={handleReplyAll}>
+            <ReplyAll className="h-4 w-4 mr-1" />
+            <span className="text-sm">All</span>
           </Button>
-          <Button variant="outline" className="flex-1" onClick={handleForward}>
-            <Forward className="h-4 w-4 mr-2" />
-            Forward
+          <Button variant="outline" className="flex-1 h-11" onClick={handleForward}>
+            <Forward className="h-4 w-4 mr-1" />
+            <span className="text-sm">Forward</span>
           </Button>
         </div>
       </div>

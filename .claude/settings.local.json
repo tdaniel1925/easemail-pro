@@ -36,7 +36,11 @@
       "Bash(vercel:*)",
       "Bash(wc:*)",
       "Bash(cmd.exe /c \"taskkill /F /PID 89152 && timeout /t 2 /nobreak && cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && npm run dev\")",
-      "Bash(npx supabase:*)"
+      "Bash(npx supabase:*)",
+      "Bash(node scripts/run-migration.js:*)",
+      "Bash(npm install:*)",
+      "Bash(timeout /t 10 /nobreak)",
+      "Bash(node scripts/verify-migration.js:*)"
     ],
     "deny": [],
     "ask": []

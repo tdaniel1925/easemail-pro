@@ -455,14 +455,14 @@ export function EmailListEnhancedV3({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header - Fixed */}
-      <div className="flex-shrink-0 h-14 px-4 border-b border-border flex items-center">
+      <div className="flex-shrink-0 min-h-[3.5rem] px-3 md:px-4 border-b border-border flex items-center">
         {selectMode ? (
-          /* Bulk Action Toolbar */
-          <div className="flex items-center gap-2 w-full">
+          /* Bulk Action Toolbar */}
+          <div className="flex items-center gap-2 w-full overflow-x-auto">
             <button
               onClick={handleSelectAll}
               className={cn(
-                'h-5 w-5 rounded border-2 flex items-center justify-center transition-all',
+                'h-5 w-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0',
                 selectedEmails.size === visibleMessages.length
                   ? 'bg-primary border-primary text-primary-foreground'
                   : 'border-border hover:border-primary/50 bg-background'
@@ -471,24 +471,24 @@ export function EmailListEnhancedV3({
               {selectedEmails.size === visibleMessages.length && <CheckSquare className="h-4 w-4" />}
             </button>
 
-            <span className="text-sm font-medium">{selectedEmails.size} selected</span>
+            <span className="text-xs md:text-sm font-medium whitespace-nowrap">{selectedEmails.size} selected</span>
 
-            <div className="flex gap-1 overflow-x-auto">
-              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('delete')} className="h-8">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
+            <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('delete')} className="h-8 text-xs md:text-sm">
+                <Trash2 className="h-4 w-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Delete</span>
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('archive')} className="h-8">
-                <Archive className="h-4 w-4 mr-2" />
-                Archive
+              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('archive')} className="h-8 text-xs md:text-sm">
+                <Archive className="h-4 w-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Archive</span>
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('markRead')} className="h-8">
-                <MailOpen className="h-4 w-4 mr-2" />
-                Read
+              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('markRead')} className="h-8 text-xs md:text-sm">
+                <MailOpen className="h-4 w-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Read</span>
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('markUnread')} className="h-8">
-                <Mail className="h-4 w-4 mr-2" />
-                Unread
+              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('markUnread')} className="h-8 text-xs md:text-sm">
+                <Mail className="h-4 w-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Unread</span>
               </Button>
             </div>
 
@@ -501,20 +501,20 @@ export function EmailListEnhancedV3({
                 setSelectedEmails(new Set());
                 setSelectMode(false);
               }}
-              className="h-8"
+              className="h-8 text-xs md:text-sm flex-shrink-0"
             >
               Cancel
             </Button>
           </div>
         ) : (
-          /* Normal Toolbar */
-          <div className="flex items-center gap-4 w-full">
+          /* Normal Toolbar */}
+          <div className="flex items-center gap-2 md:gap-4 w-full">
             <div className="flex-shrink-0">
-              <h2 className="text-sm font-medium capitalize">{folderName}</h2>
+              <h2 className="text-xs md:text-sm font-medium capitalize">{folderName}</h2>
             </div>
 
-            {/* AI Summary Toggle - Moved to left of search */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            {/* AI Summary Toggle - Hidden on mobile */}
+            <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
               <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
                 <Switch checked={showAISummaries} onCheckedChange={handleAISummaryToggle} />
                 <Sparkles className="h-4 w-4" />
@@ -523,12 +523,12 @@ export function EmailListEnhancedV3({
             </div>
 
             {/* Search bar */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="flex-1 relative min-w-0">
+              <Search className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 h-3.5 md:h-4 w-3.5 md:w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search emails..."
-                className="w-full pl-10 pr-3 h-9 bg-background border-border"
+                placeholder="Search..."
+                className="w-full pl-8 md:pl-10 pr-2 md:pr-3 h-8 md:h-9 bg-background border-border text-xs md:text-sm"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -543,10 +543,10 @@ export function EmailListEnhancedV3({
             <button
               onClick={handleRefresh}
               disabled={loading}
-              className="p-2 hover:bg-accent rounded-lg transition-colors flex-shrink-0"
+              className="p-1.5 md:p-2 hover:bg-accent rounded-lg transition-colors flex-shrink-0"
               title="Refresh"
             >
-              <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+              <RefreshCw className={cn('h-3.5 md:h-4 w-3.5 md:w-4', loading && 'animate-spin')} />
             </button>
           </div>
         )}
@@ -665,6 +665,8 @@ function EmailCard({
   const [showThreadPreview, setShowThreadPreview] = useState(false);
   const [threadPreviewData, setThreadPreviewData] = useState<any>(null);
   const [loadingThreadPreview, setLoadingThreadPreview] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [loadingAiSummary, setLoadingAiSummary] = useState(false);
 
   // Viewport detection for previews
   const { ref, inView } = useInView({
@@ -767,6 +769,62 @@ function EmailCard({
     setIsMounted(true);
   }, []);
 
+  // Fetch AI summary when AI summaries are enabled and email is in view
+  useEffect(() => {
+    if (showAISummaries && inView && !aiSummary && !loadingAiSummary) {
+      const fetchAiSummary = async () => {
+        setLoadingAiSummary(true);
+        try {
+          // First, try to fetch existing summary
+          const getResponse = await fetch(
+            `/api/email-summaries?messageIds=${message.id}&accountId=${accountId}`
+          );
+          const getData = await getResponse.json();
+
+          if (getData.success && getData.summaries[message.id]) {
+            setAiSummary(getData.summaries[message.id]);
+            setLoadingAiSummary(false);
+            return;
+          }
+
+          // If no cached summary, generate a new one
+          // First fetch the full email content
+          const emailResponse = await fetch(
+            `/api/nylas-v3/messages/${message.id}?accountId=${accountId}`
+          );
+          const emailData = await emailResponse.json();
+
+          if (emailData.success && emailData.message) {
+            const emailContent = emailData.message.body || emailData.message.snippet;
+
+            // Generate AI summary
+            const summaryResponse = await fetch('/api/email-summaries', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messageId: message.id,
+                accountId,
+                emailContent,
+                subject: message.subject,
+              }),
+            });
+
+            const summaryData = await summaryResponse.json();
+            if (summaryData.success) {
+              setAiSummary(summaryData.summary);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch AI summary:', error);
+        } finally {
+          setLoadingAiSummary(false);
+        }
+      };
+
+      fetchAiSummary();
+    }
+  }, [showAISummaries, inView, message.id, accountId, aiSummary, loadingAiSummary]);
+
   // Fetch full email body when expanded
   useEffect(() => {
     if (isExpanded && !fullEmail && !message.body) {
@@ -789,8 +847,9 @@ function EmailCard({
   }, [isExpanded, message.id, message.body, fullEmail, accountId]);
 
   const displayEmail = fullEmail || message;
-  const displayText = smartPreview || message.snippet;
-  const showSmartPreview = showAISummaries && !!smartPreview;
+  // Use AI summary if available, otherwise fall back to smart preview or snippet
+  const displayText = showAISummaries && aiSummary ? aiSummary : (smartPreview || message.snippet);
+  const showSmartPreview = showAISummaries && (!!aiSummary || loadingAiSummary);
 
   // Fetch thread preview data
   const fetchThreadPreview = async () => {
@@ -1259,19 +1318,32 @@ function EmailCard({
 
             {!isExpanded && (
               <>
-                {/* Smart Preview or Email Snippet */}
+                {/* AI Summary or Email Snippet */}
                 <div className="flex items-start gap-2 pr-2 mb-3">
-                  {showSmartPreview && (
+                  {showAISummaries && aiSummary && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Sparkles className="h-3 w-3 text-purple-500 mt-1" />
+                    </div>
+                  )}
+                  {loadingAiSummary && showAISummaries && (
+                    <Loader2 className="h-3 w-3 text-muted-foreground mt-1 flex-shrink-0 animate-spin" />
+                  )}
+                  {!showAISummaries && showSmartPreview && (
                     <MailIcon className="h-3 w-3 text-primary mt-1 flex-shrink-0" />
                   )}
                   <p
                     className={cn(
                       'text-sm line-clamp-3 flex-1 leading-relaxed',
+                      showAISummaries && aiSummary ? 'text-foreground font-medium' :
                       showSmartPreview ? 'text-foreground' : 'text-muted-foreground',
                       message.unread && 'font-medium'
                     )}
                   >
-                    {displayText}
+                    {loadingAiSummary && showAISummaries ? (
+                      <span className="text-muted-foreground italic">Generating AI summary...</span>
+                    ) : (
+                      displayText
+                    )}
                   </p>
                 </div>
 

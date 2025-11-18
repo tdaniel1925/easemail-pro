@@ -725,21 +725,24 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       {/* Backdrop overlay */}
       <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" onClick={handleBackdropClick} />
 
-      {/* Centered modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
+      {/* Centered modal - Mobile fullscreen, desktop modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center md:p-4 pointer-events-none overflow-y-auto">
         <div
           className={cn(
-            'bg-card border border-border shadow-2xl rounded-lg flex flex-col pointer-events-auto transition-all duration-300 my-auto',
-            isMinimized && 'h-14 w-96',
-            !isMinimized && !isFullscreen && 'max-h-[90vh] h-[700px] w-[900px]',
-            isFullscreen && 'h-[calc(100vh-2rem)] w-[calc(100vw-2rem)]'
+            'bg-card border-0 md:border border-border shadow-2xl md:rounded-lg flex flex-col pointer-events-auto transition-all duration-300',
+            // Mobile: full screen
+            'h-full w-full md:my-auto',
+            // Desktop sizes
+            isMinimized && 'md:h-14 md:w-96',
+            !isMinimized && !isFullscreen && 'md:max-h-[90vh] md:h-[700px] md:w-[900px]',
+            isFullscreen && 'md:h-[calc(100vh-2rem)] md:w-[calc(100vw-2rem)]'
           )}
           onClick={(e) => e.stopPropagation()}
         >
         {/* Header */}
         <div className="flex items-center justify-between p-3 border-b border-border bg-muted/30">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-sm">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <h3 className="font-semibold text-sm truncate">
               {type === 'reply' && replyTo && `Re: ${replyTo.subject}`}
               {type === 'reply-all' && replyTo && `Re: ${replyTo.subject}`}
               {type === 'forward' && replyTo && `Fwd: ${replyTo.subject}`}
@@ -751,18 +754,19 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
               </span>
             )}
             {lastSaved && !isMinimized && (
-              <span className="text-xs text-muted-foreground">
+              <span className="hidden sm:inline text-xs text-muted-foreground whitespace-nowrap">
                 Saved {formatDistanceToNow(lastSaved)}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             {!isMinimized && (
               <>
+                {/* Hide minimize/maximize on mobile */}
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="hidden md:flex h-8 w-8"
                   onClick={() => setIsMinimized(true)}
                   title="Minimize"
                 >
@@ -771,7 +775,7 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="hidden md:flex h-8 w-8"
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
                 >
@@ -793,7 +797,7 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-9 w-9 md:h-8 md:w-8"
               onClick={handleClose}
               title="Close"
             >
@@ -806,21 +810,21 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
         {!isMinimized && (
           <>
             {/* Recipients */}
-            <div className="p-4 space-y-2 border-b border-border">
+            <div className="p-3 md:p-4 space-y-2 border-b border-border">
               <div className="flex items-start gap-2">
-                <Label className="w-12 text-sm text-muted-foreground pt-2">To</Label>
-                <div className="flex-1">
+                <Label className="w-10 md:w-12 text-xs md:text-sm text-muted-foreground pt-2 flex-shrink-0">To</Label>
+                <div className="flex-1 min-w-0">
                   <EmailAutocomplete
                     value={to}
                     onChange={setTo}
                     placeholder="Recipients"
                   />
                 </div>
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-1.5 md:gap-2 pt-2 flex-shrink-0">
                   {!showCc && (
                     <button
                       onClick={() => setShowCc(true)}
-                      className="text-xs text-muted-foreground hover:text-foreground"
+                      className="text-xs text-muted-foreground hover:text-foreground whitespace-nowrap"
                     >
                       Cc
                     </button>
@@ -1154,8 +1158,8 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
                 </div>
               )}
 
-              {/* Email Tracking Options */}
-              <div className="flex items-center gap-4 px-3 py-2 border-t border-border bg-muted/30">
+              {/* Email Tracking Options - Hide on small screens */}
+              <div className="hidden sm:flex items-center gap-4 px-3 py-2 border-t border-border bg-muted/30">
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -1188,20 +1192,20 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 p-3 border-t sm:border-t-0">
                 <div className="flex items-center gap-2">
-                  <Button onClick={handleSend} className="gap-2" disabled={isSending || !accountId}>
+                  <Button onClick={handleSend} className="gap-2 flex-1 sm:flex-initial h-11 sm:h-10" disabled={isSending || !accountId}>
                     <Send className="h-4 w-4" />
                     {isSending ? 'Sending...' : 'Send'}
                   </Button>
                   <Button
                     onClick={() => setShowScheduleSendDialog(true)}
                     variant="outline"
-                    className="gap-2"
+                    className="gap-2 h-11 sm:h-10"
                     disabled={isSending || !accountId}
                   >
                     <Clock className="h-4 w-4" />
-                    Schedule
+                    <span className="hidden sm:inline">Schedule</span>
                   </Button>
                 <label>
                   <input
@@ -1210,14 +1214,14 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
                     onChange={handleAttachment}
                     className="hidden"
                   />
-                  <Button variant="ghost" size="icon" className="cursor-pointer" asChild>
+                  <Button variant="ghost" size="icon" className="cursor-pointer h-11 w-11 sm:h-10 sm:w-10" asChild>
                     <span>
                       <Paperclip className="h-4 w-4" />
                     </span>
                   </Button>
                 </label>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2 px-3">
                 <Button
                   variant="ghost"
                   size="sm"
