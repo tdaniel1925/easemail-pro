@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     // Note: We'll match by organizer email which should be the user's email
     const { data: connection } = await supabase
       .from('calcom_connections')
-      .select('*, auth.users(email)')
+      .select('*')
       .eq('is_active', true)
       .single();
 
