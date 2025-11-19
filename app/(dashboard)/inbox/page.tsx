@@ -16,7 +16,7 @@ import { EmailViewerV3 } from '@/components/nylas-v3/email-viewer-v3';
 import { SMSInboxV3 } from '@/components/nylas-v3/sms-inbox-v3';
 import { ContactPanelV3 } from '@/components/nylas-v3/contact-panel-v3';
 import { DraftsView } from '@/components/email/DraftsView';
-import { useAccounts } from '@/lib/hooks/use-accounts';
+import { useAccount } from '@/contexts/AccountContext';
 import EaseMailLogoFull from '@/components/ui/EaseMailLogoFull';
 import SettingsMenuNew from '@/components/layout/SettingsMenuNew';
 import AccountSwitcher from '@/components/account/AccountSwitcher';
@@ -29,8 +29,14 @@ export default function InboxV3Page() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null); // Nylas Grant ID (for API calls)
-  const [selectedDbAccountId, setSelectedDbAccountId] = useState<string | null>(null); // Database UUID (for sending emails)
+  // ✅ FIX: Use AccountContext instead of local state for account selection
+  // This ensures AccountSwitcher and inbox page stay in sync
+  const { selectedAccount, accounts, isLoading: accountsLoading } = useAccount();
+
+  // Derive accountIds from selectedAccount (updates automatically when account changes)
+  const selectedAccountId = selectedAccount?.nylasGrantId || null; // Nylas Grant ID (for API calls)
+  const selectedDbAccountId = selectedAccount?.id || null; // Database UUID (for sending emails)
+
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedFolderName, setSelectedFolderName] = useState<string>('inbox');
   const [isComposeOpen, setIsComposeOpen] = useState(false);
@@ -42,63 +48,28 @@ export default function InboxV3Page() {
   const [aiReplyText, setAiReplyText] = useState<string | null>(null);
   const [composeDraft, setComposeDraft] = useState<any>(null);
 
-  // Get accounts
-  const { accounts, loading: accountsLoading } = useAccounts();
+  // ✅ REMOVED: Account selection/persistence logic (now handled by AccountContext)
+  // AccountContext automatically:
+  // - Loads selected account from localStorage on mount
+  // - Persists selection changes to localStorage
+  // - Auto-selects first/default account if none selected
 
-  // Load saved account preference on mount
+  // ✅ FIX: Reset folder and messages when account changes
   useEffect(() => {
-    const savedAccountId = localStorage.getItem('selectedAccountId');
-    const savedDbAccountId = localStorage.getItem('selectedDbAccountId');
-
-    if (savedAccountId && savedDbAccountId && accounts.length > 0) {
-      // Check if saved account still exists
-      const savedAccount = accounts.find(
-        acc => acc.nylasGrantId === savedAccountId || acc.id === savedAccountId
-      );
-
-      if (savedAccount) {
-        console.log('[Inbox] Restoring saved account:', savedAccount.emailAddress);
-        setSelectedAccountId(savedAccountId);
-        setSelectedDbAccountId(savedDbAccountId);
-        return;
-      }
+    if (selectedAccountId) {
+      console.log('[Inbox] Account changed:', selectedAccount?.emailAddress);
+      // Reset to inbox when switching accounts
+      setSelectedFolderId(null);
+      setSelectedFolderName('inbox');
+      setSelectedMessageId(null);
+      setSelectedMessage(null);
     }
-  }, [accounts]);
-
-  // Save account preference when it changes
-  useEffect(() => {
-    if (selectedAccountId && selectedDbAccountId) {
-      localStorage.setItem('selectedAccountId', selectedAccountId);
-      localStorage.setItem('selectedDbAccountId', selectedDbAccountId);
-    }
-  }, [selectedAccountId, selectedDbAccountId]);
+  }, [selectedAccountId]); // Only trigger when the accountId changes
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
   };
-
-  // Auto-select first account if none selected
-  if (!selectedAccountId && accounts.length > 0 && !accountsLoading) {
-    // Use nylasGrantId (the Nylas grant ID) for folder/message API calls
-    // AND store the database ID for sending emails
-    const firstValidAccount = accounts.find(acc => acc.nylasGrantId);
-    if (firstValidAccount) {
-      console.log('[Inbox] Auto-selecting first account:', {
-        nylasGrantId: firstValidAccount.nylasGrantId,
-        dbAccountId: firstValidAccount.id,
-        emailAddress: firstValidAccount.emailAddress,
-      });
-      setSelectedAccountId(firstValidAccount.nylasGrantId); // For Nylas API
-      setSelectedDbAccountId(firstValidAccount.id); // For send email API
-    } else {
-      console.error('❌ No accounts with valid Nylas grant ID found.');
-      console.error('Please reconnect your email account in Settings.');
-      // Still set something to prevent infinite loop, but log the error
-      setSelectedAccountId(accounts[0].id);
-      setSelectedDbAccountId(accounts[0].id);
-    }
-  }
 
   const handleFolderSelect = (folderId: string, folderName: string) => {
     setSelectedFolderId(folderId);
