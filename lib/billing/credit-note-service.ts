@@ -27,18 +27,18 @@ export interface CreditNoteParams {
 export interface CreditNote {
   id: string;
   creditNoteNumber: string;
-  invoiceId: string;
-  userId?: string;
-  organizationId?: string;
+  invoiceId: string | null;
+  userId: string | null;
+  organizationId: string | null;
   amountUsd: string;
-  reason?: string;
-  type?: string;
+  reason: string | null;
+  type: string | null;
   status: string;
-  issuedAt?: Date;
-  appliedAt?: Date;
-  stripeCreditNoteId?: string;
+  issuedAt: Date | null;
+  appliedAt: Date | null;
+  stripeCreditNoteId: string | null;
   createdAt: Date;
-  createdBy?: string;
+  createdBy: string | null;
 }
 
 /**
