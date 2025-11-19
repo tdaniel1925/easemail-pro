@@ -180,11 +180,20 @@ export default function AccountsV3Page() {
       a.syncStatus === 'syncing' || a.syncStatus === 'background_syncing'
     );
 
-    if (hasSyncingAccounts && !pollingIntervalRef.current) {
+    // Also poll for 15 seconds after completion to show 100% state
+    const hasRecentlyCompleted = accounts.some(a => {
+      if (a.syncStatus === 'completed' && a.syncProgress === 100 && a.lastSyncedAt) {
+        const timeSinceCompletion = Date.now() - new Date(a.lastSyncedAt).getTime();
+        return timeSinceCompletion < 15000; // Poll for 15 seconds after completion
+      }
+      return false;
+    });
+
+    if ((hasSyncingAccounts || hasRecentlyCompleted) && !pollingIntervalRef.current) {
       // Start polling
       checkSyncStatus();
       pollingIntervalRef.current = setInterval(checkSyncStatus, 2000);
-    } else if (!hasSyncingAccounts && pollingIntervalRef.current) {
+    } else if (!hasSyncingAccounts && !hasRecentlyCompleted && pollingIntervalRef.current) {
       // Stop polling
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
@@ -710,49 +719,127 @@ export default function AccountsV3Page() {
                   </CardHeader>
 
                   <CardContent className="space-y-4">
-                    {/* Sync Progress */}
-                    {(account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing') && syncMetrics[account.id] && (
-                      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border border-blue-200 dark:border-blue-800 rounded-lg space-y-3">
+                    {/* Sync Progress - Show for both syncing AND recently completed */}
+                    {((account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing') || 
+                      (account.syncStatus === 'completed' && account.syncProgress === 100 && account.lastSyncedAt && 
+                       (Date.now() - new Date(account.lastSyncedAt).getTime() < 15000))) && 
+                     syncMetrics[account.id] && (
+                      <div className={`p-4 border rounded-lg space-y-3 ${
+                        account.syncStatus === 'completed' 
+                          ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 border-green-200 dark:border-green-800'
+                          : 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-blue-200 dark:border-blue-800'
+                      }`}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
-                            <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                              Syncing...
-                            </span>
+                            {account.syncStatus === 'completed' ? (
+                              <>
+                                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                <span className="text-sm font-semibold text-green-700 dark:text-green-300">
+                                  🎉 Sync Complete!
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+                                <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                                  Downloading emails from server...
+                                </span>
+                              </>
+                            )}
                           </div>
-                          <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                          <span className={`text-lg font-bold ${
+                            account.syncStatus === 'completed' 
+                              ? 'text-green-700 dark:text-green-300' 
+                              : 'text-blue-700 dark:text-blue-300'
+                          }`}>
                             {syncMetrics[account.id].syncProgress}%
                           </span>
                         </div>
 
-                        <Progress value={syncMetrics[account.id].syncProgress} className="h-2" />
+                        {/* Live Download Counter */}
+                        <div className={`text-center py-2 px-4 rounded ${
+                          account.syncStatus === 'completed'
+                            ? 'bg-green-100 dark:bg-green-900/30'
+                            : 'bg-blue-100 dark:bg-blue-900/30'
+                        }`}>
+                          <div className="text-2xl font-bold">
+                            <span className={account.syncStatus === 'completed' ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}>
+                              {syncMetrics[account.id].syncedEmailCount.toLocaleString()}
+                            </span>
+                            {syncMetrics[account.id].totalEmailCount > 0 && (
+                              <>
+                                <span className="text-muted-foreground mx-2">/</span>
+                                <span className="text-muted-foreground">
+                                  {syncMetrics[account.id].totalEmailCount.toLocaleString()}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {account.syncStatus === 'completed' ? 'All emails downloaded' : 'emails downloaded'}
+                          </div>
+                        </div>
+
+                        <Progress 
+                          value={syncMetrics[account.id].syncProgress} 
+                          className={`h-2 ${account.syncStatus === 'completed' ? 'bg-green-200 dark:bg-green-900' : ''}`}
+                        />
 
                         <div className="grid grid-cols-3 gap-2 text-xs">
                           <div>
-                            <div className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                            <div className={`flex items-center gap-1 ${
+                              account.syncStatus === 'completed' 
+                                ? 'text-green-600 dark:text-green-400' 
+                                : 'text-blue-600 dark:text-blue-400'
+                            }`}>
                               <Zap className="h-3 w-3" />
                               Rate
                             </div>
-                            <div className="font-bold text-blue-700 dark:text-blue-300">
+                            <div className={`font-bold ${
+                              account.syncStatus === 'completed'
+                                ? 'text-green-700 dark:text-green-300'
+                                : 'text-blue-700 dark:text-blue-300'
+                            }`}>
                               {syncMetrics[account.id].emailsPerMinute}/min
                             </div>
                           </div>
                           <div>
-                            <div className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                            <div className={`flex items-center gap-1 ${
+                              account.syncStatus === 'completed'
+                                ? 'text-green-600 dark:text-green-400'
+                                : 'text-blue-600 dark:text-blue-400'
+                            }`}>
                               <Clock className="h-3 w-3" />
-                              ETA
+                              {account.syncStatus === 'completed' ? 'Duration' : 'ETA'}
                             </div>
-                            <div className="font-bold text-blue-700 dark:text-blue-300">
-                              {syncMetrics[account.id].estimatedTimeRemaining ? `${syncMetrics[account.id].estimatedTimeRemaining}m` : 'Calculating...'}
+                            <div className={`font-bold ${
+                              account.syncStatus === 'completed'
+                                ? 'text-green-700 dark:text-green-300'
+                                : 'text-blue-700 dark:text-blue-300'
+                            }`}>
+                              {account.syncStatus === 'completed' 
+                                ? 'Complete' 
+                                : syncMetrics[account.id].estimatedTimeRemaining 
+                                  ? `${syncMetrics[account.id].estimatedTimeRemaining}m` 
+                                  : 'Calculating...'
+                              }
                             </div>
                           </div>
                           <div>
-                            <div className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                              <Mail className="h-3 w-3" />
-                              Synced
+                            <div className={`flex items-center gap-1 ${
+                              account.syncStatus === 'completed'
+                                ? 'text-green-600 dark:text-green-400'
+                                : 'text-blue-600 dark:text-blue-400'
+                            }`}>
+                              <Database className="h-3 w-3" />
+                              Pages
                             </div>
-                            <div className="font-bold text-blue-700 dark:text-blue-300">
-                              {syncMetrics[account.id].syncedEmailCount.toLocaleString()}
+                            <div className={`font-bold ${
+                              account.syncStatus === 'completed'
+                                ? 'text-green-700 dark:text-green-300'
+                                : 'text-blue-700 dark:text-blue-300'
+                            }`}>
+                              {syncMetrics[account.id].currentPage}/{syncMetrics[account.id].maxPages}
                             </div>
                           </div>
                         </div>
@@ -924,23 +1011,42 @@ export default function AccountsV3Page() {
                       </div>
                       <div>
                         <div className="text-muted-foreground">Sync Progress</div>
-                        <div className="font-medium">{account.syncProgress || 0}%</div>
+                        <div className="font-medium">
+                          {account.syncProgress === 100 && account.initialSyncCompleted ? (
+                            <span className="text-green-600 dark:text-green-400 font-semibold">✅ 100% Complete</span>
+                          ) : (
+                            `${account.syncProgress || 0}%`
+                          )}
+                        </div>
                       </div>
                       <div>
-                        <div className="text-muted-foreground">Initial Sync</div>
-                        <div className="font-medium">{account.initialSyncCompleted ? 'Completed' : 'Pending'}</div>
+                        <div className="text-muted-foreground">Download Progress</div>
+                        <div className="font-medium">
+                          {account.syncedEmailCount?.toLocaleString() || 0}
+                          {account.totalEmailCount && account.totalEmailCount > 0 ? (
+                            <span className="text-muted-foreground"> / {account.totalEmailCount.toLocaleString()}</span>
+                          ) : (
+                            <span className="text-muted-foreground"> emails</span>
+                          )}
+                        </div>
                       </div>
                       <div>
-                        <div className="text-muted-foreground">Webhook Status</div>
-                        <div className="font-medium capitalize">{account.webhookStatus || 'N/A'}</div>
+                        <div className="text-muted-foreground">Sync Status</div>
+                        <div className="font-medium capitalize">
+                          {account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing' ? (
+                            <span className="text-blue-600 dark:text-blue-400 animate-pulse">⚡ Syncing...</span>
+                          ) : account.syncStatus === 'completed' ? (
+                            <span className="text-green-600 dark:text-green-400">✓ Complete</span>
+                          ) : account.syncStatus === 'error' ? (
+                            <span className="text-red-600 dark:text-red-400">✗ Error</span>
+                          ) : (
+                            account.syncStatus || 'Idle'
+                          )}
+                        </div>
                       </div>
                       <div>
-                        <div className="text-muted-foreground">Total Emails</div>
+                        <div className="text-muted-foreground">Total in Database</div>
                         <div className="font-medium">{account.emailCount?.toLocaleString() || 0}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Synced Emails</div>
-                        <div className="font-medium">{account.syncedEmailCount?.toLocaleString() || 0}</div>
                       </div>
                       <div>
                         <div className="text-muted-foreground">Storage</div>
