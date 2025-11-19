@@ -105,11 +105,11 @@ export async function getUnbilledSubscriptionPeriods(params: {
 }): Promise<Array<{
   id: string;
   subscriptionId: string;
-  isProRated: boolean;
-  daysInPeriod: number;
-  daysInFullMonth: number;
-  basePrice: string;
-  proRatedPrice: string;
+  isProRated: boolean | null;
+  daysInPeriod: number | null;
+  daysInFullMonth: number | null;
+  basePrice: string | null;
+  proRatedPrice: string | null;
   periodStart: Date;
   periodEnd: Date;
 }>> {
