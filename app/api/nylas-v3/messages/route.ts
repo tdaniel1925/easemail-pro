@@ -71,15 +71,25 @@ export async function GET(request: NextRequest) {
     }
 
     // 3. Check if this is a virtual folder (v0:accountId:folderName format)
+    // OR if this is an IMAP/Aurinko account (they don't use Nylas API)
     const isVirtualFolder = folderId?.startsWith('v0:');
+    const isNonNylasAccount = account.emailProvider === 'imap' || account.emailProvider === 'aurinko';
     let result;
 
-    if (isVirtualFolder) {
-      // Parse virtual folder: v0:accountId:folderName
-      const parts = folderId!.split(':');
-      const folderName = parts[2]?.toLowerCase();
+    if (isVirtualFolder || isNonNylasAccount) {
+      // Parse folder name
+      let folderName: string;
 
-      console.log('[Messages] Fetching from virtual folder:', folderName);
+      if (isVirtualFolder && folderId) {
+        // Virtual folder format: v0:accountId:folderName
+        const parts = folderId.split(':');
+        folderName = parts[2]?.toLowerCase() || 'inbox';
+      } else {
+        // For IMAP/Aurinko, folderId is the folder name directly
+        folderName = folderId?.toLowerCase() || 'inbox';
+      }
+
+      console.log('[Messages] Fetching from local database folder:', folderName, 'Account:', account.emailProvider);
 
       // Query local database for virtual folders
       const dbMessages = await db.query.emails.findMany({
