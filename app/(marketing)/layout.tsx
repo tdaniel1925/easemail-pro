@@ -1,17 +1,55 @@
 'use client';
 
-import './styles/marketing.css';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import useSticky from '@/hooks/use-sticky';
 import ScrollToTop from '@/hooks/scroll-to-top';
 import { Mail } from 'lucide-react';
+import Script from 'next/script';
 
 export default function MarketingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Load Vorix CSS
+  useEffect(() => {
+    // Create link elements for CSS files
+    const cssFiles = [
+      '/assets/vorix/css/bootstrap.min.css',
+      '/assets/vorix/css/animate.css',
+      '/assets/vorix/css/swiper-bundle.min.css',
+      '/assets/vorix/css/style.css',
+    ];
+
+    // Google Fonts
+    const googleFonts = [
+      'https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Unbounded:wght@200..900&display=swap',
+      'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200',
+      'https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200',
+      'https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200',
+    ];
+
+    const allCssFiles = [...cssFiles, ...googleFonts];
+    const linkElements: HTMLLinkElement[] = [];
+
+    allCssFiles.forEach(href => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+      linkElements.push(link);
+    });
+
+    // Cleanup on unmount
+    return () => {
+      linkElements.forEach(link => {
+        if (link.parentNode) {
+          link.parentNode.removeChild(link);
+        }
+      });
+    };
+  }, []);
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('marketing-theme') || 'light-mode';
