@@ -13,9 +13,10 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, Sparkles, Loader2, ArrowLeft, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 interface DictationDialogProps {
   isOpen: boolean;
@@ -124,6 +125,11 @@ export function DictationDialog({
   };
 
   const handleUsePolished = () => {
+    console.log('[DictationDialog] Using polished text:', {
+      subject: polishedSubject,
+      bodyLength: polishedText.length,
+      bodyPreview: polishedText.substring(0, 100)
+    });
     if (rememberChoice) {
       localStorage.setItem(STORAGE_KEY, 'always_polish');
     }
@@ -144,6 +150,13 @@ export function DictationDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl p-0 [&>button]:hidden">
+        <VisuallyHidden>
+          <DialogTitle>
+            {step === 'choice' && 'Dictation Complete'}
+            {step === 'polishing' && 'Polishing with AI'}
+            {step === 'comparison' && 'AI Enhanced Version'}
+          </DialogTitle>
+        </VisuallyHidden>
         {/* STEP 1: Choice */}
         {step === 'choice' && (
           <>

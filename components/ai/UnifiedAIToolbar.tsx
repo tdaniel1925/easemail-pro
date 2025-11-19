@@ -92,9 +92,16 @@ export function UnifiedAIToolbar({
 
   // Handle "Use Polished" from dialog
   const handleUsePolished = (polishedSubject: string, polishedText: string) => {
+    console.log('[UnifiedAIToolbar] Received polished text:', {
+      currentBody: body,
+      polishedSubject,
+      polishedText: polishedText.substring(0, 100) + '...'
+    });
     onSubjectChange(polishedSubject);
     const separator = body.trim() ? ' ' : '';
-    onBodyChange(body.trim() + separator + polishedText);
+    const newBody = body.trim() + separator + polishedText;
+    console.log('[UnifiedAIToolbar] Setting new body:', newBody.substring(0, 100) + '...');
+    onBodyChange(newBody);
   };
 
   // Handle voice message attachment
