@@ -125,9 +125,9 @@ async function performBackgroundSync(
   const startTime = Date.now();
   const TIMEOUT_MS = 4.5 * 60 * 1000; // 4.5 minutes (more sync time per run)
   
-  // ✅ SPEED OPTIMIZATION: Reduced delays for faster syncing
-  // Gmail can handle much more aggressive sync rates
-  const delayMs = provider === 'microsoft' ? 300 : 50; // Microsoft: 300ms, Gmail: 50ms (was 100ms)
+  // ✅ SAFE: Conservative delays to prevent abort errors
+  // 50ms was too aggressive and caused "operation aborted" errors
+  const delayMs = provider === 'microsoft' ? 300 : 200; // Microsoft: 300ms, Gmail: 200ms
 
   try {
     // Get current synced count and continuation count
