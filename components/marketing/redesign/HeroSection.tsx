@@ -73,14 +73,14 @@ export default function HeroSection() {
           </div>
         </div>
 
-        {/* Hero Image - AI Generated Mockup */}
+        {/* Hero Image - Real Dashboard Screenshot */}
         <div className="mt-16 mx-auto max-w-6xl">
           <div className="relative rounded-xl border bg-background/50 p-4 shadow-2xl backdrop-blur-sm">
-            <div className="aspect-video rounded-lg overflow-hidden">
+            <div className="rounded-lg overflow-hidden">
               <img 
-                src="/assets/marketing/mobile-desktop-mockup.png" 
-                alt="EaseMail Dashboard - Multi-device email management"
-                className="w-full h-full object-cover"
+                src="/assets/screenshots/dashboard-main.png" 
+                alt="EaseMail Dashboard - Unified inbox with AI-powered features"
+                className="w-full h-auto"
               />
             </div>
           </div>
