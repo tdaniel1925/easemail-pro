@@ -163,12 +163,14 @@ async function sendCreditNoteEmail(creditNote: any, invoice: any): Promise<void>
   const email = await getEntityEmail(recipient);
   if (!email) return;
   
-  const typeLabel = {
+  const typeLabels: Record<CreditNoteType, string> = {
     refund: 'Refund',
     adjustment: 'Billing Adjustment',
     goodwill: 'Goodwill Credit',
     dispute: 'Dispute Resolution',
-  }[creditNote.type || 'adjustment'];
+  };
+  
+  const typeLabel = typeLabels[creditNote.type as CreditNoteType] || 'Credit';
   
   await sendEmail({
     to: email,
