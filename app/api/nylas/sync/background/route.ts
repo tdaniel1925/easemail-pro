@@ -125,9 +125,10 @@ async function performBackgroundSync(
   const startTime = Date.now();
   const TIMEOUT_MS = 4.5 * 60 * 1000; // 4.5 minutes (more sync time per run)
   
-  // ✅ SAFE: Conservative delays to prevent abort errors
-  // 50ms was too aggressive and caused "operation aborted" errors
-  const delayMs = provider === 'microsoft' ? 300 : 200; // Microsoft: 300ms, Gmail: 200ms
+  // ✅ RATE LIMIT FIX: Conservative delays to prevent Gmail 429 errors
+  // Gmail limits: ~1,200 quota/min = max ~600 emails/min safe rate
+  // 500ms delay = 120 requests/min = ~600 emails/min (safe for Gmail)
+  const delayMs = provider === 'microsoft' ? 300 : 500; // Microsoft: 300ms, Gmail: 500ms
 
   try {
     // Get current synced count and continuation count
@@ -486,7 +487,13 @@ async function performBackgroundSync(
         await new Promise(resolve => setTimeout(resolve, delayMs));
 
       } catch (pageError) {
+        // Enhanced error logging for debugging
+        const errorType = (pageError as any)?.type || 'unknown';
+        const errorCode = (pageError as any)?.providerError?.error?.code || (pageError as any)?.statusCode || (pageError as any)?.status;
+        const errorMsg = (pageError as any)?.providerError?.error?.message || (pageError as any)?.message || 'Unknown error';
+        
         console.error(`❌ Error fetching page ${currentPage}:`, pageError);
+        console.error(`📋 Error details: Type=${errorType}, Code=${errorCode}, Message=${errorMsg}`);
 
         // Get current account state for retry logic
         const currentAccount = await db.query.emailAccounts.findFirst({
@@ -499,11 +506,13 @@ async function performBackgroundSync(
         if (retryCount <= maxRetries) {
           // Check if it's a rate limit error for smarter backoff
           const isRateLimit = isRateLimitError(pageError);
+          const isServiceError = isRetryableError(pageError) && !isRateLimit;
           let backoffMs: number;
 
           if (isRateLimit) {
             // For rate limits, use longer backoff and respect Retry-After if available
-            console.log(`⏱️ Rate limit detected on retry ${retryCount}/${maxRetries}`);
+            console.log(`⏱️ Rate limit (429) detected on retry ${retryCount}/${maxRetries}`);
+            console.log(`📊 Gmail quota used: ${(pageError as any)?.headers?.['nylas-gmail-quota-usage'] || 'unknown'}`);
 
             // Extract Retry-After from error if available (Nylas includes this in some error responses)
             const retryAfter = (pageError as any)?.response?.headers?.get?.('retry-after');
@@ -512,14 +521,25 @@ async function performBackgroundSync(
               console.log(`📋 Using Retry-After header: ${backoffMs}ms`);
             } else {
               // Use exponential backoff with higher base for rate limits
+              // 30s, 60s, 120s
               backoffMs = calculateBackoffDelay(retryCount, {
                 maxRetries: maxRetries,
-                initialDelayMs: 5000, // Start at 5 seconds for rate limits
-                maxDelayMs: 60000, // Max 60 seconds
+                initialDelayMs: 30000, // ✅ INCREASED: Start at 30 seconds for rate limits
+                maxDelayMs: 120000, // ✅ INCREASED: Max 2 minutes
                 backoffMultiplier: 2,
-                jitterMs: 1000,
+                jitterMs: 5000, // Add 0-5s jitter
               });
             }
+          } else if (isServiceError) {
+            // For 503 and other service errors, use moderate backoff
+            console.log(`🔧 Service error (${errorCode}) detected on retry ${retryCount}/${maxRetries}`);
+            backoffMs = calculateBackoffDelay(retryCount, {
+              maxRetries: maxRetries,
+              initialDelayMs: 5000, // Start at 5 seconds for service errors
+              maxDelayMs: 30000, // Max 30 seconds
+              backoffMultiplier: 2,
+              jitterMs: 2000,
+            });
           } else {
             // Standard exponential backoff for other errors
             backoffMs = calculateBackoffDelay(retryCount, {
@@ -530,7 +550,7 @@ async function performBackgroundSync(
             });
           }
 
-          console.log(`🔄 Retry ${retryCount}/${maxRetries} in ${backoffMs}ms for account ${accountId}${isRateLimit ? ' (rate limited)' : ''}`);
+          console.log(`🔄 Retry ${retryCount}/${maxRetries} in ${Math.round(backoffMs/1000)}s for account ${accountId}${isRateLimit ? ' (rate limited)' : isServiceError ? ' (service error)' : ''}`);
 
           const errorMessage = pageError instanceof Error ? pageError.message : 'Unknown error';
           await db.update(emailAccounts)
@@ -538,7 +558,9 @@ async function performBackgroundSync(
               retryCount: retryCount,
               lastRetryAt: new Date(),
               lastError: isRateLimit
-                ? `Rate limited - retrying ${retryCount}/${maxRetries} (waiting ${Math.round(backoffMs/1000)}s)`
+                ? `⏱️ Rate limited (429) - retrying ${retryCount}/${maxRetries} (waiting ${Math.round(backoffMs/1000)}s)`
+                : isServiceError
+                ? `🔧 Service error (${errorCode}) - retrying ${retryCount}/${maxRetries} (waiting ${Math.round(backoffMs/1000)}s)`
                 : `Retry ${retryCount}/${maxRetries}: ${errorMessage}`,
             })
             .where(eq(emailAccounts.id, accountId));

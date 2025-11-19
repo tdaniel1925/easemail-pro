@@ -113,6 +113,12 @@ export function sleep(ms: number): Promise<void> {
 export function isRateLimitError(error: any): boolean {
   if (error?.response?.status === 429) return true;
   if (error?.status === 429) return true;
+  if (error?.statusCode === 429) return true;
+  
+  // Nylas provider errors (Gmail, Microsoft, etc.)
+  if (error?.providerError?.error?.code === 429) return true;
+  if (error?.type === 'rate_limit_error') return true;
+  
   if (error?.message && /rate limit|too many requests|429/i.test(error.message)) return true;
   return false;
 }
@@ -128,12 +134,16 @@ export function isRetryableError(error: any): boolean {
   if (error?.code === 'ETIMEDOUT' || error?.code === 'ECONNREFUSED') return true;
   if (error?.message && /timeout|ETIMEDOUT|ECONNREFUSED/i.test(error.message)) return true;
 
-  // 5xx server errors are retryable
-  const status = error?.response?.status || error?.status;
+  // 5xx server errors are retryable (including Nylas provider errors)
+  const status = error?.response?.status || error?.status || error?.statusCode;
   if (status >= 500 && status < 600) return true;
+  
+  // Nylas provider 5xx errors (e.g., Gmail 503)
+  if (error?.providerError?.error?.code >= 500 && error?.providerError?.error?.code < 600) return true;
+  if (error?.type === 'provider_error' && error?.statusCode >= 500) return true;
 
   // Network errors are retryable
-  if (error?.message && /network|fetch failed|connection/i.test(error.message)) return true;
+  if (error?.message && /network|fetch failed|connection|service unavailable|503/i.test(error.message)) return true;
 
   return false;
 }
