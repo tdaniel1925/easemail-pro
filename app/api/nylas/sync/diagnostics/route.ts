@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     // Check if sync is in retry backoff
     const isInRetryBackoff = 
-      account.retryCount > 0 &&
+      (account.retryCount ?? 0) > 0 &&
       account.lastRetryAt &&
       (now - new Date(account.lastRetryAt).getTime()) < 120000; // Less than 2 min since last retry
 
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         // Cursor & pagination
         hasCursor: !!account.syncCursor,
         cursorPreview: account.syncCursor?.substring(0, 20) + '...',
-        continuationCount: account.continuationCount,
+        continuationCount: account.continuationCount ?? 0,
         
         // Activity tracking
         lastSyncedAt: account.lastSyncedAt,
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         
         // Error & retry info
         lastError: account.lastError,
-        retryCount: account.retryCount,
+        retryCount: account.retryCount ?? 0,
         lastRetryAt: account.lastRetryAt,
         isInRetryBackoff,
         
