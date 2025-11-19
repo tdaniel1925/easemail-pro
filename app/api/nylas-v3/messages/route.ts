@@ -8,7 +8,7 @@ import { fetchMessages, fetchMessage } from '@/lib/nylas-v3/messages';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,14 +70,62 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 3. Fetch messages from Nylas
-    const result = await fetchMessages({
-      grantId: account.nylasGrantId,
-      folderId: folderId || undefined,
-      limit,
-      pageToken: cursor || undefined,
-      unread: unread === 'true' ? true : unread === 'false' ? false : undefined,
-    });
+    // 3. Check if this is a virtual folder (v0:accountId:folderName format)
+    const isVirtualFolder = folderId?.startsWith('v0:');
+    let result;
+
+    if (isVirtualFolder) {
+      // Parse virtual folder: v0:accountId:folderName
+      const parts = folderId!.split(':');
+      const folderName = parts[2]?.toLowerCase();
+
+      console.log('[Messages] Fetching from virtual folder:', folderName);
+
+      // Query local database for virtual folders
+      const { emails } = await import('@/lib/db/schema');
+      const { desc } = await import('drizzle-orm');
+
+      const dbMessages = await db.query.emails.findMany({
+        where: and(
+          eq(emails.accountId, account.id),
+          eq(emails.folder, folderName)
+        ),
+        orderBy: [desc(emails.sentAt)],
+        limit,
+      });
+
+      // Transform database messages to Nylas format
+      result = {
+        messages: dbMessages.map((msg: any) => ({
+          id: msg.providerMessageId || msg.id,
+          grant_id: account.nylasGrantId,
+          thread_id: msg.threadId,
+          subject: msg.subject,
+          from: [{ email: msg.fromEmail, name: msg.fromName }],
+          to: msg.toEmails || [],
+          cc: msg.ccEmails || [],
+          bcc: msg.bccEmails || [],
+          date: Math.floor(new Date(msg.sentAt || msg.receivedAt).getTime() / 1000),
+          unread: !msg.isRead,
+          starred: msg.isStarred,
+          snippet: msg.snippet,
+          body: msg.bodyHtml || msg.bodyText,
+          folders: msg.folders || [folderName],
+          attachments: msg.attachments || [],
+        })),
+        nextCursor: null,
+        hasMore: false,
+      };
+    } else {
+      // Fetch from Nylas for real folders
+      result = await fetchMessages({
+        grantId: account.nylasGrantId,
+        folderId: folderId || undefined,
+        limit,
+        pageToken: cursor || undefined,
+        unread: unread === 'true' ? true : unread === 'false' ? false : undefined,
+      });
+    }
 
     // 4. Enrich messages with thread email counts from our database
     const enrichedMessages = await Promise.all(
