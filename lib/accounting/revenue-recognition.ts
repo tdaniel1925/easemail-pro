@@ -228,10 +228,10 @@ export async function getRevenueRecognitionSummary(params?: {
   deferredRevenue: number;
   byStatus: Record<string, number>;
 }> {
-  let query = db.select().from(revenueSchedule);
+  const conditions = [];
   
   if (params?.startDate && params?.endDate) {
-    query = query.where(
+    conditions.push(
       and(
         gte(revenueSchedule.recognitionStart, params.startDate),
         lte(revenueSchedule.recognitionEnd, params.endDate)
@@ -239,7 +239,9 @@ export async function getRevenueRecognitionSummary(params?: {
     );
   }
   
-  const schedules = await query;
+  const schedules = conditions.length > 0
+    ? await db.select().from(revenueSchedule).where(and(...conditions))
+    : await db.select().from(revenueSchedule);
   
   const totalRevenue = schedules.reduce(
     (sum, s) => sum + parseFloat(s.totalAmount || '0'),
