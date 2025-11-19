@@ -67,15 +67,15 @@ export async function GET(request: NextRequest) {
 
     const totalRevenue = allInvoices
       .filter(inv => inv.status === 'paid')
-      .reduce((sum, inv) => sum + parseFloat(inv.total || '0'), 0);
+      .reduce((sum, inv) => sum + parseFloat(inv.totalUsd || inv.total || '0'), 0);
 
     const pendingRevenue = allInvoices
       .filter(inv => inv.status === 'pending')
-      .reduce((sum, inv) => sum + parseFloat(inv.total || '0'), 0);
+      .reduce((sum, inv) => sum + parseFloat(inv.totalUsd || inv.total || '0'), 0);
 
     const failedRevenue = allInvoices
       .filter(inv => inv.status === 'failed')
-      .reduce((sum, inv) => sum + parseFloat(inv.total || '0'), 0);
+      .reduce((sum, inv) => sum + parseFloat(inv.totalUsd || inv.total || '0'), 0);
 
     // 2. Cost Summary
     const allCosts = await db
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     // 4. Revenue by Source (subscriptions vs usage)
     const subscriptionRevenue = allInvoices
       .filter(inv => inv.status === 'paid')
-      .reduce((sum, inv) => sum + parseFloat(inv.subtotal || '0'), 0); // Simplified
+      .reduce((sum, inv) => sum + parseFloat(inv.amountUsd || inv.amount || '0'), 0); // Simplified
 
     const usageRevenue = allCosts.reduce((sum, c) => sum + parseFloat(c.costUsd || '0'), 0);
 
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
           };
         }
         
-        acc[key].revenue += parseFloat(inv.total || '0');
+        acc[key].revenue += parseFloat(inv.totalUsd || inv.total || '0');
         acc[key].invoiceCount += 1;
         
         return acc;
@@ -186,7 +186,7 @@ export async function GET(request: NextRequest) {
       .reduce((acc, inv) => {
         const date = new Date(inv.createdAt!).toISOString().split('T')[0];
         if (!acc[date]) acc[date] = 0;
-        acc[date] += parseFloat(inv.total || '0');
+        acc[date] += parseFloat(inv.totalUsd || inv.total || '0');
         return acc;
       }, {} as Record<string, number>);
 

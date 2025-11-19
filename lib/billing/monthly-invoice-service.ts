@@ -173,9 +173,9 @@ async function generateAndChargeOrgInvoice(
     userId: null,
     periodStart: period.start,
     periodEnd: period.end,
-    subtotal: subtotal.toFixed(2),
-    taxAmount: taxAmount.toFixed(2),
-    total: total.toFixed(2),
+    amountUsd: subtotal.toFixed(2),
+    taxAmountUsd: taxAmount.toFixed(2),
+    totalUsd: total.toFixed(2),
     status: 'pending',
     dueDate: new Date(), // Immediate payment
   }).returning();
@@ -285,9 +285,9 @@ async function generateAndChargeUserInvoice(
     organizationId: null,
     periodStart: period.start,
     periodEnd: period.end,
-    subtotal: subtotal.toFixed(2),
-    taxAmount: taxAmount.toFixed(2),
-    total: total.toFixed(2),
+    amountUsd: subtotal.toFixed(2),
+    taxAmountUsd: taxAmount.toFixed(2),
+    totalUsd: total.toFixed(2),
     status: 'pending',
     dueDate: new Date(),
   }).returning();
@@ -497,7 +497,7 @@ async function sendInvoiceEmail(
   
   await sendEmail({
     to: email,
-    subject: `Invoice ${invoice.invoiceNumber} - $${invoice.total}`,
+    subject: `Invoice ${invoice.invoiceNumber} - $${invoice.totalUsd || invoice.total}`,
     html: `
       <h2>Invoice ${invoice.invoiceNumber}</h2>
       <p><strong>Period:</strong> ${new Date(invoice.periodStart).toLocaleDateString()} - ${new Date(invoice.periodEnd).toLocaleDateString()}</p>
@@ -518,17 +518,17 @@ async function sendInvoiceEmail(
         <tfoot>
           <tr>
             <td colspan="3" style="padding: 8px; text-align: right;"><strong>Subtotal:</strong></td>
-            <td style="padding: 8px; text-align: right;"><strong>$${invoice.subtotal}</strong></td>
+            <td style="padding: 8px; text-align: right;"><strong>$${invoice.amountUsd || invoice.amount}</strong></td>
           </tr>
-          ${parseFloat(invoice.taxAmount) > 0 ? `
+          ${parseFloat(invoice.taxAmountUsd || invoice.tax || '0') > 0 ? `
           <tr>
             <td colspan="3" style="padding: 8px; text-align: right;"><strong>Tax:</strong></td>
-            <td style="padding: 8px; text-align: right;"><strong>$${invoice.taxAmount}</strong></td>
+            <td style="padding: 8px; text-align: right;"><strong>$${invoice.taxAmountUsd || invoice.tax}</strong></td>
           </tr>
           ` : ''}
           <tr style="font-size: 1.2em;">
             <td colspan="3" style="padding: 8px; text-align: right;"><strong>Total:</strong></td>
-            <td style="padding: 8px; text-align: right;"><strong>$${invoice.total}</strong></td>
+            <td style="padding: 8px; text-align: right;"><strong>$${invoice.totalUsd || invoice.total}</strong></td>
           </tr>
         </tfoot>
       </table>
