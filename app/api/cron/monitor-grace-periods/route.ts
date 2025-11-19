@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
         and(
           eq(organizations.accountStatus, 'grace_period'),
           lte(organizations.gracePeriodEndsAt, tomorrow),
-          lte(now, organizations.gracePeriodEndsAt)
+          gte(organizations.gracePeriodEndsAt, now)
         )
       );
     
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
         and(
           eq(users.accountStatus, 'grace_period'),
           lte(users.gracePeriodEndsAt, tomorrow),
-          lte(now, users.gracePeriodEndsAt)
+          gte(users.gracePeriodEndsAt, now)
         )
       );
     
