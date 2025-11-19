@@ -84,11 +84,51 @@ export function UnifiedAIToolbar({
     setShowInlineDictation(false);
   };
 
+  // ✅ FIX: Smart insertion - place dictation at the VERY TOP, above blank lines and signature
+  const insertAtTop = (textToInsert: string): string => {
+    const currentBody = body.trim();
+
+    if (!currentBody) {
+      // Empty body - just return the dictation
+      return textToInsert;
+    }
+
+    // Parse body to find where actual content starts (skip blank divs)
+    // Body structure: <div><br/></div><div><br/></div> [signature] [quoted content]
+
+    // Convert HTML to temporary element for parsing
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = currentBody;
+
+    // Find the first non-empty div (signature or quoted content)
+    const allDivs = tempDiv.querySelectorAll('div');
+    let insertPosition = 0;
+
+    // Skip leading blank divs (<div><br/></div>)
+    for (let i = 0; i < allDivs.length; i++) {
+      const div = allDivs[i];
+      const textContent = div.textContent?.trim() || '';
+      const innerHTML = div.innerHTML.trim();
+
+      // Check if it's a blank div: <br/> or <br> only
+      const isBlankDiv = innerHTML === '<br>' || innerHTML === '<br/>' || textContent === '';
+
+      if (!isBlankDiv) {
+        // Found first non-blank div - this is where we insert
+        break;
+      }
+      insertPosition = i + 1;
+    }
+
+    // Build new body: dictation + blank line + existing content (signature + quoted text)
+    const dictationHtml = `<div>${textToInsert}</div><div><br/></div>`;
+    return dictationHtml + currentBody;
+  };
+
   // Handle "Use As-Is" from dialog
   const handleUseAsIs = (text: string) => {
-    // Prepend text at the top (before existing content)
-    const separator = body.trim() ? '\n\n' : '';
-    onBodyChange(text + separator + body.trim());
+    const newBody = insertAtTop(text);
+    onBodyChange(newBody);
   };
 
   // Handle "Use Polished" from dialog
@@ -99,9 +139,7 @@ export function UnifiedAIToolbar({
       polishedText: polishedText.substring(0, 100) + '...'
     });
     onSubjectChange(polishedSubject);
-    // Prepend polished text at the top (before existing content like signature)
-    const separator = body.trim() ? '\n\n' : '';
-    const newBody = polishedText + separator + body.trim();
+    const newBody = insertAtTop(polishedText);
     console.log('[UnifiedAIToolbar] Setting new body:', newBody.substring(0, 100) + '...');
     onBodyChange(newBody);
   };

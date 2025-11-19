@@ -76,12 +76,36 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [showBcc, setShowBcc] = useState(false);
   const [showURLDialog, setShowURLDialog] = useState(false);
   
+  // ✅ FIX: Initialize recipients based on compose type (reply/reply-all/forward)
+  const initializeRecipients = () => {
+    if (!replyTo) return { to: [], cc: [], bcc: [] };
+
+    if (type === 'reply') {
+      // Reply: Only reply to the sender
+      return {
+        to: replyTo.to ? [{ email: replyTo.to }] : [],
+        cc: [],
+        bcc: []
+      };
+    } else if (type === 'reply-all') {
+      // Reply-All: Include original sender in To
+      // Note: CC recipients should be populated if available in replyTo
+      return {
+        to: replyTo.to ? [{ email: replyTo.to }] : [],
+        cc: [], // Will be populated if CC data is available in replyTo
+        bcc: []
+      };
+    } else {
+      return { to: [], cc: [], bcc: [] };
+    }
+  };
+
+  const initialRecipients = initializeRecipients();
+
   // Form state
-  const [to, setTo] = useState<Array<{ email: string; name?: string }>>(
-    replyTo?.to ? [{ email: replyTo.to }] : []
-  );
-  const [cc, setCc] = useState<Array<{ email: string; name?: string }>>([]);
-  const [bcc, setBcc] = useState<Array<{ email: string; name?: string }>>([]);
+  const [to, setTo] = useState<Array<{ email: string; name?: string }>>(initialRecipients.to);
+  const [cc, setCc] = useState<Array<{ email: string; name?: string }>>(initialRecipients.cc);
+  const [bcc, setBcc] = useState<Array<{ email: string; name?: string }>>(initialRecipients.bcc);
   const [subject, setSubject] = useState(replyTo?.subject || '');
   const [body, setBody] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -110,6 +134,16 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [showSignatureDropdown, setShowSignatureDropdown] = useState(false);
   const [showSignaturePrompt, setShowSignaturePrompt] = useState(false);
   const [hideSignaturePromptPreference, setHideSignaturePromptPreference] = useState(false);
+
+  // ✅ FIX: Show CC/BCC fields if they have initial recipients
+  useEffect(() => {
+    if (cc.length > 0) {
+      setShowCc(true);
+    }
+    if (bcc.length > 0) {
+      setShowBcc(true);
+    }
+  }, []); // Only run on mount
 
   // Load user preferences on mount
   useEffect(() => {
