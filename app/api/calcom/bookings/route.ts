@@ -5,6 +5,9 @@ import {
   CalcomFetchOptions,
   CalcomBooking,
 } from '@/lib/calcom/calcom-service';
+import { db } from '@/lib/db/drizzle';
+import { calendarEvents } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,6 +112,7 @@ export async function GET(request: NextRequest) {
     const syncedBookings = [];
     for (const booking of bookings) {
       try {
+        // 1. Upsert to calcom_bookings table (Supabase)
         const { data: synced, error: syncError } = await supabase
           .from('calcom_bookings')
           .upsert({
@@ -141,6 +145,66 @@ export async function GET(request: NextRequest) {
 
         if (!syncError && synced) {
           syncedBookings.push(synced);
+
+          // 2. Also insert into calendar_events table so it shows in calendar UI
+          try {
+            const eventId = `calcom_${booking.uid}`;
+            const startTime = new Date(booking.startTime);
+            const endTime = new Date(booking.endTime);
+
+            // Check if event already exists
+            const existingEvent = await db.query.calendarEvents.findFirst({
+              where: and(
+                eq(calendarEvents.id, eventId),
+                eq(calendarEvents.userId, session.user.id)
+              ),
+            });
+
+            const eventData = {
+              id: eventId,
+              userId: session.user.id,
+              calendarId: 'calcom', // Special calendar ID for Cal.com events
+              title: booking.title || booking.eventType?.title || 'Cal.com Booking',
+              description: booking.description || null,
+              location: booking.location || booking.meetingUrl || null,
+              startTime,
+              endTime,
+              isAllDay: false,
+              status: booking.status.toLowerCase() as 'confirmed' | 'cancelled' | 'tentative',
+              busy: true,
+              metadata: {
+                source: 'calcom',
+                bookingUid: booking.uid,
+                bookingId: booking.id,
+                eventTypeId: booking.eventTypeId,
+                organizer: booking.organizer,
+                attendees: booking.attendees,
+                meetingUrl: booking.meetingUrl,
+              },
+              updatedAt: new Date(),
+            };
+
+            if (existingEvent) {
+              await db.update(calendarEvents)
+                .set(eventData)
+                .where(
+                  and(
+                    eq(calendarEvents.id, eventId),
+                    eq(calendarEvents.userId, session.user.id)
+                  )
+                );
+              console.log(`[Cal.com] Updated event in calendar: ${booking.title}`);
+            } else {
+              await db.insert(calendarEvents).values({
+                ...eventData,
+                createdAt: new Date(),
+              });
+              console.log(`[Cal.com] Added event to calendar: ${booking.title}`);
+            }
+          } catch (calendarError) {
+            console.error('[Cal.com] Error syncing to calendar_events:', calendarError);
+            // Don't fail the whole sync if calendar insert fails
+          }
         }
       } catch (syncErr) {
         console.error('[Cal.com Bookings] Sync error for booking', booking.uid, syncErr);
