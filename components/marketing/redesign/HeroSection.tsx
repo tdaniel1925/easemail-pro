@@ -11,8 +11,13 @@ import { ArrowRight, Sparkles, Shield, Zap } from 'lucide-react';
 export default function HeroSection() {
   return (
     <section className="relative overflow-hidden py-20 sm:py-32">
-      {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
+      {/* Background with AI-generated image */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background">
+        <div 
+          className="absolute inset-0 opacity-30 bg-cover bg-center"
+          style={{ backgroundImage: 'url(/assets/marketing/hero-background.png)' }}
+        />
+      </div>
       
       <div className="container relative mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
@@ -68,21 +73,15 @@ export default function HeroSection() {
           </div>
         </div>
 
-        {/* Hero Image/Screenshot Placeholder */}
+        {/* Hero Image - AI Generated Mockup */}
         <div className="mt-16 mx-auto max-w-6xl">
-          <div className="relative rounded-xl border bg-muted/50 p-4 shadow-2xl">
-            <div className="aspect-video rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 mx-auto bg-primary/20 rounded-full flex items-center justify-center">
-                  <Sparkles className="h-8 w-8 text-primary" />
-                </div>
-                <p className="text-lg font-semibold text-muted-foreground">
-                  Dashboard Screenshot Placeholder
-                </p>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Add a beautiful screenshot of your EaseMail dashboard here
-                </p>
-              </div>
+          <div className="relative rounded-xl border bg-background/50 p-4 shadow-2xl backdrop-blur-sm">
+            <div className="aspect-video rounded-lg overflow-hidden">
+              <img 
+                src="/assets/marketing/mobile-desktop-mockup.png" 
+                alt="EaseMail Dashboard - Multi-device email management"
+                className="w-full h-full object-cover"
+              />
             </div>
           </div>
         </div>

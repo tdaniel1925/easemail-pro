@@ -14,18 +14,21 @@ export default function HowItWorks() {
       title: 'Connect Your Accounts',
       description: 'Link all your email accounts (Gmail, Outlook, etc.) in seconds with our secure OAuth integration.',
       icon: Mail,
+      image: '/assets/marketing/email-organization.png',
     },
     {
       number: '02',
       title: 'AI Learns Your Style',
       description: 'Our AI analyzes your writing patterns to provide personalized suggestions that match your tone.',
       icon: Sparkles,
+      image: '/assets/marketing/ai-assistant-feature.png',
     },
     {
       number: '03',
       title: 'Start Being Productive',
       description: 'Experience lightning-fast email management with AI-powered features that save hours every day.',
       icon: Zap,
+      image: '/assets/marketing/productivity-dashboard.png',
     },
   ];
 
@@ -46,8 +49,17 @@ export default function HowItWorks() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
           {steps.map((step, index) => (
             <div key={index} className="relative">
-              <Card className="p-8 h-full">
+              <Card className="p-8 h-full overflow-hidden group">
                 <div className="flex flex-col items-center text-center">
+                  {/* Image preview */}
+                  <div className="w-full -mx-8 -mt-8 mb-6 overflow-hidden">
+                    <img 
+                      src={step.image} 
+                      alt={step.title}
+                      className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+
                   {/* Number */}
                   <div className="text-5xl font-bold text-primary/20 mb-4">
                     {step.number}

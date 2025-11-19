@@ -1,0 +1,42 @@
+[
+  {
+    "name": "hero-background",
+    "status": "success",
+    "path": "/assets/marketing/hero-background.png"
+  },
+  {
+    "name": "ai-assistant-feature",
+    "status": "success",
+    "path": "/assets/marketing/ai-assistant-feature.png"
+  },
+  {
+    "name": "email-organization",
+    "status": "success",
+    "path": "/assets/marketing/email-organization.png"
+  },
+  {
+    "name": "threading-visualization",
+    "status": "success",
+    "path": "/assets/marketing/threading-visualization.png"
+  },
+  {
+    "name": "productivity-dashboard",
+    "status": "success",
+    "path": "/assets/marketing/productivity-dashboard.png"
+  },
+  {
+    "name": "team-collaboration",
+    "status": "success",
+    "path": "/assets/marketing/team-collaboration.png"
+  },
+  {
+    "name": "mobile-desktop-mockup",
+    "status": "success",
+    "path": "/assets/marketing/mobile-desktop-mockup.png"
+  },
+  {
+    "name": "smart-compose",
+    "status": "success",
+    "path": "/assets/marketing/smart-compose.png"
+  }
+]

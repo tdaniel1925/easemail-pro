@@ -13,7 +13,8 @@
     "monitor-folders": "tsx scripts/folder-sync-monitor.ts",
     "check-webhooks": "tsx scripts/check-webhooks.ts",
     "setup-webhooks": "tsx scripts/setup-webhooks.ts",
-    "cleanup-webhooks": "tsx scripts/cleanup-webhooks.ts"
+    "cleanup-webhooks": "tsx scripts/cleanup-webhooks.ts",
+    "generate-images": "tsx scripts/generate-marketing-images.ts"
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",
