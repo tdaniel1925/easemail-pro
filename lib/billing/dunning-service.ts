@@ -149,47 +149,19 @@ async function processRetryPayment(transaction: any): Promise<boolean> {
   console.log(`[Dunning] Retrying payment for transaction ${transaction.id}`);
   
   try {
-    // Import Stripe dynamically to avoid circular dependencies
-    const { processPayment } = await import('@/lib/billing/payment-processor');
+    // TODO: Implement payment processing
+    // This will be implemented when the monthly invoice automation is built
+    console.warn('[Dunning] Payment processor not yet implemented - skipping retry');
     
-    const result = await processPayment({
-      transactionId: transaction.id,
-      amount: transaction.amount,
-      userId: transaction.userId,
-      organizationId: transaction.organizationId,
-      invoiceId: transaction.invoiceId,
-    });
+    // For now, just mark the retry attempt
+    await db
+      .update(billingTransactions)
+      .set({
+        lastRetryAt: new Date(),
+      })
+      .where(eq(billingTransactions.id, transaction.id));
     
-    if (result.success) {
-      // Mark as successful
-      await db
-        .update(billingTransactions)
-        .set({
-          status: 'completed',
-          completedAt: new Date(),
-        })
-        .where(eq(billingTransactions.id, transaction.id));
-      
-      // Create success notice
-      await createBillingNotice({
-        userId: transaction.userId,
-        organizationId: transaction.organizationId,
-        noticeType: 'payment_success',
-        severity: 'info',
-        title: 'Payment Successful',
-        message: `Your payment of $${transaction.amount} was processed successfully.`,
-        transactionId: transaction.id,
-        invoiceId: transaction.invoiceId,
-      });
-      
-      await sendPaymentSuccessEmail(transaction);
-      
-      return true;
-    } else {
-      // Handle retry failure
-      await handleFailedPayment(transaction, result.error || 'Payment failed');
-      return false;
-    }
+    return false;
   } catch (error: any) {
     await handleFailedPayment(transaction, error.message || 'Unknown error');
     return false;
