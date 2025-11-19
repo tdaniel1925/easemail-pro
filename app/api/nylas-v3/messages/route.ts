@@ -7,8 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchMessages, fetchMessage } from '@/lib/nylas-v3/messages';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { emailAccounts } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { emailAccounts, emails } from '@/lib/db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,9 +82,6 @@ export async function GET(request: NextRequest) {
       console.log('[Messages] Fetching from virtual folder:', folderName);
 
       // Query local database for virtual folders
-      const { emails } = await import('@/lib/db/schema');
-      const { desc } = await import('drizzle-orm');
-
       const dbMessages = await db.query.emails.findMany({
         where: and(
           eq(emails.accountId, account.id),
