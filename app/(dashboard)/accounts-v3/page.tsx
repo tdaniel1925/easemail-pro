@@ -766,7 +766,7 @@ export default function AccountsV3Page() {
                             <span className={account.syncStatus === 'completed' ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}>
                               {syncMetrics[account.id].syncedEmailCount.toLocaleString()}
                             </span>
-                            {syncMetrics[account.id].totalEmailCount > 0 && (
+                            {syncMetrics[account.id].totalEmailCount > syncMetrics[account.id].syncedEmailCount && (
                               <>
                                 <span className="text-muted-foreground mx-2">/</span>
                                 <span className="text-muted-foreground">
@@ -776,7 +776,12 @@ export default function AccountsV3Page() {
                             )}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {account.syncStatus === 'completed' ? 'All emails downloaded' : 'emails downloaded'}
+                            {account.syncStatus === 'completed' 
+                              ? 'All emails downloaded' 
+                              : syncMetrics[account.id].totalEmailCount > syncMetrics[account.id].syncedEmailCount
+                                ? 'emails downloaded'
+                                : 'emails downloaded so far'
+                            }
                           </div>
                         </div>
 

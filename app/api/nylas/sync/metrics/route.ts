@@ -74,7 +74,10 @@ export async function GET(request: NextRequest) {
       syncStatus: account.syncStatus || 'idle',
       syncProgress: account.syncProgress || 0,
       syncedEmailCount: account.syncedEmailCount || 0,
-      totalEmailCount: account.totalEmailCount || 0,
+      // Use actualEmailCount as totalEmailCount during sync, then use stored total when complete
+      totalEmailCount: account.initialSyncCompleted && account.totalEmailCount > 0 
+        ? account.totalEmailCount 
+        : actualEmailCount || account.syncedEmailCount || 0,
       actualEmailCount, // Real count from database
 
       // Timing
