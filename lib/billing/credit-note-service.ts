@@ -252,15 +252,21 @@ export async function getCreditNotes(params: {
 }): Promise<CreditNote[]> {
   const { userId, organizationId, limit = 50 } = params;
   
-  let query = db.select().from(creditNotes);
-  
   if (userId) {
-    query = query.where(eq(creditNotes.userId, userId));
+    return await db
+      .select()
+      .from(creditNotes)
+      .where(eq(creditNotes.userId, userId))
+      .limit(limit);
   } else if (organizationId) {
-    query = query.where(eq(creditNotes.organizationId, organizationId));
+    return await db
+      .select()
+      .from(creditNotes)
+      .where(eq(creditNotes.organizationId, organizationId))
+      .limit(limit);
   }
   
-  return await query.limit(limit);
+  return await db.select().from(creditNotes).limit(limit);
 }
 
 /**
@@ -272,15 +278,21 @@ export async function getTotalCredits(params: {
 }): Promise<number> {
   const { userId, organizationId } = params;
   
-  let query = db.select().from(creditNotes);
+  let notes: CreditNote[];
   
   if (userId) {
-    query = query.where(eq(creditNotes.userId, userId));
+    notes = await db
+      .select()
+      .from(creditNotes)
+      .where(eq(creditNotes.userId, userId));
   } else if (organizationId) {
-    query = query.where(eq(creditNotes.organizationId, organizationId));
+    notes = await db
+      .select()
+      .from(creditNotes)
+      .where(eq(creditNotes.organizationId, organizationId));
+  } else {
+    notes = await db.select().from(creditNotes);
   }
-  
-  const notes = await query;
   
   return notes
     .filter(n => n.status === 'applied' || n.status === 'issued')
