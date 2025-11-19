@@ -2056,10 +2056,203 @@ export const scheduledEmailsRelations = relations(scheduledEmails, ({ one }) => 
   }),
 }));
 
+// =============================================================================
+// ENHANCED BILLING & COST TRACKING TABLES
+// =============================================================================
+
+// Cost Entries - Unified tracking for all services
+export const costEntries = pgTable('cost_entries', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id),
+  
+  // Cost details
+  service: varchar('service', { length: 50 }).notNull(), // 'openai', 'sms', 'storage', 'whisper', 'stripe_fee'
+  feature: varchar('feature', { length: 100 }), // 'ai_compose', 'ai_summary', 'dictation', etc
+  costUsd: decimal('cost_usd', { precision: 10, scale: 4 }).notNull(),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }),
+  unit: varchar('unit', { length: 50 }), // 'tokens', 'messages', 'gb', 'api_call'
+  
+  // Attribution
+  billableToOrg: boolean('billable_to_org').default(false),
+  
+  // Time tracking
+  periodStart: timestamp('period_start').notNull(),
+  periodEnd: timestamp('period_end').notNull(),
+  occurredAt: timestamp('occurred_at').defaultNow(),
+  
+  // Billing linkage
+  invoiceId: uuid('invoice_id'),
+  invoiceLineItemId: uuid('invoice_line_item_id'),
+  transactionId: uuid('transaction_id'),
+  
+  // Additional data
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('idx_cost_user').on(table.userId),
+  orgIdx: index('idx_cost_org').on(table.organizationId),
+  periodIdx: index('idx_cost_period').on(table.periodStart, table.periodEnd),
+  serviceIdx: index('idx_cost_service').on(table.service),
+  invoiceIdx: index('idx_cost_invoice').on(table.invoiceId),
+}));
+
+// Subscription Periods - Pro-rating tracking
+export const subscriptionPeriods = pgTable('subscription_periods', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  subscriptionId: uuid('subscription_id').references(() => subscriptions.id).notNull(),
+  userId: uuid('user_id').references(() => users.id),
+  organizationId: uuid('organization_id').references(() => organizations.id),
+  
+  // Period details
+  periodStart: timestamp('period_start').notNull(),
+  periodEnd: timestamp('period_end').notNull(),
+  isProRated: boolean('is_pro_rated').default(false),
+  daysInPeriod: integer('days_in_period'),
+  daysInFullMonth: integer('days_in_full_month'),
+  
+  // Pricing
+  basePrice: decimal('base_price', { precision: 10, scale: 2 }),
+  proRatedPrice: decimal('pro_rated_price', { precision: 10, scale: 2 }),
+  
+  // Billing status
+  invoiceId: uuid('invoice_id'),
+  billedAt: timestamp('billed_at'),
+  
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  subscriptionIdx: index('idx_subperiod_subscription').on(table.subscriptionId),
+  periodIdx: index('idx_subperiod_period').on(table.periodStart, table.periodEnd),
+}));
+
+// Revenue Schedule - Revenue recognition
+export const revenueSchedule = pgTable('revenue_schedule', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  invoiceId: uuid('invoice_id').notNull(),
+  invoiceLineItemId: uuid('invoice_line_item_id'),
+  
+  // Revenue details
+  totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),
+  recognizedAmount: decimal('recognized_amount', { precision: 10, scale: 2 }).default('0'),
+  unrecognizedAmount: decimal('unrecognized_amount', { precision: 10, scale: 2 }),
+  
+  // Schedule
+  recognitionStart: timestamp('recognition_start').notNull(),
+  recognitionEnd: timestamp('recognition_end').notNull(),
+  recognitionMethod: varchar('recognition_method', { length: 50 }), // 'immediate', 'monthly', 'daily'
+  
+  // Status
+  status: varchar('status', { length: 50 }).default('pending'), // 'pending', 'recognizing', 'complete'
+  
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  invoiceIdx: index('idx_revenue_invoice').on(table.invoiceId),
+  periodIdx: index('idx_revenue_period').on(table.recognitionStart, table.recognitionEnd),
+  statusIdx: index('idx_revenue_status').on(table.status),
+}));
+
+// Credit Notes - Refunds and adjustments
+export const creditNotes = pgTable('credit_notes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  creditNoteNumber: varchar('credit_note_number', { length: 50 }).notNull().unique(),
+  invoiceId: uuid('invoice_id'),
+  userId: uuid('user_id').references(() => users.id),
+  organizationId: uuid('organization_id').references(() => organizations.id),
+  
+  // Amounts
+  amountUsd: decimal('amount_usd', { precision: 10, scale: 2 }).notNull(),
+  reason: text('reason'),
+  type: varchar('type', { length: 50 }), // 'refund', 'adjustment', 'goodwill', 'dispute'
+  
+  // Status
+  status: varchar('status', { length: 50 }).default('draft'), // 'draft', 'issued', 'applied', 'void'
+  issuedAt: timestamp('issued_at'),
+  appliedAt: timestamp('applied_at'),
+  
+  // Stripe integration
+  stripeCreditNoteId: varchar('stripe_credit_note_id', { length: 255 }),
+  
+  createdAt: timestamp('created_at').defaultNow(),
+  createdBy: uuid('created_by').references(() => users.id),
+}, (table) => ({
+  invoiceIdx: index('idx_credit_invoice').on(table.invoiceId),
+  userIdx: index('idx_credit_user').on(table.userId),
+  orgIdx: index('idx_credit_org').on(table.organizationId),
+  statusIdx: index('idx_credit_status').on(table.status),
+}));
+
+// Account Status History - Track status changes
+export const accountStatusHistory = pgTable('account_status_history', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id),
+  organizationId: uuid('organization_id').references(() => organizations.id),
+  
+  // Status change
+  previousStatus: varchar('previous_status', { length: 50 }),
+  newStatus: varchar('new_status', { length: 50 }).notNull(),
+  reason: text('reason'),
+  
+  // Related entities
+  invoiceId: uuid('invoice_id'),
+  transactionId: uuid('transaction_id'),
+  
+  // Who/when
+  changedBy: uuid('changed_by').references(() => users.id),
+  changedAt: timestamp('changed_at').defaultNow().notNull(),
+  
+  // Metadata
+  metadata: jsonb('metadata').$type<Record<string, any>>(),
+}, (table) => ({
+  userIdx: index('idx_status_history_user').on(table.userId),
+  orgIdx: index('idx_status_history_org').on(table.organizationId),
+  dateIdx: index('idx_status_history_date').on(table.changedAt),
+}));
+
+// Billing Notices - User notifications
+export const billingNotices = pgTable('billing_notices', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id),
+  organizationId: uuid('organization_id').references(() => organizations.id),
+  
+  // Notice details
+  noticeType: varchar('notice_type', { length: 50 }).notNull(), // 'payment_failed', 'payment_retry', 'grace_period', etc.
+  severity: varchar('severity', { length: 20 }).notNull(), // 'info', 'warning', 'critical'
+  title: varchar('title', { length: 255 }).notNull(),
+  message: text('message').notNull(),
+  
+  // Related entities
+  invoiceId: uuid('invoice_id'),
+  transactionId: uuid('transaction_id'),
+  
+  // Status
+  status: varchar('status', { length: 50 }).default('pending'), // 'pending', 'sent', 'read', 'dismissed'
+  sentAt: timestamp('sent_at'),
+  readAt: timestamp('read_at'),
+  dismissedAt: timestamp('dismissed_at'),
+  
+  // Expiry
+  expiresAt: timestamp('expires_at'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('idx_notices_user').on(table.userId),
+  orgIdx: index('idx_notices_org').on(table.organizationId),
+  statusIdx: index('idx_notices_status').on(table.status),
+  typeIdx: index('idx_notices_type').on(table.noticeType),
+}));
+
 // Aliases for snake_case compatibility
 export const sms_usage = smsUsage;
 export const ai_usage = aiUsage;
 export const storage_usage = storageUsage;
+export const cost_entries = costEntries;
+export const subscription_periods = subscriptionPeriods;
+export const revenue_schedule = revenueSchedule;
+export const credit_notes = creditNotes;
+export const account_status_history = accountStatusHistory;
+export const billing_notices = billingNotices;
 
 // Contacts V4 exports
 export * from './schema-contacts-v4';
