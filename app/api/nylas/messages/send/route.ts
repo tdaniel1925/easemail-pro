@@ -265,15 +265,22 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // At this point, providerMessageId is guaranteed to be non-null (checked above at line 259)
+    // Helper to sanitize nullable fields - returns sanitized string or undefined for null/empty
+    const sanitizeNullable = (text: string | null | undefined): string | undefined => {
+      if (!text) return undefined;
+      return sanitizeText(text);
+    };
+
     const [savedEmail] = await db.insert(emails).values({
       accountId: account.id,
-      provider: account.emailProvider,
-      providerMessageId: sanitizeText(providerMessageId), // ✅ Use actual ID from provider
+      provider: account.emailProvider || 'unknown', // ✅ Provider field is notNull in schema
+      providerMessageId: sanitizeText(providerMessageId), // ✅ Use actual ID from provider (guaranteed non-null after check above)
       messageId: sanitizeText(providerMessageId),
-      threadId: sanitizeText(threadId),
-      providerThreadId: sanitizeText(threadId),
-      inReplyTo: sanitizeText(inReplyTo),
-      emailReferences: sanitizeText(emailReferences),
+      threadId: sanitizeNullable(threadId),
+      providerThreadId: sanitizeNullable(threadId),
+      inReplyTo: sanitizeNullable(inReplyTo),
+      emailReferences: sanitizeNullable(emailReferences),
       folder: 'sent', // ✅ This puts it in Sent folder
       folders: ['sent'],
       fromEmail: sanitizeText(account.emailAddress),

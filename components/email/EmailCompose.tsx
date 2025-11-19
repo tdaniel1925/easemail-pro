@@ -40,6 +40,8 @@ interface EmailComposeProps {
   onClose: () => void;
   replyTo?: {
     to: string;
+    cc?: string; // ✅ Added for reply-all support
+    bcc?: string; // ✅ Added for completeness
     subject: string;
     messageId: string; // Can be database UUID or provider message ID
     body?: string;
