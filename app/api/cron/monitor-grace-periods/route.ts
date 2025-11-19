@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { users, organizations } from '@/lib/db/schema';
-import { eq, and, lte } from 'drizzle-orm';
+import { eq, and, lte, gte } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
