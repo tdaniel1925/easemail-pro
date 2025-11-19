@@ -1,6 +1,7 @@
 import { db } from '@/lib/db/drizzle';
-import { sms_usage, ai_usage, storage_usage } from '@/lib/db/schema';
+import { sms_usage, ai_usage, storage_usage, costEntries } from '@/lib/db/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
+import { recordCostEntry } from '@/lib/usage/enhanced-cost-tracker';
 
 /**
  * Cost Tracking Utility
@@ -50,7 +51,17 @@ export async function trackSMSCost({ userId, messageCount, actualCost }: TrackSM
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1); // Start of current month
     const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); // End of current month
 
-    // Check if usage record exists for this period
+    // 1. Record in new costEntries table (for billing)
+    await recordCostEntry({
+      userId,
+      service: 'sms',
+      feature: 'sms_message',
+      costUsd: cost,
+      quantity: messageCount,
+      unit: 'messages',
+    });
+
+    // 2. Update legacy sms_usage table (for backward compatibility)
     const existing = await db.query.sms_usage.findFirst({
       where: and(
         eq(sms_usage.userId, userId),
@@ -134,7 +145,23 @@ export async function trackAICost({
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-    // Check if usage record exists for this period and feature
+    // 1. Record in new costEntries table (for billing)
+    await recordCostEntry({
+      userId,
+      organizationId,
+      service: 'openai',
+      feature,
+      costUsd: cost,
+      quantity: inputTokens + outputTokens,
+      unit: 'tokens',
+      metadata: {
+        model,
+        inputTokens,
+        outputTokens,
+      },
+    });
+
+    // 2. Update legacy ai_usage table (for backward compatibility)
     const existing = await db.query.ai_usage.findFirst({
       where: and(
         eq(ai_usage.userId, userId),
