@@ -147,6 +147,7 @@ export const emailAccounts = pgTable('email_accounts', {
   retryCount: integer('retry_count').default(0), // Auto-retry counter
   lastRetryAt: timestamp('last_retry_at'), // Last retry timestamp
   continuationCount: integer('continuation_count').default(0), // ✅ Tracks sync continuation jobs (prevents infinite loops)
+  lastActivityAt: timestamp('last_activity_at'), // ✅ Last time sync made progress (detects silent failures)
 
   // Calendar & Contacts sync timestamps
   lastCalendarSyncAt: timestamp('last_calendar_sync_at'),

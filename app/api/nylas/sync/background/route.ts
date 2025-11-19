@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
         lastError: null,
         syncStopped: false, // Clear the stop flag when starting
         retryCount: 0, // Reset retry count on manual start
+        lastActivityAt: new Date(), // ✅ Track when sync started
       })
       .where(eq(emailAccounts.id, accountId));
 
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Background sync function with pagination
-async function performBackgroundSync(
+export async function performBackgroundSync(
   accountId: string, 
   grantId: string, 
   startingCursor: string | null = null,
@@ -458,6 +459,7 @@ async function performBackgroundSync(
               syncProgress: estimatedProgress,
               syncCursor: response.nextCursor || null,
               lastSyncedAt: new Date(),
+              lastActivityAt: new Date(), // ✅ Track activity
               // Store metadata for dashboard
               metadata: {
                 currentPage,
