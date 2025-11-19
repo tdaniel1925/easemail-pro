@@ -126,10 +126,11 @@ async function performBackgroundSync(
   const startTime = Date.now();
   const TIMEOUT_MS = 4.5 * 60 * 1000; // 4.5 minutes (more sync time per run)
   
-  // ✅ RATE LIMIT FIX: Conservative delays to prevent Gmail 429 errors
-  // Gmail limits: ~1,200 quota/min = max ~600 emails/min safe rate
-  // 500ms delay = 120 requests/min = ~600 emails/min (safe for Gmail)
-  const delayMs = provider === 'microsoft' ? 300 : 500; // Microsoft: 300ms, Gmail: 500ms
+  // ✅ ULTRA SAFE: Maximum conservative delays to guarantee no rate limits
+  // Gmail limits: ~1,200 quota/min maximum
+  // 1000ms delay = 60 requests/min = ~300 emails/min (ULTRA SAFE, will complete)
+  // This ensures sync completes without ANY rate limit errors
+  const delayMs = provider === 'microsoft' ? 500 : 1000; // Microsoft: 500ms, Gmail: 1000ms (1 second)
 
   try {
     // Get current synced count and continuation count
@@ -165,10 +166,12 @@ async function performBackgroundSync(
 
     while (currentPage < maxPages) {
       currentPage++;
-      console.log(`📄 Fetching page ${currentPage} for account ${accountId}`);
+      
+      // ✅ ENHANCED LOGGING: Log at start of page to track activity
+      const elapsed = Date.now() - startTime;
+      console.log(`📄 [${Math.round(elapsed/1000)}s] Fetching page ${currentPage} for account ${accountId} | Synced: ${syncedCount} | Cursor: ${pageToken?.substring(0, 20)}...`);
 
       // ✅ FIX #3: Check if approaching Vercel timeout
-      const elapsed = Date.now() - startTime;
       if (elapsed > TIMEOUT_MS) {
         console.log(`⏰ Approaching Vercel timeout (${Math.round(elapsed/1000)}s elapsed) - saving progress and re-queuing`);
 
@@ -312,6 +315,9 @@ async function performBackgroundSync(
 
         console.log(`💾 Syncing ${messages.length} emails (Page ${currentPage})`);
 
+        // Process emails
+        let pageInsertedCount = 0;
+        
         // Insert or update emails in database
         for (const message of messages) {
           try {
@@ -395,6 +401,7 @@ async function performBackgroundSync(
             if (result && result.length > 0) {
               totalSynced++;
               syncedCount++;
+              pageInsertedCount++;
 
               // ✅ SPEED OPTIMIZATION: Extract attachments asynchronously (don't block sync)
               // This allows sync to continue while attachments are being extracted
@@ -422,6 +429,9 @@ async function performBackgroundSync(
             // Continue with next email
           }
         }
+
+        // Log page completion
+        console.log(`✅ Page ${currentPage} complete: ${pageInsertedCount} new emails inserted (${messages.length - pageInsertedCount} duplicates skipped) | Total synced: ${syncedCount}`);
 
         // ✅ SPEED OPTIMIZATION: Only update progress every 5 pages (reduces DB writes)
         // Still updates on timeout and completion
