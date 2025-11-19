@@ -503,7 +503,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           subject,
           body,
           attachments: uploadedAttachments,
-          replyToEmailId: replyTo?.messageId,
+          replyToEmailId: replyTo?.id, // ✅ Pass database UUID, not Message-ID
           draftId: currentDraftId, // Pass draft ID for deletion after send
         }),
       });
@@ -585,7 +585,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         subject,
         body: body, // API expects 'body', not 'bodyText' or 'bodyHtml'
         attachments: [],
-        replyToEmailId: replyTo?.messageId,
+        replyToEmailId: replyTo?.id, // ✅ Pass database UUID, not Message-ID
         replyType: type,
       };
 
@@ -834,7 +834,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           subject,
           body: body, // API expects 'body', not 'bodyText' or 'bodyHtml'
           attachments: [],
-          replyToEmailId: replyTo?.messageId,
+          replyToEmailId: replyTo?.id, // ✅ Pass database UUID, not Message-ID
           replyType: type,
           draftId: currentDraftId, // Include draft ID for updates
         };
