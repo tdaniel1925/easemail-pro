@@ -100,9 +100,36 @@ function CalendarContent() {
 
     if (selectedCalendarTypes.length === 0) return [];
 
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
     return baseEvents.filter(event => {
+      // Filter by calendar type
       const eventType = event.calendarType || 'personal';
-      return selectedCalendarTypes.includes(eventType);
+      if (!selectedCalendarTypes.includes(eventType)) return false;
+
+      // Filter out past events (events that ended before today)
+      try {
+        let eventEndTime: Date;
+
+        if (event.endTime) {
+          eventEndTime = new Date(event.endTime);
+        } else if (event.when?.endTime) {
+          eventEndTime = new Date(event.when.endTime * 1000);
+        } else if (event.when?.date) {
+          // All-day event - include if it's today or future
+          const eventDate = new Date(event.when.date);
+          return eventDate >= startOfToday;
+        } else {
+          return true; // Include if we can't determine the end time
+        }
+
+        // Only show events that haven't ended yet
+        return eventEndTime >= startOfToday;
+      } catch (err) {
+        console.error('Error filtering past event:', err, event);
+        return true; // Include events with parsing errors
+      }
     });
   }, [events, searchResults, isSearchActive, selectedCalendarTypes]);
 
