@@ -148,8 +148,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         // Render signature with template variables
         const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to[0]?.email || '' });
 
-        // Add 2 blank lines at the top for typing space, then signature
-        setBody('\n\n' + renderedSignature);
+        // Add 2 blank HTML lines at the top for typing space, then signature
+        const blankLinesHtml = '<div><br/></div><div><br/></div>';
+        setBody(blankLinesHtml + renderedSignature);
         setIsInitialized(true);
       }
     }

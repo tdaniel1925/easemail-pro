@@ -189,7 +189,7 @@ export function RichTextEditor({
       <style jsx global>{`
         .ProseMirror p {
           line-height: 1.2 !important;
-          margin-bottom: 0 !important;
+          margin: 0 !important;
         }
         .ProseMirror br {
           content: "";

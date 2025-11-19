@@ -13,10 +13,10 @@ const nylas = new Nylas({
   apiUri: process.env.NYLAS_API_URI!,
 });
 
-// ✅ VERSION MARKER: v2.0-ultra-safe (1000ms delay)
-const SYNC_VERSION = '2.0-ultra-safe';
-const DELAY_MS_GMAIL = 1000; // 1 second delay for Gmail
-const DELAY_MS_MICROSOFT = 500; // 500ms delay for Microsoft
+// ✅ VERSION MARKER: v3.0-optimized (500ms/250ms delay, smart backoff)
+const SYNC_VERSION = '3.0-optimized';
+const DELAY_MS_GMAIL = 500; // 500ms delay for Gmail (reduced from 1000ms)
+const DELAY_MS_MICROSOFT = 250; // 250ms delay for Microsoft (reduced from 500ms)
 
 // POST: Start or continue background sync
 export async function POST(request: NextRequest) {
@@ -112,16 +112,54 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// ✅ NEW: Cursor validation helper
+async function validateCursor(grantId: string, cursor: string | null): Promise<string | null> {
+  if (!cursor) return null;
+
+  try {
+    // Test the cursor by fetching a single message
+    const testResponse = await nylas.messages.list({
+      identifier: grantId,
+      queryParams: {
+        limit: 1,
+        pageToken: cursor,
+      },
+    });
+
+    // If successful, cursor is valid
+    console.log(`✅ Cursor validation passed`);
+    return cursor;
+  } catch (error: any) {
+    console.warn(`⚠️ Cursor validation failed:`, error.message);
+    console.warn(`📋 Will restart sync from beginning`);
+    // Return null to start from beginning
+    return null;
+  }
+}
+
 // Background sync function with pagination
 async function performBackgroundSync(
-  accountId: string, 
-  grantId: string, 
+  accountId: string,
+  grantId: string,
   startingCursor: string | null = null,
   provider?: string
 ) {
   console.log(`📧 [${SYNC_VERSION}] Starting background email sync for account ${accountId} (Provider: ${provider})`);
 
-  let pageToken: string | undefined = startingCursor || undefined;
+  // ✅ NEW: Validate cursor before using it
+  const validatedCursor = await validateCursor(grantId, startingCursor);
+  if (startingCursor && !validatedCursor) {
+    console.warn(`⚠️ Starting cursor was invalid, restarting from beginning`);
+    // Update account to clear invalid cursor
+    await db.update(emailAccounts)
+      .set({
+        syncCursor: null,
+        lastError: 'Previous sync cursor expired, restarting from beginning',
+      })
+      .where(eq(emailAccounts.id, accountId));
+  }
+
+  let pageToken: string | undefined = validatedCursor || undefined;
   let totalSynced = 0;
   const pageSize = 200; // Nylas API max limit is 200 emails per request
   const maxPages = 1000; // Supports up to 200,000 emails (1000 pages × 200)
@@ -219,18 +257,19 @@ async function performBackgroundSync(
         console.log(`🔄 Triggering continuation ${continuationCount + 1}/${MAX_CONTINUATIONS} with cursor: ${pageToken?.substring(0, 20)}...`);
         console.log(`📊 Progress before continuation: ${syncedCount.toLocaleString()} emails synced, ${currentPage} pages processed`);
 
-        // ✅ FIX #5: Retry continuation request with exponential backoff
+        // ✅ IMPROVED: Enhanced continuation retry with progressive backoff and auto-resume
         let continuationSuccess = false;
-        const maxContinuationRetries = 3;
-        
+        const maxContinuationRetries = 5; // Increased from 3 to 5
+
         for (let retryAttempt = 1; retryAttempt <= maxContinuationRetries; retryAttempt++) {
           try {
             console.log(`🔄 Continuation attempt ${retryAttempt}/${maxContinuationRetries}`);
-            
+
             const continuationResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ accountId }),
+              signal: AbortSignal.timeout(10000), // 10s timeout per request
             });
 
             if (!continuationResponse.ok) {
@@ -243,32 +282,36 @@ async function performBackgroundSync(
             break; // Success! Exit retry loop
           } catch (err) {
             console.error(`❌ Continuation attempt ${retryAttempt}/${maxContinuationRetries} failed:`, err);
-            
+
             if (retryAttempt < maxContinuationRetries) {
-              // Exponential backoff: 2s, 4s, 8s
-              const backoffMs = 2000 * Math.pow(2, retryAttempt - 1);
+              // Progressive backoff: 1s, 2s, 4s, 8s, 16s
+              const backoffMs = 1000 * Math.pow(2, retryAttempt - 1);
               console.log(`⏳ Waiting ${backoffMs}ms before retry...`);
               await new Promise(resolve => setTimeout(resolve, backoffMs));
             } else {
-              // All retries failed - log detailed error
+              // All retries failed - mark for auto-resume instead of error
               console.error(`❌ All ${maxContinuationRetries} continuation attempts failed`);
-              console.error(`📊 Sync stopped at: ${syncedCount.toLocaleString()} emails, ${currentPage} pages`);
-              console.error(`💾 Saved cursor for manual retry: ${pageToken?.substring(0, 50)}...`);
-              
-              // Update account with detailed error status
+              console.error(`📊 Sync paused at: ${syncedCount.toLocaleString()} emails, ${currentPage} pages`);
+              console.error(`💾 Saved cursor for auto-resume: ${pageToken?.substring(0, 50)}...`);
+
+              // ✅ NEW: Mark as "pending_resume" instead of "error" for auto-recovery
               await db.update(emailAccounts)
                 .set({
-                  syncStatus: 'error',
-                  lastError: `Continuation ${continuationCount + 1} failed after ${maxContinuationRetries} retries. Synced ${syncedCount.toLocaleString()} emails before stopping. Please retry sync to continue from where it left off.`,
+                  syncStatus: 'pending_resume', // New status for auto-resume
+                  lastError: `Continuation ${continuationCount + 1} paused after ${maxContinuationRetries} retries. Auto-resume will retry in 1 minute. Progress saved: ${syncedCount.toLocaleString()} emails synced.`,
+                  metadata: {
+                    ...((await db.query.emailAccounts.findFirst({ where: eq(emailAccounts.id, accountId) }))?.metadata || {}),
+                    resumeAfter: new Date(Date.now() + 60000).toISOString(), // Resume after 1 minute
+                  },
                 })
                 .where(eq(emailAccounts.id, accountId));
             }
           }
         }
-        
+
         if (!continuationSuccess) {
-          console.error(`❌ Continuation failed permanently - sync stopped`);
-          return; // Exit function since continuation failed
+          console.log(`⏸️ Continuation paused - will auto-resume in 1 minute`);
+          return; // Exit function, auto-resume will pick it up
         }
 
         return; // Exit gracefully, continuation job will pick up
@@ -405,19 +448,26 @@ async function performBackgroundSync(
               syncedCount++;
               pageInsertedCount++;
 
-              // ✅ SPEED OPTIMIZATION: Extract attachments asynchronously (don't block sync)
-              // This allows sync to continue while attachments are being extracted
+              // ✅ OPTIMIZED: Queue attachments for background processing using setImmediate
+              // This prevents blocking the sync loop and reduces memory pressure
               if (message.attachments && message.attachments.length > 0) {
-                extractAndSaveAttachments({
+                // Defer attachment extraction to next event loop tick
+                // This keeps the main sync loop responsive and fast
+                const attachmentData = {
                   message,
                   emailRecord: result[0],
                   accountId,
                   userId,
                   grantId,
                   nylas,
-                }).catch((attachmentError: any) => {
-                  console.error(`⚠️ Failed to extract attachments for email ${message.id}:`, attachmentError.message);
-                  // Don't fail the whole sync if attachment extraction fails
+                };
+
+                // Use setImmediate to defer execution without blocking
+                setImmediate(() => {
+                  extractAndSaveAttachments(attachmentData).catch((attachmentError: any) => {
+                    console.error(`⚠️ Failed to extract attachments for email ${message.id}:`, attachmentError.message);
+                    // Don't fail the whole sync if attachment extraction fails
+                  });
                 });
               }
             }
@@ -435,11 +485,11 @@ async function performBackgroundSync(
         // Log page completion
         console.log(`✅ Page ${currentPage} complete: ${pageInsertedCount} new emails inserted (${messages.length - pageInsertedCount} duplicates skipped) | Total synced: ${syncedCount}`);
 
-        // ✅ SPEED OPTIMIZATION: Only update progress every 5 pages (reduces DB writes)
-        // Still updates on timeout and completion
-        const shouldUpdateProgress = currentPage % 5 === 0 || !response.nextCursor;
-        
-        if (shouldUpdateProgress) {
+        // ✅ OPTIMIZATION: Update activity every page, full progress every 2 pages
+        // This prevents false "stuck" detection while reducing DB writes
+        const shouldUpdateFullProgress = currentPage % 2 === 0 || !response.nextCursor;
+
+        if (shouldUpdateFullProgress) {
           // Update sync progress with detailed metrics
           // ✅ FIX: Use actual total email count for accurate progress
           const currentAccount = await db.query.emailAccounts.findFirst({
@@ -471,7 +521,7 @@ async function performBackgroundSync(
               syncProgress: estimatedProgress,
               syncCursor: response.nextCursor || null,
               lastSyncedAt: new Date(),
-              lastActivityAt: new Date(), // ✅ Track activity
+              lastActivityAt: new Date(), // ✅ Track activity every 2 pages
               // Store metadata for dashboard
               metadata: {
                 currentPage,
@@ -484,6 +534,14 @@ async function performBackgroundSync(
             .where(eq(emailAccounts.id, accountId));
 
           console.log(`📊 Progress: ${estimatedProgress}% | Synced: ${syncedCount.toLocaleString()} emails | Page: ${currentPage}/${maxPages} | Rate: ${emailsPerMinute}/min | Time: ${Math.round((Date.now() - startTime)/1000)}s`);
+        } else {
+          // ✅ NEW: Light update every page to track activity and save cursor
+          await db.update(emailAccounts)
+            .set({
+              lastActivityAt: new Date(), // Update activity heartbeat
+              syncCursor: response.nextCursor || null, // Always save cursor for recovery
+            })
+            .where(eq(emailAccounts.id, accountId));
         }
 
         // Check for next page
@@ -524,7 +582,7 @@ async function performBackgroundSync(
           let backoffMs: number;
 
           if (isRateLimit) {
-            // For rate limits, use longer backoff and respect Retry-After if available
+            // For rate limits, use moderate backoff and respect Retry-After if available
             console.log(`⏱️ Rate limit (429) detected on retry ${retryCount}/${maxRetries}`);
             console.log(`📊 Gmail quota used: ${(pageError as any)?.headers?.['nylas-gmail-quota-usage'] || 'unknown'}`);
 
@@ -534,14 +592,14 @@ async function performBackgroundSync(
               backoffMs = parseInt(retryAfter, 10) * 1000; // Convert seconds to ms
               console.log(`📋 Using Retry-After header: ${backoffMs}ms`);
             } else {
-              // Use exponential backoff with higher base for rate limits
-              // 30s, 60s, 120s
+              // ✅ OPTIMIZED: Reduced backoff times - 10s, 20s, 40s instead of 30s, 60s, 120s
+              // Most rate limits clear in 10-30 seconds, not minutes
               backoffMs = calculateBackoffDelay(retryCount, {
                 maxRetries: maxRetries,
-                initialDelayMs: 30000, // ✅ INCREASED: Start at 30 seconds for rate limits
-                maxDelayMs: 120000, // ✅ INCREASED: Max 2 minutes
+                initialDelayMs: 10000, // Start at 10 seconds (reduced from 30s)
+                maxDelayMs: 40000, // Max 40 seconds (reduced from 120s)
                 backoffMultiplier: 2,
-                jitterMs: 5000, // Add 0-5s jitter
+                jitterMs: 3000, // Add 0-3s jitter (reduced from 5s)
               });
             }
           } else if (isServiceError) {

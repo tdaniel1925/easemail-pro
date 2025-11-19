@@ -37,9 +37,12 @@ export class SignatureService {
   ): string {
     const { type, quotedContent } = options;
 
-    // For new emails, append signature at the end
+    // Shared spacing for signature insertion to guarantee blank lines
+    const signatureSpacingHtml = '<div><br/></div><div><br/></div>';
+
+    // For new emails, append signature after two blank lines so users can type above it
     if (type === 'compose') {
-      return `${body}\n\n${signature}`;
+      return `${body || ''}${signatureSpacingHtml}${signature}`;
     }
 
     // For replies/forwards, insert before quoted content

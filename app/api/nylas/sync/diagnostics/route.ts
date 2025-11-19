@@ -38,12 +38,13 @@ export async function GET(request: NextRequest) {
     const now = Date.now();
     const lastActivityMs = account.lastActivityAt ? now - new Date(account.lastActivityAt).getTime() : null;
     const lastSyncMs = account.lastSyncedAt ? now - new Date(account.lastSyncedAt).getTime() : null;
-    
-    // Determine if sync is stuck (no activity for 5+ minutes while in syncing status)
-    const isStuck = 
+
+    // ✅ OPTIMIZED: Determine if sync is stuck (no activity for 10+ minutes while in syncing status)
+    // Increased from 5 to 10 minutes to reduce false positives from rate limiting/retries
+    const isStuck =
       (account.syncStatus === 'background_syncing' || account.syncStatus === 'syncing') &&
       lastActivityMs !== null &&
-      lastActivityMs > 5 * 60 * 1000; // 5 minutes
+      lastActivityMs > 10 * 60 * 1000; // 10 minutes (increased from 5)
 
     // Check if sync is in retry backoff
     const isInRetryBackoff = 
@@ -126,7 +127,7 @@ function getRecommendations(params: {
   const recommendations: string[] = [];
 
   if (params.isStuck) {
-    recommendations.push('⚠️ Sync appears stuck (no activity for 5+ minutes). Force restart recommended.');
+    recommendations.push('⚠️ Sync appears stuck (no activity for 10+ minutes). Force restart recommended.');
   }
 
   if (params.syncStatus === 'error') {

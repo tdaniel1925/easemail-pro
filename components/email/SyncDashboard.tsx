@@ -90,6 +90,19 @@ export default function SyncDashboard({ accountId, emailAddress }: SyncDashboard
         if (data.success) {
           setMetrics(data.metrics);
           setLastUpdateTime(new Date());
+
+          // ✅ NEW: Auto-resume if sync is in pending_resume state
+          if (data.metrics.syncStatus === 'pending_resume') {
+            console.log('🔄 Sync is pending resume, triggering auto-resume...');
+            try {
+              await fetch('/api/nylas/sync/auto-resume', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+              });
+            } catch (resumeError) {
+              console.error('Failed to trigger auto-resume:', resumeError);
+            }
+          }
         }
       } catch (error) {
         // Don't log rate limit errors as they're handled automatically
@@ -215,6 +228,7 @@ export default function SyncDashboard({ accountId, emailAddress }: SyncDashboard
   const hasError = metrics.syncStatus === 'error';
   const isCompleted = metrics.syncStatus === 'completed';
   const isIdle = metrics.syncStatus === 'idle';
+  const isPendingResume = metrics.syncStatus === 'pending_resume';
 
   // Calculate sync rate
   const syncRate = metrics.emailsPerMinute || 0;
@@ -236,21 +250,24 @@ export default function SyncDashboard({ accountId, emailAddress }: SyncDashboard
         <Badge
           variant={
             isSyncing ? 'default' :
+            isPendingResume ? 'default' :
             hasError ? 'destructive' :
             isCompleted ? 'default' :
             'secondary'
           }
           className={
             isSyncing ? 'bg-blue-500 hover:bg-blue-600' :
+            isPendingResume ? 'bg-yellow-500 hover:bg-yellow-600' :
             isCompleted ? 'bg-green-500 hover:bg-green-600' :
             ''
           }
         >
           {isSyncing && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+          {isPendingResume && <RefreshCw className="h-3 w-3 mr-1 animate-spin" />}
           {hasError && <XCircle className="h-3 w-3 mr-1" />}
           {isCompleted && <CheckCircle className="h-3 w-3 mr-1" />}
           {isIdle && <Clock className="h-3 w-3 mr-1" />}
-          {metrics.syncStatus.toUpperCase()}
+          {isPendingResume ? 'RESUMING' : metrics.syncStatus.toUpperCase()}
         </Badge>
       </div>
 
