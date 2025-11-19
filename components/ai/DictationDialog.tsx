@@ -32,6 +32,37 @@ type DictationPreference = 'always_as_is' | 'always_polish' | 'ask_every_time';
 
 const STORAGE_KEY = 'easemail_dictation_preference';
 
+/**
+ * Strip HTML tags and convert to formatted plain text
+ * Preserves line breaks and basic formatting
+ */
+function stripHtmlTags(html: string): string {
+  if (!html) return '';
+
+  // Replace <br> and <br/> with newlines
+  let text = html.replace(/<br\s*\/?>/gi, '\n');
+
+  // Replace </p> with double newline for paragraph breaks
+  text = text.replace(/<\/p>/gi, '\n\n');
+
+  // Remove all other HTML tags
+  text = text.replace(/<[^>]*>/g, '');
+
+  // Decode HTML entities
+  text = text.replace(/&nbsp;/g, ' ');
+  text = text.replace(/&amp;/g, '&');
+  text = text.replace(/&lt;/g, '<');
+  text = text.replace(/&gt;/g, '>');
+  text = text.replace(/&quot;/g, '"');
+  text = text.replace(/&#39;/g, "'");
+
+  // Clean up excessive newlines (more than 2 in a row)
+  text = text.replace(/\n{3,}/g, '\n\n');
+
+  // Trim whitespace
+  return text.trim();
+}
+
 export function DictationDialog({
   isOpen,
   onClose,
@@ -307,7 +338,7 @@ export function DictationDialog({
                   After (AI Enhanced) ✨
                 </label>
                 <div className="p-4 border-2 border-primary rounded-lg bg-primary/5 text-sm whitespace-pre-wrap">
-                  {polishedText}
+                  {stripHtmlTags(polishedText)}
                 </div>
               </div>
 
