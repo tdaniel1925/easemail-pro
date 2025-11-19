@@ -16,8 +16,8 @@ export interface BillingTransaction {
   invoiceId?: string;
   amount: number;
   status: string;
-  retryAttempts?: number;
-  nextRetryDate?: Date;
+  retryCount?: number;
+  nextRetryAt?: Date;
   failureReason?: string;
 }
 
@@ -28,20 +28,21 @@ export async function handleFailedPayment(
   transaction: BillingTransaction,
   error: string
 ): Promise<void> {
-  const retryAttempts = transaction.retryAttempts || 0;
+  const retryCount = transaction.retryCount || 0;
   const maxRetries = 3;
   
-  if (retryAttempts < maxRetries) {
+  if (retryCount < maxRetries) {
     // Schedule retry
-    const retryDelay = getRetryDelay(retryAttempts); // 1, 3, 7 days
+    const retryDelay = getRetryDelay(retryCount); // 1, 3, 7 days
     const retryDate = addDays(new Date(), retryDelay);
     
     await db
       .update(billingTransactions)
       .set({
         status: 'retry_scheduled',
-        retryAttempts: retryAttempts + 1,
-        nextRetryDate: retryDate,
+        retryCount: retryCount + 1,
+        nextRetryAt: retryDate,
+        lastRetryAt: new Date(),
         failureReason: error,
       })
       .where(eq(billingTransactions.id, transaction.id));
@@ -52,22 +53,22 @@ export async function handleFailedPayment(
       organizationId: transaction.organizationId,
       noticeType: 'payment_retry',
       severity: 'warning',
-      title: `Payment Failed - Retry Scheduled (Attempt ${retryAttempts + 1}/3)`,
+      title: `Payment Failed - Retry Scheduled (Attempt ${retryCount + 1}/3)`,
       message: `Your payment of $${transaction.amount} failed. We'll automatically retry on ${formatDate(retryDate)}.`,
       transactionId: transaction.id,
       invoiceId: transaction.invoiceId,
       metadata: {
         nextRetryDate: retryDate,
-        attemptNumber: retryAttempts + 1,
+        attemptNumber: retryCount + 1,
         error,
       },
     });
     
     // Send email notification
-    await sendPaymentFailedEmail(transaction, retryDate, retryAttempts + 1);
+    await sendPaymentFailedEmail(transaction, retryDate, retryCount + 1);
     
     console.log(
-      `[Dunning] Scheduled retry ${retryAttempts + 1}/${maxRetries} for ` +
+      `[Dunning] Scheduled retry ${retryCount + 1}/${maxRetries} for ` +
       `transaction ${transaction.id} on ${retryDate.toISOString()}`
     );
   } else {
@@ -108,7 +109,7 @@ export async function retryScheduledPayments(): Promise<{
     .where(
       and(
         eq(billingTransactions.status, 'retry_scheduled'),
-        lte(billingTransactions.nextRetryDate, now)
+        lte(billingTransactions.nextRetryAt, now)
       )
     );
   
@@ -347,10 +348,10 @@ export async function getFailedPaymentStats(days: number = 30): Promise<{
     );
   
   const totalFailed = failed.length;
-  const totalAmount = failed.reduce((sum, t) => sum + parseFloat(t.amount || '0'), 0);
+  const totalAmount = failed.reduce((sum, t) => sum + parseFloat(t.amountUsd || '0'), 0);
   
   const byAttempt = failed.reduce((acc, t) => {
-    const attempts = t.retryAttempts || 0;
+    const attempts = t.retryCount || 0;
     acc[attempts] = (acc[attempts] || 0) + 1;
     return acc;
   }, {} as Record<number, number>);
