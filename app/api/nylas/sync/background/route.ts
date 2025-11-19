@@ -13,6 +13,11 @@ const nylas = new Nylas({
   apiUri: process.env.NYLAS_API_URI!,
 });
 
+// ✅ VERSION MARKER: v2.0-ultra-safe (1000ms delay)
+const SYNC_VERSION = '2.0-ultra-safe';
+const DELAY_MS_GMAIL = 1000; // 1 second delay for Gmail
+const DELAY_MS_MICROSOFT = 500; // 500ms delay for Microsoft
+
 // POST: Start or continue background sync
 export async function POST(request: NextRequest) {
   try {
@@ -114,7 +119,7 @@ async function performBackgroundSync(
   startingCursor: string | null = null,
   provider?: string
 ) {
-  console.log(`📧 Starting background email sync for account ${accountId} (Provider: ${provider})`);
+  console.log(`📧 [${SYNC_VERSION}] Starting background email sync for account ${accountId} (Provider: ${provider})`);
 
   let pageToken: string | undefined = startingCursor || undefined;
   let totalSynced = 0;
@@ -126,11 +131,8 @@ async function performBackgroundSync(
   const startTime = Date.now();
   const TIMEOUT_MS = 4.5 * 60 * 1000; // 4.5 minutes (more sync time per run)
   
-  // ✅ ULTRA SAFE: Maximum conservative delays to guarantee no rate limits
-  // Gmail limits: ~1,200 quota/min maximum
-  // 1000ms delay = 60 requests/min = ~300 emails/min (ULTRA SAFE, will complete)
-  // This ensures sync completes without ANY rate limit errors
-  const delayMs = provider === 'microsoft' ? 500 : 1000; // Microsoft: 500ms, Gmail: 1000ms (1 second)
+  // ✅ ULTRA SAFE: Use constants defined at module level
+  const delayMs = provider === 'microsoft' ? DELAY_MS_MICROSOFT : DELAY_MS_GMAIL;
 
   try {
     // Get current synced count and continuation count
