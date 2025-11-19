@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Background sync function with pagination
-export async function performBackgroundSync(
+async function performBackgroundSync(
   accountId: string, 
   grantId: string, 
   startingCursor: string | null = null,
