@@ -21,6 +21,13 @@ export const organizations = pgTable('organizations', {
   maxSeats: integer('max_seats').default(5),
   currentSeats: integer('current_seats').default(1),
   isActive: boolean('is_active').default(true),
+  
+  // Account status fields (for billing suspension)
+  accountStatus: varchar('account_status', { length: 50 }).default('active'),
+  suspensionReason: text('suspension_reason'),
+  suspendedAt: timestamp('suspended_at'),
+  gracePeriodEndsAt: timestamp('grace_period_ends_at'),
+  
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -39,7 +46,10 @@ export const users = pgTable('users', {
   tempPassword: varchar('temp_password', { length: 255 }), // Encrypted temporary password
   requirePasswordChange: boolean('require_password_change').default(false), // Force password change on next login
   tempPasswordExpiresAt: timestamp('temp_password_expires_at'), // Temp password expiry (7 days)
-  accountStatus: varchar('account_status', { length: 50 }).default('active'), // pending, active, suspended, deactivated
+  accountStatus: varchar('account_status', { length: 50 }).default('active'), // pending, active, suspended, deactivated, grace_period
+  suspensionReason: text('suspension_reason'),
+  suspendedAt: timestamp('suspended_at'),
+  gracePeriodEndsAt: timestamp('grace_period_ends_at'),
   lastLoginAt: timestamp('last_login_at'), // Track last login time
   deactivatedAt: timestamp('deactivated_at'), // When account was deactivated (for 60-day deletion)
   createdBy: uuid('created_by').references((): any => users.id, { onDelete: 'set null' }), // Admin who created this user
