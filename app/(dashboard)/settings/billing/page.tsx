@@ -1,17 +1,15 @@
-'use client';
+import { Metadata } from 'next';
+import UserBillingPage from '@/components/billing/UserBillingPage';
 
-import { Suspense } from 'react';
-import { Loader2 } from 'lucide-react';
-import UserBillingContent from '@/components/settings/UserBillingContent';
+export const metadata: Metadata = {
+  title: 'Usage & Billing',
+  description: 'View your usage and billing information',
+};
 
-export default function UserBillingPage() {
+export default function BillingPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    }>
-      <UserBillingContent />
-    </Suspense>
+    <div className="flex-1 space-y-4 p-8 pt-6">
+      <UserBillingPage />
+    </div>
   );
 }
