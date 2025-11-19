@@ -121,12 +121,13 @@ async function performBackgroundSync(
   const maxPages = 1000; // Supports up to 200,000 emails (1000 pages × 200)
   let currentPage = 0;
   
-  // ✅ FIX #3: Timeout detection (Vercel Pro = 5 min, leave 1 min buffer)
+  // ✅ SPEED OPTIMIZATION: Extended timeout for Vercel Pro (5min max, leave 30s buffer)
   const startTime = Date.now();
-  const TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
+  const TIMEOUT_MS = 4.5 * 60 * 1000; // 4.5 minutes (more sync time per run)
   
-  // Provider-specific delays to avoid rate limiting
-  const delayMs = provider === 'microsoft' ? 500 : 100; // Microsoft needs more delay
+  // ✅ SPEED OPTIMIZATION: Reduced delays for faster syncing
+  // Gmail can handle much more aggressive sync rates
+  const delayMs = provider === 'microsoft' ? 300 : 50; // Microsoft: 300ms, Gmail: 50ms (was 100ms)
 
   try {
     // Get current synced count and continuation count
@@ -393,21 +394,20 @@ async function performBackgroundSync(
               totalSynced++;
               syncedCount++;
 
-              // Extract and save attachments if email has them
+              // ✅ SPEED OPTIMIZATION: Extract attachments asynchronously (don't block sync)
+              // This allows sync to continue while attachments are being extracted
               if (message.attachments && message.attachments.length > 0) {
-                try {
-                  await extractAndSaveAttachments({
-                    message,
-                    emailRecord: result[0],
-                    accountId,
-                    userId,
-                    grantId,
-                    nylas,
-                  });
-                } catch (attachmentError: any) {
+                extractAndSaveAttachments({
+                  message,
+                  emailRecord: result[0],
+                  accountId,
+                  userId,
+                  grantId,
+                  nylas,
+                }).catch((attachmentError: any) => {
                   console.error(`⚠️ Failed to extract attachments for email ${message.id}:`, attachmentError.message);
                   // Don't fail the whole sync if attachment extraction fails
-                }
+                });
               }
             }
           } catch (emailError: any) {
@@ -421,49 +421,55 @@ async function performBackgroundSync(
           }
         }
 
-        // Update sync progress with detailed metrics
-        // ✅ FIX: Use actual total email count for accurate progress
-        const currentAccount = await db.query.emailAccounts.findFirst({
-          where: eq(emailAccounts.id, accountId),
-        });
+        // ✅ SPEED OPTIMIZATION: Only update progress every 5 pages (reduces DB writes)
+        // Still updates on timeout and completion
+        const shouldUpdateProgress = currentPage % 5 === 0 || !response.nextCursor;
+        
+        if (shouldUpdateProgress) {
+          // Update sync progress with detailed metrics
+          // ✅ FIX: Use actual total email count for accurate progress
+          const currentAccount = await db.query.emailAccounts.findFirst({
+            where: eq(emailAccounts.id, accountId),
+          });
 
-        const totalEmailCount = currentAccount?.totalEmailCount || 0;
+          const totalEmailCount = currentAccount?.totalEmailCount || 0;
 
-        // Calculate progress based on actual total or estimate
-        let estimatedProgress: number;
-        if (totalEmailCount > 0 && syncedCount > 0) {
-          // Use actual total for accurate progress
-          estimatedProgress = Math.min(Math.round((syncedCount / totalEmailCount) * 100), 99);
-        } else if (syncedCount > 0) {
-          // Estimate based on 10K default if no total available
-          estimatedProgress = Math.min(Math.round((syncedCount / 10000) * 100), 99);
-        } else {
-          // Fallback to page-based
-          estimatedProgress = Math.min(Math.round((currentPage / maxPages) * 100), 99);
+          // Calculate progress based on actual total or estimate
+          let estimatedProgress: number;
+          if (totalEmailCount > 0 && syncedCount > 0) {
+            // Use actual total for accurate progress
+            estimatedProgress = Math.min(Math.round((syncedCount / totalEmailCount) * 100), 99);
+          } else if (syncedCount > 0) {
+            // Estimate based on 10K default if no total available
+            estimatedProgress = Math.min(Math.round((syncedCount / 10000) * 100), 99);
+          } else {
+            // Fallback to page-based
+            estimatedProgress = Math.min(Math.round((currentPage / maxPages) * 100), 99);
+          }
+
+          // Calculate sync rate (emails per minute)
+          const elapsedMinutes = (Date.now() - startTime) / (1000 * 60);
+          const emailsPerMinute = elapsedMinutes > 0 ? Math.round(syncedCount / elapsedMinutes) : 0;
+
+          await db.update(emailAccounts)
+            .set({
+              syncedEmailCount: syncedCount,
+              syncProgress: estimatedProgress,
+              syncCursor: response.nextCursor || null,
+              lastSyncedAt: new Date(),
+              // Store metadata for dashboard
+              metadata: {
+                currentPage,
+                maxPages,
+                emailsPerMinute,
+                lastBatchSize: messages.length,
+                totalEmailCount: totalEmailCount || null,
+              },
+            })
+            .where(eq(emailAccounts.id, accountId));
+
+          console.log(`📊 Progress: ${estimatedProgress}% | Synced: ${syncedCount.toLocaleString()} emails | Page: ${currentPage}/${maxPages} | Rate: ${emailsPerMinute}/min | Time: ${Math.round((Date.now() - startTime)/1000)}s`);
         }
-
-        // Calculate sync rate (emails per minute)
-        const elapsedMinutes = (Date.now() - startTime) / (1000 * 60);
-        const emailsPerMinute = elapsedMinutes > 0 ? Math.round(syncedCount / elapsedMinutes) : 0;
-
-        await db.update(emailAccounts)
-          .set({
-            syncedEmailCount: syncedCount,
-            syncProgress: estimatedProgress,
-            syncCursor: response.nextCursor || null,
-            lastSyncedAt: new Date(),
-            // Store metadata for dashboard
-            metadata: {
-              currentPage,
-              maxPages,
-              emailsPerMinute,
-              lastBatchSize: messages.length,
-              totalEmailCount: totalEmailCount || null,
-            },
-          })
-          .where(eq(emailAccounts.id, accountId));
-
-        console.log(`📊 Progress: ${estimatedProgress}% | Synced: ${syncedCount.toLocaleString()} emails | Page: ${currentPage}/${maxPages} | Rate: ${emailsPerMinute}/min | Time: ${Math.round((Date.now() - startTime)/1000)}s`);
 
         // Check for next page
         if (!response.nextCursor) {
