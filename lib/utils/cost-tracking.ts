@@ -1,7 +1,7 @@
 import { db } from '@/lib/db/drizzle';
 import { sms_usage, ai_usage, storage_usage, costEntries } from '@/lib/db/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
-import { recordCostEntry } from '@/lib/usage/enhanced-cost-tracker';
+import { trackCost } from '@/lib/usage/enhanced-cost-tracker';
 
 /**
  * Cost Tracking Utility
@@ -52,7 +52,7 @@ export async function trackSMSCost({ userId, messageCount, actualCost }: TrackSM
     const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); // End of current month
 
     // 1. Record in new costEntries table (for billing)
-    await recordCostEntry({
+    await trackCost({
       userId,
       service: 'sms',
       feature: 'sms_message',
@@ -146,7 +146,7 @@ export async function trackAICost({
     const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
     // 1. Record in new costEntries table (for billing)
-    await recordCostEntry({
+    await trackCost({
       userId,
       organizationId,
       service: 'openai',
