@@ -33,11 +33,11 @@ export interface CreditNote {
   amountUsd: string;
   reason: string | null;
   type: string | null;
-  status: string;
+  status: string | null;
   issuedAt: Date | null;
   appliedAt: Date | null;
   stripeCreditNoteId: string | null;
-  createdAt: Date;
+  createdAt: Date | null;
   createdBy: string | null;
 }
 
