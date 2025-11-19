@@ -6,7 +6,7 @@ import Nylas from 'nylas';
 import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 import { assignEmailFolder, validateFolderAssignment } from '@/lib/email/folder-utils';
 import { extractAndSaveAttachments } from '@/lib/attachments/extract-from-email';
-import { isRateLimitError, calculateBackoffDelay } from '@/lib/rate-limit-handler';
+import { isRateLimitError, isRetryableError, calculateBackoffDelay } from '@/lib/rate-limit-handler';
 
 const nylas = new Nylas({
   apiKey: process.env.NYLAS_API_KEY!,
