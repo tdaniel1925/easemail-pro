@@ -224,17 +224,25 @@ export async function POST(request: NextRequest) {
     let inReplyTo = null;
     let emailReferences = null;
     let threadId = null;
-    
+
     if (replyToEmailId) {
-      const originalEmail = await db.query.emails.findFirst({
+      // Try to find email by database UUID first, then fall back to provider message ID
+      let originalEmail = await db.query.emails.findFirst({
         where: eq(emails.id, replyToEmailId),
       });
-      
+
+      // If not found by UUID, try to find by provider message ID (for backwards compatibility)
+      if (!originalEmail) {
+        originalEmail = await db.query.emails.findFirst({
+          where: eq(emails.providerMessageId, replyToEmailId),
+        });
+      }
+
       if (originalEmail) {
         inReplyTo = originalEmail.messageId || null;
         threadId = originalEmail.threadId || null;
         // Build references chain
-        emailReferences = originalEmail.emailReferences 
+        emailReferences = originalEmail.emailReferences
           ? `${originalEmail.emailReferences} ${originalEmail.messageId}`
           : originalEmail.messageId;
       }

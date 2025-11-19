@@ -40,7 +40,7 @@ interface EmailComposeProps {
   replyTo?: {
     to: string;
     subject: string;
-    messageId: string;
+    messageId: string; // Can be database UUID or provider message ID
     body?: string;
     attachments?: Array<{
       id: string;
@@ -503,7 +503,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           subject,
           body,
           attachments: uploadedAttachments,
-          replyToEmailId: replyTo?.id, // ✅ Pass database UUID, not Message-ID
+          replyToEmailId: replyTo?.messageId, // Provider message ID or database UUID
           draftId: currentDraftId, // Pass draft ID for deletion after send
         }),
       });
@@ -585,7 +585,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         subject,
         body: body, // API expects 'body', not 'bodyText' or 'bodyHtml'
         attachments: [],
-        replyToEmailId: replyTo?.id, // ✅ Pass database UUID, not Message-ID
+        replyToEmailId: replyTo?.messageId, // Provider message ID or database UUID
         replyType: type,
       };
 
@@ -834,7 +834,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           subject,
           body: body, // API expects 'body', not 'bodyText' or 'bodyHtml'
           attachments: [],
-          replyToEmailId: replyTo?.id, // ✅ Pass database UUID, not Message-ID
+          replyToEmailId: replyTo?.messageId, // Provider message ID or database UUID
           replyType: type,
           draftId: currentDraftId, // Include draft ID for updates
         };
