@@ -1,24 +1,23 @@
-/**
- * EaseMail Marketing Homepage
- * Modern, Vorix-styled landing page
- */
-
-import HeroSection from '@/components/marketing/home/HeroSection';
-import FeaturesSection from '@/components/marketing/home/FeaturesSection';
-import TestimonialsSection from '@/components/marketing/home/TestimonialsSection';
-import CTASection from '@/components/marketing/home/CTASection';
+import HeroSection from '@/components/marketing/redesign/HeroSection';
+import FeaturesShowcase from '@/components/marketing/redesign/FeaturesShowcase';
+import HowItWorks from '@/components/marketing/redesign/HowItWorks';
+import TestimonialsSection from '@/components/marketing/redesign/TestimonialsSection';
+import CTASection from '@/components/marketing/redesign/CTASection';
+import StatsSection from '@/components/marketing/redesign/StatsSection';
 
 export const metadata = {
-  title: 'EaseMail - AI-Powered Email Management',
-  description: 'Transform your inbox into a productivity powerhouse with intelligent AI assistance, unified accounts, and powerful automation.',
-  keywords: ['email management', 'AI email', 'productivity', 'unified inbox', 'smart email'],
+  title: 'EaseMail - AI-Powered Email Management Platform',
+  description: 'Transform your inbox with intelligent AI assistance, unified multi-account management, and powerful automation. Join thousands of professionals who trust EaseMail.',
+  keywords: ['email management', 'AI email assistant', 'productivity tool', 'unified inbox', 'email automation'],
 };
 
 export default function HomePage() {
   return (
     <>
       <HeroSection />
-      <FeaturesSection />
+      <StatsSection />
+      <FeaturesShowcase />
+      <HowItWorks />
       <TestimonialsSection />
       <CTASection />
     </>
