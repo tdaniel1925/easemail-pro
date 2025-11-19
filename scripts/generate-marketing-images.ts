@@ -101,10 +101,11 @@ async function generateMarketingImages() {
         style: 'natural', // or 'vivid' for more dramatic
       });
 
-      const imageUrl = response.data[0].url;
-      if (!imageUrl) {
+      if (!response.data || !response.data[0] || !response.data[0].url) {
         throw new Error('No image URL returned');
       }
+
+      const imageUrl = response.data[0].url;
 
       console.log(`   Revised prompt: ${response.data[0].revised_prompt?.substring(0, 60)}...`);
 
