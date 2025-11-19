@@ -5,8 +5,8 @@
 
 'use client';
 
-import { useState } from 'react';
-import { Sparkles, Calendar, Clock, MapPin } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, Calendar, Clock, MapPin, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -23,6 +23,64 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
   const [preview, setPreview] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [recognition, setRecognition] = useState<any>(null);
+  const [browserSupportsVoice, setBrowserSupportsVoice] = useState(false);
+
+  // Initialize speech recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognitionInstance = new SpeechRecognition();
+        recognitionInstance.continuous = false;
+        recognitionInstance.interimResults = true;
+        recognitionInstance.lang = 'en-US';
+
+        recognitionInstance.onresult = (event: any) => {
+          const transcript = Array.from(event.results)
+            .map((result: any) => result[0].transcript)
+            .join('');
+
+          setInput(transcript);
+          parseInput(transcript);
+        };
+
+        recognitionInstance.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          setIsListening(false);
+          if (event.error === 'not-allowed') {
+            setError('Microphone access denied. Please allow microphone access in your browser settings.');
+          } else if (event.error === 'no-speech') {
+            setError('No speech detected. Please try again.');
+          }
+        };
+
+        recognitionInstance.onend = () => {
+          setIsListening(false);
+        };
+
+        setRecognition(recognitionInstance);
+        setBrowserSupportsVoice(true);
+      }
+    }
+  }, []);
+
+  const toggleVoiceInput = () => {
+    if (!recognition) {
+      setError('Voice input is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      return;
+    }
+
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+    } else {
+      setError(null);
+      recognition.start();
+      setIsListening(true);
+    }
+  };
 
   const parseInput = (text: string) => {
     if (!text.trim()) {
@@ -145,6 +203,11 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
   };
 
   const handleClose = () => {
+    // Stop voice recognition if active
+    if (recognition && isListening) {
+      recognition.stop();
+      setIsListening(false);
+    }
     setInput('');
     setPreview(null);
     setError(null);
@@ -172,20 +235,44 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Input */}
+          {/* Input with Voice */}
           <div>
             <label className="block text-sm font-medium mb-2">
               Describe your event
             </label>
-            <Input
-              value={input}
-              onChange={handleInputChange}
-              placeholder='e.g., "Team meeting tomorrow at 2pm" or "Lunch with Sarah Friday noon"'
-              className="text-base"
-              autoFocus
-            />
+            <div className="relative">
+              <Input
+                value={input}
+                onChange={handleInputChange}
+                placeholder='e.g., "Team meeting tomorrow at 2pm" or "Lunch with Sarah Friday noon"'
+                className="text-base pr-12"
+                autoFocus
+              />
+              {browserSupportsVoice && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleVoiceInput}
+                  className={`absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 ${
+                    isListening ? 'text-red-500 animate-pulse' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title={isListening ? 'Stop recording' : 'Voice input'}
+                >
+                  {isListening ? (
+                    <MicOff className="h-4 w-4" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Try: "tomorrow at 3pm", "next Friday 10am", "Monday 9:30am-11am"
+              {isListening ? (
+                <span className="text-red-500 font-medium">🎤 Listening... Speak your event</span>
+              ) : (
+                <>Try: "tomorrow at 3pm", "next Friday 10am", "Monday 9:30am-11am"</>
+              )}
             </p>
           </div>
 
