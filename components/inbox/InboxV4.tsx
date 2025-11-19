@@ -98,6 +98,13 @@ export default function InboxV4({
     setCurrentFolder('inbox');
   }, [selectedAccount]);
 
+  // Auto-fetch emails on mount and when account/folder changes
+  useEffect(() => {
+    if (selectedAccount) {
+      fetchEmails(currentFolder);
+    }
+  }, [selectedAccount, currentFolder, fetchEmails]);
+
   // Filter and search emails
   const filteredEmails = useMemo(() => {
     let filtered = emails;
