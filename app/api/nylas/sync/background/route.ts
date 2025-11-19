@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emails } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, count } from 'drizzle-orm';
 import Nylas from 'nylas';
 import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 import { assignEmailFolder, validateFolderAssignment } from '@/lib/email/folder-utils';
@@ -169,18 +169,28 @@ async function performBackgroundSync(
       if (elapsed > TIMEOUT_MS) {
         console.log(`⏰ Approaching Vercel timeout (${Math.round(elapsed/1000)}s elapsed) - saving progress and re-queuing`);
 
+        // ✅ CRITICAL FIX: Get actual current count from database before timeout
+        // This ensures we don't lose progress if we timeout before the end-of-loop update
+        const actualCount = await db
+          .select({ count: count() })
+          .from(emails)
+          .where(eq(emails.accountId, accountId));
+        
+        const actualSyncedCount = actualCount[0]?.count || syncedCount;
+        console.log(`📊 Timeout check: Local count: ${syncedCount}, DB count: ${actualSyncedCount}`);
+
         // Get account to check totalEmailCount
         const timeoutAccount = await db.query.emailAccounts.findFirst({
           where: eq(emailAccounts.id, accountId),
         });
         const totalEmailCount = timeoutAccount?.totalEmailCount || 0;
 
-        // Calculate progress accurately
+        // Calculate progress accurately using actual DB count
         let timeoutProgress: number;
-        if (totalEmailCount > 0 && syncedCount > 0) {
-          timeoutProgress = Math.min(Math.round((syncedCount / totalEmailCount) * 100), 99);
-        } else if (syncedCount > 0) {
-          timeoutProgress = Math.min(Math.round((syncedCount / 10000) * 100), 99);
+        if (totalEmailCount > 0 && actualSyncedCount > 0) {
+          timeoutProgress = Math.min(Math.round((actualSyncedCount / totalEmailCount) * 100), 99);
+        } else if (actualSyncedCount > 0) {
+          timeoutProgress = Math.min(Math.round((actualSyncedCount / 10000) * 100), 99);
         } else {
           timeoutProgress = Math.min(Math.round((currentPage / maxPages) * 100), 99);
         }
@@ -191,7 +201,7 @@ async function performBackgroundSync(
             syncStatus: 'background_syncing', // Keep as syncing
             syncProgress: timeoutProgress,
             syncCursor: pageToken || null, // Save position for resume
-            syncedEmailCount: syncedCount,
+            syncedEmailCount: actualSyncedCount, // ✅ Use actual DB count, not local variable
             lastSyncedAt: new Date(),
             continuationCount: continuationCount + 1, // Increment continuation counter
           })
