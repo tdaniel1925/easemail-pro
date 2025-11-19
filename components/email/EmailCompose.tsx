@@ -77,22 +77,40 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [showURLDialog, setShowURLDialog] = useState(false);
   
   // ✅ FIX: Initialize recipients based on compose type (reply/reply-all/forward)
+  // Handles both single email strings and comma-separated lists
+  const parseEmailField = (field: string | undefined): Array<{ email: string; name?: string }> => {
+    if (!field) return [];
+
+    // Split by comma and parse each email
+    return field
+      .split(',')
+      .map(email => email.trim())
+      .filter(email => email.length > 0)
+      .map(email => ({ email }));
+  };
+
   const initializeRecipients = () => {
     if (!replyTo) return { to: [], cc: [], bcc: [] };
 
     if (type === 'reply') {
       // Reply: Only reply to the sender
       return {
-        to: replyTo.to ? [{ email: replyTo.to }] : [],
+        to: parseEmailField(replyTo.to),
         cc: [],
         bcc: []
       };
     } else if (type === 'reply-all') {
-      // Reply-All: Include original sender in To
-      // Note: CC recipients should be populated if available in replyTo
+      // Reply-All: Parse comma-separated lists for To and CC
       return {
-        to: replyTo.to ? [{ email: replyTo.to }] : [],
-        cc: [], // Will be populated if CC data is available in replyTo
+        to: parseEmailField(replyTo.to),
+        cc: parseEmailField(replyTo.cc),
+        bcc: []
+      };
+    } else if (type === 'forward') {
+      // Forward: No recipients pre-filled
+      return {
+        to: [],
+        cc: [],
         bcc: []
       };
     } else {
