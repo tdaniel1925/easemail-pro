@@ -1,0 +1,84 @@
+/**
+ * Marketing Site CSS - Vorix Template Styles
+ * 
+ * IMPORTANT: These styles are SCOPED to marketing pages only.
+ * They will NOT affect the dashboard application.
+ * 
+ * All styles are wrapped in .marketing-layout to prevent conflicts.
+ */
+
+/* Import Vorix CSS files */
+@import url('/assets/vorix/css/bootstrap.min.css');
+@import url('/assets/vorix/css/animate.css');
+@import url('/assets/vorix/css/swiper-bundle.min.css');
+@import url('/assets/vorix/css/style.css');
+
+/* Google Fonts for Vorix template */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Unbounded:wght@200..900&display=swap');
+
+/* Material Symbols for icons */
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+/**
+ * Scoped overrides for EaseMail branding
+ * Applied only within .marketing-layout wrapper
+ */
+.marketing-layout {
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Override primary colors for EaseMail branding */
+.marketing-layout .btn-primary {
+  background-color: #667eea;
+  border-color: #667eea;
+}
+
+.marketing-layout .btn-primary:hover {
+  background-color: #5568d3;
+  border-color: #5568d3;
+}
+
+.marketing-layout .text-primary,
+.marketing-layout a.text-primary:hover {
+  color: #667eea !important;
+}
+
+/* Ensure Vorix animations work */
+.marketing-layout .wow {
+  visibility: hidden;
+}
+
+.marketing-layout .wow.animated {
+  visibility: visible;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 991.98px) {
+  .marketing-layout .navbar-collapse {
+    background: var(--bs-body-bg);
+    padding: 1rem;
+    margin-top: 1rem;
+    border-radius: 0.5rem;
+  }
+}
+
+/* Dark mode support for marketing */
+.marketing-layout.dark-mode {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
+
+.marketing-layout.light-mode {
+  background-color: #ffffff;
+  color: #0e0e0e;
+}
+
+/* Smooth transitions for theme switching */
+.marketing-layout,
+.marketing-layout .header-area,
+.marketing-layout .footer-wrapper {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
