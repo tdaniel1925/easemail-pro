@@ -127,6 +127,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[300px] p-4',
+        spellcheck: 'true', // Enable browser spell check
       },
       handlePaste: (view, event) => {
         const items = event.clipboardData?.items;
@@ -184,6 +185,18 @@ export function RichTextEditor({
 
   return (
     <div className={cn('border border-border rounded-lg', className)}>
+      {/* Custom CSS to preserve signature formatting */}
+      <style jsx global>{`
+        .ProseMirror p {
+          line-height: 1.2 !important;
+          margin-bottom: 0 !important;
+        }
+        .ProseMirror br {
+          content: "";
+          display: block;
+          margin: 0 !important;
+        }
+      `}</style>
       {/* Toolbar */}
       <div className="border-b border-border bg-muted/30 p-2">
         <div className="flex flex-wrap items-center gap-1">

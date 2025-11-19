@@ -49,7 +49,9 @@
       "Bash(powershell -Command \"Start-Sleep -Seconds 5\")",
       "Bash(cat:*)",
       "Bash(powershell:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(Select-String -Pattern \"Messages|Error\")",
+      "Bash(Select-Object -First 30)"
     ],
     "deny": [],
     "ask": []

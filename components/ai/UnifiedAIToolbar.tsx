@@ -86,8 +86,9 @@ export function UnifiedAIToolbar({
 
   // Handle "Use As-Is" from dialog
   const handleUseAsIs = (text: string) => {
-    const separator = body.trim() ? ' ' : '';
-    onBodyChange(body.trim() + separator + text);
+    // Prepend text at the top (before existing content)
+    const separator = body.trim() ? '\n\n' : '';
+    onBodyChange(text + separator + body.trim());
   };
 
   // Handle "Use Polished" from dialog
@@ -98,8 +99,9 @@ export function UnifiedAIToolbar({
       polishedText: polishedText.substring(0, 100) + '...'
     });
     onSubjectChange(polishedSubject);
-    const separator = body.trim() ? ' ' : '';
-    const newBody = body.trim() + separator + polishedText;
+    // Prepend polished text at the top (before existing content like signature)
+    const separator = body.trim() ? '\n\n' : '';
+    const newBody = polishedText + separator + body.trim();
     console.log('[UnifiedAIToolbar] Setting new body:', newBody.substring(0, 100) + '...');
     onBodyChange(newBody);
   };
