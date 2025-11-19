@@ -177,13 +177,16 @@ export async function POST(request: NextRequest) {
     
     console.log('🔍 Account details:', {
       provider: account.emailProvider,
+      nylasProvider: account.nylasProvider,
       hasNylasGrantId: !!account.nylasGrantId,
       hasAccessToken: !!account.accessToken,
       nylasGrantId: account.nylasGrantId?.substring(0, 10) + '...',
     });
-    
-    // Google and Microsoft accounts use Nylas SDK
-    if ((account.emailProvider === 'nylas' || account.emailProvider === 'google' || account.emailProvider === 'microsoft') && account.nylasGrantId) {
+
+    // ✅ FIX: Check for nylasGrantId first (supports all Nylas-connected accounts: google, microsoft, imap, etc.)
+    // Any account with a nylasGrantId can send via Nylas SDK, regardless of emailProvider value
+    if (account.nylasGrantId) {
+      console.log('📤 Sending via Nylas SDK with grantId:', account.nylasGrantId.substring(0, 15) + '...');
       sentMessage = await sendNylasEmail(account.nylasGrantId, {
         to: parsedTo,
         cc: parsedCc,
@@ -194,6 +197,7 @@ export async function POST(request: NextRequest) {
       });
       providerMessageId = sentMessage.data?.id;
     } else if (account.emailProvider === 'aurinko' && account.accessToken) {
+      console.log('📤 Sending via Aurinko with accessToken');
       sentMessage = await sendAurinkoEmail(account.id, account.accessToken, {
         to: parsedTo,
         cc: parsedCc,
@@ -206,11 +210,12 @@ export async function POST(request: NextRequest) {
     } else {
       console.error('❌ Provider not configured:', {
         provider: account.emailProvider,
+        nylasProvider: account.nylasProvider,
         hasNylasGrantId: !!account.nylasGrantId,
         hasAccessToken: !!account.accessToken,
       });
       return NextResponse.json(
-        { error: 'Email provider not configured' }, 
+        { error: 'Email provider not configured. Please reconnect your email account in Settings.' },
         { status: 400 }
       );
     }
