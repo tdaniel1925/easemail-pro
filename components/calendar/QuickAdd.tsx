@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sparkles, Calendar, Clock, MapPin, Mic, MicOff } from 'lucide-react';
+import { Sparkles, Calendar, Clock, MapPin, Mic, MicOff, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -197,6 +197,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     return cleaned;
   };
 
+  // Enhanced parsing with attendees, location, and description extraction
   const parseInput = (text: string) => {
     if (!text.trim()) {
       setPreview(null);
@@ -208,7 +209,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
       const processedText = preprocessText(text);
       console.log('[QuickAdd] Original text:', text);
       console.log('[QuickAdd] Processed text:', processedText);
-      
+
       // Parse the natural language input
       const results = chrono.parse(processedText, new Date(), { forwardDate: true });
 
@@ -220,13 +221,14 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
           startTime: minStartTime,
           endTime: new Date(minStartTime.getTime() + 60 * 60 * 1000), // 1 hour later
           hasDate: false,
+          fullTranscript: text,
         });
         return;
       }
 
       const result = results[0];
       const startTime = result.start.date();
-      
+
       // Try to get end time if specified
       let endTime;
       if (result.end) {
@@ -236,38 +238,103 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
       }
 
+      // ENHANCED PARSING: Extract all details from the original text
+      const fullText = text; // Keep full transcription
+
       // Extract title (text before the date/time)
       let title = processedText.substring(0, result.index).trim();
-      
+
       // If no title before date, use text after date
       if (!title) {
         title = processedText.substring(result.index + result.text.length).trim();
       }
-      
+
       // If still no title, extract from original text (before preprocessing removed action words)
       if (!title) {
         // Try to find a meaningful title from the original text
         const originalTitle = text.replace(/\b(tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|at|on)\b.*/gi, '').trim();
-        title = originalTitle || 'Appointment';
+        title = originalTitle || 'Meeting';
       }
 
-      // Clean up common words from title
-      title = title.replace(/^(at|on|for|with|meeting|call|event)\s+/i, '');
-      title = title.trim() || 'Appointment';
+      // Extract location (text after "at", "in", "on")
+      let location = null;
+      const locationPatterns = [
+        /\b(?:at|in|on)\s+([^,]+?)\s*(?:with|about|regarding|to discuss|$)/i,
+        /\b(?:at|in|on)\s+([^,]+?)$/i
+      ];
 
-      // Try to extract location (text after "at" or "in")
-      const locationMatch = title.match(/\s+(at|in)\s+([^,]+)/i);
-      const location = locationMatch ? locationMatch[2].trim() : null;
-      
-      if (location) {
-        title = title.replace(/\s+(at|in)\s+[^,]+/i, '').trim();
+      for (const pattern of locationPatterns) {
+        const match = fullText.match(pattern);
+        if (match) {
+          const potentialLocation = match[1].trim();
+          // Filter out time references and attendee names
+          if (!potentialLocation.match(/\d+\s*(?:am|pm|a\.m\.|p\.m\.)/i) &&
+              !potentialLocation.match(/^(?:with|about|regarding)/i)) {
+            location = potentialLocation;
+            break;
+          }
+        }
       }
+
+      // Extract attendees (text after "with")
+      let attendees: string[] = [];
+      const withMatch = fullText.match(/\bwith\s+([^,]+?)(?:\s+at|\s+in|\s+on|\s+about|\s+to discuss|$)/i);
+      if (withMatch) {
+        const attendeeText = withMatch[1].trim();
+        // Split by "and" or commas
+        attendees = attendeeText
+          .split(/\s+and\s+|,\s*/)
+          .map(name => name.trim())
+          .filter(name => name && !name.match(/\d+\s*(?:am|pm)/i));
+      }
+
+      // Extract description/notes (text after "about", "regarding", "to discuss")
+      let description = null;
+      const descPatterns = [
+        /\b(?:about|regarding|to discuss)\s+(.+?)$/i,
+        /\b(?:about|regarding|to discuss)\s+([^,]+)/i
+      ];
+
+      for (const pattern of descPatterns) {
+        const match = fullText.match(pattern);
+        if (match) {
+          description = match[1].trim();
+          break;
+        }
+      }
+
+      // Clean up title - remove location, attendees, description fragments
+      title = title.replace(/\b(?:at|in|on)\s+.*/i, '').trim();
+      title = title.replace(/\bwith\s+.*/i, '').trim();
+      title = title.replace(/\b(?:about|regarding|to discuss)\s+.*/i, '').trim();
+      title = title.replace(/^(meeting|call|event)\s*/i, '').trim();
+
+      // If title is still empty or too generic, try to extract from description or use a better default
+      if (!title || title.length < 2) {
+        if (description && description.length > 0) {
+          // Use first few words of description as title
+          const words = description.split(/\s+/).slice(0, 3).join(' ');
+          title = words.charAt(0).toUpperCase() + words.slice(1);
+        } else if (attendees.length > 0) {
+          title = `Meeting with ${attendees[0]}`;
+        } else if (location) {
+          title = `Event at ${location}`;
+        } else {
+          title = 'Meeting';
+        }
+      }
+
+      // Capitalize first letter of title
+      title = title.charAt(0).toUpperCase() + title.slice(1);
 
       setPreview({
         title,
         startTime,
         endTime,
         location,
+        attendees,
+        description,
+        fullTranscript: fullText, // Keep full voice/text input
         hasDate: true,
       });
 
@@ -280,6 +347,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         startTime: minStartTime,
         endTime: new Date(minStartTime.getTime() + 60 * 60 * 1000),
         hasDate: false,
+        fullTranscript: text,
       });
     }
   };
@@ -322,6 +390,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               title: preview.title,
+              description: preview.description || null,
               startTime: preview.startTime.toISOString(),
               endTime: preview.endTime.toISOString(),
               location: preview.location || null,
@@ -466,12 +535,22 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
                 <span>Event Preview</span>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
+                {/* Full Transcript */}
+                {preview.fullTranscript && (
+                  <div className="pb-2 border-b border-border/50">
+                    <div className="text-xs text-muted-foreground mb-1">You said:</div>
+                    <div className="text-sm italic text-muted-foreground">"{preview.fullTranscript}"</div>
+                  </div>
+                )}
+
+                {/* Title */}
                 <div>
                   <div className="text-sm text-muted-foreground">Title</div>
                   <div className="font-medium">{preview.title}</div>
                 </div>
 
+                {/* Time */}
                 <div>
                   <div className="text-sm text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5" />
@@ -487,6 +566,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
                   )}
                 </div>
 
+                {/* Location */}
                 {preview.location && (
                   <div>
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
@@ -494,6 +574,27 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
                       Location
                     </div>
                     <div className="text-sm">{preview.location}</div>
+                  </div>
+                )}
+
+                {/* Attendees */}
+                {preview.attendees && preview.attendees.length > 0 && (
+                  <div>
+                    <div className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5" />
+                      With
+                    </div>
+                    <div className="text-sm">
+                      {preview.attendees.join(', ')}
+                    </div>
+                  </div>
+                )}
+
+                {/* Description */}
+                {preview.description && (
+                  <div>
+                    <div className="text-sm text-muted-foreground">About</div>
+                    <div className="text-sm">{preview.description}</div>
                   </div>
                 )}
               </div>
