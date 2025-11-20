@@ -25,6 +25,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clarificationQuestion, setClarificationQuestion] = useState<string | null>(null);
+  const [originalRequest, setOriginalRequest] = useState<string>(''); // Track original request
   const [conversationHistory, setConversationHistory] = useState<any[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
@@ -193,12 +194,20 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         setClarificationQuestion(data.question);
         setPreview(data.partialEvent || null);
 
+        // Store original request if this is the first clarification
+        if (conversationHistory.length === 0) {
+          setOriginalRequest(text);
+        }
+
         // Add to conversation history
         setConversationHistory([
           ...conversationHistory,
           { role: 'user', content: text },
           { role: 'assistant', content: data.question },
         ]);
+
+        // Clear input so user can type their answer
+        setInput('');
       } else {
         // AI successfully parsed the event
         setClarificationQuestion(null);
@@ -315,6 +324,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     setPreview(null);
     setError(null);
     setClarificationQuestion(null);
+    setOriginalRequest('');
     setConversationHistory([]);
     onClose();
   };
@@ -406,6 +416,11 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
               <div className="flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
+                  {originalRequest && (
+                    <div className="text-xs text-blue-600 dark:text-blue-400 mb-2 italic">
+                      Original: "{originalRequest}"
+                    </div>
+                  )}
                   <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
                     Need more information
                   </div>
