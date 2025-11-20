@@ -668,9 +668,12 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       return;
     }
 
-    // Don't save completely empty drafts
-    if (to.length === 0 && !subject.trim() && !body.trim()) {
-      console.log('[Draft Save] ❌ Empty draft (no to/subject/body), skipping save');
+    // Don't save drafts without actual text content
+    // Strip HTML tags and check if there's real text (excluding just whitespace/blank lines)
+    const strippedBody = body.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+
+    if (to.length === 0 && !subject.trim() && !strippedBody) {
+      console.log('[Draft Save] ❌ Empty draft (no to/subject/body text), skipping save');
       return;
     }
 

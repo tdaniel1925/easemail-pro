@@ -1377,8 +1377,8 @@ function EmailCard({
                     <Forward className="h-4 w-4" />
                   </Button>
                   <div className="flex-1" />
-                  {/* AI Thread Summary Button */}
-                  {message.threadId && (
+                  {/* AI Thread Summary Button - only show if thread has 2+ emails */}
+                  {message.threadId && message.threadEmailCount && message.threadEmailCount >= 2 && (
                     <Button
                       variant="ghost"
                       size="sm"
