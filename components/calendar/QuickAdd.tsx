@@ -219,7 +219,32 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
           { role: 'assistant', content: data.question },
         ]);
 
-        setPreview(data.partialEvent || null);
+        // Show partial event preview if available
+        if (data.partialEvent && data.partialEvent.startTime) {
+          try {
+            const startTime = new Date(data.partialEvent.startTime);
+            const endTime = data.partialEvent.endTime ? new Date(data.partialEvent.endTime) : null;
+
+            if (!isNaN(startTime.getTime())) {
+              setPreview({
+                title: data.partialEvent.title || null,
+                startTime,
+                endTime: endTime && !isNaN(endTime.getTime()) ? endTime : null,
+                location: data.partialEvent.location || null,
+                description: null,
+                attendees: [],
+                confidence: 'low',
+              });
+            } else {
+              setPreview(null);
+            }
+          } catch (err) {
+            console.error('[QuickAdd] Error parsing partial event:', err);
+            setPreview(null);
+          }
+        } else {
+          setPreview(null);
+        }
       } else {
         // AI successfully parsed the event
         const startTime = new Date(data.event.startTime);
