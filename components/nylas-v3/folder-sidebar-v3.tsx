@@ -58,6 +58,33 @@ export function FolderSidebarV3({
     }
   }, [accountId]);
 
+  // Listen for draft updates and refresh counts (debounced to prevent flashing)
+  useEffect(() => {
+    let refreshTimer: NodeJS.Timeout | null = null;
+
+    const handleRefreshEmails = () => {
+      // Debounce folder count refreshes to prevent red dot from flashing
+      // when drafts are rapidly saved/deleted
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+      }
+
+      refreshTimer = setTimeout(() => {
+        console.log('[FolderSidebar] Refreshing folder counts after draft change...');
+        fetchFolders();
+      }, 2000); // Wait 2 seconds after last draft change before refreshing
+    };
+
+    window.addEventListener('refreshEmails', handleRefreshEmails);
+
+    return () => {
+      window.removeEventListener('refreshEmails', handleRefreshEmails);
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+      }
+    };
+  }, [accountId]);
+
   const fetchFolders = async () => {
     try {
       setLoading(true);
