@@ -186,6 +186,11 @@ export default function DayEventsModal({
   const isToday = isSameDay(date, new Date());
   const dateLabel = isToday ? 'Today' : format(date, 'EEEE, MMMM d, yyyy');
 
+  // Check if date is in the past (before today's start)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isPastDate = date < today;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-0">
@@ -369,16 +374,18 @@ export default function DayEventsModal({
           )}
         </div>
 
-        {/* Floating Add Event Button */}
-        <div className="absolute bottom-6 right-6">
-          <Button
-            onClick={() => onAddEvent({ date })}
-            size="lg"
-            className="rounded-full shadow-lg h-14 w-14 p-0"
-          >
-            <Plus className="h-6 w-6" />
-          </Button>
-        </div>
+        {/* Floating Add Event Button - Only show for today and future dates */}
+        {!isPastDate && (
+          <div className="absolute bottom-6 right-6">
+            <Button
+              onClick={() => onAddEvent({ date })}
+              size="lg"
+              className="rounded-full shadow-lg h-14 w-14 p-0"
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
