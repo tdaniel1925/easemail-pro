@@ -49,6 +49,8 @@ interface EmailMessage {
   id: string;
   subject: string;
   from: Array<{ email: string; name?: string }>;
+  to?: Array<{ email: string; name?: string }>;
+  cc?: Array<{ email: string; name?: string }>;
   snippet: string;
   date: number;
   unread: boolean;
@@ -1177,6 +1179,13 @@ function EmailCard({
                 <p className={cn('text-sm', message.unread && 'font-semibold')}>
                   {sender.name || sender.email}
                 </p>
+                {/* Show To: recipient if available */}
+                {message.to && message.to.length > 0 && (
+                  <p className="text-xs text-muted-foreground truncate">
+                    To: {message.to[0].name || message.to[0].email}
+                    {message.to.length > 1 && ` +${message.to.length - 1} more`}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
