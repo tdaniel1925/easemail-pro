@@ -37,6 +37,7 @@ import ListView from '@/components/calendar/ListView';
 import QuickAdd from '@/components/calendar/QuickAdd';
 import EventSearch from '@/components/calendar/EventSearch';
 import CalendarSelector from '@/components/calendar/CalendarSelector';
+import { CalendarAssistant } from '@/components/calendar/CalendarAssistant';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth } from 'date-fns';
 import { transformNylasEvent } from '@/lib/calendar/event-utils';
 import { notificationService } from '@/lib/services/notification-service';
@@ -825,222 +826,32 @@ function CalendarContent() {
         </div>
       </div>
 
-      {/* Right Sidebar */}
-      <div className="w-80 border-l border-border bg-card flex flex-col">
-        {/* Mini Calendar */}
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-sm">
-              {format(miniCalendarMonth, 'MMMM yyyy')}
-            </h3>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setMiniCalendarMonth(
-                  new Date(miniCalendarMonth.getFullYear(), miniCalendarMonth.getMonth() - 1)
-                )}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setMiniCalendarMonth(
-                  new Date(miniCalendarMonth.getFullYear(), miniCalendarMonth.getMonth() + 1)
-                )}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+      {/* Right Sidebar - Desktop Only (hidden on mobile/tablet) */}
+      <div className="hidden lg:flex w-80 border-l border-border bg-card flex-col">
+        {/* Calendar Assistant Chatbot - Top 2/3 */}
+        <div className="flex-[2] border-b border-border overflow-hidden">
+          {selectedAccount?.nylasGrantId ? (
+            <CalendarAssistant
+              accountId={selectedAccount.nylasGrantId}
+              selectedCalendarId={selectedCalendarIds[0]}
+              onEventCreated={fetchEvents}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full p-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                Select an account to use the calendar assistant
+              </p>
             </div>
-          </div>
-
-          {/* Weekday Headers */}
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
-              <div key={idx} className="text-center text-xs font-medium text-muted-foreground">
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-1">
-            {miniEmptyCells.map((_, index) => (
-              <div key={`empty-${index}`} className="aspect-square" />
-            ))}
-
-            {miniDays.map((day) => {
-              const isSelected = selectedMiniDate ? isSameDay(day, selectedMiniDate) : isSameDay(day, currentDate);
-              const isTodayDate = isToday(day);
-              const hasEvents = hasEventsOnDate(day);
-              const isCurrentMonth = isSameMonth(day, miniCalendarMonth);
-
-              return (
-                <button
-                  key={day.toString()}
-                  onClick={() => {
-                    setSelectedMiniDate(day);
-                    setCurrentDate(day);
-                    setCurrentMonth(day);
-                    if (view !== 'month') setView('month');
-                  }}
-                  className={cn(
-                    "aspect-square relative rounded-md text-xs font-medium transition-colors",
-                    "hover:bg-accent",
-                    isSelected && "bg-primary text-primary-foreground hover:bg-primary/90",
-                    !isSelected && isTodayDate && "bg-accent font-bold ring-2 ring-primary",
-                    !isCurrentMonth && "text-muted-foreground/40",
-                    !isSelected && !isTodayDate && isCurrentMonth && "text-foreground"
-                  )}
-                >
-                  <span className="flex items-center justify-center h-full">
-                    {format(day, 'd')}
-                  </span>
-                  {hasEvents && !isSelected && (
-                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
-                      <div className="w-1 h-1 rounded-full bg-primary" />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          )}
         </div>
 
-        {/* Calendar Selector */}
-        <CalendarSelector
-          accountId={selectedAccount?.nylasGrantId || null}
-          selectedCalendarIds={selectedCalendarIds}
-          onCalendarSelectionChange={setSelectedCalendarIds}
-        />
-
-        {/* Upcoming Events */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-sm">
-              {selectedMiniDate ? format(selectedMiniDate, "MMM d 'Events'") : 'Upcoming Events'}
-            </h3>
-            {selectedMiniDate && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedMiniDate(null)}
-                className="h-6 text-xs"
-              >
-                Clear
-              </Button>
-            )}
-          </div>
-          <div className="space-y-2">
-            {filteredEvents
-              .filter(event => {
-                try {
-                  // Parse event date from Nylas v3 format
-                  let eventStartTime;
-                  if (event.when?.startTime) {
-                    eventStartTime = new Date(event.when.startTime * 1000);
-                  } else if (event.when?.date) {
-                    eventStartTime = new Date(event.when.date);
-                  } else if (event.startTime) {
-                    eventStartTime = new Date(event.startTime);
-                  } else {
-                    return false;
-                  }
-
-                  if (selectedMiniDate) {
-                    // Show only events for the selected date
-                    return format(eventStartTime, 'yyyy-MM-dd') === format(selectedMiniDate, 'yyyy-MM-dd');
-                  } else {
-                    // Show all upcoming events
-                    return eventStartTime >= new Date();
-                  }
-                } catch (err) {
-                  console.error('Error filtering event:', err, event);
-                  return false;
-                }
-              })
-              .sort((a, b) => {
-                const getTime = (event: any) => {
-                  if (event.when?.startTime) return event.when.startTime * 1000;
-                  if (event.when?.date) return new Date(event.when.date).getTime();
-                  if (event.startTime) return new Date(event.startTime).getTime();
-                  return 0;
-                };
-                return getTime(a) - getTime(b);
-              })
-              .slice(0, 10)
-              .map((event) => {
-                // Parse event date
-                let eventDate;
-                if (event.when?.startTime) {
-                  eventDate = new Date(event.when.startTime * 1000);
-                } else if (event.when?.date) {
-                  eventDate = new Date(event.when.date);
-                } else if (event.startTime) {
-                  eventDate = new Date(event.startTime);
-                } else {
-                  eventDate = new Date();
-                }
-                const isEventToday = isToday(eventDate);
-
-                return (
-                  <button
-                    key={event.id}
-                    onClick={() => handleEventClick(event)}
-                    className="w-full text-left p-3 rounded-lg hover:bg-accent transition-colors"
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className={cn(
-                        "w-1 h-full rounded-full mt-1",
-                        event.color === 'blue' && 'bg-blue-500',
-                        event.color === 'green' && 'bg-green-500',
-                        event.color === 'red' && 'bg-red-500',
-                        event.color === 'purple' && 'bg-purple-500',
-                        event.color === 'orange' && 'bg-orange-500',
-                        event.color === 'pink' && 'bg-pink-500',
-                        !event.color && 'bg-primary'
-                      )} />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{event.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {isEventToday ? 'Today' : format(eventDate, 'MMM d')} • {format(eventDate, 'h:mm a')}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-
-            {filteredEvents.filter(e => {
-              try {
-                let eventStartTime;
-                if (e.when?.startTime) {
-                  eventStartTime = new Date(e.when.startTime * 1000);
-                } else if (e.when?.date) {
-                  eventStartTime = new Date(e.when.date);
-                } else if (e.startTime) {
-                  eventStartTime = new Date(e.startTime);
-                } else {
-                  return false;
-                }
-
-                if (selectedMiniDate) {
-                  return format(eventStartTime, 'yyyy-MM-dd') === format(selectedMiniDate, 'yyyy-MM-dd');
-                } else {
-                  return eventStartTime >= new Date();
-                }
-              } catch (err) {
-                return false;
-              }
-            }).length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                {selectedMiniDate ? `No events on ${format(selectedMiniDate, 'MMM d')}` : 'No upcoming events'}
-              </p>
-            )}
-          </div>
+        {/* Calendar Selector - Bottom 1/3 */}
+        <div className="flex-1 overflow-y-auto">
+          <CalendarSelector
+            accountId={selectedAccount?.nylasGrantId || null}
+            selectedCalendarIds={selectedCalendarIds}
+            onCalendarSelectionChange={setSelectedCalendarIds}
+          />
         </div>
       </div>
 
