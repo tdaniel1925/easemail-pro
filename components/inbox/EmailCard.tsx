@@ -20,6 +20,7 @@ interface EmailCardProps {
     snippet: string | null;
     fromEmail: string | null;
     fromName: string | null;
+    toEmails: Array<{ email: string; name?: string }> | null;
     receivedAt: Date | string;
     isRead: boolean | null;
     isStarred: boolean | null;
@@ -59,6 +60,21 @@ function EmailCard({
   const truncate = (text: string | null, length: number) => {
     if (!text) return '';
     return text.length > length ? text.substring(0, length) + '...' : text;
+  };
+
+  const formatRecipients = (recipients: Array<{ email: string; name?: string }> | null) => {
+    if (!recipients || recipients.length === 0) return '';
+
+    // Show first recipient
+    const first = recipients[0];
+    const displayName = first.name || first.email;
+
+    // If more than one, add count
+    if (recipients.length > 1) {
+      return `${displayName} +${recipients.length - 1}`;
+    }
+
+    return displayName;
   };
 
   return (
@@ -109,6 +125,12 @@ function EmailCard({
               >
                 {email.fromName || email.fromEmail || 'Unknown Sender'}
               </p>
+              {/* To: field */}
+              {email.toEmails && email.toEmails.length > 0 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  To: {formatRecipients(email.toEmails)}
+                </p>
+              )}
             </div>
 
             {/* Date and Star */}
