@@ -116,7 +116,10 @@ Your Responsibilities:
      * "10 p.m." or "10pm" = 22:00 (evening)
      * "12 a.m." or "12am" = 00:00 (midnight)
      * "12 p.m." or "12pm" = 12:00 (noon)
-   - Return ISO 8601 timestamps for all dates/times in the user's timezone
+   - **CRITICAL TIMEZONE RULE: Return ISO 8601 timestamps in the user's LOCAL timezone (${timezone})**
+     * If user says "4 PM", return the ISO timestamp for 4 PM in ${timezone}, NOT 4 PM UTC
+     * Example: If timezone is America/New_York and user says "4 PM tomorrow", return "2025-11-22T16:00:00-05:00" (NOT "2025-11-22T16:00:00Z")
+     * The timestamp MUST include timezone offset or be in local time, never plain UTC for local times
    - If "Friday" is mentioned, find the next Friday from current date
    - If "tomorrow" is mentioned, use the next day
    - If "tonight" is mentioned, use today's date with evening time
@@ -185,6 +188,12 @@ Now, parse the user's input and respond with the appropriate JSON format.`;
         rawResponse: content,
       });
     }
+
+    // Log for debugging
+    console.log('[AI Parser] Raw AI Response:', content);
+    console.log('[AI Parser] Parsed Data:', JSON.stringify(parsedData, null, 2));
+    console.log('[AI Parser] Current timezone:', timezone);
+    console.log('[AI Parser] Current date:', currentDate.toISOString());
 
     return NextResponse.json({
       success: true,

@@ -247,8 +247,21 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         }
       } else {
         // AI successfully parsed the event
+        console.log('[QuickAdd] AI returned event data:', {
+          rawStartTime: data.event.startTime,
+          rawEndTime: data.event.endTime,
+          explanation: data.explanation,
+        });
+
         const startTime = new Date(data.event.startTime);
         const endTime = new Date(data.event.endTime);
+
+        console.log('[QuickAdd] Parsed dates:', {
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          startTimeLocal: startTime.toLocaleString(),
+          endTimeLocal: endTime.toLocaleString(),
+        });
 
         // Check if dates are valid
         if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
