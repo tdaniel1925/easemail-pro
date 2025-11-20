@@ -144,7 +144,7 @@ function CalendarContent() {
     return Array.from(types);
   }, [events]);
 
-  // Fetch events
+  // Fetch events from both local DB and Nylas (merged)
   const fetchEvents = useCallback(async () => {
     setError(null);
 
@@ -158,76 +158,126 @@ function CalendarContent() {
       return;
     }
 
-    if (!selectedAccount.nylasGrantId) {
-      setEvents([]);
-      setLoading(false);
-      if (initialLoadDone) {
-        setError('This account is not connected. Please reconnect your account.');
-      }
-      setInitialLoadDone(true);
-      return;
-    }
-
     try {
       setLoading(true);
       const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
 
-      // Convert to Unix timestamps for Nylas v3 API
-      const startTimestamp = Math.floor(startDate.getTime() / 1000);
-      const endTimestamp = Math.floor(endDate.getTime() / 1000);
-
-      // Build API URL with calendar filtering
-      let apiUrl = `/api/nylas-v3/calendars/events?accountId=${selectedAccount.nylasGrantId}&start=${startTimestamp}&end=${endTimestamp}`;
-
-      if (selectedCalendarIds.length > 0) {
-        apiUrl += `&calendarIds=${selectedCalendarIds.join(',')}`;
+      // STEP 1: Fetch local DB events (created via QuickAdd, EventModal, etc.)
+      let localEvents: any[] = [];
+      try {
+        const localResponse = await fetch(
+          `/api/calendar/events?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+        );
+        if (localResponse.ok) {
+          const localData = await localResponse.json();
+          if (localData.success && localData.events) {
+            localEvents = localData.events;
+            console.log('[Calendar] Fetched local DB events:', localEvents.length);
+          }
+        }
+      } catch (err) {
+        console.warn('[Calendar] Failed to fetch local events:', err);
+        // Continue - local events are optional
       }
 
-      const response = await fetch(apiUrl);
+      // STEP 2: Fetch Nylas events (synced from Google/Microsoft Calendar)
+      let nylasEvents: any[] = [];
+      if (selectedAccount.nylasGrantId) {
+        try {
+          // Convert to Unix timestamps for Nylas v3 API
+          const startTimestamp = Math.floor(startDate.getTime() / 1000);
+          const endTimestamp = Math.floor(endDate.getTime() / 1000);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('[Calendar] API Error:', response.status, errorData);
+          // Build API URL with calendar filtering
+          let apiUrl = `/api/nylas-v3/calendars/events?accountId=${selectedAccount.nylasGrantId}&start=${startTimestamp}&end=${endTimestamp}`;
 
-        if (response.status === 403) {
-          throw new Error('Account access denied. Please reconnect your email account in Settings.');
-        } else if (response.status === 404) {
-          throw new Error('Calendar account not found. Please reconnect your email account in Settings.');
-        } else if (response.status === 400) {
-          throw new Error('Calendar account not properly connected. Please reconnect in Settings.');
+          if (selectedCalendarIds.length > 0) {
+            apiUrl += `&calendarIds=${selectedCalendarIds.join(',')}`;
+          }
+
+          const response = await fetch(apiUrl);
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+              // Transform Nylas events to calendar component format
+              nylasEvents = (data.events || [])
+                .map((event: any) => transformNylasEvent(event))
+                .filter((event: any) => event !== null);
+              console.log('[Calendar] Fetched Nylas events:', nylasEvents.length);
+            }
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('[Calendar] Nylas API Error:', response.status, errorData);
+
+            if (response.status === 403) {
+              throw new Error('Account access denied. Please reconnect your email account in Settings.');
+            } else if (response.status === 404) {
+              throw new Error('Calendar account not found. Please reconnect your email account in Settings.');
+            } else if (response.status === 400) {
+              throw new Error('Calendar account not properly connected. Please reconnect in Settings.');
+            }
+          }
+        } catch (err) {
+          console.warn('[Calendar] Failed to fetch Nylas events:', err);
+          // If Nylas fails but we have local events, continue
+          if (localEvents.length === 0) {
+            throw err; // Re-throw only if we have no local events
+          }
         }
-        throw new Error(`Failed to fetch events: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      // STEP 3: Merge and deduplicate events
+      // Deduplication strategy: Prefer Nylas events (they have more metadata), but include local events that aren't synced yet
+      const mergedEvents: any[] = [];
+      const seenEventIds = new Set<string>();
 
-      if (data.success) {
-        // Transform Nylas events to calendar component format
-        const transformedEvents = (data.events || [])
-          .map((event: any) => transformNylasEvent(event))
-          .filter((event: any) => event !== null); // Remove events that couldn't be transformed
+      // Add Nylas events first (they're authoritative)
+      nylasEvents.forEach(event => {
+        mergedEvents.push(event);
+        seenEventIds.add(event.id);
+        // Also track by googleEventId/outlookEventId for deduplication
+        if (event.googleEventId) seenEventIds.add(event.googleEventId);
+        if (event.outlookEventId) seenEventIds.add(event.outlookEventId);
+      });
 
-        console.log('[Calendar] Transformed events:', transformedEvents.length);
-        if (transformedEvents.length > 0) {
-          console.log('[Calendar] Sample transformed event:', {
-            id: transformedEvents[0].id,
-            title: transformedEvents[0].title,
-            startTime: transformedEvents[0].startTime,
-            endTime: transformedEvents[0].endTime,
-            when: transformedEvents[0].when,
-          });
+      // Add local events that aren't already in Nylas (recently created, not yet synced)
+      localEvents.forEach(event => {
+        const eventId = event.id;
+        const googleId = event.googleEventId;
+        const outlookId = event.outlookEventId;
+
+        // Skip if we've already added this event from Nylas
+        if (seenEventIds.has(eventId) ||
+            (googleId && seenEventIds.has(googleId)) ||
+            (outlookId && seenEventIds.has(outlookId))) {
+          return;
         }
 
-        if (transformedEvents.length < (data.events || []).length) {
-          console.warn(`[Calendar] Filtered out ${(data.events || []).length - transformedEvents.length} events that couldn't be transformed`);
-        }
+        // Add local event (it hasn't synced to Nylas yet)
+        mergedEvents.push(event);
+        seenEventIds.add(eventId);
+      });
 
-        setEvents(transformedEvents);
-        setError(null);
-      } else {
-        throw new Error(data.error || 'Failed to fetch events');
+      console.log('[Calendar] Merged events:', {
+        local: localEvents.length,
+        nylas: nylasEvents.length,
+        merged: mergedEvents.length,
+        deduplicated: localEvents.length + nylasEvents.length - mergedEvents.length
+      });
+
+      if (mergedEvents.length > 0) {
+        console.log('[Calendar] Sample merged event:', {
+          id: mergedEvents[0].id,
+          title: mergedEvents[0].title,
+          startTime: mergedEvents[0].startTime,
+          endTime: mergedEvents[0].endTime,
+        });
       }
+
+      setEvents(mergedEvents);
+      setError(null);
       setInitialLoadDone(true);
     } catch (error) {
       console.error('Failed to fetch events:', error);
