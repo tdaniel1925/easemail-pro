@@ -25,6 +25,18 @@ export async function POST(request: NextRequest) {
     const currentDate = new Date();
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
+    // Get current time in user's local timezone for better context
+    const currentLocalTime = currentDate.toLocaleString('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      weekday: 'long'
+    });
+
     // Build conversation messages for OpenAI
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       ...conversationHistory,
@@ -38,9 +50,9 @@ export async function POST(request: NextRequest) {
     const systemPrompt = `You are an intelligent calendar event parser assistant. Your job is to understand natural language event descriptions and extract structured event data.
 
 Current Context:
-- Current date/time: ${currentDate.toISOString()}
-- User's timezone: ${timezone}
-- Day of week: ${currentDate.toLocaleDateString('en-US', { weekday: 'long' })}
+- Current date/time IN USER'S TIMEZONE (${timezone}): ${currentLocalTime}
+- ISO timestamp: ${currentDate.toISOString()}
+- **IMPORTANT: All times mentioned by the user are in ${timezone} unless explicitly stated otherwise**
 
 Your Responsibilities:
 
@@ -116,10 +128,13 @@ Your Responsibilities:
      * "10 p.m." or "10pm" = 22:00 (evening)
      * "12 a.m." or "12am" = 00:00 (midnight)
      * "12 p.m." or "12pm" = 12:00 (noon)
-   - **CRITICAL TIMEZONE RULE: Return ISO 8601 timestamps in the user's LOCAL timezone (${timezone})**
-     * If user says "4 PM", return the ISO timestamp for 4 PM in ${timezone}, NOT 4 PM UTC
-     * Example: If timezone is America/New_York and user says "4 PM tomorrow", return "2025-11-22T16:00:00-05:00" (NOT "2025-11-22T16:00:00Z")
-     * The timestamp MUST include timezone offset or be in local time, never plain UTC for local times
+   - **CRITICAL TIMEZONE RULE: The user is in ${timezone} timezone. ALL times they mention are in ${timezone}**
+     * When user says "10am tomorrow", they mean 10am ${timezone} time
+     * Return ISO timestamps that represent the LOCAL time in ${timezone}, not UTC
+     * Use format like "2025-11-22T10:00:00" (which JavaScript will interpret as local time)
+     * OR use format with explicit offset like "2025-11-22T10:00:00-06:00" for Central Time
+     * NEVER return "2025-11-22T10:00:00Z" (Z means UTC) when user means 10am local time
+     * If you say "10:00 AM" in your explanation, the timestamp MUST also be 10:00 AM in ${timezone}, not 10:00 AM UTC
    - If "Friday" is mentioned, find the next Friday from current date
    - If "tomorrow" is mentioned, use the next day
    - If "tonight" is mentioned, use today's date with evening time
