@@ -13,7 +13,7 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const { input, conversationHistory = [] } = await request.json();
+    const { input, conversationHistory = [], timezone: clientTimezone } = await request.json();
 
     if (!input || typeof input !== 'string') {
       return NextResponse.json(
@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
     }
 
     const currentDate = new Date();
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    // Use client-provided timezone (from browser) instead of server timezone
+    const timezone = clientTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
     // Get current time in user's local timezone for better context
     const currentLocalTime = currentDate.toLocaleString('en-US', {
@@ -207,8 +208,10 @@ Now, parse the user's input and respond with the appropriate JSON format.`;
     // Log for debugging
     console.log('[AI Parser] Raw AI Response:', content);
     console.log('[AI Parser] Parsed Data:', JSON.stringify(parsedData, null, 2));
-    console.log('[AI Parser] Current timezone:', timezone);
+    console.log('[AI Parser] Client timezone:', clientTimezone);
+    console.log('[AI Parser] Using timezone:', timezone);
     console.log('[AI Parser] Current date:', currentDate.toISOString());
+    console.log('[AI Parser] Current local time:', currentLocalTime);
 
     return NextResponse.json({
       success: true,

@@ -184,7 +184,9 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     setError(null);
 
     try {
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       console.log('[QuickAdd] Sending to AI:', messageText);
+      console.log('[QuickAdd] Client timezone:', userTimezone);
 
       const response = await fetch('/api/calendar/parse-event', {
         method: 'POST',
@@ -192,6 +194,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         body: JSON.stringify({
           input: messageText,
           conversationHistory,
+          timezone: userTimezone, // Pass client timezone
         }),
       });
 
