@@ -107,8 +107,9 @@ export default function DayView({
             {hours.map(hour => (
               <div
                 key={hour}
-                onClick={() => onTimeSlotClick(currentDate, hour)}
+                onDoubleClick={() => onTimeSlotClick(currentDate, hour)}
                 className="h-[80px] border-t hover:bg-accent/50 cursor-pointer transition-colors"
+                title="Double-click to create event"
               />
             ))}
 

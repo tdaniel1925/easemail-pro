@@ -154,8 +154,9 @@ export default function WeekView({
                   {hours.map(hour => (
                     <div
                       key={hour}
-                      onClick={() => onTimeSlotClick(day, hour)}
+                      onDoubleClick={() => onTimeSlotClick(day, hour)}
                       className="h-[60px] border-t hover:bg-accent/50 cursor-pointer transition-colors"
+                      title="Double-click to create event"
                     />
                   ))}
 

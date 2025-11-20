@@ -1456,10 +1456,80 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
               <div className="flex items-center justify-between p-3">
                 <div className="flex items-center gap-2">
-                  <Button onClick={() => handleSend()} className="gap-2" disabled={isSending || !accountId}>
-                    <Send className="h-4 w-4" />
-                    {isSending ? 'Sending...' : 'Send'}
-                  </Button>
+                  {/* Send Button with Dropdown */}
+                  <div className="relative">
+                    <div className="flex">
+                      <Button
+                        onClick={() => handleSend()}
+                        className="gap-2 rounded-r-none"
+                        disabled={isSending || !accountId}
+                      >
+                        <Send className="h-4 w-4" />
+                        {isSending ? 'Sending...' : 'Send'}
+                      </Button>
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const dropdown = document.getElementById('send-dropdown');
+                          if (dropdown) {
+                            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                          }
+                        }}
+                        className="rounded-l-none border-l px-2"
+                        disabled={isSending || !accountId}
+                        title="More send options"
+                      >
+                        <span className="text-xs">▼</span>
+                      </Button>
+                    </div>
+                    <div
+                      id="send-dropdown"
+                      className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[200px]"
+                      style={{ display: 'none' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={async () => {
+                          await handleSend();
+                          // Archive the original email if this is a reply
+                          if (replyTo && replyTo.messageId) {
+                            try {
+                              await fetch(`/api/nylas-v3/messages/${replyTo.messageId}/archive`, {
+                                method: 'POST',
+                              });
+                            } catch (err) {
+                              console.error('Failed to archive:', err);
+                            }
+                          }
+                          document.getElementById('send-dropdown')!.style.display = 'none';
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                        disabled={isSending}
+                      >
+                        Send & Archive
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await handleSend();
+                          // Delete the original email if this is a reply
+                          if (replyTo && replyTo.messageId) {
+                            try {
+                              await fetch(`/api/nylas-v3/messages/${replyTo.messageId}`, {
+                                method: 'DELETE',
+                              });
+                            } catch (err) {
+                              console.error('Failed to delete:', err);
+                            }
+                          }
+                          document.getElementById('send-dropdown')!.style.display = 'none';
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors border-t"
+                        disabled={isSending}
+                      >
+                        Send & Delete
+                      </button>
+                    </div>
+                  </div>
                 <label>
                   <input
                     type="file"
