@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Group {
   id: string;
@@ -43,6 +44,7 @@ interface GroupManagerProps {
 }
 
 export default function GroupManager({ isOpen, onClose }: GroupManagerProps) {
+  const { toast } = useToast();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -89,12 +91,24 @@ export default function GroupManager({ isOpen, onClose }: GroupManagerProps) {
         setGroups([...groups, data.group]);
         setShowCreateModal(false);
         resetForm();
+        toast({
+          title: 'Success',
+          description: 'Group created successfully'
+        });
       } else {
-        alert(data.error || 'Failed to create group');
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to create group',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error creating group:', error);
-      alert('Failed to create group');
+      toast({
+        title: 'Error',
+        description: 'Failed to create group',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -113,12 +127,24 @@ export default function GroupManager({ isOpen, onClose }: GroupManagerProps) {
         setGroups(groups.map((g) => (g.id === editingGroup.id ? data.group : g)));
         setEditingGroup(null);
         resetForm();
+        toast({
+          title: 'Success',
+          description: 'Group updated successfully'
+        });
       } else {
-        alert(data.error || 'Failed to update group');
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to update group',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error updating group:', error);
-      alert('Failed to update group');
+      toast({
+        title: 'Error',
+        description: 'Failed to update group',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -132,12 +158,24 @@ export default function GroupManager({ isOpen, onClose }: GroupManagerProps) {
       if (data.success) {
         setGroups(groups.filter((g) => g.id !== groupId));
         setDeleteConfirm(null);
+        toast({
+          title: 'Success',
+          description: 'Group deleted successfully'
+        });
       } else {
-        alert(data.error || 'Failed to delete group');
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to delete group',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error deleting group:', error);
-      alert('Failed to delete group');
+      toast({
+        title: 'Error',
+        description: 'Failed to delete group',
+        variant: 'destructive'
+      });
     }
   };
 

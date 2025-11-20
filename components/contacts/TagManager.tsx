@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Tag {
   id: string;
@@ -43,6 +44,7 @@ interface TagManagerProps {
 }
 
 export default function TagManager({ isOpen, onClose }: TagManagerProps) {
+  const { toast } = useToast();
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -89,12 +91,24 @@ export default function TagManager({ isOpen, onClose }: TagManagerProps) {
         setTags([...tags, data.tag]);
         setShowCreateModal(false);
         resetForm();
+        toast({
+          title: 'Success',
+          description: 'Tag created successfully'
+        });
       } else {
-        alert(data.error || 'Failed to create tag');
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to create tag',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error creating tag:', error);
-      alert('Failed to create tag');
+      toast({
+        title: 'Error',
+        description: 'Failed to create tag',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -113,12 +127,24 @@ export default function TagManager({ isOpen, onClose }: TagManagerProps) {
         setTags(tags.map((t) => (t.id === editingTag.id ? data.tag : t)));
         setEditingTag(null);
         resetForm();
+        toast({
+          title: 'Success',
+          description: 'Tag updated successfully'
+        });
       } else {
-        alert(data.error || 'Failed to update tag');
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to update tag',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error updating tag:', error);
-      alert('Failed to update tag');
+      toast({
+        title: 'Error',
+        description: 'Failed to update tag',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -132,12 +158,24 @@ export default function TagManager({ isOpen, onClose }: TagManagerProps) {
       if (data.success) {
         setTags(tags.filter((t) => t.id !== tagId));
         setDeleteConfirm(null);
+        toast({
+          title: 'Success',
+          description: 'Tag deleted successfully'
+        });
       } else {
-        alert(data.error || 'Failed to delete tag');
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to delete tag',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error deleting tag:', error);
-      alert('Failed to delete tag');
+      toast({
+        title: 'Error',
+        description: 'Failed to delete tag',
+        variant: 'destructive'
+      });
     }
   };
 

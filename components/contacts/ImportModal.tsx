@@ -5,6 +5,7 @@ import { Upload, X, CheckCircle, AlertCircle, Loader2, Download } from 'lucide-r
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ColumnMappingModal } from './ColumnMappingModal';
+import { useToast } from '@/components/ui/use-toast';
 
 interface ImportModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface ImportModalProps {
 }
 
 export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
+  const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -39,10 +41,18 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
         }
       } catch (error) {
         console.error('Failed to parse CSV:', error);
-        alert('Failed to read CSV file');
+        toast({
+          title: 'Error',
+          description: 'Failed to read CSV file',
+          variant: 'destructive'
+        });
       }
     } else {
-      alert('Please select a valid CSV file');
+      toast({
+        title: 'Invalid File',
+        description: 'Please select a valid CSV file',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -91,7 +101,11 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
       });
 
       if (mappedContacts.length === 0) {
-        alert('No valid contacts found after mapping');
+        toast({
+          title: 'No Contacts',
+          description: 'No valid contacts found after mapping',
+          variant: 'destructive'
+        });
         setImporting(false);
         return;
       }
@@ -103,7 +117,7 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setResult(data);
         if (data.imported > 0) {
@@ -112,11 +126,19 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
           }, 2000);
         }
       } else {
-        alert(data.error || 'Failed to import contacts');
+        toast({
+          title: 'Import Failed',
+          description: data.error || 'Failed to import contacts',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Import failed:', error);
-      alert('Failed to import contacts');
+      toast({
+        title: 'Import Error',
+        description: 'Failed to import contacts',
+        variant: 'destructive'
+      });
     } finally {
       setImporting(false);
     }
@@ -131,7 +153,11 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
       const contacts = parseCSV(text);
 
       if (contacts.length === 0) {
-        alert('No valid contacts found in CSV file');
+        toast({
+          title: 'No Contacts',
+          description: 'No valid contacts found in CSV file',
+          variant: 'destructive'
+        });
         setImporting(false);
         return;
       }
@@ -143,7 +169,7 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setResult(data);
         if (data.imported > 0) {
@@ -152,11 +178,19 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
           }, 2000);
         }
       } else {
-        alert(data.error || 'Failed to import contacts');
+        toast({
+          title: 'Import Failed',
+          description: data.error || 'Failed to import contacts',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Import failed:', error);
-      alert('Failed to import contacts');
+      toast({
+        title: 'Import Error',
+        description: 'Failed to import contacts',
+        variant: 'destructive'
+      });
     } finally {
       setImporting(false);
     }

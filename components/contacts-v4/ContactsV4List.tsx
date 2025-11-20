@@ -1156,7 +1156,18 @@ function ContactCard({ contact, onDelete, onToggleFavorite, onEdit, onSendSMS, i
               size="sm"
               disabled={!contact.primary_email}
               title={contact.primary_email ? "Send Email" : "No email available"}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (contact.primary_email) {
+                  const event = new CustomEvent('openCompose', {
+                    detail: {
+                      type: 'compose',
+                      email: { to: contact.primary_email, subject: '' }
+                    }
+                  });
+                  window.dispatchEvent(event);
+                }
+              }}
             >
               <Mail className="h-4 w-4" />
             </Button>
@@ -1166,7 +1177,12 @@ function ContactCard({ contact, onDelete, onToggleFavorite, onEdit, onSendSMS, i
               size="sm"
               disabled={!contact.primary_phone}
               title={contact.primary_phone ? "Call" : "No phone available"}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (contact.primary_phone) {
+                  window.location.href = `tel:${formatPhoneForTwilio(contact.primary_phone)}`;
+                }
+              }}
             >
               <Phone className="h-4 w-4" />
             </Button>
@@ -1325,7 +1341,18 @@ function ContactListItem({ contact, onDelete, onToggleFavorite, onEdit, onSendSM
               size="icon"
               disabled={!contact.primary_email}
               title={contact.primary_email ? "Send Email" : "No email available"}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (contact.primary_email) {
+                  const event = new CustomEvent('openCompose', {
+                    detail: {
+                      type: 'compose',
+                      email: { to: contact.primary_email, subject: '' }
+                    }
+                  });
+                  window.dispatchEvent(event);
+                }
+              }}
             >
               <Mail className="h-4 w-4" />
             </Button>
@@ -1334,7 +1361,12 @@ function ContactListItem({ contact, onDelete, onToggleFavorite, onEdit, onSendSM
               size="icon"
               disabled={!contact.primary_phone}
               title={contact.primary_phone ? "Call" : "No phone available"}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (contact.primary_phone) {
+                  window.location.href = `tel:${formatPhoneForTwilio(contact.primary_phone)}`;
+                }
+              }}
             >
               <Phone className="h-4 w-4" />
             </Button>

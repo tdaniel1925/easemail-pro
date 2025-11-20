@@ -106,6 +106,11 @@ export default function ContactDetailModal({
       }
     } catch (error) {
       console.error('Failed to fetch contact:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load contact details',
+        variant: 'destructive'
+      });
       // Close modal if contact can't be loaded
       onClose();
     } finally {
@@ -142,7 +147,10 @@ export default function ContactDetailModal({
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this contact? This action cannot be undone.')) {
+    // Show confirmation toast instead of browser confirm
+    const confirmed = window.confirm('Are you sure you want to delete this contact? This action cannot be undone.');
+
+    if (!confirmed) {
       return;
     }
 
@@ -156,6 +164,10 @@ export default function ContactDetailModal({
       const data = await response.json();
 
       if (data.success) {
+        toast({
+          title: 'Success',
+          description: 'Contact deleted successfully'
+        });
         onDeleted?.();
         onClose();
       } else {
@@ -163,7 +175,13 @@ export default function ContactDetailModal({
       }
     } catch (error) {
       console.error('Failed to delete contact:', error);
-      setDeleteError(error instanceof Error ? error.message : 'Failed to delete contact');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete contact';
+      setDeleteError(errorMessage);
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive'
+      });
     }
   };
 
