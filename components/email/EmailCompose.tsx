@@ -545,7 +545,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     if (!subject || subject.trim() === '') {
       const confirmed = await confirm({
         title: 'No Subject',
-        description: 'This email has no subject line. Are you sure you want to send it?',
+        message: 'This email has no subject line. Are you sure you want to send it?',
         confirmText: 'Send Anyway',
         cancelText: 'Cancel',
       });
@@ -867,7 +867,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     if (isDirty && accountId) {
       const confirmed = await confirm({
         title: 'Discard Draft?',
-        description: 'Do you want to save this draft or discard it?',
+        message: 'Do you want to save this draft or discard it?',
         confirmText: 'Save Draft',
         cancelText: 'Discard',
       });
