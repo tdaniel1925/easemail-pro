@@ -39,6 +39,7 @@ import EventSearch from '@/components/calendar/EventSearch';
 import CalendarSelector from '@/components/calendar/CalendarSelector';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth } from 'date-fns';
 import { transformNylasEvent } from '@/lib/calendar/event-utils';
+import { notificationService } from '@/lib/services/notification-service';
 
 type ViewType = 'month' | 'week' | 'day' | 'agenda' | 'year' | 'list';
 
@@ -323,6 +324,92 @@ function CalendarContent() {
       clearInterval(syncInterval);
     };
   }, [selectedAccount?.nylasGrantId]);
+
+  // ✅ OUTLOOK BEHAVIOR: Request notification permission on mount
+  useEffect(() => {
+    const requestNotificationPermission = async () => {
+      const permission = await notificationService.requestPermission();
+
+      if (permission === 'granted') {
+        console.log('✅ Browser notifications enabled for calendar reminders');
+      } else if (permission === 'denied') {
+        console.warn('⚠️ Browser notifications blocked. Reminders will not appear.');
+      } else {
+        console.log('ℹ️ Browser notifications not yet permitted');
+      }
+    };
+
+    requestNotificationPermission();
+  }, []);
+
+  // ✅ OUTLOOK BEHAVIOR: Schedule notifications for upcoming events
+  useEffect(() => {
+    // Cancel all existing notifications before scheduling new ones
+    notificationService.cancelAllNotifications();
+
+    if (events.length === 0) {
+      console.log('[Notifications] No events to schedule notifications for');
+      return;
+    }
+
+    const now = new Date();
+    let scheduledCount = 0;
+
+    // Schedule notifications for each event with reminders
+    events.forEach(event => {
+      try {
+        // Parse event start time
+        let eventStart: Date | null = null;
+
+        if (event.startTime) {
+          eventStart = new Date(event.startTime);
+        } else if (event.when?.startTime) {
+          eventStart = new Date(event.when.startTime * 1000);
+        }
+
+        if (!eventStart || isNaN(eventStart.getTime())) {
+          return; // Skip events without valid start time
+        }
+
+        // Only schedule for future events
+        if (eventStart <= now) {
+          return;
+        }
+
+        // Get reminders from event (default to 15 minutes like Outlook)
+        const reminders = event.reminders && event.reminders.length > 0
+          ? event.reminders
+          : [{ minutes: 15, method: 'notification' }];
+
+        // Schedule notification for each reminder
+        reminders.forEach((reminder: any) => {
+          const minutesBefore = reminder.minutes || 15;
+
+          const notificationId = notificationService.scheduleReminder({
+            eventId: event.id,
+            eventTitle: event.title || 'Untitled Event',
+            eventStart,
+            eventLocation: event.location,
+            minutesBefore,
+          });
+
+          if (notificationId) {
+            scheduledCount++;
+          }
+        });
+      } catch (error) {
+        console.error('[Notifications] Error scheduling notification for event:', event.id, error);
+      }
+    });
+
+    console.log(`[Notifications] Scheduled ${scheduledCount} reminder notifications for ${events.length} events`);
+
+    // Cleanup: Cancel all notifications when component unmounts or events change
+    return () => {
+      console.log('[Notifications] Cleaning up scheduled notifications');
+      notificationService.cancelAllNotifications();
+    };
+  }, [events]);
 
   // Navigation functions
   const goToToday = () => {
