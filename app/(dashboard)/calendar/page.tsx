@@ -502,16 +502,6 @@ function CalendarContent() {
   }, [events]);
 
   // Navigation functions
-  const goToToday = () => {
-    const today = new Date();
-    setCurrentMonth(today);
-    setCurrentDate(today);
-    setCurrentYear(today);
-    setMiniCalendarMonth(today);
-    setSelectedMiniDate(null); // Clear date filter
-    if (view !== 'month') setView('month'); // Switch to month view
-  };
-
   const previousMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
   };
@@ -646,14 +636,6 @@ function CalendarContent() {
                 </div>
 
                 <div className="flex items-center gap-2 ml-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={goToToday}
-                  >
-                    Today
-                  </Button>
-
                   <div className="flex items-center">
                     <Button
                       variant="ghost"

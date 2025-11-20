@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
         });
 
         const calendarIds = calendarsResponse.data
-          .filter((cal: any) => !cal.readOnly) // Only fetch writable calendars
+          // Include ALL calendars (read-only team calendars, shared calendars, etc.)
           .map((cal: any) => cal.id);
 
         console.log('[Calendar Events] No calendars selected, fetching from all calendars:', calendarIds.length);

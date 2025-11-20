@@ -136,32 +136,68 @@ export function MiniCalendar() {
     fetchEvents();
   }, [fetchEvents]);
 
-  // Check if a day has events
+  // Check if a day has events (only show dots for future/today events)
   const dayHasEvents = (day: number) => {
     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const dateStr = date.toISOString().split('T')[0];
 
+    // Get start of today for past event filtering
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
     return events.some(event => {
       const eventStart = parseEventStartTime(event);
       if (!eventStart) return false;
+
       try {
-        return eventStart.toISOString().split('T')[0] === dateStr;
+        // Check if event is on this day
+        const isOnDay = eventStart.toISOString().split('T')[0] === dateStr;
+        if (!isOnDay) return false;
+
+        // Filter out past events (events that ended before today)
+        const eventEndTime = event.endTime ? new Date(event.endTime) : null;
+
+        if (!eventEndTime) {
+          // If we can't determine end time, show the dot
+          return true;
+        }
+
+        // Only show dot if event hasn't ended yet
+        return eventEndTime >= startOfToday;
       } catch (err) {
         return false;
       }
     });
   };
 
-  // Get events for a specific day
+  // Get events for a specific day (only future/today events)
   const getEventsForDay = (day: number) => {
     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const dateStr = date.toISOString().split('T')[0];
 
+    // Get start of today for past event filtering
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
     return events.filter(event => {
       const eventStart = parseEventStartTime(event);
       if (!eventStart) return false;
+
       try {
-        return eventStart.toISOString().split('T')[0] === dateStr;
+        // Check if event is on this day
+        const isOnDay = eventStart.toISOString().split('T')[0] === dateStr;
+        if (!isOnDay) return false;
+
+        // Filter out past events (events that ended before today)
+        const eventEndTime = event.endTime ? new Date(event.endTime) : null;
+
+        if (!eventEndTime) {
+          // If we can't determine end time, include it
+          return true;
+        }
+
+        // Only include if event hasn't ended yet
+        return eventEndTime >= startOfToday;
       } catch (err) {
         return false;
       }

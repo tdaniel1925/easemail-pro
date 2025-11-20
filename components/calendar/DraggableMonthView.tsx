@@ -7,11 +7,10 @@
 
 import { useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable, closestCenter } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight, Repeat, AlertTriangle, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Repeat, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
-import { findConflictingEvents } from '@/lib/calendar/calendar-utils';
 
 interface DraggableMonthViewProps {
   currentMonth: Date;
@@ -33,9 +32,6 @@ function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEve
     opacity: isDragging ? 0.5 : 1,
   } : undefined;
 
-  const conflicts = findConflictingEvents(event, allEvents);
-  const hasConflict = conflicts.length > 0;
-
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onEventClick(e, event);
@@ -53,8 +49,7 @@ function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEve
         event.color === 'purple' && 'bg-purple-500/20 text-purple-700 dark:text-purple-300',
         event.color === 'orange' && 'bg-orange-500/20 text-orange-700 dark:text-orange-300',
         event.color === 'pink' && 'bg-pink-500/20 text-pink-700 dark:text-pink-300',
-        isDragging && 'opacity-50',
-        hasConflict && 'ring-1 ring-destructive/30'
+        isDragging && 'opacity-50'
       )}
     >
       {/* Drag Handle - only this part triggers drag */}
@@ -73,7 +68,6 @@ function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEve
         className="flex-1 flex items-center gap-0.5 cursor-pointer hover:opacity-80 truncate"
       >
         {event.isRecurring && <Repeat className="h-2.5 w-2.5 flex-shrink-0" />}
-        {hasConflict && <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0 text-destructive" />}
         <span className="truncate">{event.title}</span>
       </div>
     </div>
