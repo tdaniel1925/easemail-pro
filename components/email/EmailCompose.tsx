@@ -103,9 +103,15 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       };
     } else if (type === 'reply-all') {
       // Reply-All: Parse comma-separated lists for To and CC
+      // ✅ OUTLOOK BEHAVIOR: Exclude current user from CC list
+      const ccList = parseEmailField(replyTo.cc);
+      const toList = parseEmailField(replyTo.to);
+
+      // Get current user's email from replyTo (the original message's recipient)
+      // We'll filter it out from CC after fetching account info
       return {
-        to: parseEmailField(replyTo.to),
-        cc: parseEmailField(replyTo.cc),
+        to: toList,
+        cc: ccList,
         bcc: []
       };
     } else if (type === 'forward') {
@@ -164,6 +170,37 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       setShowBcc(true);
     }
   }, []); // Only run on mount
+
+  // ✅ OUTLOOK BEHAVIOR: Exclude current user's email from reply-all CC list
+  useEffect(() => {
+    if (type === 'reply-all' && accountId && cc.length > 0) {
+      const fetchAndFilterCC = async () => {
+        try {
+          const response = await fetch(`/api/accounts/${accountId}`);
+          if (response.ok) {
+            const data = await response.json();
+            const currentUserEmail = data.account?.email?.toLowerCase();
+
+            if (currentUserEmail) {
+              // Filter out current user's email from CC list
+              const filteredCC = cc.filter(
+                recipient => recipient.email.toLowerCase() !== currentUserEmail
+              );
+
+              if (filteredCC.length !== cc.length) {
+                console.log('[Reply-All] Filtered out current user email from CC:', currentUserEmail);
+                setCc(filteredCC);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[Reply-All] Failed to fetch account email:', error);
+        }
+      };
+
+      fetchAndFilterCC();
+    }
+  }, [type, accountId]); // Only run when type or accountId changes
 
   // Load user preferences on mount
   useEffect(() => {

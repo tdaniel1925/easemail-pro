@@ -310,12 +310,14 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
         return;
       }
 
-      // Validate: Attendee emails
+      // Warn about invalid attendee emails (don't block save)
       const invalidEmails = attendees.filter(a => !isValidEmail(a.email));
       if (invalidEmails.length > 0) {
-        setError(`Invalid email addresses: ${invalidEmails.map(a => a.email).join(', ')}`);
-        setLoading(false);
-        return;
+        console.warn('Invalid email addresses:', invalidEmails.map(a => a.email).join(', '));
+        // Show warning but allow save (Outlook behavior)
+        setError(`⚠️ Warning: Some email addresses may be invalid: ${invalidEmails.map(a => a.email).join(', ')}. Event will be saved but invitations may fail.`);
+        // Clear error after 5 seconds
+        setTimeout(() => setError(null), 5000);
       }
 
       const eventData = {

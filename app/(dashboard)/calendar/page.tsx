@@ -250,13 +250,15 @@ function CalendarContent() {
   }, [events.length]);
 
   // Sync calendar
-  const handleSync = async () => {
+  const handleSync = async (silent = false) => {
     if (!selectedAccount?.nylasGrantId) {
-      toast({
-        title: 'No Account Selected',
-        description: 'Please select an account to sync.',
-        variant: 'destructive',
-      });
+      if (!silent) {
+        toast({
+          title: 'No Account Selected',
+          description: 'Please select an account to sync.',
+          variant: 'destructive',
+        });
+      }
       return;
     }
 
@@ -271,29 +273,56 @@ function CalendarContent() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        toast({
-          title: 'Sync Complete',
-          description: `Successfully synced ${data.synced || 0} events`,
-        });
+        if (!silent) {
+          toast({
+            title: 'Sync Complete',
+            description: `Successfully synced ${data.synced || 0} events`,
+          });
+        }
         await fetchEvents();
+        console.log('[Auto-Sync] Successfully synced calendar');
       } else {
+        if (!silent) {
+          toast({
+            title: 'Sync Failed',
+            description: data.error || 'Failed to sync calendar',
+            variant: 'destructive',
+          });
+        }
+        console.error('[Auto-Sync] Sync failed:', data.error);
+      }
+    } catch (error) {
+      console.error('[Auto-Sync] Sync failed:', error);
+      if (!silent) {
         toast({
           title: 'Sync Failed',
-          description: data.error || 'Failed to sync calendar',
+          description: 'An error occurred while syncing',
           variant: 'destructive',
         });
       }
-    } catch (error) {
-      console.error('Sync failed:', error);
-      toast({
-        title: 'Sync Failed',
-        description: 'An error occurred while syncing',
-        variant: 'destructive',
-      });
     } finally {
       setSyncing(false);
     }
   };
+
+  // ✅ OUTLOOK BEHAVIOR: Auto-sync calendar every 3 minutes
+  useEffect(() => {
+    if (!selectedAccount?.nylasGrantId) return;
+
+    console.log('[Auto-Sync] Starting auto-sync interval (every 3 minutes)');
+
+    // Auto-sync every 3 minutes (180,000 ms)
+    const syncInterval = setInterval(() => {
+      console.log('[Auto-Sync] Running scheduled sync...');
+      handleSync(true); // Silent sync (no toast notifications)
+    }, 3 * 60 * 1000);
+
+    // Cleanup interval on unmount or account change
+    return () => {
+      console.log('[Auto-Sync] Clearing auto-sync interval');
+      clearInterval(syncInterval);
+    };
+  }, [selectedAccount?.nylasGrantId]);
 
   // Navigation functions
   const goToToday = () => {
@@ -479,7 +508,7 @@ function CalendarContent() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleSync}
+                  onClick={() => handleSync(false)}
                   disabled={syncing}
                 >
                   <RefreshCw className={cn("h-4 w-4 mr-2", syncing && "animate-spin")} />

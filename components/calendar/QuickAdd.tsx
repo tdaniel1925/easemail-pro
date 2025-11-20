@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import * as chrono from 'chrono-node';
+import * as Sentry from '@sentry/nextjs';
 
 interface QuickAddProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
   const [browserSupportsVoice, setBrowserSupportsVoice] = useState(false);
+  const [autoCreateAfterVoice, setAutoCreateAfterVoice] = useState(false);
 
   // Calendar selection
   const [availableCalendars, setAvailableCalendars] = useState<any[]>([]);
@@ -94,8 +96,27 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
             .map((result: any) => result[0].transcript)
             .join('');
 
-          setInput(transcript);
-          parseInput(transcript);
+          console.log('[QuickAdd] Voice transcript:', transcript);
+          
+          // Track voice input usage
+          Sentry.startSpan(
+            {
+              op: 'voice.recognition',
+              name: 'Quick Add Voice Input',
+            },
+            (span) => {
+              span.setAttribute('transcript', transcript);
+              span.setAttribute('isFinal', event.results[0].isFinal);
+              
+              setInput(transcript);
+              parseInput(transcript);
+              
+              // Mark that we should auto-create after voice ends
+              if (event.results[0].isFinal) {
+                setAutoCreateAfterVoice(true);
+              }
+            }
+          );
         };
 
         recognitionInstance.onerror = (event: any) => {
@@ -109,7 +130,17 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         };
 
         recognitionInstance.onend = () => {
+          console.log('[QuickAdd] Voice recognition ended');
           setIsListening(false);
+          
+          // Auto-create event after voice input completes (with a small delay to ensure preview is set)
+          if (autoCreateAfterVoice) {
+            console.log('[QuickAdd] Auto-creating event from voice input');
+            setTimeout(() => {
+              handleCreate();
+            }, 500);
+            setAutoCreateAfterVoice(false);
+          }
         };
 
         setRecognition(recognitionInstance);
@@ -134,6 +165,38 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     }
   };
 
+  // Preprocess text to fix common typos and variations
+  const preprocessText = (text: string): string => {
+    let cleaned = text.trim();
+    
+    // FIRST: Remove common filler phrases
+    // Handle "for me for" first (most specific)
+    cleaned = cleaned.replace(/^(set|make|create|add|schedule)\s+(an?\s+)?(appointment|event|meeting)\s+for\s+me\s+for\s+/gi, '');
+    // Then "for me" without second "for"
+    cleaned = cleaned.replace(/^(set|make|create|add|schedule)\s+(an?\s+)?(appointment|event|meeting)\s+for\s+me\s+/gi, '');
+    // Then just "for"
+    cleaned = cleaned.replace(/^(set|make|create|add|schedule)\s+(an?\s+)?(appointment|event|meeting)\s+for\s+/gi, '');
+    // Finally, just the action word + type
+    cleaned = cleaned.replace(/^(set|make|create|add|schedule)\s+(an?\s+)?(appointment|event|meeting)\s+/gi, '');
+    
+    // THEN: Fix common time typos: "9ma" → "9am", "3mp" → "3pm"  
+    // Use function form to avoid issues with $1 in some contexts
+    cleaned = cleaned.replace(/(\d+)\s*ma\b/gi, (match, p1) => p1 + 'am');
+    cleaned = cleaned.replace(/(\d+)\s*mp\b/gi, (match, p1) => p1 + 'pm');
+    
+    // Fix common day typos
+    cleaned = cleaned.replace(/\btomorow\b/gi, 'tomorrow');
+    
+    // Fix common word typos
+    cleaned = cleaned.replace(/\bappointmen\b/gi, 'appointment');
+    cleaned = cleaned.replace(/\bcalndae\b/gi, 'calendar');
+    
+    // Normalize spaces
+    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    
+    return cleaned;
+  };
+
   const parseInput = (text: string) => {
     if (!text.trim()) {
       setPreview(null);
@@ -141,8 +204,13 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     }
 
     try {
+      // Preprocess text to fix typos
+      const processedText = preprocessText(text);
+      console.log('[QuickAdd] Original text:', text);
+      console.log('[QuickAdd] Processed text:', processedText);
+      
       // Parse the natural language input
-      const results = chrono.parse(text, new Date(), { forwardDate: true });
+      const results = chrono.parse(processedText, new Date(), { forwardDate: true });
 
       if (results.length === 0) {
         // Default to 5 minutes from now to prevent past event errors
@@ -169,21 +237,23 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
       }
 
       // Extract title (text before the date/time)
-      let title = text.substring(0, result.index).trim();
+      let title = processedText.substring(0, result.index).trim();
       
       // If no title before date, use text after date
       if (!title) {
-        title = text.substring(result.index + result.text.length).trim();
+        title = processedText.substring(result.index + result.text.length).trim();
       }
       
-      // If still no title, use the whole text
+      // If still no title, extract from original text (before preprocessing removed action words)
       if (!title) {
-        title = text;
+        // Try to find a meaningful title from the original text
+        const originalTitle = text.replace(/\b(tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|at|on)\b.*/gi, '').trim();
+        title = originalTitle || 'Appointment';
       }
 
       // Clean up common words from title
-      title = title.replace(/^(at|on|for|meeting|call|event)\s+/i, '');
-      title = title.trim() || 'Untitled Event';
+      title = title.replace(/^(at|on|for|with|meeting|call|event)\s+/i, '');
+      title = title.trim() || 'Appointment';
 
       // Try to extract location (text after "at" or "in")
       const locationMatch = title.match(/\s+(at|in)\s+([^,]+)/i);
@@ -230,34 +300,57 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     setError(null);
 
     try {
-      const response = await fetch('/api/calendar/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: preview.title,
-          startTime: preview.startTime.toISOString(),
-          endTime: preview.endTime.toISOString(),
-          location: preview.location || null,
-          allDay: false,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-          busy: true,
-          color: 'blue',
-          calendarId: selectedCalendarId || null,
-          reminders: [{ type: 'popup', minutesBefore: 15 }],
-        }),
+      console.log('[QuickAdd] Creating event:', {
+        title: preview.title,
+        startTime: preview.startTime,
+        endTime: preview.endTime,
+        location: preview.location
       });
+      
+      await Sentry.startSpan(
+        {
+          op: 'calendar.event.create',
+          name: 'Quick Add Event Creation',
+        },
+        async (span) => {
+          span.setAttribute('title', preview.title);
+          span.setAttribute('hasDate', preview.hasDate);
+          span.setAttribute('hasLocation', !!preview.location);
+          
+          const response = await fetch('/api/calendar/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: preview.title,
+              startTime: preview.startTime.toISOString(),
+              endTime: preview.endTime.toISOString(),
+              location: preview.location || null,
+              allDay: false,
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+              busy: true,
+              color: 'blue',
+              calendarId: selectedCalendarId || null,
+              reminders: [{ type: 'popup', minutesBefore: 15 }],
+            }),
+          });
 
-      const data = await response.json();
+          const data = await response.json();
 
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to create event');
-      }
+          if (!data.success) {
+            throw new Error(data.error || 'Failed to create event');
+          }
 
-      onEventCreated();
-      handleClose();
+          console.log('[QuickAdd] Event created successfully:', data.event);
+          span.setAttribute('eventId', data.event?.id);
+          
+          onEventCreated();
+          handleClose();
+        }
+      );
 
     } catch (err: any) {
-      console.error('Create error:', err);
+      console.error('[QuickAdd] Create error:', err);
+      Sentry.captureException(err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -331,7 +424,9 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {isListening ? (
-                <span className="text-red-500 font-medium">🎤 Listening... Speak your event</span>
+                <span className="text-red-500 font-medium">🎤 Listening... Speak your event (will auto-create)</span>
+              ) : loading ? (
+                <span className="text-blue-500 font-medium">⏳ Creating your event...</span>
               ) : (
                 <>Try: "tomorrow at 3pm", "next Friday 10am", "Monday 9:30am-11am"</>
               )}
