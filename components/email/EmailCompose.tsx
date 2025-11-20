@@ -161,6 +161,22 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [showSignaturePrompt, setShowSignaturePrompt] = useState(false);
   const [hideSignaturePromptPreference, setHideSignaturePromptPreference] = useState(false);
 
+  // ✅ FIX: Reset recipients when replyTo changes (when modal reopens with new email)
+  useEffect(() => {
+    if (isOpen && replyTo) {
+      const newRecipients = initializeRecipients();
+      console.log('[EmailCompose] Reinitializing recipients from replyTo:', {
+        to: newRecipients.to,
+        cc: newRecipients.cc,
+        replyToData: replyTo
+      });
+      setTo(newRecipients.to);
+      setCc(newRecipients.cc);
+      setBcc(newRecipients.bcc);
+      setSubject(replyTo.subject || '');
+    }
+  }, [isOpen, replyTo?.messageId]); // Re-run when modal opens or email changes
+
   // ✅ FIX: Show CC/BCC fields if they have initial recipients
   useEffect(() => {
     if (cc.length > 0) {
@@ -169,7 +185,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     if (bcc.length > 0) {
       setShowBcc(true);
     }
-  }, []); // Only run on mount
+  }, [cc, bcc]); // Update when recipients change
 
   // ✅ OUTLOOK BEHAVIOR: Exclude current user's email from reply-all CC list
   useEffect(() => {
