@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Parse response to extract action buttons
-    const actions = extractActions(responseText, message);
+    const actions = extractActions(responseText);
 
     return NextResponse.json({
       success: true,
