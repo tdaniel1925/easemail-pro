@@ -1,14 +1,14 @@
 /**
  * AI-Powered Calendar Event Parser
- * Uses Claude AI to intelligently parse natural language event descriptions
+ * Uses GPT-4o to intelligently parse natural language event descriptions
  * Handles durations, complex timing, and asks clarifying questions when needed
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(request: NextRequest) {
@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
     const currentDate = new Date();
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
-    // Build conversation messages
-    const messages: Anthropic.MessageParam[] = [
+    // Build conversation messages for OpenAI
+    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       ...conversationHistory,
       {
         role: 'user',
@@ -129,46 +129,52 @@ Output: Ask "Did you mean 12:00 PM (noon) or 12:00 AM (midnight)?"
 
 Now, parse the user's input and respond with the appropriate JSON format.`;
 
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
       max_tokens: 1024,
       temperature: 0.3, // Lower temperature for more consistent parsing
-      system: systemPrompt,
-      messages,
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt,
+        },
+        ...messages,
+      ],
+      response_format: { type: 'json_object' }, // Force JSON response
     });
 
-    const content = response.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response format from Claude');
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('No response from GPT-4o');
     }
 
     // Extract JSON from the response
     let parsedData;
     try {
-      // Try to extract JSON from code blocks
-      const jsonMatch = content.text.match(/```json\s*([\s\S]*?)\s*```/) ||
-                       content.text.match(/```\s*([\s\S]*?)\s*```/);
+      // Try to extract JSON from code blocks first
+      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) ||
+                       content.match(/```\s*([\s\S]*?)\s*```/);
 
       if (jsonMatch) {
         parsedData = JSON.parse(jsonMatch[1]);
       } else {
         // Try to parse the entire response as JSON
-        parsedData = JSON.parse(content.text);
+        parsedData = JSON.parse(content);
       }
     } catch (parseError) {
       // If JSON parsing fails, treat it as a clarification question
       return NextResponse.json({
         success: true,
         needsClarification: true,
-        question: content.text,
-        rawResponse: content.text,
+        question: content,
+        rawResponse: content,
       });
     }
 
     return NextResponse.json({
       success: true,
       ...parsedData,
-      rawResponse: content.text,
+      rawResponse: content,
     });
 
   } catch (error: any) {
