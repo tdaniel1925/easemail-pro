@@ -750,7 +750,7 @@ function CalendarContent() {
             <div className="flex items-center justify-center h-full">
               <div className="text-center space-y-3">
                 <p className="text-muted-foreground">{error}</p>
-                <Button onClick={fetchEvents}>Retry</Button>
+                <Button onClick={() => fetchEvents()}>Retry</Button>
               </div>
             </div>
           ) : (
