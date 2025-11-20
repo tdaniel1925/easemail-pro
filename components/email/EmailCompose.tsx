@@ -368,9 +368,6 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           }
         }
 
-        // Add spacing before quoted content
-        quotedBody += '<div><br/></div><div><br/></div>';
-
         // Format as quoted reply with proper blockquote semantic HTML
         quotedBody += '<blockquote style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 5px; color: #666; margin-top: 10px; margin-bottom: 10px;">';
         quotedBody += '<div style="font-weight: bold; margin-bottom: 10px;">------- Original Message -------</div>';
@@ -394,9 +391,6 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
             quotedBody += `<div>${renderedSignature}</div>`;
           }
         }
-
-        // Add spacing before forwarded content
-        quotedBody += '<div><br/></div><div><br/></div>';
 
         // Format as forwarded message with proper blockquote semantic HTML
         quotedBody += '<blockquote style="border: 1px solid #ddd; padding: 15px; border-radius: 5px; background-color: #f9f9f9; margin-top: 10px; margin-bottom: 10px;">';
