@@ -1,16 +1,15 @@
 /**
- * Quick Add Component
- * Natural language event creation (e.g., "Meeting tomorrow at 3pm")
+ * AI-Powered Quick Add Component
+ * Natural language event creation with intelligent parsing and conversational clarification
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Sparkles, Calendar, Clock, MapPin, Mic, MicOff, Users } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Sparkles, Calendar, Clock, MapPin, Mic, MicOff, Users, Send, Bot, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import * as chrono from 'chrono-node';
 import * as Sentry from '@sentry/nextjs';
 
 interface QuickAddProps {
@@ -19,15 +18,37 @@ interface QuickAddProps {
   onEventCreated: () => void;
 }
 
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface ParsedEvent {
+  title: string;
+  startTime: string;
+  endTime: string;
+  location?: string | null;
+  description?: string | null;
+  attendees?: string[];
+}
+
 export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddProps) {
   const [input, setInput] = useState('');
-  const [preview, setPreview] = useState<any>(null);
+  const [preview, setPreview] = useState<ParsedEvent | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
   const [browserSupportsVoice, setBrowserSupportsVoice] = useState(false);
-  const [autoCreateAfterVoice, setAutoCreateAfterVoice] = useState(false);
+
+  // Conversation state for clarifications
+  const [showChat, setShowChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [conversationHistory, setConversationHistory] = useState<any[]>([]);
+  const [aiQuestion, setAiQuestion] = useState<string | null>(null);
+  const [confidence, setConfidence] = useState<'high' | 'medium' | 'low'>('medium');
+
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Calendar selection
   const [availableCalendars, setAvailableCalendars] = useState<any[]>([]);
@@ -97,8 +118,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
             .join('');
 
           console.log('[QuickAdd] Voice transcript:', transcript);
-          
-          // Track voice input usage
+
           Sentry.startSpan(
             {
               op: 'voice.recognition',
@@ -107,13 +127,12 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
             (span) => {
               span.setAttribute('transcript', transcript);
               span.setAttribute('isFinal', event.results[0].isFinal);
-              
+
               setInput(transcript);
-              parseInput(transcript);
-              
-              // Mark that we should auto-create after voice ends
+
+              // Parse with AI when final
               if (event.results[0].isFinal) {
-                setAutoCreateAfterVoice(true);
+                parseWithAI(transcript);
               }
             }
           );
@@ -132,15 +151,6 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         recognitionInstance.onend = () => {
           console.log('[QuickAdd] Voice recognition ended');
           setIsListening(false);
-          
-          // Auto-create event after voice input completes (with a small delay to ensure preview is set)
-          if (autoCreateAfterVoice) {
-            console.log('[QuickAdd] Auto-creating event from voice input');
-            setTimeout(() => {
-              handleCreate();
-            }, 500);
-            setAutoCreateAfterVoice(false);
-          }
         };
 
         setRecognition(recognitionInstance);
@@ -148,6 +158,11 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
       }
     }
   }, []);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
 
   const toggleVoiceInput = () => {
     if (!recognition) {
@@ -165,234 +180,145 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     }
   };
 
-  // Preprocess text to fix common typos and variations
-  const preprocessText = (text: string): string => {
-    let cleaned = text.trim();
-    
-    // FIRST: Remove common filler phrases
-    // Handle "for me for" first (most specific)
-    cleaned = cleaned.replace(/^(set|make|create|add|schedule)\s+(an?\s+)?(appointment|event|meeting)\s+for\s+me\s+for\s+/gi, '');
-    // Then "for me" without second "for"
-    cleaned = cleaned.replace(/^(set|make|create|add|schedule)\s+(an?\s+)?(appointment|event|meeting)\s+for\s+me\s+/gi, '');
-    // Then just "for"
-    cleaned = cleaned.replace(/^(set|make|create|add|schedule)\s+(an?\s+)?(appointment|event|meeting)\s+for\s+/gi, '');
-    // Finally, just the action word + type
-    cleaned = cleaned.replace(/^(set|make|create|add|schedule)\s+(an?\s+)?(appointment|event|meeting)\s+/gi, '');
-    
-    // THEN: Fix common time typos: "9ma" → "9am", "3mp" → "3pm"  
-    // Use function form to avoid issues with $1 in some contexts
-    cleaned = cleaned.replace(/(\d+)\s*ma\b/gi, (match, p1) => p1 + 'am');
-    cleaned = cleaned.replace(/(\d+)\s*mp\b/gi, (match, p1) => p1 + 'pm');
-    
-    // Fix common day typos
-    cleaned = cleaned.replace(/\btomorow\b/gi, 'tomorrow');
-    
-    // Fix common word typos
-    cleaned = cleaned.replace(/\bappointmen\b/gi, 'appointment');
-    cleaned = cleaned.replace(/\bcalndae\b/gi, 'calendar');
-    
-    // Normalize spaces
-    cleaned = cleaned.replace(/\s+/g, ' ').trim();
-    
-    return cleaned;
-  };
-
-  // Enhanced parsing with attendees, location, and description extraction
-  const parseInput = (text: string) => {
+  const parseWithAI = async (text: string, isFollowUp: boolean = false) => {
     if (!text.trim()) {
       setPreview(null);
       return;
     }
 
+    setLoading(true);
+    setError(null);
+
     try {
-      // Preprocess text to fix typos
-      const processedText = preprocessText(text);
-      console.log('[QuickAdd] Original text:', text);
-      console.log('[QuickAdd] Processed text:', processedText);
+      console.log('[QuickAdd AI] Parsing:', text);
+      console.log('[QuickAdd AI] Conversation history:', conversationHistory);
 
-      // Parse the natural language input
-      const results = chrono.parse(processedText, new Date(), { forwardDate: true });
+      const response = await fetch('/api/calendar/parse-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: text,
+          conversationHistory: isFollowUp ? conversationHistory : [],
+        }),
+      });
 
-      if (results.length === 0) {
-        // Default to 5 minutes from now to prevent past event errors
-        const minStartTime = new Date(Date.now() + 5 * 60 * 1000);
-        setPreview({
-          title: text,
-          startTime: minStartTime,
-          endTime: new Date(minStartTime.getTime() + 60 * 60 * 1000), // 1 hour later
-          hasDate: false,
-          fullTranscript: text,
-        });
-        return;
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to parse event');
       }
 
-      const result = results[0];
-      const startTime = result.start.date();
+      console.log('[QuickAdd AI] Parse result:', data);
 
-      // Try to get end time if specified
-      let endTime;
-      if (result.end) {
-        endTime = result.end.date();
-      } else {
-        // Default to 1 hour duration
-        endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
-      }
-
-      // ENHANCED PARSING: Extract all details from the original text
-      const fullText = text; // Keep full transcription
-
-      // Extract title (text before the date/time)
-      let title = processedText.substring(0, result.index).trim();
-
-      // If no title before date, use text after date
-      if (!title) {
-        title = processedText.substring(result.index + result.text.length).trim();
-      }
-
-      // If still no title, extract from original text (before preprocessing removed action words)
-      if (!title) {
-        // Try to find a meaningful title from the original text
-        const originalTitle = text.replace(/\b(tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|at|on)\b.*/gi, '').trim();
-        title = originalTitle || 'Meeting';
-      }
-
-      // Extract location (text after "at", "in", "on")
-      let location = null;
-      const locationPatterns = [
-        /\b(?:at|in|on)\s+([^,]+?)\s*(?:with|about|regarding|to discuss|$)/i,
-        /\b(?:at|in|on)\s+([^,]+?)$/i
+      // Update conversation history
+      const newHistory = [
+        ...conversationHistory,
+        { role: 'user', content: text },
       ];
 
-      for (const pattern of locationPatterns) {
-        const match = fullText.match(pattern);
-        if (match) {
-          const potentialLocation = match[1].trim();
-          // Filter out time references and attendee names
-          if (!potentialLocation.match(/\d+\s*(?:am|pm|a\.m\.|p\.m\.)/i) &&
-              !potentialLocation.match(/^(?:with|about|regarding)/i)) {
-            location = potentialLocation;
-            break;
+      if (data.needsClarification) {
+        // AI needs more information - show chat modal
+        setAiQuestion(data.question);
+        setChatMessages(prev => [
+          ...prev,
+          { role: 'user', content: text },
+          { role: 'assistant', content: data.question },
+        ]);
+        setConversationHistory([
+          ...newHistory,
+          { role: 'assistant', content: data.question },
+        ]);
+        setShowChat(true);
+
+        // Show partial preview if available
+        if (data.partialEvent) {
+          const partial: any = {};
+          if (data.partialEvent.title) partial.title = data.partialEvent.title;
+          if (data.partialEvent.startTime) partial.startTime = data.partialEvent.startTime;
+          if (data.partialEvent.endTime) partial.endTime = data.partialEvent.endTime;
+          if (data.partialEvent.location) partial.location = data.partialEvent.location;
+
+          if (Object.keys(partial).length > 0) {
+            setPreview(partial);
           }
         }
-      }
+      } else {
+        // AI has enough information - show preview
+        setPreview(data.event);
+        setConfidence(data.confidence || 'medium');
+        setConversationHistory([
+          ...newHistory,
+          { role: 'assistant', content: JSON.stringify(data.event) },
+        ]);
 
-      // Extract attendees (text after "with")
-      let attendees: string[] = [];
-      const withMatch = fullText.match(/\bwith\s+([^,]+?)(?:\s+at|\s+in|\s+on|\s+about|\s+to discuss|$)/i);
-      if (withMatch) {
-        const attendeeText = withMatch[1].trim();
-        // Split by "and" or commas
-        attendees = attendeeText
-          .split(/\s+and\s+|,\s*/)
-          .map(name => name.trim())
-          .filter(name => name && !name.match(/\d+\s*(?:am|pm)/i));
-      }
-
-      // Extract description/notes (text after "about", "regarding", "to discuss")
-      let description = null;
-      const descPatterns = [
-        /\b(?:about|regarding|to discuss)\s+(.+?)$/i,
-        /\b(?:about|regarding|to discuss)\s+([^,]+)/i
-      ];
-
-      for (const pattern of descPatterns) {
-        const match = fullText.match(pattern);
-        if (match) {
-          description = match[1].trim();
-          break;
+        // Add success message to chat if chat is open
+        if (showChat || isFollowUp) {
+          setChatMessages(prev => [
+            ...prev,
+            { role: 'user', content: text },
+            { role: 'assistant', content: data.explanation || 'Got it! Here\'s your event preview.' },
+          ]);
         }
       }
 
-      // Clean up title - remove location, attendees, description fragments
-      title = title.replace(/\b(?:at|in|on)\s+.*/i, '').trim();
-      title = title.replace(/\bwith\s+.*/i, '').trim();
-      title = title.replace(/\b(?:about|regarding|to discuss)\s+.*/i, '').trim();
-      title = title.replace(/^(meeting|call|event)\s*/i, '').trim();
-
-      // If title is still empty or too generic, try to extract from description or use a better default
-      if (!title || title.length < 2) {
-        if (description && description.length > 0) {
-          // Use first few words of description as title
-          const words = description.split(/\s+/).slice(0, 3).join(' ');
-          title = words.charAt(0).toUpperCase() + words.slice(1);
-        } else if (attendees.length > 0) {
-          title = `Meeting with ${attendees[0]}`;
-        } else if (location) {
-          title = `Event at ${location}`;
-        } else {
-          title = 'Meeting';
-        }
-      }
-
-      // Capitalize first letter of title
-      title = title.charAt(0).toUpperCase() + title.slice(1);
-
-      setPreview({
-        title,
-        startTime,
-        endTime,
-        location,
-        attendees,
-        description,
-        fullTranscript: fullText, // Keep full voice/text input
-        hasDate: true,
-      });
-
-    } catch (err) {
-      console.error('Parse error:', err);
-      // Default to 5 minutes from now on parse error
-      const minStartTime = new Date(Date.now() + 5 * 60 * 1000);
-      setPreview({
-        title: text,
-        startTime: minStartTime,
-        endTime: new Date(minStartTime.getTime() + 60 * 60 * 1000),
-        hasDate: false,
-        fullTranscript: text,
-      });
+    } catch (err: any) {
+      console.error('[QuickAdd AI] Parse error:', err);
+      Sentry.captureException(err);
+      setError(err.message || 'Failed to parse event. Please try rephrasing.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInput(value);
-    parseInput(value);
+  };
+
+  const handleInputSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim()) {
+      parseWithAI(input, showChat);
+    }
+  };
+
+  const handleChatResponse = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim()) {
+      parseWithAI(input, true);
+      setInput('');
+    }
   };
 
   const handleCreate = async () => {
     if (!preview) return;
 
-    // Prevent double submission
     if (loading) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      console.log('[QuickAdd] Creating event:', {
-        title: preview.title,
-        startTime: preview.startTime,
-        endTime: preview.endTime,
-        location: preview.location
-      });
-      
+      console.log('[QuickAdd] Creating event:', preview);
+
       await Sentry.startSpan(
         {
           op: 'calendar.event.create',
-          name: 'Quick Add Event Creation',
+          name: 'AI Quick Add Event Creation',
         },
         async (span) => {
           span.setAttribute('title', preview.title);
-          span.setAttribute('hasDate', preview.hasDate);
-          span.setAttribute('hasLocation', !!preview.location);
-          
+          span.setAttribute('confidence', confidence);
+          span.setAttribute('hadConversation', chatMessages.length > 0);
+
           const response = await fetch('/api/calendar/events', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               title: preview.title,
               description: preview.description || null,
-              startTime: preview.startTime.toISOString(),
-              endTime: preview.endTime.toISOString(),
+              startTime: preview.startTime,
+              endTime: preview.endTime,
               location: preview.location || null,
               allDay: false,
               timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
@@ -411,7 +337,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
 
           console.log('[QuickAdd] Event created successfully:', data.event);
           span.setAttribute('eventId', data.event?.id);
-          
+
           onEventCreated();
           handleClose();
         }
@@ -427,7 +353,6 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
   };
 
   const handleClose = () => {
-    // Stop voice recognition if active
     if (recognition && isListening) {
       recognition.stop();
       setIsListening(false);
@@ -435,10 +360,16 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     setInput('');
     setPreview(null);
     setError(null);
+    setShowChat(false);
+    setChatMessages([]);
+    setConversationHistory([]);
+    setAiQuestion(null);
+    setConfidence('medium');
     onClose();
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
@@ -450,57 +381,126 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            Quick Add Event
+            AI Quick Add Event
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Input with Voice */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Describe your event
-            </label>
-            <div className="relative">
-              <Input
-                value={input}
-                onChange={handleInputChange}
-                placeholder='e.g., "Team meeting tomorrow at 2pm" or "Lunch with Sarah Friday noon"'
-                className="text-base pr-12"
-                autoFocus
-              />
-              {browserSupportsVoice && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleVoiceInput}
-                  className={`absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 ${
-                    isListening ? 'text-red-500 animate-pulse' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  title={isListening ? 'Stop recording' : 'Voice input'}
-                >
-                  {isListening ? (
-                    <MicOff className="h-4 w-4" />
-                  ) : (
-                    <Mic className="h-4 w-4" />
+        <div className="flex-1 overflow-y-auto space-y-4">
+          {/* Initial Input (always visible) */}
+          {!showChat && (
+            <form onSubmit={handleInputSubmit}>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Describe your event naturally
+                </label>
+                <div className="relative">
+                  <Input
+                    value={input}
+                    onChange={handleInputChange}
+                    placeholder='e.g., "Friday at 12am for 2 hours", "Meeting tomorrow at 3pm for 90 minutes"'
+                    className="text-base pr-12"
+                    autoFocus
+                    disabled={loading}
+                  />
+                  {browserSupportsVoice && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={toggleVoiceInput}
+                      className={`absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 ${
+                        isListening ? 'text-red-500 animate-pulse' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      title={isListening ? 'Stop recording' : 'Voice input'}
+                    >
+                      {isListening ? (
+                        <MicOff className="h-4 w-4" />
+                      ) : (
+                        <Mic className="h-4 w-4" />
+                      )}
+                    </Button>
                   )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {isListening ? (
+                    <span className="text-red-500 font-medium">🎤 Listening...</span>
+                  ) : loading ? (
+                    <span className="text-blue-500 font-medium flex items-center gap-1">
+                      <Bot className="h-3 w-3 animate-pulse" />
+                      AI is understanding your request...
+                    </span>
+                  ) : (
+                    <>AI understands durations, complex times, and will ask if clarification is needed</>
+                  )}
+                </p>
+              </div>
+            </form>
+          )}
+
+          {/* Chat Modal for Clarifications */}
+          {showChat && (
+            <div className="space-y-4">
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
+                <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 mb-1">
+                  <Bot className="h-4 w-4" />
+                  <span className="font-medium">AI Assistant needs clarification</span>
+                </div>
+                <p className="text-blue-600 dark:text-blue-400 text-xs">
+                  Answer the question below to help me understand your event better.
+                </p>
+              </div>
+
+              {/* Conversation */}
+              <div className="border border-border rounded-lg p-4 bg-accent/30 max-h-[300px] overflow-y-auto space-y-3">
+                {chatMessages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {msg.role === 'assistant' && (
+                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Bot className="h-4 w-4 text-primary" />
+                      </div>
+                    )}
+                    <div
+                      className={`px-3 py-2 rounded-lg max-w-[80%] ${
+                        msg.role === 'user'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-background border border-border'
+                      }`}
+                    >
+                      <p className="text-sm">{msg.content}</p>
+                    </div>
+                    {msg.role === 'user' && (
+                      <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                        <User className="h-4 w-4 text-white" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Chat Input */}
+              <form onSubmit={handleChatResponse} className="flex gap-2">
+                <Input
+                  value={input}
+                  onChange={handleInputChange}
+                  placeholder="Type your answer..."
+                  className="flex-1"
+                  autoFocus
+                  disabled={loading}
+                />
+                <Button type="submit" disabled={loading || !input.trim()}>
+                  <Send className="h-4 w-4" />
                 </Button>
-              )}
+              </form>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {isListening ? (
-                <span className="text-red-500 font-medium">🎤 Listening... Speak your event (will auto-create)</span>
-              ) : loading ? (
-                <span className="text-blue-500 font-medium">⏳ Creating your event...</span>
-              ) : (
-                <>Try: "tomorrow at 3pm", "next Friday 10am", "Monday 9:30am-11am"</>
-              )}
-            </p>
-          </div>
+          )}
 
           {/* Calendar Selector */}
           {availableCalendars.length > 0 && (
@@ -527,23 +527,30 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
             </div>
           )}
 
-          {/* Preview */}
-          {preview && (
-            <div className="p-4 bg-accent rounded-lg space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Calendar className="h-4 w-4 text-primary" />
-                <span>Event Preview</span>
+          {/* Event Preview */}
+          {preview && preview.startTime && preview.endTime && (
+            <div className="p-4 bg-accent rounded-lg space-y-3 border-2 border-primary/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <span>Event Preview</span>
+                </div>
+                {confidence && (
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full ${
+                      confidence === 'high'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                        : confidence === 'medium'
+                        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                    }`}
+                  >
+                    {confidence === 'high' ? '✓ High confidence' : confidence === 'medium' ? '~ Medium confidence' : '! Low confidence'}
+                  </span>
+                )}
               </div>
 
               <div className="space-y-3">
-                {/* Full Transcript */}
-                {preview.fullTranscript && (
-                  <div className="pb-2 border-b border-border/50">
-                    <div className="text-xs text-muted-foreground mb-1">You said:</div>
-                    <div className="text-sm italic text-muted-foreground">"{preview.fullTranscript}"</div>
-                  </div>
-                )}
-
                 {/* Title */}
                 <div>
                   <div className="text-sm text-muted-foreground">Title</div>
@@ -554,16 +561,14 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
                 <div>
                   <div className="text-sm text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5" />
-                    Time
+                    Time & Duration
                   </div>
                   <div className="text-sm">
                     {formatDate(preview.startTime)} → {formatDate(preview.endTime)}
                   </div>
-                  {!preview.hasDate && (
-                    <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      ⚠️ No date/time detected, using current time
-                    </div>
-                  )}
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Duration: {Math.round((new Date(preview.endTime).getTime() - new Date(preview.startTime).getTime()) / (1000 * 60))} minutes
+                  </div>
                 </div>
 
                 {/* Location */}
@@ -582,7 +587,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
                   <div>
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <Users className="h-3.5 w-3.5" />
-                      With
+                      Attendees
                     </div>
                     <div className="text-sm">
                       {preview.attendees.join(', ')}
@@ -593,7 +598,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
                 {/* Description */}
                 {preview.description && (
                   <div>
-                    <div className="text-sm text-muted-foreground">About</div>
+                    <div className="text-sm text-muted-foreground">Notes</div>
                     <div className="text-sm">{preview.description}</div>
                   </div>
                 )}
@@ -607,19 +612,21 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
               {error}
             </div>
           )}
+        </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreate} disabled={loading || !preview}>
-              {loading ? 'Creating...' : 'Create Event'}
-            </Button>
-          </div>
+        {/* Actions */}
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreate}
+            disabled={loading || !preview || !preview.startTime || !preview.endTime}
+          >
+            {loading ? 'Creating...' : 'Create Event'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
-
