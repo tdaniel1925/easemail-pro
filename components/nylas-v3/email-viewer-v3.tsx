@@ -157,10 +157,34 @@ export function EmailViewerV3({
 
   const handleArchive = async () => {
     try {
-      // TODO: Implement archive functionality
-      console.log('Archive message:', messageId);
+      const response = await fetch(`/api/nylas-v3/messages/bulk`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accountId,
+          messageIds: [messageId],
+          action: 'archive',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to archive message');
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Message archived successfully'
+      });
+      onClose();
     } catch (err) {
       console.error('Error archiving message:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to archive message',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -206,13 +230,41 @@ export function EmailViewerV3({
   };
 
   const handleReplyAll = () => {
-    if (onReplyAll) {
+    if (message && onReply) {
+      // Get all unique recipients excluding current user
+      const allToRecipients = message.to?.map((r: any) => r.email) || [];
+      const allCcRecipients = message.cc?.map((r: any) => r.email) || [];
+      const sender = message.from[0].email;
+
+      // Combine: Reply goes to sender + all TO recipients + all CC recipients
+      const allRecipients = [sender, ...allToRecipients, ...allCcRecipients]
+        .filter((e: string, i: number, arr: string[]) => arr.indexOf(e) === i);
+
+      onReply(
+        message.id,
+        allRecipients.join(', '),
+        message.subject,
+        message.body
+      );
+    } else if (onReplyAll) {
       onReplyAll(messageId);
     }
   };
 
   const handleForward = () => {
-    if (onForward) {
+    if (message && onReply) {
+      // Use onReply handler with forward prefix
+      const forwardSubject = message.subject?.startsWith('Fwd:')
+        ? message.subject
+        : `Fwd: ${message.subject}`;
+
+      onReply(
+        message.id,
+        '', // Empty 'to' field for forward
+        forwardSubject,
+        message.body
+      );
+    } else if (onForward) {
       onForward(messageId);
     }
   };
@@ -292,9 +344,6 @@ export function EmailViewerV3({
             </Button>
             <Button variant="ghost" size="icon" onClick={handleDelete} className="h-8 w-8 md:h-10 md:w-10">
               <Trash2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="hidden sm:flex h-8 w-8 md:h-10 md:w-10">
-              <MoreVertical className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 md:h-10 md:w-10">
               <X className="h-4 w-4" />
@@ -452,7 +501,11 @@ export function EmailViewerV3({
                         document.body.removeChild(a);
                       } catch (error) {
                         console.error('Error downloading attachment:', error);
-                        alert('Failed to download attachment. Please try again.');
+                        toast({
+                          title: 'Error',
+                          description: 'Failed to download attachment. Please try again.',
+                          variant: 'destructive'
+                        });
                       }
                     }}
                   >
