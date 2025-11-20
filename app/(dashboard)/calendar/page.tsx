@@ -356,6 +356,46 @@ function CalendarContent() {
     }
   };
 
+  // Handle bulk delete
+  const handleBulkDelete = async (eventIds: string[]) => {
+    if (eventIds.length === 0) return;
+
+    try {
+      const response = await fetch('/api/calendar/events/bulk-delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ eventIds }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: 'Events Deleted',
+          description: data.message,
+        });
+
+        // Refresh events
+        await fetchEvents();
+      } else {
+        toast({
+          title: 'Deletion Failed',
+          description: data.error || 'Failed to delete events',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      toast({
+        title: 'Deletion Failed',
+        description: 'An error occurred while deleting events',
+        variant: 'destructive',
+      });
+    }
+  };
+
   // ✅ OUTLOOK BEHAVIOR: Auto-sync calendar every 3 minutes
   useEffect(() => {
     if (!selectedAccount?.nylasGrantId) return;
@@ -1037,6 +1077,7 @@ function CalendarContent() {
           setSelectedEvent(null);
           setIsEventModalOpen(true);
         }}
+        onBulkDelete={handleBulkDelete}
       />
 
       <EventDetailsModal

@@ -10,11 +10,13 @@
 'use client';
 
 import { format, parseISO, differenceInMinutes, isSameDay } from 'date-fns';
-import { Calendar, Clock, MapPin, Users, Plus, X, TrendingUp } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Plus, X, TrendingUp, Trash2, CheckSquare, Square } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { CalendarEvent } from '@/lib/calendar/calendar-utils';
+import { useState } from 'react';
 
 // Utility to strip HTML tags and decode HTML entities
 function sanitizeEventText(text: string | undefined | null): string {
@@ -31,6 +33,7 @@ interface DayEventsModalProps {
   events: CalendarEvent[];
   onEventClick: (event: CalendarEvent) => void;
   onAddEvent: (prefilledData?: { date: Date; time?: string }) => void;
+  onBulkDelete?: (eventIds: string[]) => Promise<void>;
 }
 
 interface TimeGroup {
@@ -47,7 +50,13 @@ export default function DayEventsModal({
   events,
   onEventClick,
   onAddEvent,
+  onBulkDelete,
 }: DayEventsModalProps) {
+  // Bulk delete state
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+
   // Sort events by start time
   const sortedEvents = [...events].sort((a, b) => {
     // All-day events first
@@ -58,6 +67,62 @@ export default function DayEventsModal({
     const bTime = new Date(b.startTime).getTime();
     return aTime - bTime;
   });
+
+  // Handle checkbox toggle
+  const handleToggleEvent = (eventId: string) => {
+    const newSelected = new Set(selectedEventIds);
+    if (newSelected.has(eventId)) {
+      newSelected.delete(eventId);
+    } else {
+      newSelected.add(eventId);
+    }
+    setSelectedEventIds(newSelected);
+  };
+
+  // Select all events
+  const handleSelectAll = () => {
+    if (selectedEventIds.size === events.length) {
+      setSelectedEventIds(new Set());
+    } else {
+      setSelectedEventIds(new Set(events.map(e => e.id)));
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (!onBulkDelete || selectedEventIds.size === 0) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedEventIds.size} event${selectedEventIds.size > 1 ? 's' : ''}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsDeleting(true);
+      await onBulkDelete(Array.from(selectedEventIds));
+      setSelectedEventIds(new Set());
+      setSelectionMode(false);
+    } catch (error) {
+      console.error('Failed to delete events:', error);
+      alert('Failed to delete events. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Exit selection mode and clear selection
+  const handleCancelSelection = () => {
+    setSelectionMode(false);
+    setSelectedEventIds(new Set());
+  };
+
+  // Reset selection when modal closes
+  const handleClose = () => {
+    setSelectionMode(false);
+    setSelectedEventIds(new Set());
+    onClose();
+  };
 
   // Group events by time of day
   const groupEventsByTime = (): TimeGroup[] => {
@@ -192,7 +257,7 @@ export default function DayEventsModal({
   const isPastDate = date < today;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-0">
         {/* Header */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
@@ -248,12 +313,72 @@ export default function DayEventsModal({
             <Button
               variant="ghost"
               size="icon"
-              onClick={onClose}
+              onClick={handleClose}
               className="flex-shrink-0"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* Bulk Delete Toolbar */}
+          {events.length > 0 && onBulkDelete && (
+            <div className="mt-4 flex items-center gap-3">
+              {!selectionMode ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectionMode(true)}
+                  className="flex items-center gap-2"
+                >
+                  <CheckSquare className="h-4 w-4" />
+                  Select Events
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectAll}
+                    className="flex items-center gap-2"
+                  >
+                    {selectedEventIds.size === events.length ? (
+                      <Square className="h-4 w-4" />
+                    ) : (
+                      <CheckSquare className="h-4 w-4" />
+                    )}
+                    {selectedEventIds.size === events.length ? 'Deselect All' : 'Select All'}
+                  </Button>
+
+                  {selectedEventIds.size > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleBulkDelete}
+                      disabled={isDeleting}
+                      className="flex items-center gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {isDeleting ? 'Deleting...' : `Delete ${selectedEventIds.size} event${selectedEventIds.size > 1 ? 's' : ''}`}
+                    </Button>
+                  )}
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCancelSelection}
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </Button>
+
+                  <div className="flex-1" />
+                  <span className="text-sm text-muted-foreground">
+                    {selectedEventIds.size} of {events.length} selected
+                  </span>
+                </>
+              )}
+            </div>
+          )}
         </DialogHeader>
 
         {/* Scrollable Events List */}
@@ -294,10 +419,26 @@ export default function DayEventsModal({
                         <div key={event.id}>
                           {/* Event Card */}
                           <div
-                            onClick={() => onEventClick(event)}
-                            className="group p-4 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 cursor-pointer transition-all"
+                            onClick={() => selectionMode ? handleToggleEvent(event.id) : onEventClick(event)}
+                            className={cn(
+                              "group p-4 rounded-lg border cursor-pointer transition-all",
+                              selectionMode && selectedEventIds.has(event.id)
+                                ? "border-primary bg-primary/10"
+                                : "border-border hover:border-primary/50 hover:bg-accent/50"
+                            )}
                           >
                             <div className="flex gap-4">
+                              {/* Checkbox for selection mode */}
+                              {selectionMode && (
+                                <div className="flex items-center">
+                                  <Checkbox
+                                    checked={selectedEventIds.has(event.id)}
+                                    onCheckedChange={() => handleToggleEvent(event.id)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+                              )}
+
                               {/* Time */}
                               {!event.allDay && (
                                 <div className="flex-shrink-0 w-20 text-sm">
