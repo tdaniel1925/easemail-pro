@@ -51,6 +51,9 @@ export function FolderSidebarV3({
 
   useEffect(() => {
     if (accountId) {
+      // Clear old folders immediately when account changes
+      setFolders([]);
+      setLoading(true);
       fetchFolders();
     }
   }, [accountId]);
