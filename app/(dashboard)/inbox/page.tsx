@@ -86,6 +86,14 @@ export default function InboxV3Page() {
     const senderEmail = sender?.email || '';
     const senderName = sender?.name || senderEmail;
 
+    console.log('[Reply Debug] Email object:', {
+      type,
+      from: email.from,
+      to: email.to,
+      cc: email.cc,
+      subject: email.subject
+    });
+
     // Store selected message for contact panel first
     setSelectedMessage(email);
     setRightPanelTab('contact'); // Auto-switch to contact tab
@@ -110,6 +118,12 @@ export default function InboxV3Page() {
       // Extract all recipients (original TO + CC, excluding current user)
       const allToRecipients = email.to?.map((r: any) => r.email).filter((e: string) => e !== senderEmail) || [];
       const allCcRecipients = email.cc?.map((r: any) => r.email) || [];
+
+      console.log('[Reply-All Debug] Recipients:', {
+        senderEmail,
+        allToRecipients,
+        allCcRecipients
+      });
 
       // Combine: Reply goes to sender + all original TO recipients (except sender) + all CC recipients
       const replyToEmails = [senderEmail, ...allToRecipients].filter((e: string, i: number, arr: string[]) => arr.indexOf(e) === i);
