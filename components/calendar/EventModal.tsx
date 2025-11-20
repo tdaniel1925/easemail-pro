@@ -29,13 +29,38 @@ const COLORS = [
   { value: 'purple', label: 'Purple', bg: 'bg-purple-500' },
   { value: 'orange', label: 'Orange', bg: 'bg-orange-500' },
   { value: 'pink', label: 'Pink', bg: 'bg-pink-500' },
+  { value: 'yellow', label: 'Yellow', bg: 'bg-yellow-500' },
+  { value: 'gray', label: 'Gray', bg: 'bg-gray-500' },
+];
+
+const TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  { value: 'America/Anchorage', label: 'Alaska Time (AKT)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time (HT)' },
+  { value: 'Europe/London', label: 'London (GMT)' },
+  { value: 'Europe/Paris', label: 'Paris (CET)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Asia/Shanghai', label: 'Shanghai (CST)' },
+  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEDT)' },
+  { value: 'UTC', label: 'UTC' },
 ];
 
 export default function EventModal({ isOpen, onClose, event, onSuccess, defaultDate }: EventModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [organizerInfo, setOrganizerInfo] = useState<{ name: string; email: string } | null>(null);
-  
+
+  // Calendar and account state
+  const [availableCalendars, setAvailableCalendars] = useState<any[]>([]);
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string>('');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+  const [loadingCalendars, setLoadingCalendars] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'will-sync' | 'local-only' | 'no-account'>('will-sync');
+
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -45,6 +70,11 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('');
   const [allDay, setAllDay] = useState(false);
+  const [timezone, setTimezone] = useState<string>(() => {
+    // Auto-detect user's timezone
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  });
+  const [busy, setBusy] = useState(true);
   const [color, setColor] = useState('blue');
   const [reminder, setReminder] = useState<number>(15); // minutes before
   const [attendees, setAttendees] = useState<Array<{email: string, name?: string}>>([]);
@@ -60,10 +90,12 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [createdEvent, setCreatedEvent] = useState<any>(null);
 
-  // Fetch organizer info
+  // Fetch available calendars and organizer info
   useEffect(() => {
     if (isOpen && !organizerInfo) {
-      // Get user info from Supabase
+      setLoadingCalendars(true);
+
+      // Get user info and calendars from Supabase
       import('@/lib/supabase/client').then(({ createClient }) => {
         const supabase = createClient();
         supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -87,17 +119,76 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
                 email: user.email || '',
               });
             }
+
+            // Fetch available calendar accounts
+            try {
+              const accountsResponse = await fetch('/api/accounts');
+              if (accountsResponse.ok) {
+                const accountsData = await accountsResponse.json();
+                const calendarAccounts = accountsData.accounts?.filter((acc: any) =>
+                  acc.nylasGrantId &&
+                  (acc.provider === 'google' || acc.provider === 'microsoft') &&
+                  acc.nylasScopes?.some((s: string) => s.toLowerCase().includes('calendar'))
+                ) || [];
+
+                if (calendarAccounts.length > 0) {
+                  const primaryAccount = calendarAccounts.find((acc: any) => acc.isPrimary) || calendarAccounts[0];
+                  setSelectedAccountId(primaryAccount.id);
+
+                  // Fetch calendars for the primary account
+                  const calendarsResponse = await fetch(`/api/nylas-v3/calendars?accountId=${primaryAccount.nylasGrantId}`);
+                  if (calendarsResponse.ok) {
+                    const calendarsData = await calendarsResponse.json();
+                    if (calendarsData.success && calendarsData.calendars) {
+                      setAvailableCalendars(calendarsData.calendars);
+
+                      // Auto-select primary calendar or first writable calendar
+                      const primaryCal = calendarsData.calendars.find((cal: any) => cal.isPrimary && !cal.readOnly);
+                      const firstWritable = calendarsData.calendars.find((cal: any) => !cal.readOnly);
+                      const defaultCal = primaryCal || firstWritable || calendarsData.calendars[0];
+
+                      if (defaultCal) {
+                        setSelectedCalendarId(defaultCal.id);
+                        // Set color from calendar
+                        if (defaultCal.hexColor) {
+                          const hexToColor = (hex: string): string => {
+                            const map: Record<string, string> = {
+                              '#3b82f6': 'blue', '#10b981': 'green', '#ef4444': 'red',
+                              '#8b5cf6': 'purple', '#f59e0b': 'orange', '#ec4899': 'pink',
+                              '#eab308': 'yellow', '#6b7280': 'gray'
+                            };
+                            return map[hex.toLowerCase()] || 'blue';
+                          };
+                          setColor(hexToColor(defaultCal.hexColor));
+                        }
+                      }
+                      setSyncStatus('will-sync');
+                    }
+                  }
+                } else {
+                  setSyncStatus('no-account');
+                  setError('No calendar account connected. Event will be created locally only. Connect a calendar account in Settings to sync events.');
+                }
+              }
+            } catch (err) {
+              console.error('Failed to fetch calendars:', err);
+              setSyncStatus('local-only');
+            }
           } else {
             setOrganizerInfo({
               name: 'Event Organizer',
               email: '',
             });
+            setSyncStatus('no-account');
           }
+          setLoadingCalendars(false);
         }).catch(() => {
           setOrganizerInfo({
             name: 'Event Organizer',
             email: '',
           });
+          setLoadingCalendars(false);
+          setSyncStatus('no-account');
         });
       });
     }
@@ -169,35 +260,60 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
     );
   };
 
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent double submission
+    if (loading) return;
+
     setLoading(true);
     setError(null);
 
     try {
+      // Validate: Recurring weekly events must have at least one weekday selected
+      if (isRecurring && recurrenceType === 'WEEKLY' && selectedWeekdays.length === 0) {
+        setError('Please select at least one day of the week for weekly recurring events.');
+        setLoading(false);
+        return;
+      }
+
       // Build datetime strings
-      const startDateTime = allDay 
+      const startDateTime = allDay
         ? new Date(`${startDate}T00:00:00`).toISOString()
         : new Date(`${startDate}T${startTime}`).toISOString();
-      
+
       const endDateTime = allDay
         ? new Date(`${endDate}T23:59:59`).toISOString()
         : new Date(`${endDate}T${endTime}`).toISOString();
 
-      // Validate: Cannot create events in the past
+      // Validate: Cannot create events in the past (with 1 minute grace period)
       const now = new Date();
+      const graceNow = new Date(now.getTime() - 60000); // 1 minute grace
       const startDateObj = new Date(startDateTime);
       const endDateObj = new Date(endDateTime);
-      
-      if (startDateObj < now) {
+
+      if (!event && startDateObj < graceNow) {
         setError('Cannot create events in the past. Please select a future date and time.');
         setLoading(false);
         return;
       }
-      
+
       // Validate: End time must be after start time
       if (endDateObj <= startDateObj) {
         setError('End date and time must be after start date and time.');
+        setLoading(false);
+        return;
+      }
+
+      // Validate: Attendee emails
+      const invalidEmails = attendees.filter(a => !isValidEmail(a.email));
+      if (invalidEmails.length > 0) {
+        setError(`Invalid email addresses: ${invalidEmails.map(a => a.email).join(', ')}`);
         setLoading(false);
         return;
       }
@@ -209,11 +325,15 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
         startTime: startDateTime,
         endTime: endDateTime,
         allDay,
+        timezone,
+        busy,
         color,
+        calendarId: selectedCalendarId || null,
+        accountId: selectedAccountId || null,
         reminders: reminder > 0 ? [{ type: 'popup', minutesBefore: reminder }] : [],
         isRecurring,
         recurrenceRule: isRecurring ? buildRecurrenceRule() : null,
-        recurrenceEndDate: isRecurring && recurrenceEnd === 'until' && recurrenceUntil 
+        recurrenceEndDate: isRecurring && recurrenceEnd === 'until' && recurrenceUntil
           ? new Date(recurrenceUntil).toISOString()
           : null,
         attendees: attendees.map(a => ({
@@ -269,6 +389,8 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
     setEndDate('');
     setEndTime('');
     setAllDay(false);
+    setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+    setBusy(true);
     setColor('blue');
     setReminder(15);
     setIsRecurring(false);
@@ -308,6 +430,75 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
               placeholder="Event title"
             />
           </div>
+
+          {/* Calendar Selector */}
+          {availableCalendars.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <label className="text-sm font-medium">Calendar *</label>
+              </div>
+              <select
+                value={selectedCalendarId}
+                onChange={(e) => {
+                  setSelectedCalendarId(e.target.value);
+                  // Update color based on selected calendar
+                  const selectedCal = availableCalendars.find(c => c.id === e.target.value);
+                  if (selectedCal?.hexColor) {
+                    const hexToColor = (hex: string): string => {
+                      const map: Record<string, string> = {
+                        '#3b82f6': 'blue', '#10b981': 'green', '#ef4444': 'red',
+                        '#8b5cf6': 'purple', '#f59e0b': 'orange', '#ec4899': 'pink',
+                        '#eab308': 'yellow', '#6b7280': 'gray'
+                      };
+                      return map[hex.toLowerCase()] || 'blue';
+                    };
+                    setColor(hexToColor(selectedCal.hexColor));
+                  }
+                }}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
+                required
+                disabled={loadingCalendars}
+              >
+                {loadingCalendars ? (
+                  <option>Loading calendars...</option>
+                ) : (
+                  availableCalendars.map((cal) => (
+                    <option key={cal.id} value={cal.id}>
+                      {cal.name}{cal.isPrimary ? ' (Primary)' : ''}{cal.readOnly ? ' (Read-only)' : ''}
+                    </option>
+                  ))
+                )}
+              </select>
+              {/* Sync Status Indicator */}
+              <div className="mt-2 text-xs flex items-center gap-1.5">
+                {syncStatus === 'will-sync' && (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    <span className="text-muted-foreground">
+                      Will sync to {availableCalendars.find(c => c.id === selectedCalendarId)?.name}
+                    </span>
+                  </>
+                )}
+                {syncStatus === 'local-only' && (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                    <span className="text-muted-foreground">
+                      Will be created locally (sync may happen later)
+                    </span>
+                  </>
+                )}
+                {syncStatus === 'no-account' && (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                    <span className="text-muted-foreground">
+                      No calendar account connected - event will be local only
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Description */}
           <div>
@@ -384,6 +575,36 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
                   />
                 </div>
               )}
+            </div>
+
+            {/* Timezone Selector */}
+            {!allDay && (
+              <div>
+                <label className="block text-xs font-medium mb-1">Timezone</label>
+                <select
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
+                >
+                  {TIMEZONES.map((tz) => (
+                    <option key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Busy/Free Toggle */}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="busy"
+                checked={busy}
+                onChange={(e) => setBusy(e.target.checked)}
+                className="rounded"
+              />
+              <label htmlFor="busy" className="text-sm">Mark as busy (show as unavailable)</label>
             </div>
           </div>
 

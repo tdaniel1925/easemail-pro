@@ -134,16 +134,29 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // Get user's primary calendar account for 2-way sync
-    const accounts = await db.query.emailAccounts.findMany({
-      where: eq(emailAccounts.userId, user.id),
-    });
+    // Get user's calendar account for 2-way sync
+    // Use accountId if provided, otherwise use primary account
+    let targetAccount;
 
-    const primaryAccount = accounts.find(acc =>
-      acc.nylasGrantId &&
-      (acc.provider === 'google' || acc.provider === 'microsoft') &&
-      acc.nylasScopes?.some((s: string) => s.toLowerCase().includes('calendar'))
-    );
+    if (data.accountId) {
+      // Find specific account by ID
+      const accounts = await db.query.emailAccounts.findMany({
+        where: eq(emailAccounts.userId, user.id),
+      });
+      targetAccount = accounts.find(acc => acc.id === data.accountId);
+    } else {
+      // Fall back to primary account
+      const accounts = await db.query.emailAccounts.findMany({
+        where: eq(emailAccounts.userId, user.id),
+      });
+      targetAccount = accounts.find(acc =>
+        acc.nylasGrantId &&
+        (acc.provider === 'google' || acc.provider === 'microsoft') &&
+        acc.nylasScopes?.some((s: string) => s.toLowerCase().includes('calendar'))
+      );
+    }
+
+    const primaryAccount = targetAccount;
 
     // Create event locally
     const [event] = await db.insert(calendarEvents).values({
@@ -179,6 +192,7 @@ export async function POST(request: NextRequest) {
           userId: user.id,
           grantId: primaryAccount.nylasGrantId!,
           provider: primaryAccount.provider as 'google' | 'microsoft',
+          calendarId: data.calendarId || 'primary', // Use specified calendar or default to primary
         });
 
         const pushResult = await syncService.createEvent(event);

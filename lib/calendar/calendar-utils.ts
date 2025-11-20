@@ -13,6 +13,10 @@ export interface CalendarEvent {
   recurrenceRule?: string | null;
   calendarType?: string;
   color?: string;
+  hexColor?: string;
+  calendarId?: string;
+  calendarName?: string;
+  calendarIsPrimary?: boolean;
   status?: string;
   location?: string;
   attendees?: any[];

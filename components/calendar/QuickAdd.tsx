@@ -27,6 +27,58 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
   const [recognition, setRecognition] = useState<any>(null);
   const [browserSupportsVoice, setBrowserSupportsVoice] = useState(false);
 
+  // Calendar selection
+  const [availableCalendars, setAvailableCalendars] = useState<any[]>([]);
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string>('');
+  const [loadingCalendars, setLoadingCalendars] = useState(false);
+
+  // Fetch available calendars
+  useEffect(() => {
+    if (isOpen && availableCalendars.length === 0) {
+      setLoadingCalendars(true);
+
+      import('@/lib/supabase/client').then(({ createClient }) => {
+        const supabase = createClient();
+        supabase.auth.getUser().then(async ({ data: { user } }) => {
+          if (user) {
+            try {
+              const accountsResponse = await fetch('/api/accounts');
+              if (accountsResponse.ok) {
+                const accountsData = await accountsResponse.json();
+                const calendarAccounts = accountsData.accounts?.filter((acc: any) =>
+                  acc.nylasGrantId &&
+                  (acc.provider === 'google' || acc.provider === 'microsoft') &&
+                  acc.nylasScopes?.some((s: string) => s.toLowerCase().includes('calendar'))
+                ) || [];
+
+                if (calendarAccounts.length > 0) {
+                  const primaryAccount = calendarAccounts.find((acc: any) => acc.isPrimary) || calendarAccounts[0];
+
+                  const calendarsResponse = await fetch(`/api/nylas-v3/calendars?accountId=${primaryAccount.nylasGrantId}`);
+                  if (calendarsResponse.ok) {
+                    const calendarsData = await calendarsResponse.json();
+                    if (calendarsData.success && calendarsData.calendars) {
+                      setAvailableCalendars(calendarsData.calendars);
+                      const primaryCal = calendarsData.calendars.find((cal: any) => cal.isPrimary && !cal.readOnly);
+                      const firstWritable = calendarsData.calendars.find((cal: any) => !cal.readOnly);
+                      const defaultCal = primaryCal || firstWritable || calendarsData.calendars[0];
+                      if (defaultCal) {
+                        setSelectedCalendarId(defaultCal.id);
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (err) {
+              console.error('Failed to fetch calendars:', err);
+            }
+          }
+          setLoadingCalendars(false);
+        });
+      });
+    }
+  }, [isOpen, availableCalendars.length]);
+
   // Initialize speech recognition
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -91,12 +143,14 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     try {
       // Parse the natural language input
       const results = chrono.parse(text, new Date(), { forwardDate: true });
-      
+
       if (results.length === 0) {
+        // Default to 5 minutes from now to prevent past event errors
+        const minStartTime = new Date(Date.now() + 5 * 60 * 1000);
         setPreview({
           title: text,
-          startTime: new Date(),
-          endTime: new Date(Date.now() + 60 * 60 * 1000), // 1 hour later
+          startTime: minStartTime,
+          endTime: new Date(minStartTime.getTime() + 60 * 60 * 1000), // 1 hour later
           hasDate: false,
         });
         return;
@@ -149,10 +203,12 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
 
     } catch (err) {
       console.error('Parse error:', err);
+      // Default to 5 minutes from now on parse error
+      const minStartTime = new Date(Date.now() + 5 * 60 * 1000);
       setPreview({
         title: text,
-        startTime: new Date(),
-        endTime: new Date(Date.now() + 60 * 60 * 1000),
+        startTime: minStartTime,
+        endTime: new Date(minStartTime.getTime() + 60 * 60 * 1000),
         hasDate: false,
       });
     }
@@ -167,6 +223,9 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
   const handleCreate = async () => {
     if (!preview) return;
 
+    // Prevent double submission
+    if (loading) return;
+
     setLoading(true);
     setError(null);
 
@@ -180,7 +239,10 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
           endTime: preview.endTime.toISOString(),
           location: preview.location || null,
           allDay: false,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+          busy: true,
           color: 'blue',
+          calendarId: selectedCalendarId || null,
           reminders: [{ type: 'popup', minutesBefore: 15 }],
         }),
       });
@@ -275,6 +337,31 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
               )}
             </p>
           </div>
+
+          {/* Calendar Selector */}
+          {availableCalendars.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Calendar
+              </label>
+              <select
+                value={selectedCalendarId}
+                onChange={(e) => setSelectedCalendarId(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
+                disabled={loadingCalendars}
+              >
+                {loadingCalendars ? (
+                  <option>Loading calendars...</option>
+                ) : (
+                  availableCalendars.map((cal) => (
+                    <option key={cal.id} value={cal.id}>
+                      {cal.name}{cal.isPrimary ? ' (Primary)' : ''}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          )}
 
           {/* Preview */}
           {preview && (

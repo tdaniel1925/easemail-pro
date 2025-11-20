@@ -104,5 +104,10 @@ export function transformNylasEvent(event: any): any {
     title: getEventTitle(event),
     // Normalize all-day flag
     allDay: isAllDayEvent(event),
+    // Calendar metadata (already enriched from API)
+    calendarName: event.calendarName,
+    calendarIsPrimary: event.calendarIsPrimary,
+    color: event.color || 'blue',
+    hexColor: event.hexColor,
   };
 }

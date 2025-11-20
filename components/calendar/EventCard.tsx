@@ -117,6 +117,17 @@ export function EventCard({
 
       {/* Additional Details (shown on hover) */}
       <div className="mt-2 space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {event.calendarName && (
+          <div className="flex items-center gap-1 text-xs font-medium">
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: event.hexColor || '#3b82f6' }}
+            />
+            <span className="truncate">{event.calendarName}</span>
+            {event.calendarIsPrimary && <span className="text-[10px] opacity-75">(Primary)</span>}
+          </div>
+        )}
+
         {event.location && (
           <div className="flex items-center gap-1 text-xs opacity-75">
             <MapPin className="h-3 w-3" />

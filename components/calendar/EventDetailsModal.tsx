@@ -432,7 +432,7 @@ export default function EventDetailsModal({
           )}
 
           {/* Status Badge */}
-          <div className="flex items-center gap-2 pt-4 border-t border-border">
+          <div className="flex items-center gap-2 pt-4 border-t border-border flex-wrap">
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
               isPast ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400' :
               isUpcoming ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
@@ -443,6 +443,23 @@ export default function EventDetailsModal({
             {event.status && event.status !== 'confirmed' && (
               <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
                 {event.status}
+              </span>
+            )}
+            {/* Calendar Name Badge */}
+            {event.calendarName && (
+              <span
+                className="px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5"
+                style={{
+                  backgroundColor: event.hexColor ? `${event.hexColor}20` : undefined,
+                  color: event.hexColor || undefined,
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: event.hexColor || undefined,
+                }}
+              >
+                <Calendar className="h-3 w-3" />
+                <span>{event.calendarName}</span>
+                {event.calendarIsPrimary && <span className="text-[10px]">(Primary)</span>}
               </span>
             )}
             {event.calendarType && (

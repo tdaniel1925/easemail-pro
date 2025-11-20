@@ -64,7 +64,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 3. Determine which calendars to fetch
+    // 3. Fetch calendars first to get color mapping
+    const nylas = getNylasClient();
+    const calendarsResponse = await nylas.calendars.list({
+      identifier: account.nylasGrantId,
+    });
+
+    // Create calendar color mapping (calendar ID -> color info)
+    const calendarColorMap = new Map<string, { hexColor: string; name: string; isPrimary: boolean }>();
+    calendarsResponse.data.forEach((cal: any) => {
+      calendarColorMap.set(cal.id, {
+        hexColor: cal.hexColor || '#3b82f6', // Default blue
+        name: cal.name,
+        isPrimary: cal.isPrimary || false,
+      });
+    });
+
+    console.log('[Calendar Events] Loaded calendar color mapping for', calendarColorMap.size, 'calendars');
+
+    // 4. Determine which calendars to fetch
     const calendarsToFetch: string[] = [];
 
     if (calendarIds) {
@@ -75,8 +93,7 @@ export async function GET(request: NextRequest) {
       calendarsToFetch.push(calendarId);
     }
 
-    // 4. Fetch events from Nylas v3
-    const nylas = getNylasClient();
+    // 5. Fetch events from Nylas v3
     let allEvents: any[] = [];
 
     if (calendarsToFetch.length > 0) {
@@ -227,9 +244,72 @@ export async function GET(request: NextRequest) {
       console.warn(`[Calendar Events] Filtered out ${allEvents.length - validEvents.length} events without valid time data`);
     }
 
+    // 6. Enrich events with calendar color and metadata
+    const enrichedEvents = validEvents.map((event: any) => {
+      const calendarInfo = calendarColorMap.get(event.calendarId);
+
+      // Convert hex color to named color for our color system
+      const hexToColorName = (hex: string): string => {
+        const colorMapping: Record<string, string> = {
+          '#3b82f6': 'blue',    // Blue
+          '#10b981': 'green',   // Green
+          '#ef4444': 'red',     // Red
+          '#8b5cf6': 'purple',  // Purple
+          '#f59e0b': 'orange',  // Orange
+          '#ec4899': 'pink',    // Pink
+          '#eab308': 'yellow',  // Yellow
+          '#6b7280': 'gray',    // Gray
+        };
+
+        // Try exact match first
+        if (colorMapping[hex.toLowerCase()]) {
+          return colorMapping[hex.toLowerCase()];
+        }
+
+        // Otherwise, map based on hue
+        if (!hex || hex === '') return 'blue';
+
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+
+        // Simple color detection based on RGB values
+        if (r > g && r > b) return 'red';
+        if (g > r && g > b) return 'green';
+        if (b > r && b > g) return 'blue';
+        if (r > 150 && g > 150 && b < 100) return 'yellow';
+        if (r > 150 && g < 100 && b > 150) return 'pink';
+        if (r > 200 && g > 100 && g < 150 && b < 100) return 'orange';
+        if (r > 100 && b > 150) return 'purple';
+
+        return 'blue'; // Default
+      };
+
+      return {
+        ...event,
+        // Add calendar metadata
+        calendarName: calendarInfo?.name,
+        calendarIsPrimary: calendarInfo?.isPrimary,
+        // Add color from calendar (overrides event.color if present)
+        color: calendarInfo ? hexToColorName(calendarInfo.hexColor) : (event.color || 'blue'),
+        hexColor: calendarInfo?.hexColor,
+      };
+    });
+
+    console.log('[Calendar Events] Enriched', enrichedEvents.length, 'events with calendar colors');
+    if (enrichedEvents.length > 0) {
+      console.log('[Calendar Events] Sample enriched event:', {
+        id: enrichedEvents[0].id,
+        title: enrichedEvents[0].title,
+        calendarName: enrichedEvents[0].calendarName,
+        color: enrichedEvents[0].color,
+        hexColor: enrichedEvents[0].hexColor,
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      events: validEvents,
+      events: enrichedEvents,
     });
   } catch (error) {
     console.error('[Calendar Events] Error fetching events:', error);
