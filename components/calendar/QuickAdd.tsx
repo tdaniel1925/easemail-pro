@@ -211,10 +211,20 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
       } else {
         // AI successfully parsed the event
         setClarificationQuestion(null);
+
+        // Parse and validate dates
+        const startTime = new Date(data.event.startTime);
+        const endTime = new Date(data.event.endTime);
+
+        // Check if dates are valid
+        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+          throw new Error('Invalid date format returned by AI');
+        }
+
         setPreview({
           title: data.event.title,
-          startTime: new Date(data.event.startTime),
-          endTime: new Date(data.event.endTime),
+          startTime,
+          endTime,
           location: data.event.location || null,
           description: data.event.description || null,
           attendees: data.event.attendees || [],
@@ -330,6 +340,11 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
   };
 
   const formatDate = (date: Date) => {
+    // Ensure date is a Date object and is valid
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
