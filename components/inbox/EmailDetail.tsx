@@ -22,6 +22,10 @@ import {
   ChevronUp,
   Image as ImageIcon,
   AlertCircle,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
@@ -79,6 +83,7 @@ export default function EmailDetail({
     new Set([email.id])
   );
   const [isComposing, setIsComposing] = useState(false);
+  const [meetingResponse, setMeetingResponse] = useState<'accepted' | 'declined' | 'tentative' | null>(null);
 
   const formatDate = (date: Date | string) => {
     try {
@@ -182,6 +187,47 @@ export default function EmailDetail({
       document.body.removeChild(a);
     } catch (error) {
       console.error('Error downloading attachment:', error);
+    }
+  };
+
+  // ✅ OUTLOOK BEHAVIOR: Detect .ics calendar invitations
+  const hasMeetingInvitation = (threadEmail: Email) => {
+    if (!threadEmail.hasAttachments || !threadEmail.attachments) return false;
+    return threadEmail.attachments.some(
+      att => att.filename.toLowerCase().endsWith('.ics') ||
+             att.contentType?.toLowerCase().includes('calendar')
+    );
+  };
+
+  // ✅ OUTLOOK BEHAVIOR: Handle meeting invitation response
+  const handleMeetingResponse = async (response: 'accepted' | 'declined' | 'tentative') => {
+    try {
+      setMeetingResponse(response);
+
+      // Find the .ics attachment
+      const icsAttachment = email.attachments?.find(
+        att => att.filename.toLowerCase().endsWith('.ics') ||
+               att.contentType?.toLowerCase().includes('calendar')
+      );
+
+      if (!icsAttachment) {
+        console.error('No .ics attachment found');
+        return;
+      }
+
+      // TODO: Parse .ics file and create calendar event
+      // For now, just show the response visually
+      console.log(`Meeting response: ${response}`, icsAttachment);
+
+      // In a full implementation, you would:
+      // 1. Download and parse the .ics file
+      // 2. Extract event details (title, date, time, location, etc.)
+      // 3. Create calendar event via /api/calendar/events
+      // 4. Send RSVP email response to organizer
+
+    } catch (error) {
+      console.error('Error responding to meeting invitation:', error);
+      setMeetingResponse(null);
     }
   };
 
@@ -338,6 +384,84 @@ export default function EmailDetail({
                         __html: sanitizeHtml(threadEmail.bodyHtml ?? threadEmail.bodyText ?? ''),
                       }}
                     />
+
+                    {/* ✅ OUTLOOK BEHAVIOR: Meeting Invitation Response */}
+                    {hasMeetingInvitation(threadEmail) && (
+                      <div className="mt-6 mb-6">
+                        <Separator className="mb-4" />
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                              Meeting Invitation
+                            </h4>
+                          </div>
+
+                          {meetingResponse ? (
+                            <div className="flex items-center gap-2 text-sm">
+                              {meetingResponse === 'accepted' && (
+                                <>
+                                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                  <span className="text-green-800 dark:text-green-300 font-medium">
+                                    You accepted this invitation
+                                  </span>
+                                </>
+                              )}
+                              {meetingResponse === 'declined' && (
+                                <>
+                                  <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                                  <span className="text-red-800 dark:text-red-300 font-medium">
+                                    You declined this invitation
+                                  </span>
+                                </>
+                              )}
+                              {meetingResponse === 'tentative' && (
+                                <>
+                                  <HelpCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                                  <span className="text-yellow-800 dark:text-yellow-300 font-medium">
+                                    You responded as tentative
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            <>
+                              <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+                                How do you want to respond to this meeting invitation?
+                              </p>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                  onClick={() => handleMeetingResponse('accepted')}
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  Accept
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-yellow-600 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                                  onClick={() => handleMeetingResponse('tentative')}
+                                >
+                                  <HelpCircle className="h-4 w-4 mr-2" />
+                                  Tentative
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-red-600 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  onClick={() => handleMeetingResponse('declined')}
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Decline
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Attachments */}
                     {threadEmail.hasAttachments &&
