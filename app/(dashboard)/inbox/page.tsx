@@ -81,21 +81,44 @@ export default function InboxV3Page() {
     setSelectedMessageId(messageId);
   };
 
-  const handleCompose = (type: 'reply' | 'reply-all' | 'forward', email: any, generatedReply?: string) => {
-    const sender = email.from?.[0];
-    const senderEmail = sender?.email || '';
-    const senderName = sender?.name || senderEmail;
-
-    console.log('[Reply Debug] Email object:', {
+  const handleCompose = async (type: 'reply' | 'reply-all' | 'forward', email: any, generatedReply?: string) => {
+    console.log('[Reply Debug] Initial email object from list:', {
       type,
+      id: email.id,
       from: email.from,
       to: email.to,
       cc: email.cc,
-      subject: email.subject
+      subject: email.subject,
+      hasToField: !!email.to,
+      hasCcField: !!email.cc,
     });
 
+    // Fetch full message details if we don't have recipient info
+    let fullEmail = email;
+    if (!email.to || !email.cc) {
+      console.log('[Reply Debug] Fetching full message details for:', email.id);
+      try {
+        const response = await fetch(`/api/nylas-v3/messages/${email.id}?accountId=${selectedAccountId}`);
+        const data = await response.json();
+        if (data.success && data.message) {
+          fullEmail = data.message;
+          console.log('[Reply Debug] Full message fetched:', {
+            from: fullEmail.from,
+            to: fullEmail.to,
+            cc: fullEmail.cc,
+          });
+        }
+      } catch (error) {
+        console.error('[Reply Debug] Failed to fetch full message:', error);
+      }
+    }
+
+    const sender = fullEmail.from?.[0];
+    const senderEmail = sender?.email || '';
+    const senderName = sender?.name || senderEmail;
+
     // Store selected message for contact panel first
-    setSelectedMessage(email);
+    setSelectedMessage(fullEmail);
     setRightPanelTab('contact'); // Auto-switch to contact tab
 
     // Store AI-generated reply if provided
@@ -108,16 +131,16 @@ export default function InboxV3Page() {
     if (type === 'reply') {
       setComposeReplyTo({
         to: senderEmail,
-        subject: email.subject?.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
-        messageId: email.id,
-        body: email.body || email.snippet,
+        subject: fullEmail.subject?.startsWith('Re:') ? fullEmail.subject : `Re: ${fullEmail.subject}`,
+        messageId: fullEmail.id,
+        body: fullEmail.body || fullEmail.snippet,
       });
       setComposeType('reply');
       setIsComposeOpen(true);
     } else if (type === 'reply-all') {
       // Extract all recipients (original TO + CC, excluding current user)
-      const allToRecipients = email.to?.map((r: any) => r.email).filter((e: string) => e !== senderEmail) || [];
-      const allCcRecipients = email.cc?.map((r: any) => r.email) || [];
+      const allToRecipients = fullEmail.to?.map((r: any) => r.email).filter((e: string) => e !== senderEmail) || [];
+      const allCcRecipients = fullEmail.cc?.map((r: any) => r.email) || [];
 
       console.log('[Reply-All Debug] Recipients:', {
         senderEmail,
@@ -131,17 +154,17 @@ export default function InboxV3Page() {
       setComposeReplyTo({
         to: replyToEmails.join(', '),
         cc: allCcRecipients.length > 0 ? allCcRecipients.join(', ') : undefined,
-        subject: email.subject?.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
-        messageId: email.id,
-        body: email.body || email.snippet,
+        subject: fullEmail.subject?.startsWith('Re:') ? fullEmail.subject : `Re: ${fullEmail.subject}`,
+        messageId: fullEmail.id,
+        body: fullEmail.body || fullEmail.snippet,
       });
       setComposeType('reply-all');
       setIsComposeOpen(true);
     } else if (type === 'forward') {
       setComposeReplyTo({
-        subject: email.subject?.startsWith('Fwd:') ? email.subject : `Fwd: ${email.subject}`,
-        messageId: email.id,
-        body: email.body || email.snippet,
+        subject: fullEmail.subject?.startsWith('Fwd:') ? fullEmail.subject : `Fwd: ${fullEmail.subject}`,
+        messageId: fullEmail.id,
+        body: fullEmail.body || fullEmail.snippet,
       });
       setComposeType('forward');
       setIsComposeOpen(true);

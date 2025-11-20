@@ -126,7 +126,7 @@ export function RichTextEditor({
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-[300px] px-4 pt-6 pb-4',
+        class: 'prose prose-sm max-w-none focus:outline-none min-h-[300px] px-4 pt-3 pb-2',
         spellcheck: 'true', // Enable browser spell check
       },
       handlePaste: (view, event) => {
