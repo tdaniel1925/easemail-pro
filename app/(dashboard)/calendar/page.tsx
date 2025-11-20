@@ -93,8 +93,62 @@ function CalendarContent() {
   const [miniCalendarMonth, setMiniCalendarMonth] = useState(new Date());
   const [selectedMiniDate, setSelectedMiniDate] = useState<Date | null>(null);
 
-  // Calendar Selection State
-  const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>([]);
+  // Calendar Selection State with localStorage persistence
+  const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>(() => {
+    // Load saved calendar selection from localStorage
+    if (typeof window !== 'undefined' && selectedAccount?.nylasGrantId) {
+      const savedSelection = localStorage.getItem(`calendar-selection-${selectedAccount.nylasGrantId}`);
+      if (savedSelection) {
+        try {
+          return JSON.parse(savedSelection);
+        } catch (err) {
+          console.error('[Calendar] Failed to parse saved calendar selection:', err);
+        }
+      }
+    }
+    return [];
+  });
+
+  // Wrapper function to update calendar selection and persist to localStorage
+  const handleCalendarSelectionChange = useCallback((calendarIds: string[]) => {
+    setSelectedCalendarIds(calendarIds);
+
+    // Persist to localStorage (per account)
+    if (typeof window !== 'undefined' && selectedAccount?.nylasGrantId) {
+      localStorage.setItem(
+        `calendar-selection-${selectedAccount.nylasGrantId}`,
+        JSON.stringify(calendarIds)
+      );
+      console.log('[Calendar] Saved calendar selection to localStorage:', {
+        accountId: selectedAccount.nylasGrantId,
+        selectedCount: calendarIds.length,
+      });
+    }
+  }, [selectedAccount?.nylasGrantId]);
+
+  // Clear calendar selection when account changes
+  useEffect(() => {
+    if (selectedAccount?.nylasGrantId) {
+      // Load saved selection for this account
+      const savedSelection = localStorage.getItem(`calendar-selection-${selectedAccount.nylasGrantId}`);
+      if (savedSelection) {
+        try {
+          const parsed = JSON.parse(savedSelection);
+          setSelectedCalendarIds(parsed);
+          console.log('[Calendar] Loaded calendar selection from localStorage:', {
+            accountId: selectedAccount.nylasGrantId,
+            selectedCount: parsed.length,
+          });
+        } catch (err) {
+          console.error('[Calendar] Failed to parse saved calendar selection:', err);
+          setSelectedCalendarIds([]);
+        }
+      } else {
+        // No saved selection for this account, reset to empty
+        setSelectedCalendarIds([]);
+      }
+    }
+  }, [selectedAccount?.nylasGrantId]);
 
   // Filtered events based on search and calendar types
   const filteredEvents = useMemo(() => {
@@ -850,7 +904,7 @@ function CalendarContent() {
           <CalendarSelector
             accountId={selectedAccount?.nylasGrantId || null}
             selectedCalendarIds={selectedCalendarIds}
-            onCalendarSelectionChange={setSelectedCalendarIds}
+            onCalendarSelectionChange={handleCalendarSelectionChange}
           />
         </div>
       </div>
