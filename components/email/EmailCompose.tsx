@@ -288,6 +288,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
         // Download each attachment and add to attachments array
         const downloadedFiles: File[] = [];
+        const failedAttachments: string[] = [];
 
         for (const attachment of replyTo.attachments) {
           try {
@@ -307,15 +308,26 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               console.log('[EmailCompose] Downloaded attachment:', attachment.filename);
             } else {
               console.error('[EmailCompose] Failed to download attachment:', attachment.filename);
+              failedAttachments.push(attachment.filename);
             }
           } catch (error) {
             console.error('[EmailCompose] Error downloading attachment:', attachment.filename, error);
+            failedAttachments.push(attachment.filename);
           }
         }
 
         if (downloadedFiles.length > 0) {
           setAttachments(downloadedFiles);
           console.log('[EmailCompose] Loaded', downloadedFiles.length, 'attachments for forward');
+        }
+
+        // Show notification if some attachments failed
+        if (failedAttachments.length > 0) {
+          toast({
+            title: 'Attachment Download Failed',
+            description: `Failed to download ${failedAttachments.length} attachment(s): ${failedAttachments.join(', ')}`,
+            variant: 'destructive',
+          });
         }
       }
     };
@@ -343,8 +355,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         // Add spacing before quoted content
         quotedBody += '<div><br/></div><div><br/></div>';
 
-        // Format as quoted reply with HTML preserved
-        quotedBody += '<div style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 5px; color: #666;">';
+        // Format as quoted reply with proper blockquote semantic HTML
+        quotedBody += '<blockquote style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 5px; color: #666; margin-top: 10px; margin-bottom: 10px;">';
         quotedBody += '<div style="font-weight: bold; margin-bottom: 10px;">------- Original Message -------</div>';
         quotedBody += `<div><strong>From:</strong> ${replyTo.to}</div>`;
         quotedBody += `<div><strong>Subject:</strong> ${replyTo.subject}</div>`;
@@ -355,7 +367,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           quotedBody += `<div>${replyTo.body}</div>`;
         }
 
-        quotedBody += '</div>'; // Close blockquote div
+        quotedBody += '</blockquote>';
       } else if (type === 'forward') {
         // Add signature on the 3rd line (after 2 blank lines)
         if (useSignature) {
@@ -370,8 +382,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         // Add spacing before forwarded content
         quotedBody += '<div><br/></div><div><br/></div>';
 
-        // Format as forwarded message with HTML preserved
-        quotedBody += '<div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px; background-color: #f9f9f9;">';
+        // Format as forwarded message with proper blockquote semantic HTML
+        quotedBody += '<blockquote style="border: 1px solid #ddd; padding: 15px; border-radius: 5px; background-color: #f9f9f9; margin-top: 10px; margin-bottom: 10px;">';
         quotedBody += '<div style="font-weight: bold; margin-bottom: 10px; color: #333;">---------- Forwarded message ---------</div>';
         quotedBody += `<div><strong>From:</strong> ${replyTo.to}</div>`;
         quotedBody += `<div><strong>Subject:</strong> ${replyTo.subject}</div>`;
@@ -382,7 +394,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           quotedBody += `<div>${replyTo.body}</div>`;
         }
 
-        quotedBody += '</div>'; // Close forward div
+        quotedBody += '</blockquote>';
       }
 
       setBody(quotedBody);
@@ -529,13 +541,16 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       return;
     }
 
-    // Warn about empty subject (but allow sending)
+    // Warn about empty subject with confirmation dialog
     if (!subject || subject.trim() === '') {
-      setValidationError('Warning: Email has no subject. Click Send again to confirm.');
-      // Allow them to click Send again to proceed
-      if (validationError?.includes('no subject')) {
-        setValidationError(null); // Clear warning and proceed
-      } else {
+      const confirmed = await confirm({
+        title: 'No Subject',
+        description: 'This email has no subject line. Are you sure you want to send it?',
+        confirmText: 'Send Anyway',
+        cancelText: 'Cancel',
+      });
+
+      if (!confirmed) {
         return;
       }
     }
@@ -795,18 +810,6 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     };
   }, [isOpen, isDirty, accountId, to, cc, bcc, subject, body, isFirstChange, handleSaveDraft]);
 
-  // Periodic auto-save backup (every 3 seconds) to ensure drafts are saved even without changes
-  useEffect(() => {
-    if (!isOpen || !isDirty || !accountId) return;
-
-    const autoSaveInterval = setInterval(() => {
-      console.log('[Draft] Periodic auto-save triggered');
-      handleSaveDraft(true); // Silent auto-save
-    }, 3000); // Every 3 seconds
-
-    return () => clearInterval(autoSaveInterval);
-  }, [isOpen, isDirty, accountId, handleSaveDraft]);
-
   const handleAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
@@ -862,10 +865,19 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   // Handle close with auto-save
   const handleClose = async () => {
     if (isDirty && accountId) {
-      // Auto-save draft before closing
-      await handleSaveDraft(true);
+      const confirmed = await confirm({
+        title: 'Discard Draft?',
+        description: 'Do you want to save this draft or discard it?',
+        confirmText: 'Save Draft',
+        cancelText: 'Discard',
+      });
+
+      if (confirmed) {
+        // Save draft before closing
+        await handleSaveDraft(false);
+      }
     }
-    
+
     // Reset form and close
     resetForm();
     onClose();

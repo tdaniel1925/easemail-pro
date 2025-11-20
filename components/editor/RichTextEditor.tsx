@@ -141,6 +141,13 @@ export function RichTextEditor({
 
             const blob = item.getAsFile();
             if (blob) {
+              // Check file size (max 5MB for inline images)
+              const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+              if (blob.size > MAX_IMAGE_SIZE) {
+                alert('Image is too large to paste inline. Maximum size is 5MB. Please attach the image as a file instead.');
+                return true;
+              }
+
               // Convert blob to base64 data URL
               const reader = new FileReader();
               reader.onload = (e) => {

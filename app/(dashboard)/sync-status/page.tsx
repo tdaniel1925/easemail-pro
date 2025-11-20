@@ -25,6 +25,17 @@ export default async function SyncStatusPage() {
     redirect('/login');
   }
 
+  // Check if user is admin
+  const userRecord = await db.query.users.findFirst({
+    where: (users, { eq }) => eq(users.id, user.id),
+  });
+
+  const isAdmin = userRecord?.role === 'platform_admin' || userRecord?.role === 'org_admin';
+
+  if (!isAdmin) {
+    redirect('/inbox');
+  }
+
   // Get all accounts for this user
   const accounts = await db.query.emailAccounts.findMany({
     where: eq(emailAccounts.userId, user.id),

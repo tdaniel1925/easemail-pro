@@ -15,9 +15,26 @@ export default function SyncingIndicator({ accountId, emailCount = 0 }: SyncingI
   const [stopping, setStopping] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check if user is admin (only admins can see sync dashboard)
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        const response = await fetch('/api/user/role');
+        const data = await response.json();
+        setIsAdmin(data.role === 'platform_admin' || data.role === 'org_admin');
+      } catch (error) {
+        console.error('Failed to check admin status:', error);
+        setIsAdmin(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, []);
 
   useEffect(() => {
-    if (!accountId) {
+    if (!accountId || !isAdmin) {
       setLoading(false);
       return;
     }

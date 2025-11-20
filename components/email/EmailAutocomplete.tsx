@@ -150,25 +150,33 @@ export default function EmailAutocomplete({
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const pastedText = e.clipboardData.getData('text');
-    
+
     // Split by comma, semicolon, space, or newline
     const emails = pastedText
       .split(/[,;\s\n]+/)
       .map(email => email.trim())
       .filter(email => email.length > 0);
-    
+
+    // Accumulate all valid emails first
+    const newRecipients = [...value];
     let addedCount = 0;
+
     emails.forEach(email => {
-      if (isValidEmail(email) && !value.some(r => r.email.toLowerCase() === email.toLowerCase())) {
-        onChange([...value, { email }]);
+      if (isValidEmail(email) && !newRecipients.some(r => r.email.toLowerCase() === email.toLowerCase())) {
+        newRecipients.push({ email });
         addedCount++;
       }
     });
-    
+
+    // Single onChange call with all emails
+    if (addedCount > 0) {
+      onChange(newRecipients);
+    }
+
     // Clear input after paste
     setInput('');
     setShowSuggestions(false);
-    
+
     if (addedCount > 0) {
       inputRef.current?.focus();
     }
@@ -187,8 +195,11 @@ export default function EmailAutocomplete({
     setTimeout(() => {
       if (input.trim() && isValidEmail(input.trim())) {
         addRecipient(input.trim());
+      } else if (input.trim()) {
+        // Clear invalid input on blur
+        setInput('');
       }
-    }, 200);
+    }, 150);
   };
 
   return (
