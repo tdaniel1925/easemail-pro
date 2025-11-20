@@ -30,9 +30,10 @@ interface ContactPanelV3Props {
   email?: EmailMessage;
   activeTab?: 'contact' | 'calendar' | 'ai';
   onTabChange?: (tab: 'contact' | 'calendar' | 'ai') => void;
+  onComposeEmail?: (emailData: { to: string; subject: string; body: string }) => void;
 }
 
-export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChange }: ContactPanelV3Props) {
+export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChange, onComposeEmail }: ContactPanelV3Props) {
   const [internalActiveTab, setInternalActiveTab] = useState<'contact' | 'calendar' | 'ai'>('calendar');
 
   // Use external activeTab if provided, otherwise use internal
@@ -127,6 +128,7 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
             <AIAssistantSidebar
               isOpen={true}
               onClose={() => handleTabChange('calendar')}
+              onComposeEmail={onComposeEmail}
               fullPage={true}
             />
           </div>

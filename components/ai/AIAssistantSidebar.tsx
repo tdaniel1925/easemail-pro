@@ -9,16 +9,26 @@ import { Card, CardContent } from '@/components/ui/card';
 interface Message {
   role: 'user' | 'assistant';
   content: string;
-  actions?: Array<{ text: string; action: string; path?: string }>;
+  actions?: Array<{
+    text: string;
+    action: string;
+    path?: string;
+    emailData?: {
+      to: string;
+      subject: string;
+      body: string;
+    };
+  }>;
 }
 
 interface AIAssistantSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   fullPage?: boolean; // NEW: When true, renders as full page instead of sliding sidebar
+  onComposeEmail?: (emailData: { to: string; subject: string; body: string }) => void;
 }
 
-export function AIAssistantSidebar({ isOpen, onClose, fullPage = false }: AIAssistantSidebarProps) {
+export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onComposeEmail }: AIAssistantSidebarProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -103,8 +113,11 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false }: AIAssi
     }
   };
 
-  const handleAction = (action: string, path?: string) => {
-    if (action === 'navigate' && path) {
+  const handleAction = (action: string, path?: string, emailData?: { to: string; subject: string; body: string }) => {
+    if (action === 'compose' && emailData && onComposeEmail) {
+      // Handle email composition
+      onComposeEmail(emailData);
+    } else if (action === 'navigate' && path) {
       router.push(path);
       if (!fullPage) {
         onClose();
@@ -158,7 +171,7 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false }: AIAssi
                         key={idx}
                         variant="outline"
                         size="sm"
-                        onClick={() => handleAction(action.action, action.path)}
+                        onClick={() => handleAction(action.action, action.path, action.emailData)}
                         className="text-xs bg-background hover:bg-background/80"
                       >
                         {action.text}
@@ -271,7 +284,7 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false }: AIAssi
               }`}
             >
               <div className="whitespace-pre-wrap text-sm">{message.content}</div>
-              
+
               {/* Action Buttons */}
               {message.actions && message.actions.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -280,7 +293,7 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false }: AIAssi
                       key={idx}
                       variant="outline"
                       size="sm"
-                      onClick={() => handleAction(action.action, action.path)}
+                      onClick={() => handleAction(action.action, action.path, action.emailData)}
                       className="text-xs bg-background hover:bg-background/80"
                     >
                       {action.text}

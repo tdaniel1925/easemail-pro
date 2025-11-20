@@ -182,6 +182,18 @@ export default function InboxV3Page() {
     setIsComposeOpen(true);
   };
 
+  // Handle AI-generated email composition
+  const handleAICompose = (emailData: { to: string; subject: string; body: string }) => {
+    setComposeReplyTo({
+      to: emailData.to,
+      subject: emailData.subject,
+      body: '',
+    });
+    setAiReplyText(emailData.body);
+    setComposeType('compose');
+    setIsComposeOpen(true);
+  };
+
   return (
     <>
     <div className="flex h-screen bg-background overflow-hidden">
@@ -322,6 +334,7 @@ export default function InboxV3Page() {
           email={selectedMessage}
           activeTab={rightPanelTab}
           onTabChange={setRightPanelTab}
+          onComposeEmail={handleAICompose}
         />
       </div>
     </div>
