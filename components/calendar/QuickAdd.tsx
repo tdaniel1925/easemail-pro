@@ -1,16 +1,15 @@
 /**
- * Quick Add Component
- * Natural language event creation (e.g., "Meeting tomorrow at 3pm")
+ * Quick Add Component - GPT-4o Powered
+ * Natural language event creation with AI parsing
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sparkles, Calendar, Clock, MapPin, Mic, MicOff, Users } from 'lucide-react';
+import { Sparkles, Calendar, Clock, MapPin, Mic, MicOff, Users, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import * as chrono from 'chrono-node';
 import * as Sentry from '@sentry/nextjs';
 
 interface QuickAddProps {
@@ -23,11 +22,13 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
   const [input, setInput] = useState('');
   const [preview, setPreview] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clarificationQuestion, setClarificationQuestion] = useState<string | null>(null);
+  const [conversationHistory, setConversationHistory] = useState<any[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
   const [browserSupportsVoice, setBrowserSupportsVoice] = useState(false);
-  const [autoCreateAfterVoice, setAutoCreateAfterVoice] = useState(false);
 
   // Calendar selection
   const [availableCalendars, setAvailableCalendars] = useState<any[]>([]);
@@ -97,8 +98,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
             .join('');
 
           console.log('[QuickAdd] Voice transcript:', transcript);
-          
-          // Track voice input usage
+
           Sentry.startSpan(
             {
               op: 'voice.recognition',
@@ -107,13 +107,12 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
             (span) => {
               span.setAttribute('transcript', transcript);
               span.setAttribute('isFinal', event.results[0].isFinal);
-              
+
               setInput(transcript);
-              parseInput(transcript);
-              
-              // Mark that we should auto-create after voice ends
+
+              // Only parse on final result
               if (event.results[0].isFinal) {
-                setAutoCreateAfterVoice(true);
+                parseInputWithAI(transcript);
               }
             }
           );
@@ -132,15 +131,6 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         recognitionInstance.onend = () => {
           console.log('[QuickAdd] Voice recognition ended');
           setIsListening(false);
-          
-          // Auto-create event after voice input completes (with a small delay to ensure preview is set)
-          if (autoCreateAfterVoice) {
-            console.log('[QuickAdd] Auto-creating event from voice input');
-            setTimeout(() => {
-              handleCreate();
-            }, 500);
-            setAutoCreateAfterVoice(false);
-          }
         };
 
         setRecognition(recognitionInstance);
@@ -160,220 +150,91 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
       setIsListening(false);
     } else {
       setError(null);
+      setClarificationQuestion(null);
       recognition.start();
       setIsListening(true);
     }
   };
 
-  // Preprocess text to fix common typos and variations
-  const preprocessText = (text: string): string => {
-    let cleaned = text.trim();
-    
-    // FIRST: Remove common filler phrases
-    // Handle "for me for" first (most specific)
-    cleaned = cleaned.replace(/^(set|make|create|add|schedule)\s+(an?\s+)?(appointment|event|meeting)\s+for\s+me\s+for\s+/gi, '');
-    // Then "for me" without second "for"
-    cleaned = cleaned.replace(/^(set|make|create|add|schedule)\s+(an?\s+)?(appointment|event|meeting)\s+for\s+me\s+/gi, '');
-    // Then just "for"
-    cleaned = cleaned.replace(/^(set|make|create|add|schedule)\s+(an?\s+)?(appointment|event|meeting)\s+for\s+/gi, '');
-    // Finally, just the action word + type
-    cleaned = cleaned.replace(/^(set|make|create|add|schedule)\s+(an?\s+)?(appointment|event|meeting)\s+/gi, '');
-    
-    // THEN: Fix common time typos: "9ma" → "9am", "3mp" → "3pm"  
-    // Use function form to avoid issues with $1 in some contexts
-    cleaned = cleaned.replace(/(\d+)\s*ma\b/gi, (match, p1) => p1 + 'am');
-    cleaned = cleaned.replace(/(\d+)\s*mp\b/gi, (match, p1) => p1 + 'pm');
-    
-    // Fix common day typos
-    cleaned = cleaned.replace(/\btomorow\b/gi, 'tomorrow');
-    
-    // Fix common word typos
-    cleaned = cleaned.replace(/\bappointmen\b/gi, 'appointment');
-    cleaned = cleaned.replace(/\bcalndae\b/gi, 'calendar');
-    
-    // Normalize spaces
-    cleaned = cleaned.replace(/\s+/g, ' ').trim();
-    
-    return cleaned;
-  };
-
-  // Enhanced parsing with attendees, location, and description extraction
-  const parseInput = (text: string) => {
+  // Parse input using GPT-4o API
+  const parseInputWithAI = async (text: string) => {
     if (!text.trim()) {
       setPreview(null);
+      setClarificationQuestion(null);
       return;
     }
 
+    setParsing(true);
+    setError(null);
+    setClarificationQuestion(null);
+
     try {
-      // Preprocess text to fix typos
-      const processedText = preprocessText(text);
-      console.log('[QuickAdd] Original text:', text);
-      console.log('[QuickAdd] Processed text:', processedText);
+      console.log('[QuickAdd] Parsing with GPT-4o:', text);
 
-      // Parse the natural language input
-      const results = chrono.parse(processedText, new Date(), { forwardDate: true });
+      const response = await fetch('/api/calendar/parse-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: text,
+          conversationHistory,
+        }),
+      });
 
-      if (results.length === 0) {
-        // Default to 5 minutes from now to prevent past event errors
-        const minStartTime = new Date(Date.now() + 5 * 60 * 1000);
-        setPreview({
-          title: text,
-          startTime: minStartTime,
-          endTime: new Date(minStartTime.getTime() + 60 * 60 * 1000), // 1 hour later
-          hasDate: false,
-          fullTranscript: text,
-        });
-        return;
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to parse event');
       }
 
-      const result = results[0];
-      const startTime = result.start.date();
+      console.log('[QuickAdd] Parse result:', data);
 
-      // Try to get end time if specified
-      let endTime;
-      if (result.end) {
-        endTime = result.end.date();
+      if (data.needsClarification) {
+        // AI needs more information
+        setClarificationQuestion(data.question);
+        setPreview(data.partialEvent || null);
+
+        // Add to conversation history
+        setConversationHistory([
+          ...conversationHistory,
+          { role: 'user', content: text },
+          { role: 'assistant', content: data.question },
+        ]);
       } else {
-        // Check for duration expressions like "for 2 hours", "for 30 minutes", "for 1.5 hours"
-        const durationMatch = processedText.match(/for\s+(\d+(?:\.\d+)?)\s*(hour|hours|hr|hrs|minute|minutes|min|mins)/i);
-        if (durationMatch) {
-          const amount = parseFloat(durationMatch[1]);
-          const unit = durationMatch[2].toLowerCase();
+        // AI successfully parsed the event
+        setClarificationQuestion(null);
+        setPreview({
+          title: data.event.title,
+          startTime: new Date(data.event.startTime),
+          endTime: new Date(data.event.endTime),
+          location: data.event.location || null,
+          description: data.event.description || null,
+          attendees: data.event.attendees || [],
+          confidence: data.confidence,
+          explanation: data.explanation,
+        });
 
-          // Convert to milliseconds
-          let durationMs;
-          if (unit.startsWith('hour') || unit.startsWith('hr')) {
-            durationMs = amount * 60 * 60 * 1000; // hours to ms
-          } else {
-            durationMs = amount * 60 * 1000; // minutes to ms
-          }
-
-          endTime = new Date(startTime.getTime() + durationMs);
-          console.log(`[QuickAdd] Duration detected: ${amount} ${unit} = ${durationMs}ms`);
-        } else {
-          // Default to 1 hour duration
-          endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
-        }
+        // Reset conversation history
+        setConversationHistory([]);
       }
 
-      // ENHANCED PARSING: Extract all details from the original text
-      const fullText = text; // Keep full transcription
-
-      // Extract title (text before the date/time)
-      let title = processedText.substring(0, result.index).trim();
-
-      // If no title before date, use text after date
-      if (!title) {
-        title = processedText.substring(result.index + result.text.length).trim();
-      }
-
-      // If still no title, extract from original text (before preprocessing removed action words)
-      if (!title) {
-        // Try to find a meaningful title from the original text
-        const originalTitle = text.replace(/\b(tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|at|on)\b.*/gi, '').trim();
-        title = originalTitle || 'Meeting';
-      }
-
-      // Extract location (text after "at", "in", "on")
-      let location = null;
-      const locationPatterns = [
-        /\b(?:at|in|on)\s+([^,]+?)\s*(?:with|about|regarding|to discuss|$)/i,
-        /\b(?:at|in|on)\s+([^,]+?)$/i
-      ];
-
-      for (const pattern of locationPatterns) {
-        const match = fullText.match(pattern);
-        if (match) {
-          const potentialLocation = match[1].trim();
-          // Filter out time references and attendee names
-          if (!potentialLocation.match(/\d+\s*(?:am|pm|a\.m\.|p\.m\.)/i) &&
-              !potentialLocation.match(/^(?:with|about|regarding)/i)) {
-            location = potentialLocation;
-            break;
-          }
-        }
-      }
-
-      // Extract attendees (text after "with")
-      let attendees: string[] = [];
-      const withMatch = fullText.match(/\bwith\s+([^,]+?)(?:\s+at|\s+in|\s+on|\s+about|\s+to discuss|$)/i);
-      if (withMatch) {
-        const attendeeText = withMatch[1].trim();
-        // Split by "and" or commas
-        attendees = attendeeText
-          .split(/\s+and\s+|,\s*/)
-          .map(name => name.trim())
-          .filter(name => name && !name.match(/\d+\s*(?:am|pm)/i));
-      }
-
-      // Extract description/notes (text after "about", "regarding", "to discuss")
-      let description = null;
-      const descPatterns = [
-        /\b(?:about|regarding|to discuss)\s+(.+?)$/i,
-        /\b(?:about|regarding|to discuss)\s+([^,]+)/i
-      ];
-
-      for (const pattern of descPatterns) {
-        const match = fullText.match(pattern);
-        if (match) {
-          description = match[1].trim();
-          break;
-        }
-      }
-
-      // Clean up title - remove location, attendees, description fragments
-      title = title.replace(/\b(?:at|in|on)\s+.*/i, '').trim();
-      title = title.replace(/\bwith\s+.*/i, '').trim();
-      title = title.replace(/\b(?:about|regarding|to discuss)\s+.*/i, '').trim();
-      title = title.replace(/^(meeting|call|event)\s*/i, '').trim();
-
-      // If title is still empty or too generic, try to extract from description or use a better default
-      if (!title || title.length < 2) {
-        if (description && description.length > 0) {
-          // Use first few words of description as title
-          const words = description.split(/\s+/).slice(0, 3).join(' ');
-          title = words.charAt(0).toUpperCase() + words.slice(1);
-        } else if (attendees.length > 0) {
-          title = `Meeting with ${attendees[0]}`;
-        } else if (location) {
-          title = `Event at ${location}`;
-        } else {
-          title = 'Meeting';
-        }
-      }
-
-      // Capitalize first letter of title
-      title = title.charAt(0).toUpperCase() + title.slice(1);
-
-      setPreview({
-        title,
-        startTime,
-        endTime,
-        location,
-        attendees,
-        description,
-        fullTranscript: fullText, // Keep full voice/text input
-        hasDate: true,
-      });
-
-    } catch (err) {
-      console.error('Parse error:', err);
-      // Default to 5 minutes from now on parse error
-      const minStartTime = new Date(Date.now() + 5 * 60 * 1000);
-      setPreview({
-        title: text,
-        startTime: minStartTime,
-        endTime: new Date(minStartTime.getTime() + 60 * 60 * 1000),
-        hasDate: false,
-        fullTranscript: text,
-      });
+    } catch (err: any) {
+      console.error('[QuickAdd] Parse error:', err);
+      Sentry.captureException(err);
+      setError(err.message || 'Failed to parse event');
+    } finally {
+      setParsing(false);
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInput(value);
-    parseInput(value);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && input.trim() && !parsing) {
+      parseInputWithAI(input);
+    }
   };
 
   const handleCreate = async () => {
@@ -392,7 +253,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         endTime: preview.endTime,
         location: preview.location
       });
-      
+
       await Sentry.startSpan(
         {
           op: 'calendar.event.create',
@@ -400,9 +261,9 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         },
         async (span) => {
           span.setAttribute('title', preview.title);
-          span.setAttribute('hasDate', preview.hasDate);
           span.setAttribute('hasLocation', !!preview.location);
-          
+          span.setAttribute('confidence', preview.confidence || 'unknown');
+
           const response = await fetch('/api/calendar/events', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -429,7 +290,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
 
           console.log('[QuickAdd] Event created successfully:', data.event);
           span.setAttribute('eventId', data.event?.id);
-          
+
           onEventCreated();
           handleClose();
         }
@@ -453,6 +314,8 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     setInput('');
     setPreview(null);
     setError(null);
+    setClarificationQuestion(null);
+    setConversationHistory([]);
     onClose();
   };
 
@@ -486,9 +349,11 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
               <Input
                 value={input}
                 onChange={handleInputChange}
-                placeholder='e.g., "Team meeting tomorrow at 2pm" or "Lunch with Sarah Friday noon"'
-                className="text-base pr-12"
+                onKeyPress={handleKeyPress}
+                placeholder='e.g., "Team meeting tomorrow at 2pm for 1 hour"'
+                className="text-base pr-12 py-5 px-3"
                 autoFocus
+                disabled={parsing || loading}
               />
               {browserSupportsVoice && (
                 <Button
@@ -500,6 +365,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
                     isListening ? 'text-red-500 animate-pulse' : 'text-muted-foreground hover:text-foreground'
                   }`}
                   title={isListening ? 'Stop recording' : 'Voice input'}
+                  disabled={parsing || loading}
                 >
                   {isListening ? (
                     <MicOff className="h-4 w-4" />
@@ -509,16 +375,50 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
                 </Button>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {isListening ? (
-                <span className="text-red-500 font-medium">🎤 Listening... Speak your event (will auto-create)</span>
-              ) : loading ? (
-                <span className="text-blue-500 font-medium">⏳ Creating your event...</span>
-              ) : (
-                <>Try: "tomorrow at 3pm", "next Friday 10am", "Monday 9:30am-11am"</>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-xs text-muted-foreground">
+                {isListening ? (
+                  <span className="text-red-500 font-medium">🎤 Listening...</span>
+                ) : parsing ? (
+                  <span className="text-blue-500 font-medium">🤔 Understanding your event...</span>
+                ) : loading ? (
+                  <span className="text-blue-500 font-medium">⏳ Creating event...</span>
+                ) : (
+                  <>Type or speak naturally, then press Enter or click Parse</>
+                )}
+              </p>
+              {!isListening && !parsing && !loading && input.trim() && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => parseInputWithAI(input)}
+                  className="h-7 text-xs"
+                >
+                  Parse
+                </Button>
               )}
-            </p>
+            </div>
           </div>
+
+          {/* Clarification Question */}
+          {clarificationQuestion && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
+                    Need more information
+                  </div>
+                  <div className="text-sm text-blue-700 dark:text-blue-300">
+                    {clarificationQuestion}
+                  </div>
+                  <div className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                    💡 Type your answer above and press Enter
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Calendar Selector */}
           {availableCalendars.length > 0 && (
@@ -530,7 +430,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
                 value={selectedCalendarId}
                 onChange={(e) => setSelectedCalendarId(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                disabled={loadingCalendars}
+                disabled={loadingCalendars || loading}
               >
                 {loadingCalendars ? (
                   <option>Loading calendars...</option>
@@ -546,22 +446,31 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
           )}
 
           {/* Preview */}
-          {preview && (
+          {preview && preview.title && (
             <div className="p-4 bg-accent rounded-lg space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Calendar className="h-4 w-4 text-primary" />
                 <span>Event Preview</span>
+                {preview.confidence && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    preview.confidence === 'high'
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                      : preview.confidence === 'medium'
+                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                      : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                  }`}>
+                    {preview.confidence} confidence
+                  </span>
+                )}
               </div>
 
-              <div className="space-y-3">
-                {/* Full Transcript */}
-                {preview.fullTranscript && (
-                  <div className="pb-2 border-b border-border/50">
-                    <div className="text-xs text-muted-foreground mb-1">You said:</div>
-                    <div className="text-sm italic text-muted-foreground">"{preview.fullTranscript}"</div>
-                  </div>
-                )}
+              {preview.explanation && (
+                <div className="text-xs text-muted-foreground italic pb-2 border-b border-border/50">
+                  {preview.explanation}
+                </div>
+              )}
 
+              <div className="space-y-3">
                 {/* Title */}
                 <div>
                   <div className="text-sm text-muted-foreground">Title</div>
@@ -569,20 +478,17 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
                 </div>
 
                 {/* Time */}
-                <div>
-                  <div className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    Time
-                  </div>
-                  <div className="text-sm">
-                    {formatDate(preview.startTime)} → {formatDate(preview.endTime)}
-                  </div>
-                  {!preview.hasDate && (
-                    <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                      ⚠️ No date/time detected, using current time
+                {preview.startTime && preview.endTime && (
+                  <div>
+                    <div className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      Time
                     </div>
-                  )}
-                </div>
+                    <div className="text-sm">
+                      {formatDate(preview.startTime)} → {formatDate(preview.endTime)}
+                    </div>
+                  </div>
+                )}
 
                 {/* Location */}
                 {preview.location && (
@@ -600,7 +506,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
                   <div>
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <Users className="h-3.5 w-3.5" />
-                      With
+                      Attendees
                     </div>
                     <div className="text-sm">
                       {preview.attendees.join(', ')}
@@ -611,7 +517,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
                 {/* Description */}
                 {preview.description && (
                   <div>
-                    <div className="text-sm text-muted-foreground">About</div>
+                    <div className="text-sm text-muted-foreground">Description</div>
                     <div className="text-sm">{preview.description}</div>
                   </div>
                 )}
@@ -628,10 +534,13 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
 
           {/* Actions */}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={handleClose}>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={loading || !preview}>
+            <Button
+              onClick={handleCreate}
+              disabled={loading || !preview || !preview.title || !preview.startTime || clarificationQuestion !== null}
+            >
               {loading ? 'Creating...' : 'Create Event'}
             </Button>
           </div>
@@ -640,4 +549,3 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     </Dialog>
   );
 }
-
