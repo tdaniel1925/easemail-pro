@@ -21,6 +21,10 @@ interface CalendarSelectorProps {
   className?: string;
 }
 
+// Cache for calendar data (simple in-memory cache)
+const calendarCache = new Map<string, { data: CalendarItem[]; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export default function CalendarSelector({
   accountId,
   selectedCalendarIds,
@@ -31,6 +35,7 @@ export default function CalendarSelector({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
   // Fetch calendars when account changes
   useEffect(() => {
@@ -44,15 +49,43 @@ export default function CalendarSelector({
   const fetchCalendars = async () => {
     if (!accountId) return;
 
+    // Rate limiting - prevent too many requests
+    const now = Date.now();
+    if (now - lastFetchTime < 2000) { // 2 second cooldown
+      console.log('[CalendarSelector] Skipping fetch due to rate limiting');
+      return;
+    }
+
+    // Check cache first
+    const cached = calendarCache.get(accountId);
+    if (cached && now - cached.timestamp < CACHE_DURATION) {
+      console.log('[CalendarSelector] Using cached calendar data');
+      setCalendars(cached.data);
+
+      // Auto-select all calendars on first load if none selected
+      if (selectedCalendarIds.length === 0) {
+        const allCalendarIds = cached.data.map((cal: CalendarItem) => cal.id);
+        onCalendarSelectionChange(allCalendarIds);
+      }
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
+      setLastFetchTime(now);
 
       const response = await fetch(`/api/nylas-v3/calendars?accountId=${accountId}`);
       const data = await response.json();
 
       if (data.success && data.calendars) {
         setCalendars(data.calendars);
+
+        // Cache the result
+        calendarCache.set(accountId, {
+          data: data.calendars,
+          timestamp: now,
+        });
 
         // Auto-select all calendars on first load if none selected
         if (selectedCalendarIds.length === 0) {

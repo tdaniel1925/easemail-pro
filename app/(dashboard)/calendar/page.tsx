@@ -144,9 +144,20 @@ function CalendarContent() {
     return Array.from(types);
   }, [events]);
 
+  // Rate limiting state
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  const FETCH_COOLDOWN = 2000; // 2 seconds minimum between fetches
+
   // Fetch events from both local DB and Nylas (merged)
-  const fetchEvents = useCallback(async () => {
+  const fetchEvents = useCallback(async (force = false) => {
     setError(null);
+
+    // Rate limiting - prevent too many API calls
+    const now = Date.now();
+    if (!force && now - lastFetchTime < FETCH_COOLDOWN) {
+      console.log('[Calendar] Skipping fetch due to rate limiting');
+      return;
+    }
 
     if (!selectedAccount) {
       setEvents([]);
@@ -160,6 +171,7 @@ function CalendarContent() {
 
     try {
       setLoading(true);
+      setLastFetchTime(now);
       const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
 
@@ -288,7 +300,7 @@ function CalendarContent() {
     } finally {
       setLoading(false);
     }
-  }, [currentMonth, selectedAccount, selectedCalendarIds, initialLoadDone]);
+  }, [currentMonth, selectedAccount?.nylasGrantId, selectedCalendarIds.join(','), initialLoadDone, lastFetchTime]);
 
   useEffect(() => {
     fetchEvents();
