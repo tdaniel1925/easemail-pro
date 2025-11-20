@@ -145,7 +145,7 @@ User message: "${input}"`;
         const events = await nylas.events.list({
           identifier: account.nylasGrantId!,
           queryParams: {
-            calendar_id: calId,
+            calendarId: calId,
             start: startTime.toString(),
             end: endTime.toString(),
           },
