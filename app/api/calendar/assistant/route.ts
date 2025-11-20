@@ -146,8 +146,8 @@ User message: "${input}"`;
           identifier: account.nylasGrantId!,
           queryParams: {
             calendar_id: calId,
-            start: startTime,
-            end: endTime,
+            start: startTime.toString(),
+            end: endTime.toString(),
           },
         });
         return events.data;
