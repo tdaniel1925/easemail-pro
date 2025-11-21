@@ -4,15 +4,26 @@ import { emailAccounts, emails, emailFolders } from '@/lib/db/schema';
 import { eq, count } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 
+// ✅ In-memory cache to prevent excessive database queries
+const metricsCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL_MS = 1000; // 1 second cache (prevents sub-second duplicate requests)
+
 /**
  * GET /api/nylas/sync/metrics
  * Returns detailed sync metrics for real-time dashboard
+ * Uses 1-second cache to prevent excessive database queries from polling
  */
 export async function GET(request: NextRequest) {
   const accountId = request.nextUrl.searchParams.get('accountId');
 
   if (!accountId) {
     return NextResponse.json({ error: 'Account ID required' }, { status: 400 });
+  }
+
+  // ✅ Check cache first
+  const cached = metricsCache.get(accountId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return NextResponse.json(cached.data);
   }
 
   try {
@@ -111,11 +122,25 @@ export async function GET(request: NextRequest) {
                       account.lastError?.includes('token'),
     };
 
-    return NextResponse.json({
+    const response = {
       success: true,
       metrics,
       timestamp: new Date().toISOString(),
+    };
+
+    // ✅ Cache the response
+    metricsCache.set(accountId, {
+      data: response,
+      timestamp: Date.now(),
     });
+
+    // ✅ Cleanup old cache entries (keep max 100 entries)
+    if (metricsCache.size > 100) {
+      const oldestKey = metricsCache.keys().next().value;
+      if (oldestKey) metricsCache.delete(oldestKey);
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Failed to fetch sync metrics:', error);
     return NextResponse.json(
