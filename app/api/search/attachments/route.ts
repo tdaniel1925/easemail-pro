@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     const messages = await nylas.messages.list({
       identifier: accountId,
       queryParams: {
-        has_attachment: true,
+        hasAttachment: true,
         limit: 100, // Fetch more to increase chance of matches
       },
     });
