@@ -88,11 +88,11 @@ export async function POST(
         return await res.json();
       }),
 
-      // Sync messages (initial 200)
+      // Sync messages (unlimited - sync ALL emails like Superhuman/Outlook)
       fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId, limit: 200, fullSync: true }),
+        body: JSON.stringify({ accountId, limit: Infinity, fullSync: true }),
       }).then(async (res) => {
         if (!res.ok) {
           const error = await res.json();

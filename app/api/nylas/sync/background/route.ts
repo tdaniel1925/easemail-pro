@@ -162,7 +162,7 @@ async function performBackgroundSync(
   let pageToken: string | undefined = validatedCursor || undefined;
   let totalSynced = 0;
   const pageSize = 200; // Nylas API max limit is 200 emails per request
-  const maxPages = 1000; // Supports up to 200,000 emails (1000 pages × 200)
+  const maxPages = Infinity; // ✅ UNLIMITED: No limit on pages - sync ALL emails like Superhuman/Outlook
   let currentPage = 0;
   
   // ✅ SPEED OPTIMIZATION: Extended timeout for Vercel Pro (5min max, leave 30s buffer)
@@ -188,7 +188,7 @@ async function performBackgroundSync(
     const continuationCount = account?.continuationCount || 0;
     
     // ✅ SAFETY: Prevent infinite continuation loops
-    const MAX_CONTINUATIONS = 100; // ✅ INCREASED: Allow more continuations for large mailboxes (100 × 4min = 6.6 hours max)
+    const MAX_CONTINUATIONS = Infinity; // ✅ UNLIMITED: No limit on continuations - sync ALL emails until complete
 
     if (continuationCount >= MAX_CONTINUATIONS) {
       console.error(`❌ Max continuations reached (${MAX_CONTINUATIONS}) for account ${accountId} - stopping sync`);

@@ -84,6 +84,8 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onCompos
 
       const data = await response.json();
 
+      console.log('[AI Assistant] Response:', { status: response.status, data });
+
       if (data.success) {
         setMessages(prev => [
           ...prev,
@@ -94,16 +96,17 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onCompos
           },
         ]);
       } else {
+        console.error('[AI Assistant] API error:', data);
         setMessages(prev => [
           ...prev,
           {
             role: 'assistant',
-            content: 'I apologize, but I encountered an error. Please try asking your question again.',
+            content: `Error: ${data.error || 'Unknown error occurred'}${data.details ? '\n\nDetails: ' + data.details : ''}`,
           },
         ]);
       }
     } catch (error) {
-      console.error('AI Assistant error:', error);
+      console.error('[AI Assistant] Fatal error:', error);
       setMessages(prev => [
         ...prev,
         {

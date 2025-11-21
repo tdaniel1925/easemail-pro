@@ -260,10 +260,13 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('AI Assistant error:', error);
+    console.error('[AI Assistant] Fatal error:', error);
+    console.error('[AI Assistant] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to process request',
+      details: error instanceof Error ? error.stack : undefined,
     }, { status: 500 });
   }
 }

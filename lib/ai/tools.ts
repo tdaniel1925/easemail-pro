@@ -11,20 +11,51 @@ export const AI_TOOLS = [
     type: 'function',
     function: {
       name: 'search_emails',
-      description: 'Search through user emails. Use this when user asks about specific emails, senders, or topics.',
+      description: 'Search through ALL user emails in the database (including emails from years ago, 5000+ emails). Use this when user asks about specific emails, senders, topics, or old emails. Searches subject, body, and snippets.',
       parameters: {
         type: 'object',
         properties: {
           query: {
             type: 'string',
-            description: 'The search query. Supports filters like from:, to:, subject:, has:attachment, is:unread',
+            description: 'Text search query - searches in subject, body, and snippet',
+          },
+          from: {
+            type: 'string',
+            description: 'Filter by sender email address',
+          },
+          to: {
+            type: 'string',
+            description: 'Filter by recipient email address',
+          },
+          subject: {
+            type: 'string',
+            description: 'Filter by subject line',
+          },
+          dateFrom: {
+            type: 'string',
+            description: 'Start date in ISO format (e.g., 2023-01-01)',
+          },
+          dateTo: {
+            type: 'string',
+            description: 'End date in ISO format (e.g., 2024-12-31)',
+          },
+          isUnread: {
+            type: 'boolean',
+            description: 'Filter for unread emails only',
+          },
+          isStarred: {
+            type: 'boolean',
+            description: 'Filter for starred emails only',
+          },
+          hasAttachment: {
+            type: 'boolean',
+            description: 'Filter for emails with attachments',
           },
           limit: {
             type: 'number',
-            description: 'Maximum number of results to return (default: 10)',
+            description: 'Maximum number of results to return (default: 100, max: 1000)',
           },
         },
-        required: ['query'],
       },
     },
   },
@@ -213,7 +244,7 @@ export async function executeAITool(
   try {
     switch (toolName) {
       case 'search_emails':
-        return await searchEmails(args.query, context.accountId, args.limit);
+        return await searchEmails(args.query || '', context.accountId, args.limit || 100, args);
 
       case 'search_contacts':
         return await searchContacts(args.query, context.userId, args.limit);
@@ -255,12 +286,34 @@ export async function executeAITool(
 // TOOL IMPLEMENTATIONS
 // ============================================
 
-async function searchEmails(query: string, accountId: string, limit: number = 10) {
+async function searchEmails(query: string, accountId: string, limit: number = 100, filters?: any) {
+  // Build query params for database search
+  const params = new URLSearchParams({
+    accountId,
+    limit: String(limit),
+  });
+
+  // Add all filter parameters if provided
+  if (filters?.query) params.append('query', filters.query);
+  if (filters?.from) params.append('from', filters.from);
+  if (filters?.to) params.append('to', filters.to);
+  if (filters?.subject) params.append('subject', filters.subject);
+  if (filters?.dateFrom) params.append('dateFrom', filters.dateFrom);
+  if (filters?.dateTo) params.append('dateTo', filters.dateTo);
+  if (filters?.isUnread !== undefined) params.append('isUnread', String(filters.isUnread));
+  if (filters?.isStarred !== undefined) params.append('isStarred', String(filters.isStarred));
+  if (filters?.hasAttachment !== undefined) params.append('hasAttachment', String(filters.hasAttachment));
+
+  // If no specific query but have a simple string query, use it
+  if (!filters?.query && query) {
+    params.append('query', query);
+  }
+
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/search/emails?accountId=${accountId}&query=${encodeURIComponent(query)}&limit=${limit}`
+    `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/search/emails-db?${params.toString()}`
   );
   const data = await response.json();
-  return { emails: data.emails || [] };
+  return { emails: data.emails || [], total: data.total || 0, source: 'database' };
 }
 
 async function searchContacts(query: string, userId: string, limit: number = 10) {
