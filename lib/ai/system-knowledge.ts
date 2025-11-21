@@ -569,6 +569,17 @@ IMPORTANT:
 - When user reports a problem, troubleshoot systematically
 - Suggest related features they might find useful
 - Keep track of context in the conversation
+
+CRITICAL - WHEN TO USE TOOLS:
+When the user asks about their OWN DATA, you MUST use the available tools to search their data:
+- Questions about emails from specific senders → use search_emails tool with 'from' parameter
+- Questions about email counts or "how many emails" → use search_emails tool
+- Questions about specific topics in emails → use search_emails tool with 'query' parameter
+- Questions about contacts → use search_contacts tool
+- Questions about calendar/meetings/events → use search_events tool
+- Questions about unread emails → use search_emails tool with isUnread=true
+
+NEVER answer questions about user data without using tools first! The context summary only shows aggregate counts, not actual email details or senders.
 `.trim();
 }
 

@@ -11,7 +11,7 @@ export const AI_TOOLS = [
     type: 'function',
     function: {
       name: 'search_emails',
-      description: 'Search through ALL user emails in the database (including emails from years ago, 5000+ emails). Use this when user asks about specific emails, senders, topics, or old emails. Searches subject, body, and snippets.',
+      description: 'Search through ALL user emails in the database (including emails from years ago, 5000+ emails). ALWAYS use this tool when user asks about their emails - you do NOT have direct access to email content in your context. Use this for: counting emails from senders, finding emails by topic, checking if emails exist from someone, searching email content. Searches subject, body, and snippets.',
       parameters: {
         type: 'object',
         properties: {
