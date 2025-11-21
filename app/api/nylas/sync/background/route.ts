@@ -40,8 +40,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 });
     }
 
-    // Check if already syncing
-    if (account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing') {
+    // ✅ FIXED: Check if sync is stuck (status says "syncing" but no activity for 10+ minutes)
+    const STUCK_SYNC_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+    const isStuckSync = (account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing') &&
+                        account.lastActivityAt &&
+                        (Date.now() - account.lastActivityAt.getTime()) > STUCK_SYNC_TIMEOUT_MS;
+
+    if (isStuckSync) {
+      console.log(`🔧 Detected stuck sync for ${accountId} - resetting (last activity: ${account.lastActivityAt})`);
+      // Reset the stuck sync state
+      await db.update(emailAccounts)
+        .set({
+          syncStatus: 'idle',
+          lastError: 'Previous sync timed out - restarting',
+        })
+        .where(eq(emailAccounts.id, accountId));
+
+      // Refresh account data
+      const refreshedAccount = await db.query.emailAccounts.findFirst({
+        where: eq(emailAccounts.id, accountId),
+      });
+      if (refreshedAccount) {
+        account.syncStatus = refreshedAccount.syncStatus;
+        account.lastError = refreshedAccount.lastError;
+      }
+    }
+
+    // Check if already syncing (and not stuck)
+    if (!isStuckSync && (account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing')) {
       console.log(`⏭️ Account ${accountId} is already syncing`);
       return NextResponse.json({
         success: true,

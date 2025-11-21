@@ -55,7 +55,9 @@
       "Bash(copy \"components\\calendar\\QuickAdd.tsx\" \"components\\calendar\\QuickAdd.tsx.backup\")",
       "Bash(npm uninstall:*)",
       "Bash(\"C:\\dev\\EaseMail - The Future\\components\\calendar\\QuickAdd-backup-original.tsx\")",
-      "Bash(copy /Y \"C:\\dev\\EaseMail - The Future\\components\\calendar\\QuickAdd-backup-original.tsx\" \"C:\\dev\\EaseMail - The Future\\components\\calendar\\QuickAdd.tsx\")"
+      "Bash(copy /Y \"C:\\dev\\EaseMail - The Future\\components\\calendar\\QuickAdd-backup-original.tsx\" \"C:\\dev\\EaseMail - The Future\\components\\calendar\\QuickAdd.tsx\")",
+      "Bash(npx drizzle-kit studio:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []
