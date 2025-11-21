@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
         // Calculate sync progress
         const isSyncing = account.syncStatus === 'syncing';
-        const isComplete = account.syncStatus === 'active' && !account.lastCursor;
+        const isComplete = account.syncStatus === 'active' && !account.syncCursor;
 
         return {
           id: account.id,
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
           // Sync progress
           continuationCount: account.continuationCount || 0,
           lastSyncAt: account.lastSyncAt,
-          lastCursor: account.lastCursor ? 'Has cursor (continuing)' : 'No cursor (complete or not started)',
+          lastCursor: account.syncCursor ? 'Has cursor (continuing)' : 'No cursor (complete or not started)',
 
           // Status indicators
           isSyncing,
