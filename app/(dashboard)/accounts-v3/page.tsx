@@ -856,6 +856,7 @@ export default function AccountsV3Page() {
                       <ErrorResolutionCard
                         errorMessage={account.lastError}
                         accountId={account.id}
+                        provider={account.nylasProvider || account.emailProvider}
                         onRetry={() => handleSyncAccount(account.id)}
                       />
                     )}

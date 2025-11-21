@@ -9,6 +9,7 @@ import { useState } from 'react';
 interface ErrorResolutionCardProps {
   errorMessage: string;
   accountId: string;
+  provider?: string; // Email provider (google, microsoft, etc.) for provider-specific actions
   onReconnect?: () => void;
   onRetry?: () => void;
 }
@@ -16,13 +17,14 @@ interface ErrorResolutionCardProps {
 export default function ErrorResolutionCard({
   errorMessage,
   accountId,
+  provider,
   onReconnect,
   onRetry
 }: ErrorResolutionCardProps) {
   const [waiting, setWaiting] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
-  const resolution = getErrorResolution(errorMessage);
+  const resolution = getErrorResolution(errorMessage, provider);
 
   const handleAction = async (actionType: string, url?: string, waitTime?: number) => {
     switch (actionType) {

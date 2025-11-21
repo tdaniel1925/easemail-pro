@@ -29,6 +29,7 @@ import { SyncDashboardSkeleton } from '@/components/ui/skeleton';
 interface SyncDashboardProps {
   accountId: string;
   emailAddress?: string;
+  provider?: string; // Email provider for error resolution
 }
 
 interface SyncMetrics {
@@ -49,7 +50,7 @@ interface SyncMetrics {
   totalFolders?: number;
 }
 
-export default function SyncDashboard({ accountId, emailAddress }: SyncDashboardProps) {
+export default function SyncDashboard({ accountId, emailAddress, provider }: SyncDashboardProps) {
   const [metrics, setMetrics] = useState<SyncMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [stopping, setStopping] = useState(false);
@@ -276,6 +277,7 @@ export default function SyncDashboard({ accountId, emailAddress }: SyncDashboard
         <ErrorResolutionCard
           errorMessage={metrics.lastError}
           accountId={accountId}
+          provider={provider}
           onRetry={handleRestartSync}
         />
       )}

@@ -13,6 +13,7 @@ export interface ErrorResolution {
     type: 'reconnect' | 'retry' | 'wait' | 'external' | 'support';
     waitTime?: number; // in minutes
     url?: string;
+    getUrl?: (provider?: string) => string; // Dynamic URL based on provider
   }>;
   learnMoreUrl?: string;
 }
@@ -63,7 +64,22 @@ export const syncErrorGuides: ErrorResolution[] = [
     severity: 'warning',
     actions: [
       { label: 'Retry Sync', type: 'retry' },
-      { label: 'Check Provider Status', type: 'external', url: 'https://status.google.com/dashboard' }
+      {
+        label: 'Check Provider Status',
+        type: 'external',
+        getUrl: (provider?: string) => {
+          // Return provider-specific status pages
+          const providerLower = (provider || '').toLowerCase();
+          if (providerLower.includes('google') || providerLower.includes('gmail')) {
+            return 'https://www.google.com/appsstatus/dashboard/';
+          }
+          if (providerLower.includes('microsoft') || providerLower.includes('outlook') || providerLower.includes('office365')) {
+            return 'https://portal.office.com/servicestatus';
+          }
+          // Generic fallback - search for provider status
+          return `https://www.google.com/search?q=${encodeURIComponent((provider || 'email') + ' service status')}`;
+        }
+      }
     ],
     learnMoreUrl: '/help/connection-issues'
   },
@@ -136,23 +152,40 @@ export const syncErrorGuides: ErrorResolution[] = [
 /**
  * Finds the appropriate error resolution guide for a given error message
  * @param errorMessage The error message from the sync operation
- * @returns The matching error resolution guide
+ * @param provider Optional email provider (google, microsoft, etc.) for provider-specific actions
+ * @returns The matching error resolution guide with resolved URLs
  */
-export function getErrorResolution(errorMessage: string): ErrorResolution {
+export function getErrorResolution(errorMessage: string, provider?: string): ErrorResolution {
   for (const guide of syncErrorGuides) {
     if (typeof guide.errorPattern === 'string') {
       if (errorMessage.toLowerCase().includes(guide.errorPattern.toLowerCase())) {
-        return guide;
+        return resolveErrorResolutionUrls(guide, provider);
       }
     } else if (guide.errorPattern instanceof RegExp) {
       if (guide.errorPattern.test(errorMessage)) {
-        return guide;
+        return resolveErrorResolutionUrls(guide, provider);
       }
     }
   }
 
   // Return generic error guide as fallback
-  return syncErrorGuides[syncErrorGuides.length - 1];
+  return resolveErrorResolutionUrls(syncErrorGuides[syncErrorGuides.length - 1], provider);
+}
+
+/**
+ * Resolves dynamic URLs in error resolution actions
+ * @param guide The error resolution guide
+ * @param provider The email provider
+ * @returns Error resolution with resolved URLs
+ */
+function resolveErrorResolutionUrls(guide: ErrorResolution, provider?: string): ErrorResolution {
+  return {
+    ...guide,
+    actions: guide.actions.map(action => ({
+      ...action,
+      url: action.getUrl ? action.getUrl(provider) : action.url
+    }))
+  };
 }
 
 /**
