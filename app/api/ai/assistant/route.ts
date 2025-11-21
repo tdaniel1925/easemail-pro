@@ -70,6 +70,30 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Lookup the database account ID from the Nylas Grant ID
+    // accountId from the frontend is the nylasGrantId, but we need the database ID for tool queries
+    let dbAccountId: string | null = null;
+    if (accountId) {
+      try {
+        const { db } = await import('@/lib/db/drizzle');
+        const { emailAccounts } = await import('@/lib/db/schema');
+        const { eq } = await import('drizzle-orm');
+
+        const account = await db.query.emailAccounts.findFirst({
+          where: eq(emailAccounts.nylasGrantId, accountId),
+        });
+
+        if (account) {
+          dbAccountId = account.id;
+          console.log(`[AI Assistant] Resolved nylasGrantId ${accountId} to dbAccountId ${dbAccountId}`);
+        } else {
+          console.error(`[AI Assistant] Account not found for nylasGrantId ${accountId}`);
+        }
+      } catch (error) {
+        console.error('[AI Assistant] Failed to lookup database account ID:', error);
+      }
+    }
+
     // Build AI context to give AI access to user data
     let aiContext = null;
     if (accountId) {
@@ -232,7 +256,7 @@ export async function POST(request: NextRequest) {
           const result = await executeAITool(
             toolCall.function.name,
             args,
-            { userId, accountId }
+            { userId, accountId: dbAccountId || accountId } // Use database account ID for tools
           );
           toolCallResults.push({
             tool_call_id: toolCall.id,
