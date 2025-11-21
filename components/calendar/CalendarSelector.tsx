@@ -19,8 +19,8 @@ interface CalendarItem {
 interface Account {
   id: string;
   emailAddress: string;
-  nylasGrantId: string;
-  isActive: boolean;
+  nylasGrantId?: string; // Made optional to match AccountContext
+  isActive?: boolean; // Made optional to match AccountContext
 }
 
 interface CalendarSelectorProps {
@@ -48,7 +48,7 @@ export default function CalendarSelector({
 
   // ✅ Fetch calendars when accounts change
   useEffect(() => {
-    if (accounts.length > 0) {
+    if (accounts && accounts.length > 0) {
       fetchCalendarsForAllAccounts();
     } else {
       setCalendars([]);
@@ -152,7 +152,7 @@ export default function CalendarSelector({
   };
 
   // ✅ Show calendar selector if there are active accounts
-  if (accounts.length === 0) {
+  if (!accounts || accounts.length === 0) {
     return null;
   }
 

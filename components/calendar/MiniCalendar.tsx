@@ -437,7 +437,7 @@ export function MiniCalendar() {
         {/* Calendar Selector */}
         <div className="pt-4 border-t border-border">
           <CalendarSelector
-            accountId={selectedAccount?.nylasGrantId || null}
+            accounts={accounts}
             selectedCalendarIds={selectedCalendarIds}
             onCalendarSelectionChange={setSelectedCalendarIds}
             className="border-0"
