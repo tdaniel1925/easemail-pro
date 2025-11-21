@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Sparkles, X, Send, Loader2, Bot, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useAccount } from '@/contexts/AccountContext';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -29,14 +30,15 @@ interface AIAssistantSidebarProps {
 }
 
 export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onComposeEmail }: AIAssistantSidebarProps) {
+  const { selectedAccount } = useAccount();
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Hi! I\'m your AI assistant. I know everything about EaseMail and can help you with:\n\n• How to use any feature\n• Step-by-step instructions\n• Troubleshooting issues\n• Finding settings\n• Keyboard shortcuts\n\nWhat would you like help with?',
+      content: 'Hi! I\'m your all-knowing AI assistant. I have complete access to your emails, contacts, calendar, and can help you with:\n\n• Searching your data (emails, contacts, events)\n• Getting summaries and insights\n• Finding information quickly\n• Answering questions about your data\n• How to use any EaseMail feature\n\nWhat would you like help with?',
       actions: [
-        { text: 'Connect Email Account', action: 'navigate', path: '/inbox' },
-        { text: 'Use AI Write', action: 'navigate', path: '/inbox?compose=true' },
-        { text: 'Create Rules', action: 'navigate', path: '/rules' },
+        { text: 'What\'s in my inbox?', action: 'navigate', path: '/inbox' },
+        { text: 'Show upcoming meetings', action: 'navigate', path: '/calendar' },
+        { text: 'Search my contacts', action: 'navigate', path: '/contacts-v4' },
       ],
     },
   ]);
@@ -76,6 +78,7 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onCompos
           message: userMessage,
           conversationHistory,
           currentPage: pathname,
+          accountId: selectedAccount?.nylasGrantId,
         }),
       });
 
@@ -237,7 +240,7 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onCompos
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            Powered by GPT-4 • Knows your entire system
+            Powered by GPT-4 • All-knowing AI with access to your data
           </p>
         </form>
       </div>
@@ -359,7 +362,7 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onCompos
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-2 text-center">
-          Powered by GPT-4 • Knows your entire system
+          Powered by GPT-4 • All-knowing AI with access to your data
         </p>
       </form>
     </div>

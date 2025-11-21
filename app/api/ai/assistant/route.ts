@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { buildSystemContext, QUICK_ACTIONS } from '@/lib/ai/system-knowledge';
+import { buildAIContext } from '@/lib/ai/context-builder';
+import { AI_TOOLS, executeAITool } from '@/lib/ai/tools';
 import { createClient } from '@/lib/supabase/server';
 import { trackAICost } from '@/lib/utils/cost-tracking';
 import { aiRateLimit, enforceRateLimit } from '@/lib/security/rate-limiter';
@@ -57,13 +59,29 @@ export async function POST(request: NextRequest) {
       }, { status: 429 });
     }
 
-    const { message, conversationHistory, currentPage } = await request.json();
+    const { message, conversationHistory, currentPage, accountId } = await request.json();
 
     if (!message || message.trim() === '') {
       return NextResponse.json({
         success: false,
         error: 'Message is required',
       }, { status: 400 });
+    }
+
+    // Build AI context to give AI access to user data
+    let aiContext = null;
+    if (accountId) {
+      try {
+        aiContext = await buildAIContext(userId, accountId);
+        console.log('[AI Assistant] Built context with:', {
+          emails: aiContext.emails.recent.length,
+          contacts: aiContext.contacts.total,
+          upcomingEvents: aiContext.calendar.upcoming.length,
+        });
+      } catch (error) {
+        console.error('[AI Assistant] Failed to build context:', error);
+        // Continue without context rather than failing completely
+      }
     }
 
     // Step 1: Detect if user wants to compose an email
@@ -108,8 +126,36 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Build system context with current page info
-    const systemContext = buildSystemContext(currentPage || '/inbox');
+    // Build system context with current page info and AI context
+    let systemContext = buildSystemContext(currentPage || '/inbox');
+
+    // Enhance system context with user data if available
+    if (aiContext) {
+      systemContext += `\n\n## USER DATA CONTEXT\nYou have access to the following user data:\n\n`;
+      systemContext += `### Recent Emails (${aiContext.emails.recent.length})\n`;
+      systemContext += `- Unread: ${aiContext.emails.unread_count}\n`;
+      systemContext += `- Important: ${aiContext.emails.important.length}\n\n`;
+
+      systemContext += `### Calendar\n`;
+      systemContext += `- Today's events: ${aiContext.calendar.today.length}\n`;
+      systemContext += `- Upcoming events: ${aiContext.calendar.upcoming.length}\n`;
+      if (aiContext.calendar.next_meeting) {
+        systemContext += `- Next meeting: ${aiContext.calendar.next_meeting.title} at ${new Date(aiContext.calendar.next_meeting.start_time * 1000).toLocaleString()}\n`;
+      }
+      systemContext += `\n`;
+
+      systemContext += `### Contacts\n`;
+      systemContext += `- Total contacts: ${aiContext.contacts.total}\n`;
+      systemContext += `- Recent: ${aiContext.contacts.recent.length}\n`;
+      systemContext += `- Frequent: ${aiContext.contacts.frequent.length}\n\n`;
+
+      systemContext += `### Insights\n`;
+      systemContext += `- Unread from important senders: ${aiContext.insights.unread_from_important_senders}\n`;
+      systemContext += `- Meetings today: ${aiContext.insights.meetings_today}\n`;
+      systemContext += `- Deadlines this week: ${aiContext.insights.deadlines_this_week}\n\n`;
+
+      systemContext += `You can use the available tools to search and access this data when needed.\n`;
+    }
 
     // Prepare messages for OpenAI
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -130,13 +176,64 @@ export async function POST(request: NextRequest) {
       content: message,
     });
 
-    // Call OpenAI
-    const completion = await openai.chat.completions.create({
+    // Call OpenAI with function calling enabled if accountId is provided
+    const completionParams: any = {
       model: 'gpt-4-turbo-preview',
       messages,
       temperature: 0.7,
       max_tokens: 800,
-    });
+    };
+
+    // Add tools if we have user context
+    if (accountId && aiContext) {
+      completionParams.tools = AI_TOOLS;
+      completionParams.tool_choice = 'auto';
+    }
+
+    let completion = await openai.chat.completions.create(completionParams);
+
+    // Handle tool calls if present
+    let toolCallResults: any[] = [];
+    if (completion.choices[0].message.tool_calls) {
+      const toolCalls = completion.choices[0].message.tool_calls;
+      console.log(`[AI Assistant] Executing ${toolCalls.length} tool calls`);
+
+      // Execute all tool calls
+      for (const toolCall of toolCalls) {
+        try {
+          const args = JSON.parse(toolCall.function.arguments);
+          const result = await executeAITool(
+            toolCall.function.name,
+            args,
+            { userId, accountId }
+          );
+          toolCallResults.push({
+            tool_call_id: toolCall.id,
+            role: 'tool' as const,
+            content: JSON.stringify(result),
+          });
+        } catch (error) {
+          console.error(`[AI Assistant] Tool call ${toolCall.function.name} failed:`, error);
+          toolCallResults.push({
+            tool_call_id: toolCall.id,
+            role: 'tool' as const,
+            content: JSON.stringify({ error: 'Tool execution failed' }),
+          });
+        }
+      }
+
+      // Add assistant message and tool results to messages
+      messages.push(completion.choices[0].message);
+      messages.push(...toolCallResults);
+
+      // Call OpenAI again with tool results
+      completion = await openai.chat.completions.create({
+        model: 'gpt-4-turbo-preview',
+        messages,
+        temperature: 0.7,
+        max_tokens: 800,
+      });
+    }
 
     const responseText = completion.choices[0].message.content || 'I apologize, but I could not generate a response. Please try again.';
 
