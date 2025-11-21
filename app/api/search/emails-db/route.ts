@@ -75,9 +75,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Filter by sender email
+    // Filter by sender email OR name
     if (from) {
-      conditions.push(like(emails.fromEmail, `%${from}%`));
+      conditions.push(
+        or(
+          like(emails.fromEmail, `%${from}%`),
+          like(emails.fromName, `%${from}%`)
+        )!
+      );
     }
 
     // Filter by recipient (check toEmails JSON array)
