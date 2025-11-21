@@ -203,6 +203,9 @@ function CalendarContent() {
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const FETCH_COOLDOWN = 2000; // 2 seconds minimum between fetches
 
+  // ✅ Memoize calendar IDs string to prevent dependency array changes
+  const selectedCalendarIdsString = useMemo(() => selectedCalendarIds.join(','), [selectedCalendarIds]);
+
   // Fetch events from both local DB and Nylas (merged)
   const fetchEvents = useCallback(async (force = false) => {
     setError(null);
@@ -355,7 +358,7 @@ function CalendarContent() {
     } finally {
       setLoading(false);
     }
-  }, [currentMonth, selectedAccount?.nylasGrantId, selectedCalendarIds.join(','), initialLoadDone, lastFetchTime]);
+  }, [currentMonth, selectedAccount?.nylasGrantId, selectedCalendarIdsString, initialLoadDone, lastFetchTime]);
 
   useEffect(() => {
     fetchEvents();

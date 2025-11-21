@@ -11,6 +11,10 @@ import { eq } from 'drizzle-orm';
 import { getNylasClient } from '@/lib/nylas-v3/config';
 import { handleNylasError } from '@/lib/nylas-v3/errors';
 
+// ✅ In-memory cache to prevent excessive API calls
+const eventsCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL_MS = 5000; // 5 second cache (prevents rapid duplicate requests)
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -25,6 +29,13 @@ export async function GET(request: NextRequest) {
         { error: 'Account ID required' },
         { status: 400 }
       );
+    }
+
+    // ✅ Check cache first
+    const cacheKey = `${accountId}-${start}-${end}-${calendarIds || calendarId || 'all'}`;
+    const cached = eventsCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return NextResponse.json(cached.data);
     }
 
     // 1. Verify user authentication
@@ -307,10 +318,24 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({
+    // ✅ Cache the response
+    const response = {
       success: true,
       events: enrichedEvents,
+    };
+
+    eventsCache.set(cacheKey, {
+      data: response,
+      timestamp: Date.now(),
     });
+
+    // ✅ Cleanup old cache entries (keep max 50 entries)
+    if (eventsCache.size > 50) {
+      const oldestKey = eventsCache.keys().next().value;
+      if (oldestKey) eventsCache.delete(oldestKey);
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('[Calendar Events] Error fetching events:', error);
     const nylasError = handleNylasError(error);
