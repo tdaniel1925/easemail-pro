@@ -197,19 +197,27 @@ export async function POST(request: NextRequest) {
       completionParams.tools = AI_TOOLS;
 
       // Force tool usage for data queries by detecting keywords in user message
-      const dataQueryKeywords = ['email', 'inbox', 'from', 'sender', 'contact', 'meeting', 'event', 'calendar', 'how many', 'do i have', 'show me', 'find', 'search'];
+      const dataQueryKeywords = ['email', 'inbox', 'from', 'sender', 'contact', 'meeting', 'event', 'calendar', 'how many', 'do i have', 'show me', 'find', 'search', 'are there', 'any'];
       const isDataQuery = dataQueryKeywords.some(keyword => message.toLowerCase().includes(keyword));
 
       // If this looks like a data query, strongly prefer using tools
       // OpenAI will see 'required' and MUST make at least one tool call
       if (isDataQuery) {
+        console.log(`[AI Assistant] 🔧 FORCING tool usage - detected data query keywords in: "${message}"`);
         completionParams.tool_choice = 'required';
       } else {
+        console.log(`[AI Assistant] Using tool_choice='auto' for: "${message}"`);
         completionParams.tool_choice = 'auto';
       }
+
+      console.log(`[AI Assistant] ✅ Tools enabled. tool_choice=${completionParams.tool_choice}, tools_count=${AI_TOOLS.length}`);
+    } else {
+      console.log(`[AI Assistant] ❌ Tools DISABLED. accountId=${accountId}, hasContext=${!!aiContext}`);
     }
 
+    console.log(`[AI Assistant] 📤 Calling OpenAI with model=${completionParams.model}, tool_choice=${completionParams.tool_choice}`);
     let completion = await openai.chat.completions.create(completionParams);
+    console.log(`[AI Assistant] 📥 OpenAI response received. has_tool_calls=${!!completion.choices[0].message.tool_calls}`);
 
     // Handle tool calls if present
     let toolCallResults: any[] = [];
