@@ -186,10 +186,10 @@ async function fetchUpcomingEvents(accountId: string, days: number = 7): Promise
     const events = await nylas.events.list({
       identifier: accountId,
       queryParams: {
-        start: now,
-        end: endTime,
+        start: now.toString(),
+        end: endTime.toString(),
         limit: 20,
-      },
+      } as any,
     });
 
     return events.data.map((event: any) => ({
@@ -220,10 +220,10 @@ async function fetchTodayEvents(accountId: string): Promise<any[]> {
     const events = await nylas.events.list({
       identifier: accountId,
       queryParams: {
-        start: Math.floor(startOfDay.getTime() / 1000),
-        end: Math.floor(endOfDay.getTime() / 1000),
+        start: Math.floor(startOfDay.getTime() / 1000).toString(),
+        end: Math.floor(endOfDay.getTime() / 1000).toString(),
         limit: 20,
-      },
+      } as any,
     });
 
     return events.data.map((event: any) => ({

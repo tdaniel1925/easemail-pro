@@ -57,19 +57,39 @@ export async function GET(request: NextRequest) {
     const startTime_unix = start ? Math.floor(new Date(start).getTime() / 1000) : defaultStart;
     const endTime_unix = end ? Math.floor(new Date(end).getTime() / 1000) : defaultEnd;
 
-    // Fetch events from Nylas v3
-    const events = await nylas.events.list({
+    // Fetch all calendars first
+    const calendarsResponse = await nylas.calendars.list({
       identifier: accountId,
-      queryParams: {
-        start: startTime_unix,
-        end: endTime_unix,
-        limit,
-      },
     });
+
+    const calendarIds = calendarsResponse.data.map((cal: any) => cal.id);
+    console.log(`[Event Search] Found ${calendarIds.length} calendars`);
+
+    // Fetch events from all calendars
+    const eventPromises = calendarIds.map(async (calId: string) => {
+      try {
+        const events = await nylas.events.list({
+          identifier: accountId,
+          queryParams: {
+            calendarId: calId,
+            start: startTime_unix.toString(),
+            end: endTime_unix.toString(),
+            limit: 100, // Fetch more to increase chance of matches
+          },
+        });
+        return events.data;
+      } catch (err) {
+        console.error(`[Event Search] Error fetching events for calendar ${calId}:`, err);
+        return [];
+      }
+    });
+
+    const eventArrays = await Promise.all(eventPromises);
+    const allEvents = eventArrays.flat();
 
     // Client-side filtering by query (since Nylas doesn't support native event search)
     const queryLower = query.toLowerCase();
-    const filteredEvents = events.data.filter((event: any) => {
+    const filteredEvents = allEvents.filter((event: any) => {
       const title = (event.title || '').toLowerCase();
       const description = (event.description || '').toLowerCase();
       const location = (event.location || '').toLowerCase();

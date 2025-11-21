@@ -67,7 +67,7 @@ export function parseSearchQuery(query: string): ParsedQuery {
   }
 
   // Extract has: filters (can be multiple)
-  const hasMatches = query.matchAll(/has:([^\s]+)/gi);
+  const hasMatches = Array.from(query.matchAll(/has:([^\s]+)/gi));
   const hasValues: string[] = [];
   for (const match of hasMatches) {
     hasValues.push(match[1].toLowerCase());
@@ -78,7 +78,7 @@ export function parseSearchQuery(query: string): ParsedQuery {
   }
 
   // Extract is: filters (can be multiple)
-  const isMatches = query.matchAll(/is:([^\s]+)/gi);
+  const isMatches = Array.from(query.matchAll(/is:([^\s]+)/gi));
   const isValues: string[] = [];
   for (const match of isMatches) {
     isValues.push(match[1].toLowerCase());

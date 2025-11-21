@@ -245,7 +245,7 @@ export async function executeAITool(
       default:
         throw new Error(`Unknown tool: ${toolName}`);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error(`[AI Tools] Error executing ${toolName}:`, error);
     return { error: `Failed to execute ${toolName}: ${error.message}` };
   }

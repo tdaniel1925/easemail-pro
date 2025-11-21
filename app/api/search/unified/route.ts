@@ -125,10 +125,10 @@ export async function POST(request: NextRequest) {
       total: totalResults,
       took_ms,
       errors: {
-        email: emailResults.error,
-        contact: contactResults.error,
-        event: eventResults.error,
-        attachment: attachmentResults.error,
+        email: (emailResults as any).error,
+        contact: (contactResults as any).error,
+        event: (eventResults as any).error,
+        attachment: (attachmentResults as any).error,
       },
     });
   } catch (error: any) {
