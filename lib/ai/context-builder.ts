@@ -8,7 +8,8 @@ import Nylas from 'nylas';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { contactsV4 } from '@/lib/db/schema-contacts-v4';
-import { eq, and } from 'drizzle-orm';
+import { emails, emailAccounts, calendarEvents } from '@/lib/db/schema';
+import { eq, and, desc, or, sql, gte, lte } from 'drizzle-orm';
 
 const nylas = new Nylas({
   apiKey: process.env.NYLAS_API_KEY!,
@@ -67,8 +68,8 @@ export async function buildAIContext(userId: string, accountId: string): Promise
     ] = await Promise.all([
       fetchRecentEmails(accountId, 20),
       fetchUnreadEmails(accountId, 50),
-      fetchUpcomingEvents(accountId, 7), // next 7 days
-      fetchTodayEvents(accountId),
+      fetchUpcomingEvents(userId, 7), // next 7 days - CHANGED: now uses userId instead of accountId
+      fetchTodayEvents(userId), // CHANGED: now uses userId instead of accountId
       fetchContacts(userId, accountId, 50),
     ]);
 
@@ -118,6 +119,22 @@ export async function buildAIContext(userId: string, accountId: string): Promise
     };
 
     console.log(`[AI Context] Built context with ${recentEmails.length} emails, ${contacts.length} contacts, ${upcomingEvents.length} events`);
+    console.log(`[AI Context] Final context summary:`, {
+      emails_recent: context.emails.recent.length,
+      emails_unread: context.emails.unread_count,
+      emails_important: context.emails.important.length,
+      contacts_total: context.contacts.total,
+      contacts_recent: context.contacts.recent.length,
+      contacts_frequent: context.contacts.frequent.length,
+      calendar_today: context.calendar.today.length,
+      calendar_upcoming: context.calendar.upcoming.length,
+      has_next_meeting: !!context.calendar.next_meeting,
+    });
+
+    // Log sample email subjects for debugging
+    if (context.emails.recent.length > 0) {
+      console.log(`[AI Context] Sample recent email subjects:`, context.emails.recent.slice(0, 3).map(e => e.subject));
+    }
 
     return context;
   } catch (error) {
@@ -127,115 +144,146 @@ export async function buildAIContext(userId: string, accountId: string): Promise
 }
 
 /**
- * Fetch recent emails
+ * Fetch recent emails FROM DATABASE (not Nylas API)
  */
 async function fetchRecentEmails(accountId: string, limit: number = 20): Promise<any[]> {
   try {
-    const messages = await nylas.messages.list({
-      identifier: accountId,
-      queryParams: {
-        limit,
-        in: ['inbox', 'sent'],
-      },
+    console.log(`[AI Context] Fetching recent emails from DATABASE for account ${accountId}, limit ${limit}`);
+
+    // Fetch emails from local database
+    const recentEmails = await db.query.emails.findMany({
+      where: and(
+        eq(emails.accountId, accountId),
+        eq(emails.isTrashed, false)
+      ),
+      orderBy: desc(emails.receivedAt),
+      limit,
     });
 
-    return messages.data.map((msg: any) => ({
-      id: msg.id,
-      subject: msg.subject,
-      from: msg.from,
-      to: msg.to,
-      date: msg.date,
-      snippet: msg.snippet,
-      unread: msg.unread,
-      starred: msg.starred,
+    console.log(`[AI Context] Fetched ${recentEmails.length} recent emails from database`);
+    if (recentEmails.length > 0) {
+      console.log(`[AI Context] Sample email: "${recentEmails[0].subject}" from ${recentEmails[0].fromEmail}`);
+    } else {
+      console.warn(`[AI Context] WARNING: No emails found in database for account ${accountId}`);
+    }
+
+    return recentEmails.map((email: any) => ({
+      id: email.id,
+      subject: email.subject,
+      from: [{ email: email.fromEmail, name: email.fromName }],
+      to: email.toEmails || [],
+      date: email.receivedAt,
+      snippet: email.snippet,
+      unread: email.isRead === false,
+      starred: email.isStarred,
     }));
   } catch (error) {
-    console.error('[AI Context] Error fetching recent emails:', error);
+    console.error('[AI Context] Error fetching recent emails from database:', error);
+    console.error('[AI Context] Error details:', error instanceof Error ? error.message : 'Unknown error');
     return [];
   }
 }
 
 /**
- * Fetch unread emails
+ * Fetch unread emails FROM DATABASE (not Nylas API)
  */
 async function fetchUnreadEmails(accountId: string, limit: number = 50): Promise<any[]> {
   try {
-    const messages = await nylas.messages.list({
-      identifier: accountId,
-      queryParams: {
-        limit,
-        unread: true,
-      },
+    console.log(`[AI Context] Fetching unread emails from DATABASE for account ${accountId}, limit ${limit}`);
+
+    const unreadEmails = await db.query.emails.findMany({
+      where: and(
+        eq(emails.accountId, accountId),
+        eq(emails.isRead, false),
+        eq(emails.isTrashed, false)
+      ),
+      orderBy: desc(emails.receivedAt),
+      limit,
     });
 
-    return messages.data;
+    console.log(`[AI Context] Fetched ${unreadEmails.length} unread emails from database`);
+    return unreadEmails;
   } catch (error) {
-    console.error('[AI Context] Error fetching unread emails:', error);
+    console.error('[AI Context] Error fetching unread emails from database:', error);
+    console.error('[AI Context] Error details:', error instanceof Error ? error.message : 'Unknown error');
     return [];
   }
 }
 
 /**
- * Fetch upcoming calendar events
+ * Fetch upcoming calendar events FROM DATABASE (not Nylas API)
  */
-async function fetchUpcomingEvents(accountId: string, days: number = 7): Promise<any[]> {
+async function fetchUpcomingEvents(userId: string, days: number = 7): Promise<any[]> {
   try {
-    const now = Math.floor(Date.now() / 1000);
-    const endTime = now + (days * 24 * 60 * 60);
+    console.log(`[AI Context] Fetching upcoming events from DATABASE for user ${userId}, next ${days} days`);
 
-    const events = await nylas.events.list({
-      identifier: accountId,
-      queryParams: {
-        start: now.toString(),
-        end: endTime.toString(),
-        limit: 20,
-      } as any,
+    const now = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + days);
+
+    const events = await db.query.calendarEvents.findMany({
+      where: and(
+        eq(calendarEvents.userId, userId),
+        gte(calendarEvents.startTime, now),
+        lte(calendarEvents.startTime, endDate)
+      ),
+      orderBy: calendarEvents.startTime,
+      limit: 20,
     });
 
-    return events.data.map((event: any) => ({
+    console.log(`[AI Context] Fetched ${events.length} upcoming events from database`);
+
+    return events.map((event: any) => ({
       id: event.id,
       title: event.title,
       description: event.description,
       location: event.location,
-      start_time: event.when?.startTime || event.when?.date,
-      end_time: event.when?.endTime || event.when?.date,
-      participants: event.participants,
-      organizer: event.organizer,
+      start_time: Math.floor(event.startTime.getTime() / 1000),
+      end_time: Math.floor(event.endTime.getTime() / 1000),
+      participants: event.attendees || [],
+      organizer: { email: event.organizerEmail },
     }));
   } catch (error) {
-    console.error('[AI Context] Error fetching upcoming events:', error);
+    console.error('[AI Context] Error fetching upcoming events from database:', error);
+    console.error('[AI Context] Error details:', error instanceof Error ? error.message : 'Unknown error');
     return [];
   }
 }
 
 /**
- * Fetch today's calendar events
+ * Fetch today's calendar events FROM DATABASE (not Nylas API)
  */
-async function fetchTodayEvents(accountId: string): Promise<any[]> {
+async function fetchTodayEvents(userId: string): Promise<any[]> {
   try {
+    console.log(`[AI Context] Fetching today's events from DATABASE for user ${userId}`);
+
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
-    const events = await nylas.events.list({
-      identifier: accountId,
-      queryParams: {
-        start: Math.floor(startOfDay.getTime() / 1000).toString(),
-        end: Math.floor(endOfDay.getTime() / 1000).toString(),
-        limit: 20,
-      } as any,
+    const events = await db.query.calendarEvents.findMany({
+      where: and(
+        eq(calendarEvents.userId, userId),
+        gte(calendarEvents.startTime, startOfDay),
+        lte(calendarEvents.startTime, endOfDay)
+      ),
+      orderBy: calendarEvents.startTime,
+      limit: 20,
     });
 
-    return events.data.map((event: any) => ({
+    console.log(`[AI Context] Fetched ${events.length} events for today from database`);
+
+    return events.map((event: any) => ({
       id: event.id,
       title: event.title,
-      start_time: event.when?.startTime || event.when?.date,
-      end_time: event.when?.endTime || event.when?.date,
+      start_time: Math.floor(event.startTime.getTime() / 1000),
+      end_time: Math.floor(event.endTime.getTime() / 1000),
       location: event.location,
-      participants: event.participants,
+      participants: event.attendees || [],
     }));
   } catch (error) {
-    console.error('[AI Context] Error fetching today events:', error);
+    console.error('[AI Context] Error fetching today events from database:', error);
+    console.error('[AI Context] Error details:', error instanceof Error ? error.message : 'Unknown error');
     return [];
   }
 }
@@ -245,6 +293,7 @@ async function fetchTodayEvents(accountId: string): Promise<any[]> {
  */
 async function fetchContacts(userId: string, accountId: string, limit: number = 50): Promise<any[]> {
   try {
+    console.log(`[AI Context] Fetching contacts for user ${userId}, limit ${limit}`);
     const contacts = await db.query.contactsV4.findMany({
       where: and(
         eq(contactsV4.userId, userId),
@@ -254,6 +303,7 @@ async function fetchContacts(userId: string, accountId: string, limit: number = 
       orderBy: contactsV4.updatedAt,
     });
 
+    console.log(`[AI Context] Fetched ${contacts.length} contacts`);
     return contacts.map((contact: any) => ({
       id: contact.id,
       name: contact.displayName,
@@ -263,6 +313,7 @@ async function fetchContacts(userId: string, accountId: string, limit: number = 
     }));
   } catch (error) {
     console.error('[AI Context] Error fetching contacts:', error);
+    console.error('[AI Context] Error details:', error instanceof Error ? error.message : 'Unknown error');
     return [];
   }
 }
