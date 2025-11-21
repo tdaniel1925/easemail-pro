@@ -45,9 +45,12 @@ import { notificationService } from '@/lib/services/notification-service';
 type ViewType = 'month' | 'week' | 'day' | 'agenda' | 'year' | 'list';
 
 function CalendarContent() {
-  const { selectedAccount } = useAccount();
+  const { selectedAccount, accounts: contextAccounts } = useAccount();
   const { toast } = useToast();
   const searchParams = useSearchParams();
+
+  // ✅ Local state for all user accounts (for multi-account calendar support)
+  const [allAccounts, setAllAccounts] = useState<any[]>([]);
 
   // View State with localStorage persistence
   const [view, setView] = useState<ViewType>(() => {
@@ -125,6 +128,26 @@ function CalendarContent() {
       });
     }
   }, [selectedAccount?.nylasGrantId]);
+
+  // ✅ Fetch all accounts on mount for multi-account calendar support
+  useEffect(() => {
+    const fetchAllAccounts = async () => {
+      try {
+        const response = await fetch('/api/nylas/accounts');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setAllAccounts(data.accounts || []);
+            console.log('[Calendar] Loaded all accounts:', data.accounts.length);
+          }
+        }
+      } catch (error) {
+        console.error('[Calendar] Failed to fetch accounts:', error);
+      }
+    };
+
+    fetchAllAccounts();
+  }, []); // Run once on mount
 
   // Clear calendar selection when account changes
   useEffect(() => {
@@ -217,11 +240,14 @@ function CalendarContent() {
       return;
     }
 
-    if (!selectedAccount) {
+    // ✅ Get all active accounts (isActive = true)
+    const activeAccounts = allAccounts.filter(account => account.isActive && account.nylasGrantId);
+
+    if (activeAccounts.length === 0) {
       setEvents([]);
       setLoading(false);
       if (initialLoadDone) {
-        setError('Please select an account to view calendar events');
+        setError('No active accounts found. Please activate an account in Account Settings.');
       }
       setInitialLoadDone(true);
       return;
@@ -251,52 +277,59 @@ function CalendarContent() {
         // Continue - local events are optional
       }
 
-      // STEP 2: Fetch Nylas events (synced from Google/Microsoft Calendar)
+      // STEP 2: Fetch Nylas events from ALL active accounts (synced from Google/Microsoft Calendar)
       let nylasEvents: any[] = [];
-      if (selectedAccount.nylasGrantId) {
+
+      // ✅ Loop through all active accounts and fetch their calendar events
+      for (const account of activeAccounts) {
+        if (!account.nylasGrantId) continue;
+
         try {
           // Convert to Unix timestamps for Nylas v3 API
           const startTimestamp = Math.floor(startDate.getTime() / 1000);
           const endTimestamp = Math.floor(endDate.getTime() / 1000);
 
           // Build API URL with calendar filtering
-          let apiUrl = `/api/nylas-v3/calendars/events?accountId=${selectedAccount.nylasGrantId}&start=${startTimestamp}&end=${endTimestamp}`;
+          let apiUrl = `/api/nylas-v3/calendars/events?accountId=${account.nylasGrantId}&start=${startTimestamp}&end=${endTimestamp}`;
 
           if (selectedCalendarIds.length > 0) {
             apiUrl += `&calendarIds=${selectedCalendarIds.join(',')}`;
           }
 
+          console.log(`[Calendar] Fetching events for account: ${account.emailAddress}`);
           const response = await fetch(apiUrl);
 
           if (response.ok) {
             const data = await response.json();
             if (data.success) {
-              // Transform Nylas events to calendar component format
-              nylasEvents = (data.events || [])
+              // Transform Nylas events to calendar component format and add to collection
+              const accountEvents = (data.events || [])
                 .map((event: any) => transformNylasEvent(event))
                 .filter((event: any) => event !== null);
-              console.log('[Calendar] Fetched Nylas events:', nylasEvents.length);
+
+              nylasEvents.push(...accountEvents);
+              console.log(`[Calendar] Fetched ${accountEvents.length} events from ${account.emailAddress}`);
             }
           } else {
             const errorData = await response.json().catch(() => ({}));
-            console.error('[Calendar] Nylas API Error:', response.status, errorData);
+            console.error(`[Calendar] Nylas API Error for ${account.emailAddress}:`, response.status, errorData);
 
+            // Don't throw errors for individual accounts - continue with other accounts
             if (response.status === 403) {
-              throw new Error('Account access denied. Please reconnect your email account in Settings.');
+              console.warn(`[Calendar] Access denied for ${account.emailAddress}. Skipping this account.`);
             } else if (response.status === 404) {
-              throw new Error('Calendar account not found. Please reconnect your email account in Settings.');
+              console.warn(`[Calendar] Calendar account not found for ${account.emailAddress}. Skipping this account.`);
             } else if (response.status === 400) {
-              throw new Error('Calendar account not properly connected. Please reconnect in Settings.');
+              console.warn(`[Calendar] ${account.emailAddress} not properly connected. Skipping this account.`);
             }
           }
         } catch (err) {
-          console.warn('[Calendar] Failed to fetch Nylas events:', err);
-          // If Nylas fails but we have local events, continue
-          if (localEvents.length === 0) {
-            throw err; // Re-throw only if we have no local events
-          }
+          console.warn(`[Calendar] Failed to fetch Nylas events for ${account.emailAddress}:`, err);
+          // Continue with other accounts even if one fails
         }
       }
+
+      console.log('[Calendar] Total Nylas events fetched from all active accounts:', nylasEvents.length);
 
       // STEP 3: Merge and deduplicate events
       // Deduplication strategy: Prefer Nylas events (they have more metadata), but include local events that aren't synced yet
@@ -358,7 +391,7 @@ function CalendarContent() {
     } finally {
       setLoading(false);
     }
-  }, [currentMonth, selectedAccount?.nylasGrantId, selectedCalendarIdsString, initialLoadDone, lastFetchTime]);
+  }, [currentMonth, allAccounts, selectedCalendarIdsString, initialLoadDone, lastFetchTime]);
 
   useEffect(() => {
     fetchEvents();
@@ -905,7 +938,7 @@ function CalendarContent() {
         {/* Calendar Selector - Bottom 1/3 */}
         <div className="flex-1 overflow-y-auto">
           <CalendarSelector
-            accountId={selectedAccount?.nylasGrantId || null}
+            accounts={allAccounts.filter(a => a.isActive && a.nylasGrantId)} // ✅ Pass all active accounts
             selectedCalendarIds={selectedCalendarIds}
             onCalendarSelectionChange={handleCalendarSelectionChange}
           />

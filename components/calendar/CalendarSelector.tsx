@@ -12,10 +12,19 @@ interface CalendarItem {
   isPrimary?: boolean;
   hexColor?: string;
   readOnly?: boolean;
+  accountId?: string; // ✅ Track which account this calendar belongs to
+  accountEmail?: string; // ✅ For display purposes
+}
+
+interface Account {
+  id: string;
+  emailAddress: string;
+  nylasGrantId: string;
+  isActive: boolean;
 }
 
 interface CalendarSelectorProps {
-  accountId: string | null;
+  accounts: Account[]; // ✅ Changed from single accountId to array of accounts
   selectedCalendarIds: string[];
   onCalendarSelectionChange: (calendarIds: string[]) => void;
   className?: string;
@@ -26,7 +35,7 @@ const calendarCache = new Map<string, { data: CalendarItem[]; timestamp: number 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export default function CalendarSelector({
-  accountId,
+  accounts, // ✅ Now receives array of accounts
   selectedCalendarIds,
   onCalendarSelectionChange,
   className,
@@ -37,36 +46,21 @@ export default function CalendarSelector({
   const [isExpanded, setIsExpanded] = useState(true);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
-  // Fetch calendars when account changes
+  // ✅ Fetch calendars when accounts change
   useEffect(() => {
-    if (accountId) {
-      fetchCalendars();
+    if (accounts.length > 0) {
+      fetchCalendarsForAllAccounts();
     } else {
       setCalendars([]);
     }
-  }, [accountId]);
+  }, [accounts]);
 
-  const fetchCalendars = async () => {
-    if (!accountId) return;
-
+  // ✅ NEW: Fetch calendars for ALL active accounts
+  const fetchCalendarsForAllAccounts = async () => {
     // Rate limiting - prevent too many requests
     const now = Date.now();
     if (now - lastFetchTime < 2000) { // 2 second cooldown
       console.log('[CalendarSelector] Skipping fetch due to rate limiting');
-      return;
-    }
-
-    // Check cache first
-    const cached = calendarCache.get(accountId);
-    if (cached && now - cached.timestamp < CACHE_DURATION) {
-      console.log('[CalendarSelector] Using cached calendar data');
-      setCalendars(cached.data);
-
-      // Auto-select all calendars on first load if none selected
-      if (selectedCalendarIds.length === 0) {
-        const allCalendarIds = cached.data.map((cal: CalendarItem) => cal.id);
-        onCalendarSelectionChange(allCalendarIds);
-      }
       return;
     }
 
@@ -75,25 +69,62 @@ export default function CalendarSelector({
       setError(null);
       setLastFetchTime(now);
 
-      const response = await fetch(`/api/nylas-v3/calendars?accountId=${accountId}`);
-      const data = await response.json();
+      const allCalendars: CalendarItem[] = [];
 
-      if (data.success && data.calendars) {
-        setCalendars(data.calendars);
+      // ✅ Loop through all accounts and fetch their calendars
+      for (const account of accounts) {
+        if (!account.nylasGrantId) continue;
 
-        // Cache the result
-        calendarCache.set(accountId, {
-          data: data.calendars,
-          timestamp: now,
-        });
-
-        // Auto-select all calendars on first load if none selected
-        if (selectedCalendarIds.length === 0) {
-          const allCalendarIds = data.calendars.map((cal: CalendarItem) => cal.id);
-          onCalendarSelectionChange(allCalendarIds);
+        // Check cache first
+        const cached = calendarCache.get(account.nylasGrantId);
+        if (cached && now - cached.timestamp < CACHE_DURATION) {
+          console.log(`[CalendarSelector] Using cached calendar data for ${account.emailAddress}`);
+          // Add account info to cached calendars
+          const calendarsWithAccount = cached.data.map(cal => ({
+            ...cal,
+            accountId: account.id,
+            accountEmail: account.emailAddress,
+          }));
+          allCalendars.push(...calendarsWithAccount);
+          continue;
         }
-      } else {
-        throw new Error(data.error || 'Failed to fetch calendars');
+
+        // Fetch from API
+        try {
+          const response = await fetch(`/api/nylas-v3/calendars?accountId=${account.nylasGrantId}`);
+          const data = await response.json();
+
+          if (data.success && data.calendars) {
+            // Add account info to each calendar
+            const calendarsWithAccount = data.calendars.map((cal: CalendarItem) => ({
+              ...cal,
+              accountId: account.id,
+              accountEmail: account.emailAddress,
+            }));
+
+            allCalendars.push(...calendarsWithAccount);
+
+            // Cache the result
+            calendarCache.set(account.nylasGrantId, {
+              data: data.calendars,
+              timestamp: now,
+            });
+
+            console.log(`[CalendarSelector] Fetched ${data.calendars.length} calendars for ${account.emailAddress}`);
+          }
+        } catch (err) {
+          console.error(`[CalendarSelector] Error fetching calendars for ${account.emailAddress}:`, err);
+          // Continue with other accounts even if one fails
+        }
+      }
+
+      setCalendars(allCalendars);
+      console.log(`[CalendarSelector] Total calendars loaded: ${allCalendars.length}`);
+
+      // Auto-select all calendars on first load if none selected
+      if (selectedCalendarIds.length === 0 && allCalendars.length > 0) {
+        const allCalendarIds = allCalendars.map(cal => cal.id);
+        onCalendarSelectionChange(allCalendarIds);
       }
     } catch (err) {
       console.error('[CalendarSelector] Error fetching calendars:', err);
@@ -120,7 +151,8 @@ export default function CalendarSelector({
     onCalendarSelectionChange([]);
   };
 
-  if (!accountId) {
+  // ✅ Show calendar selector if there are active accounts
+  if (accounts.length === 0) {
     return null;
   }
 
@@ -221,9 +253,10 @@ export default function CalendarSelector({
                             <span className="ml-1 text-xs text-muted-foreground">(Primary)</span>
                           )}
                         </div>
-                        {calendar.description && (
+                        {/* ✅ Show which account this calendar belongs to */}
+                        {calendar.accountEmail && (
                           <div className="text-xs text-muted-foreground truncate">
-                            {calendar.description}
+                            {calendar.accountEmail}
                           </div>
                         )}
                       </div>
