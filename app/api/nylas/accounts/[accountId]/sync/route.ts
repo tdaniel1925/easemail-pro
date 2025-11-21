@@ -75,7 +75,10 @@ export async function POST(
       nylasGrantId: account.nylasGrantId?.substring(0, 15) + '...',
     });
 
-    // Start parallel folder and email sync
+    // ✅ FIXED: Call background sync directly instead of broken messages endpoint
+    // Background sync will handle unlimited email syncing with pagination
+    console.log('[Manual Sync] 🔄 Starting unlimited background sync...');
+
     const results = await Promise.allSettled([
       // Sync folders
       fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${accountId}`, {
@@ -88,28 +91,28 @@ export async function POST(
         return await res.json();
       }),
 
-      // Sync messages (unlimited - sync ALL emails like Superhuman/Outlook)
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/messages`, {
+      // ✅ FIXED: Trigger background sync (unlimited syncing)
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId, limit: Infinity, fullSync: true }),
+        body: JSON.stringify({ accountId }),
       }).then(async (res) => {
         if (!res.ok) {
           const error = await res.json();
-          throw new Error(`Message sync failed: ${error.error || res.statusText}`);
+          throw new Error(`Background sync failed: ${error.error || res.statusText}`);
         }
         return await res.json();
       }),
     ]);
 
-    const [folderResult, messageResult] = results;
+    const [folderResult, backgroundSyncResult] = results;
 
     const response: any = {
       success: true,
       accountId,
       results: {
         folders: { success: false, error: null, data: null },
-        messages: { success: false, error: null, data: null },
+        backgroundSync: { success: false, error: null, data: null },
       },
     };
 
@@ -123,36 +126,26 @@ export async function POST(
       response.results.folders.error = folderResult.reason.message || String(folderResult.reason);
     }
 
-    // Process message sync result
-    if (messageResult.status === 'fulfilled') {
-      console.log('[Manual Sync] ✅ Messages synced successfully');
-      response.results.messages.success = true;
-      response.results.messages.data = messageResult.value;
+    // Process background sync result
+    if (backgroundSyncResult.status === 'fulfilled') {
+      console.log('[Manual Sync] ✅ Background sync started successfully');
+      response.results.backgroundSync.success = true;
+      response.results.backgroundSync.data = backgroundSyncResult.value;
     } else {
-      console.error('[Manual Sync] ❌ Message sync failed:', messageResult.reason);
-      response.results.messages.error = messageResult.reason.message || String(messageResult.reason);
+      console.error('[Manual Sync] ❌ Background sync failed:', backgroundSyncResult.reason);
+      response.results.backgroundSync.error = backgroundSyncResult.reason.message || String(backgroundSyncResult.reason);
     }
 
     // If both failed, return error status
-    if (!response.results.folders.success && !response.results.messages.success) {
+    if (!response.results.folders.success && !response.results.backgroundSync.success) {
       response.success = false;
-      response.error = 'Both folder and message sync failed';
+      response.error = 'Both folder and background sync failed';
       return NextResponse.json(response, { status: 500 });
     }
 
-    // Trigger background sync for remaining emails (don't wait)
-    if (response.results.messages.success) {
-      console.log('[Manual Sync] 🔄 Triggering background sync...');
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId }),
-      }).catch(err => console.error('[Manual Sync] ⚠️ Background sync trigger error:', err));
-    }
-
-    console.log('[Manual Sync] ✅ Manual sync completed:', {
+    console.log('[Manual Sync] ✅ Manual sync initiated:', {
       foldersSuccess: response.results.folders.success,
-      messagesSuccess: response.results.messages.success,
+      backgroundSyncSuccess: response.results.backgroundSync.success,
     });
 
     return NextResponse.json(response);
