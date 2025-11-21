@@ -7,16 +7,18 @@ import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 import { assignEmailFolder, validateFolderAssignment } from '@/lib/email/folder-utils';
 import { extractAndSaveAttachments } from '@/lib/attachments/extract-from-email';
 import { isRateLimitError, isRetryableError, calculateBackoffDelay } from '@/lib/rate-limit-handler';
+import { canStartSync, completeSyncSlot } from '@/lib/sync/sync-queue';
+import { getProviderConfig } from '@/lib/sync/provider-config';
+import { canMakeRequest as circuitBreakerCheck, recordSuccess, recordRateLimitFailure } from '@/lib/sync/circuit-breaker';
+import { logQuotaUsage } from '@/lib/sync/quota-monitor';
 
 const nylas = new Nylas({
   apiKey: process.env.NYLAS_API_KEY!,
   apiUri: process.env.NYLAS_API_URI!,
 });
 
-// ✅ VERSION MARKER: v3.0-optimized (500ms/250ms delay, smart backoff)
-const SYNC_VERSION = '3.0-optimized';
-const DELAY_MS_GMAIL = 500; // 500ms delay for Gmail (reduced from 1000ms)
-const DELAY_MS_MICROSOFT = 250; // 250ms delay for Microsoft (reduced from 500ms)
+// ✅ VERSION MARKER: v4.0-enterprise (provider-specific delays, circuit breaker, queue management)
+const SYNC_VERSION = '4.0-enterprise';
 
 // POST: Start or continue background sync
 export async function POST(request: NextRequest) {
@@ -41,11 +43,48 @@ export async function POST(request: NextRequest) {
     // Check if already syncing
     if (account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing') {
       console.log(`⏭️ Account ${accountId} is already syncing`);
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'Sync already in progress',
         progress: account.syncProgress || 0
       });
+    }
+
+    // ✅ NEW: Check sync queue - prevent too many concurrent syncs
+    const canStart = await canStartSync(accountId);
+    if (!canStart) {
+      console.log(`⏸️ Sync queued for ${accountId} - too many concurrent syncs`);
+      await db.update(emailAccounts)
+        .set({ syncStatus: 'queued', lastError: 'Waiting for available sync slot' })
+        .where(eq(emailAccounts.id, accountId));
+
+      return NextResponse.json({
+        success: true,
+        message: 'Sync queued - will start when slot available',
+        progress: account.syncProgress || 0,
+        queued: true,
+      });
+    }
+
+    // ✅ NEW: Check circuit breaker - prevent syncing if provider has too many rate limits
+    const circuitCheck = circuitBreakerCheck(account.emailProvider || 'unknown');
+    if (!circuitCheck.allowed) {
+      console.log(`🔴 Circuit breaker blocking sync for ${accountId}: ${circuitCheck.reason}`);
+      await db.update(emailAccounts)
+        .set({
+          syncStatus: 'paused',
+          lastError: circuitCheck.reason || 'Circuit breaker active - too many rate limits',
+        })
+        .where(eq(emailAccounts.id, accountId));
+
+      // Release sync slot since we're not starting
+      completeSyncSlot(accountId);
+
+      return NextResponse.json({
+        success: false,
+        message: circuitCheck.reason || 'Circuit breaker active',
+        retryAfterMs: circuitCheck.retryAfterMs,
+      }, { status: 429 });
     }
 
     // Update status to background_syncing and clear stop flag
@@ -168,9 +207,11 @@ async function performBackgroundSync(
   // ✅ SPEED OPTIMIZATION: Extended timeout for Vercel Pro (5min max, leave 30s buffer)
   const startTime = Date.now();
   const TIMEOUT_MS = 4.5 * 60 * 1000; // 4.5 minutes (more sync time per run)
-  
-  // ✅ ULTRA SAFE: Use constants defined at module level
-  const delayMs = provider === 'microsoft' ? DELAY_MS_MICROSOFT : DELAY_MS_GMAIL;
+
+  // ✅ NEW: Get provider-specific configuration (supports Gmail, Outlook, Yahoo, iCloud, IMAP, etc.)
+  const providerConfig = getProviderConfig(provider);
+  const delayMs = providerConfig.delayMs;
+  console.log(`📊 Using provider config for ${provider || 'unknown'}: ${delayMs}ms delay, ${providerConfig.maxRetries} max retries`);
 
   try {
     // Get current synced count and continuation count
@@ -348,6 +389,14 @@ async function performBackgroundSync(
           identifier: grantId,
           queryParams,
         });
+
+        // ✅ NEW: Log quota usage for monitoring
+        if ((response as any).headers) {
+          logQuotaUsage(provider || 'unknown', accountId, (response as any).headers, false);
+        }
+
+        // ✅ NEW: Record successful API call in circuit breaker
+        recordSuccess(provider || 'unknown');
 
         const messages = response.data;
 
@@ -586,6 +635,17 @@ async function performBackgroundSync(
             console.log(`⏱️ Rate limit (429) detected on retry ${retryCount}/${maxRetries}`);
             console.log(`📊 Gmail quota used: ${(pageError as any)?.headers?.['nylas-gmail-quota-usage'] || 'unknown'}`);
 
+            // ✅ NEW: Log quota usage for rate limit error
+            if ((pageError as any)?.headers) {
+              logQuotaUsage(provider || 'unknown', accountId, (pageError as any).headers, true);
+            }
+
+            // ✅ NEW: Record rate limit failure in circuit breaker
+            const circuitBreakerResult = recordRateLimitFailure(provider || 'unknown');
+            if (circuitBreakerResult.shouldOpenCircuit) {
+              console.log(`🔴 Circuit breaker opened for ${provider} due to repeated rate limits`);
+            }
+
             // Extract Retry-After from error if available (Nylas includes this in some error responses)
             const retryAfter = (pageError as any)?.response?.headers?.get?.('retry-after');
             if (retryAfter) {
@@ -697,15 +757,21 @@ async function performBackgroundSync(
     console.log(`   - Completion reason: ${completionReason}`);
     console.log(`   - Continuations used: ${continuationCount}/${MAX_CONTINUATIONS}`);
     console.log(`✅ ========================================`);
+
+    // ✅ NEW: Release sync slot to allow other accounts to sync
+    completeSyncSlot(accountId);
   } catch (error) {
     console.error(`❌ Background sync failed for account ${accountId}:`, error);
-    
+
     await db.update(emailAccounts)
       .set({
         syncStatus: 'error',
         lastError: error instanceof Error ? error.message : 'Unknown error',
       })
       .where(eq(emailAccounts.id, accountId));
+
+    // ✅ NEW: Release sync slot even on error
+    completeSyncSlot(accountId);
   }
 }
 

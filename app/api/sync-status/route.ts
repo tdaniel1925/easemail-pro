@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
           // Sync progress
           continuationCount: account.continuationCount || 0,
-          lastSyncAt: account.lastSyncAt,
+          lastSyncAt: account.lastSyncedAt,
           lastCursor: account.syncCursor ? 'Has cursor (continuing)' : 'No cursor (complete or not started)',
 
           // Status indicators
