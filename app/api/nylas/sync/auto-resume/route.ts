@@ -46,36 +46,23 @@ export async function POST(request: NextRequest) {
       console.log(`🔄 Attempting to resume sync for ${account.emailAddress} (${account.id})`);
 
       try {
-        // Reset status to background_syncing to allow restart
+        // ✅ IMPROVED: Just reset to idle and let the dashboard restart it
+        // This avoids recursive API calls and potential infinite loops
         await db.update(emailAccounts)
           .set({
-            syncStatus: 'background_syncing',
-            lastError: null,
+            syncStatus: 'idle',
+            lastError: 'Sync paused after continuation failure - ready to resume',
             retryCount: 0,
             lastActivityAt: new Date(),
           })
           .where(eq(emailAccounts.id, account.id));
 
-        // Trigger background sync
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.easemail.app';
-        const response = await fetch(`${appUrl}/api/nylas/sync/background`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountId: account.id }),
-          signal: AbortSignal.timeout(10000), // 10s timeout
-        });
-
-        if (!response.ok) {
-          throw new Error(`Resume request failed: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        console.log(`✅ Resumed sync for ${account.emailAddress}:`, data);
+        console.log(`✅ Marked ${account.emailAddress} as ready to resume (status: idle)`);
         resumedAccounts.push(account.id);
       } catch (error) {
-        console.error(`❌ Failed to resume sync for ${account.emailAddress}:`, error);
+        console.error(`❌ Failed to reset sync for ${account.emailAddress}:`, error);
 
-        // Mark as error after failed resume attempt
+        // Mark as error after failed reset attempt
         await db.update(emailAccounts)
           .set({
             syncStatus: 'error',

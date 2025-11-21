@@ -16,7 +16,7 @@ import {
   Folder,
   AlertCircle
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +56,7 @@ export default function SyncDashboard({ accountId, emailAddress, provider }: Syn
   const [stopping, setStopping] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+  const lastFetchTimeRef = useRef<number>(0);
 
   // Poll for sync status
   useEffect(() => {
@@ -65,6 +66,13 @@ export default function SyncDashboard({ accountId, emailAddress, provider }: Syn
     }
 
     const fetchMetrics = async () => {
+      // ✅ Client-side rate limiting - prevent fetches more frequent than 1.5 seconds
+      const now = Date.now();
+      if (now - lastFetchTimeRef.current < 1500) {
+        return; // Skip this fetch - too soon after last one
+      }
+      lastFetchTimeRef.current = now;
+
       try {
         const data = await withRetry(
           async () => {
@@ -280,6 +288,23 @@ export default function SyncDashboard({ accountId, emailAddress, provider }: Syn
           provider={provider}
           onRetry={handleRestartSync}
         />
+      )}
+
+      {/* Paused/Ready to Resume Alert */}
+      {isIdle && metrics.syncProgress > 0 && metrics.syncedEmailCount > 0 && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Sync Paused</AlertTitle>
+          <AlertDescription>
+            Your sync was paused at {metrics.syncedEmailCount.toLocaleString()} emails ({metrics.syncProgress}%).
+            Click "Start Sync" below to resume from where you left off.
+            {metrics.lastError && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Reason: {metrics.lastError}
+              </p>
+            )}
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Progress Overview */}
