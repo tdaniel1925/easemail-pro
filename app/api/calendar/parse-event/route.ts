@@ -11,6 +11,48 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+/**
+ * Validate parsed event data has required fields
+ */
+function validateEventData(data: any): string[] {
+  const errors: string[] = [];
+
+  // Check for required fields
+  if (!data.title || typeof data.title !== 'string' || data.title.trim() === '') {
+    errors.push('Event title is required');
+  }
+
+  if (!data.startTime || typeof data.startTime !== 'string') {
+    errors.push('Event start time is required and must be in ISO 8601 format');
+  } else {
+    // Validate it's a valid date
+    const startDate = new Date(data.startTime);
+    if (isNaN(startDate.getTime())) {
+      errors.push('Event start time is not a valid date');
+    }
+  }
+
+  if (!data.endTime || typeof data.endTime !== 'string') {
+    errors.push('Event end time is required and must be in ISO 8601 format');
+  } else {
+    // Validate it's a valid date
+    const endDate = new Date(data.endTime);
+    if (isNaN(endDate.getTime())) {
+      errors.push('Event end time is not a valid date');
+    }
+
+    // Validate end time is after start time
+    if (data.startTime) {
+      const startDate = new Date(data.startTime);
+      if (endDate <= startDate) {
+        errors.push('Event end time must be after start time');
+      }
+    }
+  }
+
+  return errors;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { input, conversationHistory = [], timezone: clientTimezone } = await request.json();
@@ -212,6 +254,17 @@ Now, parse the user's input and respond with the appropriate JSON format.`;
     console.log('[AI Parser] Using timezone:', timezone);
     console.log('[AI Parser] Current date:', currentDate.toISOString());
     console.log('[AI Parser] Current local time:', currentLocalTime);
+
+    // ✅ Validate event data before returning
+    const validationErrors = validateEventData(parsedData);
+    if (validationErrors.length > 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid event data',
+        validationErrors,
+        parsedData, // Return parsed data for debugging
+      }, { status: 400 });
+    }
 
     return NextResponse.json({
       success: true,

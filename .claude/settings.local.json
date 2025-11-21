@@ -57,7 +57,9 @@
       "Bash(\"C:\\dev\\EaseMail - The Future\\components\\calendar\\QuickAdd-backup-original.tsx\")",
       "Bash(copy /Y \"C:\\dev\\EaseMail - The Future\\components\\calendar\\QuickAdd-backup-original.tsx\" \"C:\\dev\\EaseMail - The Future\\components\\calendar\\QuickAdd.tsx\")",
       "Bash(npx drizzle-kit studio:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npx tsc --noEmit --skipLibCheck)",
+      "Bash(psql:*)"
     ],
     "deny": [],
     "ask": []

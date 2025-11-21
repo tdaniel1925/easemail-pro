@@ -174,6 +174,7 @@ async function fetchRecentEmails(accountId: string, limit: number = 20): Promise
       to: email.toEmails || [],
       date: email.receivedAt,
       snippet: email.snippet,
+      bodyText: email.bodyText, // ✅ Added full body text for AI analysis
       unread: email.isRead === false,
       starred: email.isStarred,
     }));

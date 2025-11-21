@@ -453,12 +453,59 @@ async function getUnreadSummary(accountId: string, groupBy: string = 'sender') {
 }
 
 async function analyzeEmailSentiment(emailId: string, accountId: string) {
-  // This would use AI to analyze sentiment
-  // Placeholder implementation
-  return {
-    sentiment: 'neutral',
-    urgency: 'medium',
-    tone: 'professional',
-    action_required: false,
-  };
+  try {
+    // Fetch the email
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/nylas-v3/messages/${emailId}?accountId=${accountId}`
+    );
+    const data = await response.json();
+
+    if (!data.success || !data.message) {
+      return { error: 'Failed to fetch email' };
+    }
+
+    const email = data.message;
+
+    // Use OpenAI to analyze sentiment
+    const OpenAI = (await import('openai')).default;
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const { AI_CONFIG } = await import('./config');
+    const { createCompletionWithRetry } = await import('./retry');
+
+    const prompt = `Analyze the sentiment and urgency of this email:
+
+From: ${email.from?.[0]?.email || 'Unknown'}
+Subject: ${email.subject || 'No subject'}
+Body: ${email.snippet || email.body || 'No content'}
+
+Respond with JSON only:
+{
+  "sentiment": "positive|neutral|negative",
+  "urgency": "low|medium|high|critical",
+  "tone": "professional|casual|formal|friendly|aggressive|concerned",
+  "action_required": true/false,
+  "reason": "Brief explanation of the analysis"
+}`;
+
+    const completion = await createCompletionWithRetry(
+      () => openai.chat.completions.create({
+        model: AI_CONFIG.models.default,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: AI_CONFIG.temperature.factual,
+        max_tokens: AI_CONFIG.maxTokens.analysis,
+        response_format: { type: 'json_object' },
+      }),
+      'Sentiment Analysis'
+    );
+
+    const result = JSON.parse(completion.choices[0].message.content || '{}');
+    return result;
+  } catch (error) {
+    console.error('[AI Tools] Sentiment analysis failed:', error);
+    return {
+      error: 'Sentiment analysis failed',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
 }

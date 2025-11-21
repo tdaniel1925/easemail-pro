@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/server';
 import { trackAICost } from '@/lib/utils/cost-tracking';
 import { aiRateLimit, enforceRateLimit } from '@/lib/security/rate-limiter';
 import { checkAILimit } from '@/lib/billing/plan-limits';
+import { AI_CONFIG } from '@/lib/ai/config';
+import { createCompletionWithRetry } from '@/lib/ai/retry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -178,10 +180,10 @@ export async function POST(request: NextRequest) {
 
     // Call OpenAI with function calling enabled if accountId is provided
     const completionParams: any = {
-      model: 'gpt-4-turbo-preview',
+      model: AI_CONFIG.models.default,
       messages,
-      temperature: 0.7,
-      max_tokens: 800,
+      temperature: AI_CONFIG.temperature.balanced,
+      max_tokens: AI_CONFIG.maxTokens.chat,
     };
 
     // Add tools if we have user context
@@ -217,7 +219,11 @@ export async function POST(request: NextRequest) {
           toolCallResults.push({
             tool_call_id: toolCall.id,
             role: 'tool' as const,
-            content: JSON.stringify({ error: 'Tool execution failed' }),
+            content: JSON.stringify({
+              error: 'Tool execution failed',
+              tool: toolCall.function.name,
+              details: error instanceof Error ? error.message : 'Unknown error',
+            }),
           });
         }
       }
