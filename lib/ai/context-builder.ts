@@ -54,10 +54,23 @@ export interface AIContext {
 /**
  * Build comprehensive AI context for a user
  */
-export async function buildAIContext(userId: string, accountId: string): Promise<AIContext> {
-  console.log(`[AI Context] Building context for user ${userId}, account ${accountId}`);
+export async function buildAIContext(userId: string, nylasGrantId: string): Promise<AIContext> {
+  console.log(`[AI Context] Building context for user ${userId}, nylasGrantId ${nylasGrantId}`);
 
   try {
+    // First, get the database account ID from the Nylas Grant ID
+    const account = await db.query.emailAccounts.findFirst({
+      where: eq(emailAccounts.nylasGrantId, nylasGrantId),
+    });
+
+    if (!account) {
+      console.error(`[AI Context] Account not found for nylasGrantId ${nylasGrantId}`);
+      throw new Error('Account not found');
+    }
+
+    const dbAccountId = account.id;
+    console.log(`[AI Context] Found database account ID: ${dbAccountId} for nylasGrantId: ${nylasGrantId}`);
+
     // Fetch data in parallel for speed
     const [
       recentEmails,
@@ -66,11 +79,11 @@ export async function buildAIContext(userId: string, accountId: string): Promise
       todayEvents,
       contacts,
     ] = await Promise.all([
-      fetchRecentEmails(accountId, 20),
-      fetchUnreadEmails(accountId, 50),
+      fetchRecentEmails(dbAccountId, 20),
+      fetchUnreadEmails(dbAccountId, 50),
       fetchUpcomingEvents(userId, 7), // next 7 days - CHANGED: now uses userId instead of accountId
       fetchTodayEvents(userId), // CHANGED: now uses userId instead of accountId
-      fetchContacts(userId, accountId, 50),
+      fetchContacts(userId, nylasGrantId, 50),
     ]);
 
     // Analyze and summarize
@@ -114,7 +127,7 @@ export async function buildAIContext(userId: string, accountId: string): Promise
       insights,
       metadata: {
         built_at: new Date(),
-        account_id: accountId,
+        account_id: nylasGrantId,
       },
     };
 
