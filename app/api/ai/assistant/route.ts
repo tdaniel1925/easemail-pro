@@ -133,30 +133,36 @@ export async function POST(request: NextRequest) {
 
     // Enhance system context with user data if available
     if (aiContext) {
-      systemContext += `\n\n## USER DATA CONTEXT\nYou have access to the following user data:\n\n`;
-      systemContext += `### Recent Emails (${aiContext.emails.recent.length})\n`;
-      systemContext += `- Unread: ${aiContext.emails.unread_count}\n`;
-      systemContext += `- Important: ${aiContext.emails.important.length}\n\n`;
+      systemContext += `\n\n## USER DATA CONTEXT (SUMMARY ONLY - USE TOOLS FOR DETAILS!)\n\n`;
+      systemContext += `⚠️ IMPORTANT: The data below is AGGREGATE SUMMARY only. It does NOT include email subjects, senders, or content.\n`;
+      systemContext += `To answer ANY question about emails, contacts, or calendar, you MUST use the search tools!\n\n`;
 
-      systemContext += `### Calendar\n`;
-      systemContext += `- Today's events: ${aiContext.calendar.today.length}\n`;
-      systemContext += `- Upcoming events: ${aiContext.calendar.upcoming.length}\n`;
+      systemContext += `### Email Statistics (SUMMARY - not actual emails)\n`;
+      systemContext += `- Recent emails count: ${aiContext.emails.recent.length}\n`;
+      systemContext += `- Unread count: ${aiContext.emails.unread_count}\n`;
+      systemContext += `- Important count: ${aiContext.emails.important.length}\n\n`;
+
+      systemContext += `### Calendar Statistics (SUMMARY - not actual events)\n`;
+      systemContext += `- Today's events count: ${aiContext.calendar.today.length}\n`;
+      systemContext += `- Upcoming events count: ${aiContext.calendar.upcoming.length}\n`;
       if (aiContext.calendar.next_meeting) {
         systemContext += `- Next meeting: ${aiContext.calendar.next_meeting.title} at ${new Date(aiContext.calendar.next_meeting.start_time * 1000).toLocaleString()}\n`;
       }
       systemContext += `\n`;
 
-      systemContext += `### Contacts\n`;
+      systemContext += `### Contact Statistics (SUMMARY - not actual contacts)\n`;
       systemContext += `- Total contacts: ${aiContext.contacts.total}\n`;
-      systemContext += `- Recent: ${aiContext.contacts.recent.length}\n`;
-      systemContext += `- Frequent: ${aiContext.contacts.frequent.length}\n\n`;
+      systemContext += `- Recent contacts count: ${aiContext.contacts.recent.length}\n`;
+      systemContext += `- Frequent contacts count: ${aiContext.contacts.frequent.length}\n\n`;
 
-      systemContext += `### Insights\n`;
+      systemContext += `### Insights (SUMMARY ONLY)\n`;
       systemContext += `- Unread from important senders: ${aiContext.insights.unread_from_important_senders}\n`;
       systemContext += `- Meetings today: ${aiContext.insights.meetings_today}\n`;
       systemContext += `- Deadlines this week: ${aiContext.insights.deadlines_this_week}\n\n`;
 
-      systemContext += `You can use the available tools to search and access this data when needed.\n`;
+      systemContext += `🚨 TO GET ACTUAL EMAIL DETAILS: Use search_emails tool\n`;
+      systemContext += `🚨 TO GET ACTUAL CONTACT DETAILS: Use search_contacts tool\n`;
+      systemContext += `🚨 TO GET ACTUAL EVENT DETAILS: Use search_events tool\n`;
     }
 
     // Prepare messages for OpenAI
