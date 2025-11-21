@@ -56,6 +56,7 @@ export default function DayEventsModal({
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Sort events by start time
   const sortedEvents = [...events].sort((a, b) => {
@@ -88,27 +89,33 @@ export default function DayEventsModal({
     }
   };
 
-  // Handle bulk delete
-  const handleBulkDelete = async () => {
+  // Show bulk delete confirmation
+  const handleBulkDeleteClick = () => {
     if (!onBulkDelete || selectedEventIds.size === 0) return;
+    setShowDeleteConfirm(true);
+  };
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedEventIds.size} event${selectedEventIds.size > 1 ? 's' : ''}?`
-    );
-
-    if (!confirmed) return;
+  // Confirm bulk delete
+  const handleBulkDeleteConfirm = async () => {
+    if (!onBulkDelete || selectedEventIds.size === 0) return;
 
     try {
       setIsDeleting(true);
       await onBulkDelete(Array.from(selectedEventIds));
       setSelectedEventIds(new Set());
       setSelectionMode(false);
+      setShowDeleteConfirm(false);
     } catch (error) {
       console.error('Failed to delete events:', error);
       alert('Failed to delete events. Please try again.');
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  // Cancel bulk delete
+  const handleBulkDeleteCancel = () => {
+    setShowDeleteConfirm(false);
   };
 
   // Exit selection mode and clear selection
@@ -349,17 +356,43 @@ export default function DayEventsModal({
                     {selectedEventIds.size === events.length ? 'Deselect All' : 'Select All'}
                   </Button>
 
-                  {selectedEventIds.size > 0 && (
+                  {selectedEventIds.size > 0 && !showDeleteConfirm && (
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={handleBulkDelete}
+                      onClick={handleBulkDeleteClick}
                       disabled={isDeleting}
                       className="flex items-center gap-2"
                     >
                       <Trash2 className="h-4 w-4" />
                       {isDeleting ? 'Deleting...' : `Delete ${selectedEventIds.size} event${selectedEventIds.size > 1 ? 's' : ''}`}
                     </Button>
+                  )}
+
+                  {/* Delete Confirmation Buttons */}
+                  {showDeleteConfirm && (
+                    <>
+                      <div className="flex items-center gap-2 text-sm text-destructive font-medium">
+                        Delete {selectedEventIds.size} event{selectedEventIds.size > 1 ? 's' : ''}?
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleBulkDeleteConfirm}
+                        disabled={isDeleting}
+                        className="flex items-center gap-2"
+                      >
+                        {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBulkDeleteCancel}
+                        disabled={isDeleting}
+                      >
+                        Cancel
+                      </Button>
+                    </>
                   )}
 
                   <Button

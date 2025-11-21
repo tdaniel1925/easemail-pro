@@ -16,10 +16,12 @@ import {
   ChevronRight,
   Calendar as CalendarIconLucide,
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useAccount } from '@/contexts/AccountContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -845,6 +847,17 @@ function CalendarContent() {
             </div>
           ) : (
             <>
+              {/* Warning: No calendars selected */}
+              {selectedCalendarIds.length === 0 && (
+                <Alert className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>No calendars selected</AlertTitle>
+                  <AlertDescription>
+                    Select at least one calendar from the sidebar to view events.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {view === 'month' && (
                 <DraggableMonthView
                   currentMonth={currentMonth}

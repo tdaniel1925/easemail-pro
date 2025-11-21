@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Calendar, Clock, MapPin, Users, Bell, Repeat } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, Users, Bell, Repeat, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -465,11 +465,13 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
                 {loadingCalendars ? (
                   <option>Loading calendars...</option>
                 ) : (
-                  availableCalendars.map((cal) => (
-                    <option key={cal.id} value={cal.id}>
-                      {cal.name}{cal.isPrimary ? ' (Primary)' : ''}{cal.readOnly ? ' (Read-only)' : ''}
-                    </option>
-                  ))
+                  availableCalendars
+                    .filter(cal => !cal.readOnly)
+                    .map((cal) => (
+                      <option key={cal.id} value={cal.id}>
+                        {cal.name}{cal.isPrimary ? ' (Primary)' : ''}
+                      </option>
+                    ))
                 )}
               </select>
               {/* Sync Status Indicator */}
@@ -594,6 +596,15 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
                     </option>
                   ))}
                 </select>
+                {/* Timezone Warning */}
+                {timezone !== Intl.DateTimeFormat().resolvedOptions().timeZone && (
+                  <div className="mt-2 flex items-start gap-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                      This event is in <span className="font-medium">{timezone}</span>, which is different from your browser timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}).
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
