@@ -195,7 +195,18 @@ export async function POST(request: NextRequest) {
     // Add tools if we have user context
     if (accountId && aiContext) {
       completionParams.tools = AI_TOOLS;
-      completionParams.tool_choice = 'auto';
+
+      // Force tool usage for data queries by detecting keywords in user message
+      const dataQueryKeywords = ['email', 'inbox', 'from', 'sender', 'contact', 'meeting', 'event', 'calendar', 'how many', 'do i have', 'show me', 'find', 'search'];
+      const isDataQuery = dataQueryKeywords.some(keyword => message.toLowerCase().includes(keyword));
+
+      // If this looks like a data query, strongly prefer using tools
+      // OpenAI will see 'required' and MUST make at least one tool call
+      if (isDataQuery) {
+        completionParams.tool_choice = 'required';
+      } else {
+        completionParams.tool_choice = 'auto';
+      }
     }
 
     let completion = await openai.chat.completions.create(completionParams);
