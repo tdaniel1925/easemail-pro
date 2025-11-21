@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       conditions.push(
         or(
           like(emails.subject, searchTerm),
-          like(emails.bodyPlain, searchTerm),
+          like(emails.bodyText, searchTerm),
           like(emails.snippet, searchTerm)
         )!
       );
