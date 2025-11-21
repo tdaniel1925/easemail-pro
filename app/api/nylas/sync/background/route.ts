@@ -124,21 +124,33 @@ export async function POST(request: NextRequest) {
       })
       .where(eq(emailAccounts.id, accountId));
 
-    // Start the background sync (don't await - runs in background)
-    performBackgroundSync(
-      accountId, 
-      account.nylasGrantId!, 
-      account.syncCursor || undefined, 
-      account.nylasProvider || undefined
-    ).catch(err => {
-      console.error(`❌ Background sync error for ${accountId}:`, err);
-    });
+    // ✅ FIXED: AWAIT the sync so Vercel doesn't kill it when response returns
+    // This works on Vercel Pro with 5-minute timeouts
+    try {
+      await performBackgroundSync(
+        accountId,
+        account.nylasGrantId!,
+        account.syncCursor || undefined,
+        account.nylasProvider || undefined
+      );
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Background sync started',
-      progress: account.syncProgress || 0
-    });
+      return NextResponse.json({
+        success: true,
+        message: 'Background sync completed successfully',
+        progress: account.syncProgress || 0
+      });
+    } catch (err) {
+      console.error(`❌ Background sync error for ${accountId}:`, err);
+
+      // Return partial success - sync started but may need continuation
+      return NextResponse.json({
+        success: true,
+        message: 'Background sync started - may need continuation',
+        progress: account.syncProgress || 0,
+        needsContinuation: true,
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
+    }
   } catch (error) {
     console.error('Background sync initiation error:', error);
     return NextResponse.json({ error: 'Failed to start background sync' }, { status: 500 });
