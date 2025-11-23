@@ -180,7 +180,7 @@ function CalendarContent() {
       }
 
       setMetadataLoading(true);
-      const metadata = new Map<string, { hexColor: string; name: string }>();
+      const metadata = new Map<string, CalendarMetadata>();
 
       for (const account of activeAccounts) {
         try {
