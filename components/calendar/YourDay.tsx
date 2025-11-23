@@ -319,7 +319,7 @@ export function YourDay() {
       {/* Footer with quick action */}
       <div className="p-3 border-t border-border">
         <a
-          href="/calendar"
+          href="/calendar-pro"
           className="block text-center text-xs text-muted-foreground hover:text-primary transition-colors"
         >
           View full calendar →

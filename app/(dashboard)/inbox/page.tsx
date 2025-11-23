@@ -249,7 +249,7 @@ function InboxV3Content() {
               Contacts
             </a>
             <a
-              href="/calendar"
+              href="/calendar-pro"
               className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-lg transition-colors"
             >
               <Calendar className="h-4 w-4" />
