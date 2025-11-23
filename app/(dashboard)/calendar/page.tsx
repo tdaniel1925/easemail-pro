@@ -270,13 +270,14 @@ function CalendarContent() {
 
     const filtered = baseEvents.filter(event => {
       // ✅ FIX BUG #2: STRICT CALENDAR FILTERING
-      // If user has selected specific calendars, ONLY show events from those calendars
+      // If user has selected specific calendars, only show events from those calendars
       if (selectedCalendarIds.length > 0) {
         const eventCalendarId = event.calendarId || event.calendar_id;
 
-        // Strict filtering: if no calendarId OR not in selected list, hide it
-        if (!eventCalendarId || !selectedCalendarIds.includes(eventCalendarId)) {
-          return false; // Hide events without calendarId OR from unselected calendars
+        // If event HAS a calendarId and it's NOT in the selected list, hide it
+        // Events without calendarId are shown (orphaned/legacy events)
+        if (eventCalendarId && !selectedCalendarIds.includes(eventCalendarId)) {
+          return false; // Hide events from unselected calendars
         }
       }
 
