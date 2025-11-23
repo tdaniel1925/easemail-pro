@@ -175,23 +175,34 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
       const { event } = await parseResponse.json();
 
       // Step 2: Create the event immediately (no confirmation) with selected calendar AND account
+      const eventPayload = {
+        title: event.title,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        location: event.location,
+        description: event.description,
+        calendarId: selectedCalendarId, // ✅ Nylas calendar ID for sync
+        accountId: selectedCalendar.accountId, // ✅ Database account ID for proper account resolution
+        nylasGrantId: selectedCalendar.nylasGrantId, // ✅ Nylas grant ID to ensure correct account is used
+        attendees: event.attendees.map((email: string) => ({
+          email,
+          status: 'pending',
+        })),
+      };
+
+      console.log('📤 [QuickAdd V4] Creating event with payload:', {
+        calendarId: selectedCalendarId,
+        calendarName: selectedCalendar.name,
+        accountId: selectedCalendar.accountId,
+        nylasGrantId: selectedCalendar.nylasGrantId,
+        accountEmail: selectedCalendar.accountEmail,
+        title: event.title,
+      });
+
       const createResponse = await fetch('/api/calendar/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: event.title,
-          startTime: event.startTime,
-          endTime: event.endTime,
-          location: event.location,
-          description: event.description,
-          calendarId: selectedCalendarId, // ✅ Nylas calendar ID for sync
-          accountId: selectedCalendar.accountId, // ✅ Database account ID for proper account resolution
-          nylasGrantId: selectedCalendar.nylasGrantId, // ✅ Nylas grant ID to ensure correct account is used
-          attendees: event.attendees.map((email: string) => ({
-            email,
-            status: 'pending',
-          })),
-        }),
+        body: JSON.stringify(eventPayload),
       });
 
       if (!createResponse.ok) {

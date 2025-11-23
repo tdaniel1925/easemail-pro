@@ -462,16 +462,27 @@ export class CalendarSyncService {
     try {
       const nylasEvent = this.transformToNylas(eventData);
 
+      console.log('🔍 [Sync Service] Creating event with calendar ID:', {
+        calendarId: this.calendarId,
+        grantId: this.grantId,
+        provider: this.provider,
+        eventTitle: eventData.title,
+      });
+
+      const requestBody = {
+        ...nylasEvent,
+        calendar_id: this.calendarId,
+      };
+
+      console.log('📤 [Sync Service] Nylas API request body:', JSON.stringify(requestBody, null, 2));
+
       const response = await fetch(`${NYLAS_API_URI}/v3/grants/${this.grantId}/events`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${NYLAS_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...nylasEvent,
-          calendar_id: this.calendarId,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
