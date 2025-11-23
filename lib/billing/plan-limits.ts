@@ -9,6 +9,35 @@ import { db } from '@/lib/db/drizzle';
 import { users, ai_usage } from '@/lib/db/schema';
 import { eq, and, gte, lte, sum, sql } from 'drizzle-orm';
 
+// ✅ PERFORMANCE FIX: In-memory cache to avoid expensive DB queries on every AI request
+// Cache TTL: 5 minutes (300000ms)
+const CACHE_TTL = 5 * 60 * 1000;
+interface CacheEntry<T> {
+  data: T;
+  expires: number;
+}
+const tierCache = new Map<string, CacheEntry<SubscriptionTier>>();
+const usageCache = new Map<string, CacheEntry<number>>();
+
+function getCached<T>(cache: Map<string, CacheEntry<T>>, key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+
+  if (Date.now() > entry.expires) {
+    cache.delete(key);
+    return null;
+  }
+
+  return entry.data;
+}
+
+function setCache<T>(cache: Map<string, CacheEntry<T>>, key: string, data: T): void {
+  cache.set(key, {
+    data,
+    expires: Date.now() + CACHE_TTL,
+  });
+}
+
 // Plan limit definitions
 export const AI_LIMITS = {
   free: {
@@ -50,9 +79,16 @@ interface AILimitCheckResult {
 }
 
 /**
- * Get user's subscription tier
+ * Get user's subscription tier (with caching)
  */
 async function getUserTier(userId: string): Promise<SubscriptionTier> {
+  // ✅ Check cache first
+  const cached = getCached(tierCache, userId);
+  if (cached) {
+    console.log(`[Plan Limits] Using cached tier for user ${userId}: ${cached}`);
+    return cached;
+  }
+
   try {
     const user = await db.query.users.findFirst({
       where: eq(users.id, userId),
@@ -62,6 +98,7 @@ async function getUserTier(userId: string): Promise<SubscriptionTier> {
     // Promo/beta users get unlimited AI access (enterprise tier)
     if (user?.isPromoUser) {
       console.log(`[Plan Limits] User ${userId} is a promo/beta user - granting enterprise access`);
+      setCache(tierCache, userId, 'enterprise');
       return 'enterprise';
     }
 
@@ -69,9 +106,11 @@ async function getUserTier(userId: string): Promise<SubscriptionTier> {
 
     // Default to free if tier not set or invalid
     if (!tier || !AI_LIMITS[tier]) {
+      setCache(tierCache, userId, 'free');
       return 'free';
     }
 
+    setCache(tierCache, userId, tier);
     return tier;
   } catch (error) {
     console.error('[Plan Limits] Failed to get user tier:', error);
@@ -80,9 +119,16 @@ async function getUserTier(userId: string): Promise<SubscriptionTier> {
 }
 
 /**
- * Get user's monthly AI usage count
+ * Get user's monthly AI usage count (with caching)
  */
 async function getMonthlyAIUsage(userId: string): Promise<number> {
+  // ✅ Check cache first
+  const cached = getCached(usageCache, userId);
+  if (cached !== null) {
+    console.log(`[Plan Limits] Using cached usage for user ${userId}: ${cached}`);
+    return cached;
+  }
+
   try {
     const now = new Date();
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -102,7 +148,9 @@ async function getMonthlyAIUsage(userId: string): Promise<number> {
         )
       );
 
-    return result[0]?.total || 0;
+    const total = result[0]?.total || 0;
+    setCache(usageCache, userId, total);
+    return total;
   } catch (error) {
     console.error('[Plan Limits] Failed to get monthly AI usage:', error);
     return 0;
