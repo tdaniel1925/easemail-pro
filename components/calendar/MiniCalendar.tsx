@@ -323,11 +323,9 @@ export function MiniCalendar({ onQuickAddClick, onEventClick }: MiniCalendarProp
                             <p className="text-xs text-muted-foreground">
                               {format(startTime, 'h:mm a')} - {format(endTime, 'h:mm a')}
                             </p>
-                            {event.location && (
-                              <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                📍 {event.location}
-                              </p>
-                            )}
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">
+                              📍 {event.location && event.location.trim() ? event.location : 'No location'}
+                            </p>
                           </div>
                         </div>
                       </button>

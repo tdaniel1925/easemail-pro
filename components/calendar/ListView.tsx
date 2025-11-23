@@ -179,12 +179,14 @@ export default function ListView({ events, onEventClick, currentDate }: ListView
                             </div>
                           )}
 
-                          {hasLocation && (
-                            <div className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              <span className="truncate max-w-[200px]">{event.location}</span>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            <span className="truncate max-w-[200px]">
+                              {event.location && event.location.trim()
+                                ? event.location
+                                : 'No location added'}
+                            </span>
+                          </div>
 
                           {hasAttendees && (
                             <div className="flex items-center gap-1">
@@ -214,11 +216,11 @@ export default function ListView({ events, onEventClick, currentDate }: ListView
                         </div>
 
                         {/* Description Preview */}
-                        {event.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {event.description}
-                          </p>
-                        )}
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {event.description && event.description.trim()
+                            ? event.description
+                            : 'No description added'}
+                        </p>
                       </div>
 
                       {/* Status Badge */}

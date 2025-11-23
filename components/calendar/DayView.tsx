@@ -160,16 +160,12 @@ export default function DayView({
                     <div className="text-sm opacity-90">
                       {format(start, 'h:mm a')} - {format(end, 'h:mm a')}
                     </div>
-                    {event.location && (
-                      <div className="text-sm opacity-90 mt-1">
-                        📍 {event.location}
-                      </div>
-                    )}
-                    {event.description && (
-                      <div className="text-sm opacity-90 mt-1 line-clamp-2">
-                        {event.description}
-                      </div>
-                    )}
+                    <div className="text-sm opacity-90 mt-1">
+                      📍 {event.location && event.location.trim() ? event.location : 'No location added'}
+                    </div>
+                    <div className="text-sm opacity-90 mt-1 line-clamp-2">
+                      {event.description && event.description.trim() ? event.description : 'No description added'}
+                    </div>
                   </div>
                 );
               })}

@@ -549,12 +549,14 @@ export default function DayEventsModal({
                                 </h3>
 
                                 <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                                  {event.location && (
-                                    <div className="flex items-center gap-1">
-                                      <MapPin className="h-3.5 w-3.5" />
-                                      <span className="truncate">{linkifyText(sanitizeEventText(event.location))}</span>
-                                    </div>
-                                  )}
+                                  <div className="flex items-center gap-1">
+                                    <MapPin className="h-3.5 w-3.5" />
+                                    <span className="truncate">
+                                      {event.location && sanitizeEventText(event.location).trim()
+                                        ? linkifyText(sanitizeEventText(event.location))
+                                        : 'No location added'}
+                                    </span>
+                                  </div>
 
                                   {event.attendees && event.attendees.length > 0 && (
                                     <div className="flex items-center gap-1">

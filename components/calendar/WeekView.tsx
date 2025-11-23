@@ -197,11 +197,9 @@ export default function WeekView({
                             )}
                             <span className="truncate">{event.title}</span>
                           </div>
-                          {event.location && (
-                            <div className="text-[10px] truncate opacity-90">
-                              {event.location}
-                            </div>
-                          )}
+                          <div className="text-[10px] truncate opacity-90">
+                            {event.location && event.location.trim() ? event.location : 'No location'}
+                          </div>
                         </div>
                       );
                     })}

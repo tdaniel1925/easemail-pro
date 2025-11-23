@@ -148,19 +148,21 @@ export default function AgendaView({ events, onEventClick }: AgendaViewProps) {
                             )}
                           </h3>
 
-                          {event.description && (
-                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                              {sanitizeEventText(event.description)}
-                            </p>
-                          )}
+                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                            {event.description && sanitizeEventText(event.description).trim()
+                              ? sanitizeEventText(event.description)
+                              : 'No description added'}
+                          </p>
 
                           <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                            {event.location && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-3.5 w-3.5" />
-                                <span>{sanitizeEventText(event.location)}</span>
-                              </div>
-                            )}
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5" />
+                              <span>
+                                {event.location && sanitizeEventText(event.location).trim()
+                                  ? sanitizeEventText(event.location)
+                                  : 'No location added'}
+                              </span>
+                            </div>
 
                             {event.attendees && event.attendees.length > 0 && (
                               <div className="flex items-center gap-1">
