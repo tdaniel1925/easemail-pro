@@ -43,6 +43,7 @@ interface ParsedEvent {
 interface CalendarOption {
   id: string;
   name: string;
+  accountId: string; // Database account ID
   accountEmail: string;
   hexColor?: string;
   isPrimary?: boolean;
@@ -100,6 +101,7 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
               .map((cal: any) => ({
                 id: cal.id,
                 name: cal.name,
+                accountId: account.id, // Store database account ID for API calls
                 accountEmail: account.emailAddress,
                 hexColor: cal.hexColor,
                 isPrimary: cal.isPrimary,
@@ -147,6 +149,12 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
     setShowSuccess(false);
 
     try {
+      // Get the selected calendar's account ID
+      const selectedCalendar = calendars.find(cal => cal.id === selectedCalendarId);
+      if (!selectedCalendar) {
+        throw new Error('Selected calendar not found');
+      }
+
       // Step 1: Parse the natural language input
       const parseResponse = await fetch('/api/calendar/parse-event', {
         method: 'POST',
@@ -164,7 +172,7 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
 
       const { event } = await parseResponse.json();
 
-      // Step 2: Create the event immediately (no confirmation) with selected calendar
+      // Step 2: Create the event immediately (no confirmation) with selected calendar AND account
       const createResponse = await fetch('/api/calendar/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -174,7 +182,8 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
           endTime: event.endTime,
           location: event.location,
           description: event.description,
-          calendarId: selectedCalendarId, // ✅ SECURITY: Explicit calendar selection
+          calendarId: selectedCalendarId, // ✅ Nylas calendar ID for sync
+          accountId: selectedCalendar.accountId, // ✅ Database account ID for proper account resolution
           attendees: event.attendees.map((email: string) => ({
             email,
             status: 'pending',
@@ -196,11 +205,10 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
       // Call the callback to trigger calendar refresh
       onEventCreated();
 
-      // Close dialog and force page reload after 1.5 seconds to show new event
+      // Close dialog with smooth animation after showing success message
       setTimeout(() => {
+        setShowSuccess(false);
         onClose();
-        // Force a hard reload to bypass rate limiting and show the new event
-        window.location.reload();
       }, 1500);
 
     } catch (err: any) {
