@@ -304,6 +304,20 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
           {calendars.length === 0 && !loadingCalendars && (
             <p className="text-xs text-red-600">No writable calendars found. Please connect an account.</p>
           )}
+          {selectedCalendarId && calendars.length > 0 && (
+            <div className="flex items-start gap-2 p-2 bg-accent/50 border border-border rounded-md">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: calendars.find(c => c.id === selectedCalendarId)?.hexColor || '#3b82f6' }}
+                />
+                <span className="font-medium">Event will be added to:</span>
+                <span className="text-foreground font-semibold">
+                  {calendars.find(c => c.id === selectedCalendarId)?.name}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Event Input */}
