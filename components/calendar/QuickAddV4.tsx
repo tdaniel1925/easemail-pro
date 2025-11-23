@@ -96,9 +96,22 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
           const data = await response.json();
 
           if (data.success && data.calendars) {
-            // Only include writable calendars (exclude read-only and shared calendars we don't control)
+            // Only include writable calendars (exclude read-only, holidays, birthdays, and shared calendars)
             const writableCalendars = data.calendars
-              .filter((cal: any) => !cal.readOnly)
+              .filter((cal: any) => {
+                // Exclude read-only calendars
+                if (cal.readOnly) return false;
+
+                // Exclude holiday and birthday calendars by name pattern
+                const lowerName = cal.name.toLowerCase();
+                const excludePatterns = ['holiday', 'birthday', 'en.usa', 'contacts', 'week numbers'];
+                if (excludePatterns.some(pattern => lowerName.includes(pattern))) return false;
+
+                // Exclude calendars that don't support event creation by ID pattern
+                if (cal.id && (cal.id.startsWith('en.') || cal.id.includes('#holiday') || cal.id.includes('#contacts'))) return false;
+
+                return true;
+              })
               .map((cal: any) => ({
                 id: cal.id,
                 name: cal.name,
