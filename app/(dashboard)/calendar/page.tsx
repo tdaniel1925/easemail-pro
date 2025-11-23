@@ -291,13 +291,16 @@ function CalendarContent() {
     const filtered = baseEvents.filter(event => {
       // ✅ FIX BUG #2: STRICT CALENDAR FILTERING
       // All events now have calendarId (assigned in enrichment), so we can be strict
-      if (selectedCalendarIds.length > 0) {
-        const eventCalendarId = event.calendarId || event.calendar_id;
+      const eventCalendarId = event.calendarId || event.calendar_id;
 
-        // Strict: only show events from selected calendars
-        if (!eventCalendarId || !selectedCalendarIds.includes(eventCalendarId)) {
-          return false; // Hide events not in selected calendars
-        }
+      // If no calendars are selected, hide all events
+      if (selectedCalendarIds.length === 0) {
+        return false;
+      }
+
+      // Strict: only show events from selected calendars
+      if (!eventCalendarId || !selectedCalendarIds.includes(eventCalendarId)) {
+        return false; // Hide events not in selected calendars
       }
 
       // Filter by calendar type
