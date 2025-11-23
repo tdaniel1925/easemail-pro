@@ -108,13 +108,15 @@ function DashboardContent() {
       const eventsRes = await fetch('/api/calendar/events');
       const eventsData = await eventsRes.json();
 
+      let todayEventsFiltered: any[] = [];
+
       if (eventsData.success) {
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const todayEnd = new Date(todayStart);
         todayEnd.setHours(23, 59, 59, 999);
 
-        const todayEventsFiltered = eventsData.events.filter((event: any) => {
+        todayEventsFiltered = eventsData.events.filter((event: any) => {
           const eventStart = new Date(event.startTime);
           return eventStart >= todayStart && eventStart <= todayEnd;
         }).sort((a: any, b: any) => {
