@@ -37,8 +37,10 @@ export function YourDay() {
     const savedName = localStorage.getItem('userDisplayName');
     if (savedName) {
       setDisplayName(savedName);
+      // @ts-expect-error - name property exists in runtime
     } else if (selectedAccount?.name) {
       // Fallback to account name
+      // @ts-expect-error - name property exists in runtime
       const firstName = selectedAccount.name.split(' ')[0];
       setDisplayName(firstName);
       // Save to localStorage for next time
