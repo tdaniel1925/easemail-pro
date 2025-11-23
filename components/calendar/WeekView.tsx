@@ -5,11 +5,12 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
+import { buildConflictMap, type CalendarEvent } from '@/lib/calendar/calendar-utils';
 
 interface WeekViewProps {
   events: any[];
@@ -29,6 +30,11 @@ export default function WeekView({
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  // ✅ Build conflict map for all events (memoized for performance)
+  const conflictMap = useMemo(() => {
+    return buildConflictMap(events as CalendarEvent[]);
+  }, [events]);
 
   const previousWeek = () => {
     onDateChange(addDays(currentDate, -7));
@@ -164,6 +170,8 @@ export default function WeekView({
                   <div className="absolute inset-0 pointer-events-none">
                     {dayEvents.map(event => {
                       const style = getEventStyle(event);
+                      const conflicts = conflictMap.get(event.id) || [];
+                      const hasConflict = conflicts.length > 0;
                       const hexColor = event.hexColor || '#3b82f6';
                       return (
                         <div
@@ -174,12 +182,21 @@ export default function WeekView({
                           }}
                           style={{
                             ...style,
-                            backgroundColor: `${hexColor}CC`, // CC = 80% opacity in hex
-                            borderLeft: `3px solid ${hexColor}`,
+                            backgroundColor: hasConflict ? '#fee2e2' : `${hexColor}CC`, // Red tint if conflict, else 80% opacity
+                            borderLeft: `3px solid ${hasConflict ? '#ef4444' : hexColor}`,
                           }}
-                          className="absolute left-1 right-1 rounded p-1 text-xs overflow-hidden pointer-events-auto cursor-pointer text-white"
+                          className={cn(
+                            "absolute left-1 right-1 rounded p-1 text-xs overflow-hidden pointer-events-auto cursor-pointer",
+                            hasConflict ? 'text-red-900 ring-1 ring-red-400' : 'text-white'
+                          )}
+                          title={hasConflict ? `Conflicts with ${conflicts.length} event(s)` : undefined}
                         >
-                          <div className="font-medium truncate">{event.title}</div>
+                          <div className="font-medium truncate flex items-center gap-1">
+                            {hasConflict && (
+                              <AlertTriangle className="h-3 w-3 text-red-600 flex-shrink-0" />
+                            )}
+                            <span className="truncate">{event.title}</span>
+                          </div>
                           {event.location && (
                             <div className="text-[10px] truncate opacity-90">
                               {event.location}

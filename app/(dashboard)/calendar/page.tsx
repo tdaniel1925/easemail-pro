@@ -43,6 +43,7 @@ import CalendarSelector from '@/components/calendar/CalendarSelector';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth } from 'date-fns';
 import { transformNylasEvent } from '@/lib/calendar/event-utils';
 import { notificationService } from '@/lib/services/notification-service';
+import { buildConflictMap, type CalendarEvent } from '@/lib/calendar/calendar-utils';
 
 type ViewType = 'month' | 'week' | 'day' | 'agenda' | 'year' | 'list';
 
@@ -319,6 +320,11 @@ function CalendarContent() {
 
     return filtered;
   }, [enrichedEvents, searchResults, isSearchActive, selectedCalendarTypes, selectedCalendarIds]);
+
+  // ✅ Build conflict map for all events (memoized for performance)
+  const conflictMap = useMemo(() => {
+    return buildConflictMap(filteredEvents as CalendarEvent[]);
+  }, [filteredEvents]);
 
   // Get available calendar types
   const availableTypes = useMemo(() => {
@@ -1452,6 +1458,7 @@ function CalendarContent() {
           setSelectedEvent(null);
         }}
         event={selectedEvent}
+        conflicts={selectedEvent ? (conflictMap.get(selectedEvent.id) || []) : []}
         onEdit={handleEditEvent}
         onDelete={() => {
           setIsEventDetailsOpen(false);

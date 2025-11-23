@@ -19,17 +19,20 @@ import {
   Edit,
   Trash2,
   Copy,
-  Check
+  Check,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/components/ui/use-toast';
+import type { CalendarEvent } from '@/lib/calendar/calendar-utils';
 
 interface EventDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   event: any;
+  conflicts?: CalendarEvent[];
   onEdit?: () => void;
   onDelete?: () => void;
   onSuccess?: () => void;
@@ -89,6 +92,7 @@ export default function EventDetailsModal({
   isOpen,
   onClose,
   event,
+  conflicts = [],
   onEdit,
   onDelete,
   onSuccess
@@ -459,6 +463,58 @@ export default function EventDetailsModal({
                     Until {format(new Date(event.recurrenceEndDate), 'MMMM d, yyyy')}
                   </p>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Conflicts */}
+          {conflicts.length > 0 && (
+            <div className="flex items-start gap-3 p-4 bg-red-50/50 dark:bg-red-900/10 rounded-lg border border-red-200 dark:border-red-900/30">
+              <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium text-red-900 dark:text-red-400 mb-2">
+                  Event Conflicts ({conflicts.length})
+                </p>
+                <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+                  This event overlaps with {conflicts.length} other event{conflicts.length > 1 ? 's' : ''}:
+                </p>
+                <div className="space-y-2">
+                  {conflicts.map((conflictEvent) => {
+                    const conflictStart = new Date(conflictEvent.startTime);
+                    const conflictEnd = new Date(conflictEvent.endTime);
+                    return (
+                      <div
+                        key={conflictEvent.id}
+                        className="p-3 bg-white dark:bg-gray-900 rounded-md border border-red-200 dark:border-red-900/50"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm text-red-900 dark:text-red-400 truncate">
+                              {sanitizeEventText(conflictEvent.title)}
+                            </p>
+                            <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                              {conflictEvent.allDay
+                                ? 'All day'
+                                : `${format(conflictStart, 'h:mm a')} - ${format(conflictEnd, 'h:mm a')}`}
+                            </p>
+                            {conflictEvent.calendarName && (
+                              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {conflictEvent.calendarName}
+                              </p>
+                            )}
+                          </div>
+                          {conflictEvent.hexColor && (
+                            <div
+                              className="w-3 h-3 rounded-full flex-shrink-0 mt-1"
+                              style={{ backgroundColor: conflictEvent.hexColor }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

@@ -5,9 +5,11 @@
 
 'use client';
 
+import { useMemo } from 'react';
 import { format, parseISO, isSameDay, startOfDay } from 'date-fns';
-import { Calendar, MapPin, Clock, Users } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { buildConflictMap, type CalendarEvent } from '@/lib/calendar/calendar-utils';
 
 // Utility to strip HTML tags and decode HTML entities
 function sanitizeEventText(text: string | undefined | null): string {
@@ -27,6 +29,11 @@ interface AgendaViewProps {
 }
 
 export default function AgendaView({ events, onEventClick }: AgendaViewProps) {
+  // ✅ Build conflict map for all events (memoized for performance)
+  const conflictMap = useMemo(() => {
+    return buildConflictMap(events as CalendarEvent[]);
+  }, [events]);
+
   // Group events by date
   const eventsByDate = events.reduce((acc, event) => {
     const dateKey = startOfDay(parseISO(event.startTime)).toISOString();
@@ -91,12 +98,19 @@ export default function AgendaView({ events, onEventClick }: AgendaViewProps) {
                 {dateEvents.map((event: any) => {
                   const start = parseISO(event.startTime);
                   const end = parseISO(event.endTime);
+                  const conflicts = conflictMap.get(event.id) || [];
+                  const hasConflict = conflicts.length > 0;
 
                   return (
                     <div
                       key={event.id}
                       onClick={() => onEventClick(event)}
-                      className="group p-4 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 cursor-pointer transition-all"
+                      className={cn(
+                        "group p-4 rounded-lg border cursor-pointer transition-all",
+                        hasConflict
+                          ? "border-red-400 bg-red-50/50 hover:border-red-500 hover:bg-red-50"
+                          : "border-border hover:border-primary/50 hover:bg-accent/50"
+                      )}
                     >
                       <div className="flex gap-4">
                         {/* Time */}
@@ -114,13 +128,24 @@ export default function AgendaView({ events, onEventClick }: AgendaViewProps) {
                         {/* Color bar */}
                         <div
                           className="w-1 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: event.hexColor || '#3b82f6' }}
+                          style={{ backgroundColor: hasConflict ? '#ef4444' : (event.hexColor || '#3b82f6') }}
                         />
 
                         {/* Event details */}
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors">
-                            {sanitizeEventText(event.title)}
+                          <h3 className={cn(
+                            "font-semibold text-base mb-1 transition-colors flex items-center gap-2",
+                            hasConflict ? "text-red-900" : "group-hover:text-primary"
+                          )}>
+                            {hasConflict && (
+                              <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                            )}
+                            <span>{sanitizeEventText(event.title)}</span>
+                            {hasConflict && (
+                              <span className="text-xs text-red-600 font-normal">
+                                ({conflicts.length} conflict{conflicts.length > 1 ? 's' : ''})
+                              </span>
+                            )}
                           </h3>
 
                           {event.description && (

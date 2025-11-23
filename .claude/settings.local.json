@@ -78,7 +78,12 @@
       "Bash(Select-Object -First 100)",
       "Bash(tsc-errors.txt)",
       "Bash(git log:*)",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(cmd.exe /c \"taskkill /F /IM node.exe && timeout /t 3 /nobreak && cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && if exist .next rmdir /s /q .next && npm run build\")",
+      "Bash(cmd.exe /c \"taskkill /F /IM node.exe && timeout /t 3 /nobreak\")",
+      "Bash(cmd.exe /c \"cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && if exist .next rmdir /s /q .next && if exist node_modules\\.cache rmdir /s /q node_modules\\.cache\")",
+      "Bash(cmd.exe /c \"taskkill /F /PID 52140 && taskkill /F /PID 10920 && timeout /t 2 /nobreak && cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && npm run dev\")",
+      "Bash(cmd.exe /c \"taskkill /F /IM node.exe && timeout /t 2 /nobreak && cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && rmdir /s /q .next && rmdir /s /q node_modules\\.cache && rmdir /s /q .swc && del /q tsconfig.tsbuildinfo 2>nul && npm run dev\")"
     ],
     "deny": [],
     "ask": []

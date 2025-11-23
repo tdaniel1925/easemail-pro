@@ -5,9 +5,11 @@
 
 'use client';
 
+import { useMemo } from 'react';
 import { format, isToday, isTomorrow, isYesterday, isPast, differenceInMinutes } from 'date-fns';
-import { Calendar, Clock, MapPin, Users, Video } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Video, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { buildConflictMap, type CalendarEvent } from '@/lib/calendar/calendar-utils';
 
 interface ListViewProps {
   events: any[];
@@ -16,6 +18,11 @@ interface ListViewProps {
 }
 
 export default function ListView({ events, onEventClick, currentDate }: ListViewProps) {
+  // ✅ Build conflict map for all events (memoized for performance)
+  const conflictMap = useMemo(() => {
+    return buildConflictMap(events as CalendarEvent[]);
+  }, [events]);
+
   // Group events by date
   const groupedEvents = events.reduce((groups: Record<string, any[]>, event) => {
     const eventDate = new Date(event.startTime);
@@ -116,21 +123,26 @@ export default function ListView({ events, onEventClick, currentDate }: ListView
                   const hasLocation = event.location && event.location.trim() !== '';
                   const hasAttendees = event.attendees && event.attendees.length > 0;
                   const hasLink = hasMeetingLink(event);
+                  const conflicts = conflictMap.get(event.id) || [];
+                  const hasConflict = conflicts.length > 0;
 
                   return (
                     <button
                       key={event.id}
                       onClick={() => onEventClick(event)}
                       className={cn(
-                        "w-full group relative flex gap-4 p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-all text-left",
+                        "w-full group relative flex gap-4 p-4 rounded-lg border transition-all text-left",
                         "hover:shadow-md hover:scale-[1.01]",
+                        hasConflict
+                          ? "border-red-400 bg-red-50/50 hover:bg-red-50"
+                          : "border-border bg-card hover:bg-accent/50",
                         isEventPast && "opacity-75"
                       )}
                     >
                       {/* Color Bar */}
                       <div
                         className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
-                        style={{ backgroundColor: event.hexColor || event.color || '#3b82f6' }}
+                        style={{ backgroundColor: hasConflict ? '#ef4444' : (event.hexColor || event.color || '#3b82f6') }}
                       />
 
                       {/* Time */}
@@ -148,8 +160,14 @@ export default function ListView({ events, onEventClick, currentDate }: ListView
                       {/* Event Details */}
                       <div className="flex-1 min-w-0 space-y-2">
                         {/* Title */}
-                        <h4 className="font-semibold text-base group-hover:text-primary transition-colors">
-                          {event.title}
+                        <h4 className={cn(
+                          "font-semibold text-base transition-colors flex items-center gap-2",
+                          hasConflict ? "text-red-900" : "group-hover:text-primary"
+                        )}>
+                          {hasConflict && (
+                            <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                          )}
+                          <span>{event.title}</span>
                         </h4>
 
                         {/* Metadata */}
@@ -186,6 +204,12 @@ export default function ListView({ events, onEventClick, currentDate }: ListView
                             <span className="px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium">
                               {event.calendarType}
                             </span>
+                          )}
+
+                          {hasConflict && (
+                            <div className="flex items-center gap-1 text-red-600 font-medium">
+                              <span>{conflicts.length} conflict{conflicts.length > 1 ? 's' : ''}</span>
+                            </div>
                           )}
                         </div>
 

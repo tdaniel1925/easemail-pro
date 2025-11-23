@@ -5,11 +5,13 @@
 
 'use client';
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useMemo } from 'react';
+import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format, addDays, isSameDay } from 'date-fns';
 import { parseEventStartTime, parseEventEndTime, getEventTitle } from '@/lib/calendar/event-utils';
+import { buildConflictMap, type CalendarEvent } from '@/lib/calendar/calendar-utils';
 
 interface DayViewProps {
   events: any[];
@@ -27,7 +29,12 @@ export default function DayView({
   onDateChange,
 }: DayViewProps) {
   const hours = Array.from({ length: 24 }, (_, i) => i);
-  
+
+  // ✅ Build conflict map for all events (memoized for performance)
+  const conflictMap = useMemo(() => {
+    return buildConflictMap(events as CalendarEvent[]);
+  }, [events]);
+
   const previousDay = () => {
     onDateChange(addDays(currentDate, -1));
   };
@@ -119,6 +126,8 @@ export default function DayView({
                 const style = getEventStyle(event);
                 const start = parseEventStartTime(event);
                 const end = parseEventEndTime(event);
+                const conflicts = conflictMap.get(event.id) || [];
+                const hasConflict = conflicts.length > 0;
 
                 if (!start || !end) return null;
 
@@ -132,13 +141,22 @@ export default function DayView({
                     }}
                     style={{
                       ...style,
-                      backgroundColor: hexColor,
-                      borderLeft: `4px solid ${hexColor}`,
-                      filter: 'brightness(0.95)',
+                      backgroundColor: hasConflict ? '#fee2e2' : hexColor,
+                      borderLeft: `4px solid ${hasConflict ? '#ef4444' : hexColor}`,
+                      filter: hasConflict ? 'none' : 'brightness(0.95)',
                     }}
-                    className="absolute left-2 right-2 rounded-lg p-3 pointer-events-auto cursor-pointer shadow-md hover:shadow-lg transition-shadow text-white"
+                    className={cn(
+                      "absolute left-2 right-2 rounded-lg p-3 pointer-events-auto cursor-pointer shadow-md hover:shadow-lg transition-shadow",
+                      hasConflict ? 'text-red-900 ring-2 ring-red-400' : 'text-white'
+                    )}
+                    title={hasConflict ? `Conflicts with ${conflicts.length} event(s)` : undefined}
                   >
-                    <div className="font-semibold">{event.title}</div>
+                    <div className="font-semibold flex items-center gap-2">
+                      {hasConflict && (
+                        <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                      )}
+                      <span>{event.title}</span>
+                    </div>
                     <div className="text-sm opacity-90">
                       {format(start, 'h:mm a')} - {format(end, 'h:mm a')}
                     </div>
