@@ -85,7 +85,7 @@ export default function SearchBar({ onSearch, debounceMs = 500 }: SearchBarProps
           placeholder="Search emails..."
           value={query}
           onChange={handleChange}
-          className={cn("pl-10", query ? "pr-20" : "pr-12")}
+          className="pl-10 pr-20"
         />
         <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
           {query && (
