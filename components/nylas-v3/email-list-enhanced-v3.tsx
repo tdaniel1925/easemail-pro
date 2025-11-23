@@ -128,12 +128,14 @@ export function EmailListEnhancedV3({
   // Advanced search state
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState({
+    location: 'all',
     from: '',
     to: '',
     subject: '',
     anywhere: '',
     dateOption: 'any',
     dateValue: '',
+    dateValue2: '', // For "between" date range
     isUnread: false,
     isStarred: false,
     includeSpamTrash: false,
@@ -201,6 +203,27 @@ export function EmailListEnhancedV3({
 
       if (!(subject.includes(query) || from.includes(query) || snippet.includes(query) || body.includes(query))) {
         return false;
+      }
+    }
+
+    // Date filtering
+    if (advancedFilters.dateOption !== 'any' && advancedFilters.dateValue) {
+      const messageDate = message.date ? new Date(message.date * 1000) : null;
+      if (messageDate) {
+        const filterDate = new Date(advancedFilters.dateValue);
+        filterDate.setHours(0, 0, 0, 0);
+        const messageDateOnly = new Date(messageDate);
+        messageDateOnly.setHours(0, 0, 0, 0);
+
+        if (advancedFilters.dateOption === 'on-or-after') {
+          if (messageDateOnly < filterDate) return false;
+        } else if (advancedFilters.dateOption === 'on-or-before') {
+          if (messageDateOnly > filterDate) return false;
+        } else if (advancedFilters.dateOption === 'between' && advancedFilters.dateValue2) {
+          const filterDate2 = new Date(advancedFilters.dateValue2);
+          filterDate2.setHours(0, 0, 0, 0);
+          if (messageDateOnly < filterDate || messageDateOnly > filterDate2) return false;
+        }
       }
     }
 
@@ -638,10 +661,19 @@ export function EmailListEnhancedV3({
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowAdvancedSearch(true)}
-                className="h-8 px-2 flex-shrink-0"
+                className={cn(
+                  "h-8 px-2 flex-shrink-0 relative",
+                  (advancedFilters.from || advancedFilters.to || advancedFilters.subject || advancedFilters.anywhere ||
+                   advancedFilters.dateOption !== 'any' || advancedFilters.isUnread || advancedFilters.isStarred) &&
+                  "text-blue-600 dark:text-blue-400"
+                )}
                 title="Advanced search"
               >
                 <SlidersHorizontal className="h-3.5 md:h-4 w-3.5 md:w-4" />
+                {(advancedFilters.from || advancedFilters.to || advancedFilters.subject || advancedFilters.anywhere ||
+                  advancedFilters.dateOption !== 'any' || advancedFilters.isUnread || advancedFilters.isStarred) && (
+                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-blue-600" />
+                )}
               </Button>
             </div>
 
@@ -737,6 +769,210 @@ export function EmailListEnhancedV3({
           </div>
         </div>
       )}
+
+      {/* Advanced Search Dialog */}
+      <Dialog open={showAdvancedSearch} onOpenChange={setShowAdvancedSearch}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto m-4">
+          <DialogHeader>
+            <DialogTitle>Advanced Search</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Search Location */}
+            <div className="space-y-2">
+              <Label htmlFor="search-location">In</Label>
+              <Select
+                value={advancedFilters.location}
+                onValueChange={(value) => setAdvancedFilters({ ...advancedFilters, location: value })}
+              >
+                <SelectTrigger id="search-location">
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All mail</SelectItem>
+                  <SelectItem value="inbox">Inbox</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="drafts">Drafts</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Include Spam and Trash */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-spam-trash"
+                checked={advancedFilters.includeSpamTrash}
+                onCheckedChange={(checked) =>
+                  setAdvancedFilters({ ...advancedFilters, includeSpamTrash: checked as boolean })
+                }
+              />
+              <Label htmlFor="include-spam-trash" className="cursor-pointer">
+                Include Spam and Trash
+              </Label>
+            </div>
+
+            {/* From */}
+            <div className="space-y-2">
+              <Label htmlFor="filter-from">From</Label>
+              <Input
+                id="filter-from"
+                placeholder="sender@example.com"
+                value={advancedFilters.from}
+                onChange={(e) => setAdvancedFilters({ ...advancedFilters, from: e.target.value })}
+              />
+            </div>
+
+            {/* To/Cc */}
+            <div className="space-y-2">
+              <Label htmlFor="filter-to">To/Cc</Label>
+              <Input
+                id="filter-to"
+                placeholder="recipient@example.com"
+                value={advancedFilters.to}
+                onChange={(e) => setAdvancedFilters({ ...advancedFilters, to: e.target.value })}
+              />
+            </div>
+
+            {/* Subject */}
+            <div className="space-y-2">
+              <Label htmlFor="filter-subject">Subject</Label>
+              <Input
+                id="filter-subject"
+                placeholder="Enter subject keywords"
+                value={advancedFilters.subject}
+                onChange={(e) => setAdvancedFilters({ ...advancedFilters, subject: e.target.value })}
+              />
+            </div>
+
+            {/* Anywhere (Body) */}
+            <div className="space-y-2">
+              <Label htmlFor="filter-anywhere">Anywhere</Label>
+              <Input
+                id="filter-anywhere"
+                placeholder="Search in email body"
+                value={advancedFilters.anywhere}
+                onChange={(e) => setAdvancedFilters({ ...advancedFilters, anywhere: e.target.value })}
+              />
+            </div>
+
+            {/* Date */}
+            <div className="space-y-2">
+              <Label htmlFor="filter-date">Date</Label>
+              <Select
+                value={advancedFilters.dateOption}
+                onValueChange={(value) => setAdvancedFilters({ ...advancedFilters, dateOption: value, dateValue: '', dateValue2: '' })}
+              >
+                <SelectTrigger id="filter-date">
+                  <SelectValue placeholder="Any time" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any time</SelectItem>
+                  <SelectItem value="on-or-after">On or after</SelectItem>
+                  <SelectItem value="on-or-before">On or before</SelectItem>
+                  <SelectItem value="between">Between</SelectItem>
+                </SelectContent>
+              </Select>
+              {advancedFilters.dateOption === 'between' ? (
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div>
+                    <Label htmlFor="date-from" className="text-xs text-muted-foreground">From</Label>
+                    <Input
+                      id="date-from"
+                      type="date"
+                      value={advancedFilters.dateValue}
+                      onChange={(e) => setAdvancedFilters({ ...advancedFilters, dateValue: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="date-to" className="text-xs text-muted-foreground">To</Label>
+                    <Input
+                      id="date-to"
+                      type="date"
+                      value={advancedFilters.dateValue2}
+                      onChange={(e) => setAdvancedFilters({ ...advancedFilters, dateValue2: e.target.value })}
+                    />
+                  </div>
+                </div>
+              ) : advancedFilters.dateOption !== 'any' && (
+                <Input
+                  type="date"
+                  value={advancedFilters.dateValue}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, dateValue: e.target.value })}
+                  className="mt-2"
+                />
+              )}
+            </div>
+
+            {/* Is Unread */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="filter-unread"
+                checked={advancedFilters.isUnread}
+                onCheckedChange={(checked) =>
+                  setAdvancedFilters({ ...advancedFilters, isUnread: checked as boolean })
+                }
+              />
+              <Label htmlFor="filter-unread" className="cursor-pointer">
+                Is unread
+              </Label>
+            </div>
+
+            {/* Is Starred */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="filter-starred"
+                checked={advancedFilters.isStarred}
+                onCheckedChange={(checked) =>
+                  setAdvancedFilters({ ...advancedFilters, isStarred: checked as boolean })
+                }
+              />
+              <Label htmlFor="filter-starred" className="cursor-pointer">
+                Is starred
+              </Label>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setAdvancedFilters({
+                  location: 'all',
+                  from: '',
+                  to: '',
+                  subject: '',
+                  anywhere: '',
+                  dateOption: 'any',
+                  dateValue: '',
+                  dateValue2: '',
+                  isUnread: false,
+                  isStarred: false,
+                  includeSpamTrash: false,
+                });
+              }}
+              className="sm:mr-auto"
+            >
+              Clear All Filters
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowAdvancedSearch(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowAdvancedSearch(false);
+                  // Filters are already applied via visibleMessages
+                }}
+              >
+                Search
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1778,180 +2014,6 @@ function EmailCard({
           />
         </div>
       )}
-
-      {/* Advanced Search Dialog */}
-      <Dialog open={showAdvancedSearch} onOpenChange={setShowAdvancedSearch}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Advanced Search</DialogTitle>
-          </DialogHeader>
-
-          <div className="grid gap-4 py-4">
-            {/* Search Location */}
-            <div className="grid gap-2">
-              <Label htmlFor="search-location">In</Label>
-              <Select defaultValue="all">
-                <SelectTrigger id="search-location">
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All mail</SelectItem>
-                  <SelectItem value="inbox">Inbox</SelectItem>
-                  <SelectItem value="sent">Sent</SelectItem>
-                  <SelectItem value="drafts">Drafts</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Include Spam/Trash */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="include-spam-trash"
-                checked={advancedFilters.includeSpamTrash}
-                onCheckedChange={(checked) =>
-                  setAdvancedFilters({ ...advancedFilters, includeSpamTrash: checked as boolean })
-                }
-              />
-              <Label htmlFor="include-spam-trash" className="text-sm font-normal cursor-pointer">
-                Include Spam and Trash in search
-              </Label>
-            </div>
-
-            {/* From */}
-            <div className="grid gap-2">
-              <Label htmlFor="from">From</Label>
-              <Input
-                id="from"
-                placeholder="sender@example.com"
-                value={advancedFilters.from}
-                onChange={(e) => setAdvancedFilters({ ...advancedFilters, from: e.target.value })}
-              />
-            </div>
-
-            {/* To/Cc */}
-            <div className="grid gap-2">
-              <Label htmlFor="to">To/Cc</Label>
-              <Input
-                id="to"
-                placeholder="recipient@example.com"
-                value={advancedFilters.to}
-                onChange={(e) => setAdvancedFilters({ ...advancedFilters, to: e.target.value })}
-              />
-            </div>
-
-            {/* Subject */}
-            <div className="grid gap-2">
-              <Label htmlFor="subject">Subject</Label>
-              <Input
-                id="subject"
-                placeholder="Enter subject"
-                value={advancedFilters.subject}
-                onChange={(e) => setAdvancedFilters({ ...advancedFilters, subject: e.target.value })}
-              />
-            </div>
-
-            {/* Anywhere (body search) */}
-            <div className="grid gap-2">
-              <Label htmlFor="anywhere">Anywhere</Label>
-              <Input
-                id="anywhere"
-                placeholder="Search in email body"
-                value={advancedFilters.anywhere}
-                onChange={(e) => setAdvancedFilters({ ...advancedFilters, anywhere: e.target.value })}
-              />
-            </div>
-
-            {/* Date */}
-            <div className="grid gap-2">
-              <Label htmlFor="date-option">Date</Label>
-              <div className="flex gap-2">
-                <Select
-                  value={advancedFilters.dateOption}
-                  onValueChange={(value) => setAdvancedFilters({ ...advancedFilters, dateOption: value })}
-                >
-                  <SelectTrigger id="date-option" className="w-[200px]">
-                    <SelectValue placeholder="Select date option" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">Any time</SelectItem>
-                    <SelectItem value="after">On or after...</SelectItem>
-                    <SelectItem value="before">On or before...</SelectItem>
-                    <SelectItem value="between">Between...</SelectItem>
-                  </SelectContent>
-                </Select>
-                {advancedFilters.dateOption !== 'any' && (
-                  <Input
-                    type="text"
-                    placeholder="e.g. 25 Nov, last wednesday"
-                    value={advancedFilters.dateValue}
-                    onChange={(e) => setAdvancedFilters({ ...advancedFilters, dateValue: e.target.value })}
-                    className="flex-1"
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* Status Filters */}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="is-unread"
-                  checked={advancedFilters.isUnread}
-                  onCheckedChange={(checked) =>
-                    setAdvancedFilters({ ...advancedFilters, isUnread: checked as boolean })
-                  }
-                />
-                <Label htmlFor="is-unread" className="text-sm font-normal cursor-pointer">
-                  Is unread
-                </Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="is-starred"
-                  checked={advancedFilters.isStarred}
-                  onCheckedChange={(checked) =>
-                    setAdvancedFilters({ ...advancedFilters, isStarred: checked as boolean })
-                  }
-                />
-                <Label htmlFor="is-starred" className="text-sm font-normal cursor-pointer">
-                  Is pinned
-                </Label>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setAdvancedFilters({
-                  from: '',
-                  to: '',
-                  subject: '',
-                  anywhere: '',
-                  dateOption: 'any',
-                  dateValue: '',
-                  isUnread: false,
-                  isStarred: false,
-                  includeSpamTrash: false,
-                });
-                setShowAdvancedSearch(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                setShowAdvancedSearch(false);
-                // Filters will automatically be applied via visibleMessages
-              }}
-            >
-              Search
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
