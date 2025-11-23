@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { users, smsUsage, aiUsage, storageUsage, emailAccounts, emails } from '@/lib/db/schema';
-import { eq, sql, gte } from 'drizzle-orm';
+import { eq, sql, gte, lte, and } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -184,12 +184,11 @@ async function trackAIUsage(
   const existing = await db.select()
     .from(aiUsage)
     .where(
-      (usage: any, { and, eq, gte, lte }: any) =>
-        and(
-          eq(usage.userId, userId),
-          gte(usage.periodStart, periodStart),
-          lte(usage.periodEnd, periodEnd)
-        )
+      and(
+        eq(aiUsage.userId, userId),
+        gte(aiUsage.periodStart, periodStart),
+        lte(aiUsage.periodEnd, periodEnd)
+      )
     );
 
   // Calculate total requests and costs

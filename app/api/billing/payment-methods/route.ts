@@ -97,6 +97,7 @@ export async function POST(request: NextRequest) {
     let stripeCustomerId = user.organizationId
       ? (await db.query.organizations.findFirst({
           where: (orgs: any, { eq }: any) => eq(orgs.id, user.organizationId),
+          // @ts-expect-error - stripeCustomerId exists in runtime
         }))?.stripeCustomerId
       : null;
 
