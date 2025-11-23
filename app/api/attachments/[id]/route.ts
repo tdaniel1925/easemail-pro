@@ -81,7 +81,7 @@ export async function GET(
           const mimeType = attachment.mimeType || 'application/octet-stream';
 
           // Convert stream to buffer
-          const reader = (fileStream as ReadableStream<Uint8Array>).getReader();
+          const reader = (fileStream as unknown as ReadableStream<Uint8Array>).getReader();
           const chunks: Uint8Array[] = [];
           let done = false;
 
