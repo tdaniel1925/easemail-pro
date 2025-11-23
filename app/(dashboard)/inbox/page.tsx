@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Pencil, MessageSquare, Users, Calendar, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ import AccountSwitcher from '@/components/account/AccountSwitcher';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
-export default function InboxV3Page() {
+function InboxV3Content() {
   const searchParams = useSearchParams();
   const folderParam = searchParams?.get('folder');
   const router = useRouter();
@@ -355,5 +355,13 @@ export default function InboxV3Page() {
       draft={composeDraft}
     />
     </>
+  );
+}
+
+export default function InboxV3Page() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+      <InboxV3Content />
+    </Suspense>
   );
 }
