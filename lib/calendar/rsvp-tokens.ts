@@ -11,13 +11,17 @@ interface RSVPTokenData {
   response: 'accepted' | 'declined' | 'tentative';
 }
 
-// Enforce secure secret key - no fallbacks allowed
-const SECRET_KEY = process.env.RSVP_SECRET_KEY || (() => {
-  throw new Error(
-    'RSVP_SECRET_KEY environment variable is required for secure RSVP token generation. ' +
-    'Please set it in your .env.local file with a strong random key.'
-  );
-})();
+// Lazy getter for secret key - throws only when accessed
+function getSecretKey(): string {
+  const key = process.env.RSVP_SECRET_KEY;
+  if (!key) {
+    throw new Error(
+      'RSVP_SECRET_KEY environment variable is required for secure RSVP token generation. ' +
+      'Please set it in your .env.local file with a strong random key.'
+    );
+  }
+  return key;
+}
 
 /**
  * Generate a secure RSVP token
@@ -26,9 +30,9 @@ export function generateRSVPToken(eventId: string, attendeeEmail: string): strin
   const timestamp = Date.now();
   const randomBytes = crypto.randomBytes(16).toString('hex');
   const data = `${eventId}:${attendeeEmail}:${timestamp}:${randomBytes}`;
-  
+
   // Create HMAC signature
-  const hmac = crypto.createHmac('sha256', SECRET_KEY);
+  const hmac = crypto.createHmac('sha256', getSecretKey());
   hmac.update(data);
   const signature = hmac.digest('hex');
   
@@ -55,7 +59,7 @@ export function validateRSVPToken(token: string): { eventId: string; attendeeEma
     
     // Verify signature
     const data = `${eventId}:${attendeeEmail}:${timestamp}:${randomBytes}`;
-    const hmac = crypto.createHmac('sha256', SECRET_KEY);
+    const hmac = crypto.createHmac('sha256', getSecretKey());
     hmac.update(data);
     const expectedSignature = hmac.digest('hex');
     
