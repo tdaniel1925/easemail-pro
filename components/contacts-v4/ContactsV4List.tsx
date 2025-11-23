@@ -900,7 +900,12 @@ export default function ContactsV4List() {
 
       {/* Contacts List */}
       <div className="flex-1 overflow-y-auto p-6">
-        {contacts.length === 0 ? (
+        {loading && contacts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading contacts...</p>
+          </div>
+        ) : contacts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="text-6xl mb-4">👥</div>
             <h2 className="text-2xl font-semibold mb-2">No contacts yet</h2>

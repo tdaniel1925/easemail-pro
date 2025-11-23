@@ -401,8 +401,12 @@ function CalendarContent() {
     if (activeAccounts.length === 0) {
       setEvents([]);
       setLoading(false);
+      // ✅ Only show error after initial load is complete to avoid false "no accounts" message during loading
       if (initialLoadDone) {
         setError('No active accounts found. Please activate an account in Account Settings.');
+      } else {
+        // Keep loading state while accounts are being fetched
+        setError(null);
       }
       setInitialLoadDone(true);
       return;
@@ -994,8 +998,9 @@ function CalendarContent() {
         {/* Calendar Content */}
         <div className="flex-1 overflow-auto p-6">
           {loading && !initialLoadDone ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="flex flex-col items-center justify-center h-full gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Loading calendars...</p>
             </div>
           ) : error ? (
             <div className="flex items-center justify-center h-full">

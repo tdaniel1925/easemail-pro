@@ -7,7 +7,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Pencil, MessageSquare, Users, Calendar, Paperclip } from 'lucide-react';
+import { Pencil, MessageSquare, Users, Calendar, Paperclip, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FolderSidebarV3 } from '@/components/nylas-v3/folder-sidebar-v3';
 import { EmailListEnhancedV3 } from '@/components/nylas-v3/email-list-enhanced-v3';
@@ -319,6 +319,13 @@ function InboxV3Content() {
               onReply={handleReply}
             />
           </>
+        ) : accountsLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Loading account...</p>
+            </div>
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
@@ -379,7 +386,14 @@ function InboxV3Content() {
 
 export default function InboxV3Page() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading inbox...</p>
+        </div>
+      </div>
+    }>
       <InboxV3Content />
     </Suspense>
   );
