@@ -661,21 +661,24 @@ export function EmailListEnhancedV3({
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80 md:w-96" align="end">
-                    <div className="space-y-3 md:space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-base md:text-lg">Advanced Search</h3>
-                        {Object.keys(searchFilters).filter(key => key !== 'query').length > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSearchFilters({ query: searchFilters.query })}
-                            className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            Clear filters
-                          </Button>
-                        )}
-                      </div>
+                  <PopoverContent className="w-80 md:w-96 p-0 max-h-[90vh] flex flex-col" align="end">
+                    {/* Sticky Header */}
+                    <div className="flex items-center justify-between sticky top-0 bg-popover z-20 px-4 py-3 border-b shrink-0">
+                      <h3 className="font-semibold text-base md:text-lg">Advanced Search</h3>
+                      {Object.keys(searchFilters).filter(key => key !== 'query').length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSearchFilters({ query: searchFilters.query })}
+                          className="h-auto px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          Clear filters
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Scrollable Form Content */}
+                    <div className="overflow-y-auto flex-1 px-4 py-4 space-y-3 md:space-y-4">
 
                       {/* From Filter */}
                       <div className="space-y-2">
@@ -757,7 +760,7 @@ export function EmailListEnhancedV3({
                         <Label className="text-xs md:text-sm font-medium">Date Range</Label>
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <Popover open={showDateFromCalendar} onOpenChange={setShowDateFromCalendar}>
+                            <Popover open={showDateFromCalendar} onOpenChange={setShowDateFromCalendar} modal={true}>
                               <PopoverTrigger asChild>
                                 <Button
                                   variant="outline"
@@ -771,7 +774,7 @@ export function EmailListEnhancedV3({
                                   {searchFilters.dateFrom ? format(searchFilters.dateFrom, 'PP') : 'From'}
                                 </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
+                              <PopoverContent className="w-auto p-0 z-50" align="center" side="top">
                                 <Calendar
                                   mode="single"
                                   selected={searchFilters.dateFrom}
@@ -779,13 +782,14 @@ export function EmailListEnhancedV3({
                                     setSearchFilters({ ...searchFilters, dateFrom: date });
                                     setShowDateFromCalendar(false);
                                   }}
+                                  disabled={(date) => date > new Date()}
                                   initialFocus
                                 />
                               </PopoverContent>
                             </Popover>
                           </div>
                           <div>
-                            <Popover open={showDateToCalendar} onOpenChange={setShowDateToCalendar}>
+                            <Popover open={showDateToCalendar} onOpenChange={setShowDateToCalendar} modal={true}>
                               <PopoverTrigger asChild>
                                 <Button
                                   variant="outline"
@@ -799,13 +803,19 @@ export function EmailListEnhancedV3({
                                   {searchFilters.dateTo ? format(searchFilters.dateTo, 'PP') : 'To'}
                                 </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
+                              <PopoverContent className="w-auto p-0 z-50" align="center" side="top">
                                 <Calendar
                                   mode="single"
                                   selected={searchFilters.dateTo}
                                   onSelect={(date) => {
                                     setSearchFilters({ ...searchFilters, dateTo: date });
                                     setShowDateToCalendar(false);
+                                  }}
+                                  disabled={(date) => {
+                                    // Disable future dates and dates before dateFrom
+                                    if (date > new Date()) return true;
+                                    if (searchFilters.dateFrom && date < searchFilters.dateFrom) return true;
+                                    return false;
                                   }}
                                   initialFocus
                                 />
@@ -821,7 +831,7 @@ export function EmailListEnhancedV3({
                               const { dateFrom, dateTo, ...rest } = searchFilters;
                               setSearchFilters(rest);
                             }}
-                            className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
+                            className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground w-full"
                           >
                             Clear dates
                           </Button>
@@ -864,8 +874,11 @@ export function EmailListEnhancedV3({
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex gap-2 border-t pt-2 md:pt-3">
+                    </div>
+
+                    {/* Sticky Footer - Action Buttons */}
+                    <div className="sticky bottom-0 bg-popover z-20 px-4 py-3 border-t shrink-0">
+                      <div className="flex gap-2">
                         <Button
                           variant="outline"
                           size="sm"
