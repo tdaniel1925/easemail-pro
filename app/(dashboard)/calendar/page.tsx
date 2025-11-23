@@ -47,6 +47,12 @@ import { buildConflictMap, type CalendarEvent } from '@/lib/calendar/calendar-ut
 
 type ViewType = 'month' | 'week' | 'day' | 'agenda' | 'year' | 'list';
 
+type CalendarMetadata = {
+  hexColor: string;
+  name: string;
+  isPrimary?: boolean;
+};
+
 function CalendarContent() {
   const { selectedAccount, accounts: contextAccounts } = useAccount();
   const { toast } = useToast();
@@ -56,7 +62,7 @@ function CalendarContent() {
   const [allAccounts, setAllAccounts] = useState<any[]>([]);
 
   // ✅ Calendar metadata (for color coding events)
-  const [calendarMetadata, setCalendarMetadata] = useState<Map<string, { hexColor: string; name: string; isPrimary?: boolean }>>(new Map());
+  const [calendarMetadata, setCalendarMetadata] = useState<Map<string, CalendarMetadata>>(new Map());
   const [metadataLoading, setMetadataLoading] = useState(false);
 
   // View State with localStorage persistence
