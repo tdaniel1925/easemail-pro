@@ -204,12 +204,14 @@ export async function POST(request: NextRequest) {
     // 2-WAY SYNC: Push event to Google/Microsoft Calendar via Nylas
     if (primaryAccount && !data.skipSync) {
       try {
-        console.log('🔍 [Event Creation] Using account:', {
-          accountId: primaryAccount.id,
-          grantId: primaryAccount.nylasGrantId,
-          email: primaryAccount.emailAddress,
+        console.log('🔍 [Event Creation] Creating sync service with:', {
+          primaryAccountId: primaryAccount.id,
+          primaryGrantId: primaryAccount.nylasGrantId,
+          primaryEmail: primaryAccount.emailAddress,
           provider: primaryAccount.provider,
-          calendarId: data.calendarId || 'primary',
+          requestedCalendarId: data.calendarId,
+          fallbackCalendarId: data.calendarId || 'primary',
+          willUsePrimary: !data.calendarId,
         });
 
         const syncService = createCalendarSyncService({
