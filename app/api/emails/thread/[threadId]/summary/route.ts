@@ -100,7 +100,6 @@ export async function GET(
       .sort((a, b) => b.count - a.count);
 
     // Calculate dates
-    // @ts-expect-error - receivedAt type issues with sort
     const sortedByDate = [...threadEmails].sort((a, b) =>
       // @ts-expect-error - Date conversion type mismatch
       new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime()
