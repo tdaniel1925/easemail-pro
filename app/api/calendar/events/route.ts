@@ -110,7 +110,15 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json();
-    
+
+    // 🔍 DEBUG: Log incoming request data
+    console.log('📥 [Events API] Received event creation request:', {
+      calendarId: data.calendarId,
+      accountId: data.accountId,
+      nylasGrantId: data.nylasGrantId,
+      title: data.title,
+    });
+
     // Validate required fields
     if (!data.title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
