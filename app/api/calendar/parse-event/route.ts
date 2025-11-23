@@ -61,13 +61,27 @@ export async function POST(request: NextRequest) {
       weekday: 'long'
     });
 
+    // Calculate tomorrow's date explicitly in user's timezone
+    const tomorrowDate = new Date(currentDate);
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const tomorrowFormatted = tomorrowDate.toLocaleString('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long'
+    });
+
     // System prompt for INSTANT parsing with smart defaults
     const systemPrompt = `You are a calendar event parser that creates events INSTANTLY with smart defaults.
 
 Current Context:
 - Current date/time in ${timezone}: ${currentLocalTime}
+- Tomorrow's date in ${timezone}: ${tomorrowFormatted}
 - ISO timestamp: ${currentDate.toISOString()}
 - User timezone: ${timezone}
+
+IMPORTANT: When the user says "tomorrow", use the date: ${tomorrowFormatted}
 
 Core Rules - NEVER ASK QUESTIONS:
 
@@ -173,6 +187,9 @@ Now parse the user's input and create an event immediately with smart defaults.`
 
     // Log for debugging
     console.log('[AI Parser V4] Input:', input);
+    console.log('[AI Parser V4] Current Date (server):', currentDate.toISOString());
+    console.log('[AI Parser V4] Current Date (user TZ):', currentLocalTime);
+    console.log('[AI Parser V4] Tomorrow Date (user TZ):', tomorrowFormatted);
     console.log('[AI Parser V4] Parsed Event:', JSON.stringify(event, null, 2));
     console.log('[AI Parser V4] Timezone:', timezone);
     console.log('[AI Parser V4] Confidence:', event.confidence);
