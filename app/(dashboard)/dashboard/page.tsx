@@ -98,6 +98,8 @@ function DashboardContent() {
   }, [selectedAccount?.nylasGrantId]);
 
   const fetchDashboardData = async () => {
+    if (!selectedAccount?.nylasGrantId) return;
+
     setLoading(true);
     setError(null);
 
