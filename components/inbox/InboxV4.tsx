@@ -11,6 +11,8 @@ import FolderNav from './FolderNav';
 import SearchBar from './SearchBar';
 import BulkActions from './BulkActions';
 import { ThreadSummaryModal } from './ThreadSummaryModal';
+import { ActiveFilters } from './ActiveFilters';
+import type { SearchFilters } from './AdvancedSearchPanel';
 import {
   Mail,
   RefreshCw,
@@ -83,14 +85,11 @@ export default function InboxV4({
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(defaultAccountId);
   const [currentFolder, setCurrentFolder] = useState<FolderType>('inbox');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filterUnread, setFilterUnread] = useState(false);
-  const [filterStarred, setFilterStarred] = useState(false);
-  const [filterAttachments, setFilterAttachments] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(50);
   const [threadModalOpen, setThreadModalOpen] = useState(false);
@@ -101,7 +100,7 @@ export default function InboxV4({
     setCurrentFolder('inbox');
   }, [selectedAccount]);
 
-  // Filter and search emails
+  // Filter and search emails (client-side filtering when not using API search)
   const filteredEmails = useMemo(() => {
     let filtered = emails;
 
@@ -115,30 +114,8 @@ export default function InboxV4({
       filtered = filtered.filter(email => email.folder === 'inbox' || !email.folder || email.folder === '');
     }
 
-    // Apply additional filters
-    if (filterUnread) {
-      filtered = filtered.filter(email => !email.isRead);
-    }
-    if (filterStarred) {
-      filtered = filtered.filter(email => email.isStarred);
-    }
-    if (filterAttachments) {
-      filtered = filtered.filter(email => email.hasAttachments);
-    }
-
-    // Apply search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(email =>
-        email.subject?.toLowerCase().includes(query) ||
-        email.fromEmail?.toLowerCase().includes(query) ||
-        email.fromName?.toLowerCase().includes(query) ||
-        email.snippet?.toLowerCase().includes(query)
-      );
-    }
-
     return filtered;
-  }, [emails, currentFolder, filterUnread, filterStarred, filterAttachments, searchQuery]);
+  }, [emails, currentFolder]);
 
   // Group emails by thread
   const emailsByThread = useMemo(() => {
@@ -333,11 +310,13 @@ export default function InboxV4({
     }
   }, [selectedIds, selectedEmail]);
 
-  // Handle search
-  const handleSearch = useCallback(async (query: string) => {
-    setSearchQuery(query);
+  // Handle search with advanced filters
+  const handleSearch = useCallback(async (filters: SearchFilters) => {
+    setSearchFilters(filters);
 
-    if (!query.trim()) {
+    // If no filters at all, fetch regular emails
+    const hasAnyFilter = Object.keys(filters).length > 0;
+    if (!hasAnyFilter) {
       await fetchEmails(currentFolder);
       return;
     }
@@ -346,13 +325,42 @@ export default function InboxV4({
 
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `/api/nylas/messages/search?accountId=${selectedAccount}&query=${encodeURIComponent(query)}&folder=${currentFolder}`
-      );
+      // Build query params for the database search API
+      const params = new URLSearchParams({ accountId: selectedAccount });
+
+      if (filters.query) params.append('query', filters.query);
+      if (filters.from) params.append('from', filters.from);
+      if (filters.to) params.append('to', filters.to);
+      if (filters.subject) params.append('subject', filters.subject);
+      if (filters.dateFrom) params.append('dateFrom', filters.dateFrom.toISOString());
+      if (filters.dateTo) params.append('dateTo', filters.dateTo.toISOString());
+      if (filters.isUnread !== undefined) params.append('isUnread', String(filters.isUnread));
+      if (filters.isStarred !== undefined) params.append('isStarred', String(filters.isStarred));
+      if (filters.hasAttachment !== undefined) params.append('hasAttachment', String(filters.hasAttachment));
+
+      const response = await fetch(`/api/search/emails-db?${params.toString()}`);
       const data = await response.json();
 
       if (data.success) {
-        setEmails(data.messages);
+        // Transform the database format to match the Email interface
+        const transformedEmails = data.emails.map((email: any) => ({
+          id: email.id,
+          accountId: selectedAccount,
+          subject: email.subject,
+          snippet: email.snippet,
+          fromEmail: email.from?.[0]?.email || null,
+          fromName: email.from?.[0]?.name || null,
+          toEmails: email.to || null,
+          receivedAt: new Date(email.date * 1000),
+          isRead: !email.unread,
+          isStarred: email.starred || false,
+          hasAttachments: email.hasAttachments || false,
+          attachmentsCount: null,
+          attachments: null,
+          folder: email.folders?.[0] || 'inbox',
+          threadId: email.thread_id,
+        }));
+        setEmails(transformedEmails);
       } else {
         setError(data.error || 'Search failed');
       }
@@ -382,6 +390,20 @@ export default function InboxV4({
     setSelectedThreadId(threadId);
     setThreadModalOpen(true);
   }, []);
+
+  // Handle filter removal
+  const handleRemoveFilter = useCallback((key: keyof SearchFilters) => {
+    const newFilters = { ...searchFilters };
+    delete newFilters[key];
+    setSearchFilters(newFilters);
+    handleSearch(newFilters);
+  }, [searchFilters, handleSearch]);
+
+  // Handle clear all filters
+  const handleClearAllFilters = useCallback(() => {
+    setSearchFilters({});
+    fetchEmails(currentFolder);
+  }, [currentFolder, fetchEmails]);
 
   // Select all
   const selectAll = useCallback(() => {
@@ -431,34 +453,6 @@ export default function InboxV4({
             </Button>
           </div>
 
-          {/* Filters */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant={filterUnread ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterUnread(!filterUnread)}
-            >
-              <Mail className="h-3 w-3 mr-1" />
-              Unread
-            </Button>
-            <Button
-              variant={filterStarred ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterStarred(!filterStarred)}
-            >
-              <Star className="h-3 w-3 mr-1" />
-              Starred
-            </Button>
-            <Button
-              variant={filterAttachments ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterAttachments(!filterAttachments)}
-            >
-              <FileText className="h-3 w-3 mr-1" />
-              Attachments
-            </Button>
-          </div>
-
           {/* Bulk Actions */}
           {selectedIds.size > 0 && (
             <BulkActions
@@ -469,6 +463,13 @@ export default function InboxV4({
             />
           )}
         </div>
+
+        {/* Active Filters */}
+        <ActiveFilters
+          filters={searchFilters}
+          onRemoveFilter={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
+        />
 
         {/* Email List */}
         <div className="flex-1 overflow-y-auto">

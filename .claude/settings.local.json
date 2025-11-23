@@ -76,7 +76,8 @@
       "Bash(timeout 60 npm run build)",
       "Bash(.env.local)",
       "Bash(Select-Object -First 100)",
-      "Bash(tsc-errors.txt)"
+      "Bash(tsc-errors.txt)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []
