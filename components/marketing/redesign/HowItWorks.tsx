@@ -53,10 +53,10 @@ export default function HowItWorks() {
                 <div className="flex flex-col items-center text-center">
                   {/* Image preview */}
                   <div className="w-full -mx-8 -mt-8 mb-6 overflow-hidden">
-                    <img 
-                      src={step.image} 
+                    <img
+                      src={step.image}
                       alt={step.title}
-                      className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-40 object-cover object-center group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
 

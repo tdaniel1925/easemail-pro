@@ -105,10 +105,10 @@ export default function FeaturesShowcase() {
             <Card key={index} className="p-6 hover:shadow-lg transition-shadow overflow-hidden group">
               {/* Image */}
               <div className="mb-4 rounded-lg overflow-hidden bg-muted/50 -mx-6 -mt-6">
-                <img 
-                  src={feature.image} 
+                <img
+                  src={feature.image}
                   alt={feature.title}
-                  className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                  className="w-full h-48 object-cover object-center group-hover:scale-105 transition-transform duration-300"
                 />
               </div>
               
