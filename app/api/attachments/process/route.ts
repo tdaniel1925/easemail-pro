@@ -90,6 +90,10 @@ export async function POST(request: NextRequest) {
           .where(eq(attachments.id, attachment.id));
 
         // Download file from storage
+        if (!attachment.storagePath) {
+          throw new Error('No storage path available for attachment');
+        }
+
         const { data: fileData, error: downloadError } = await supabase
           .storage
           .from('attachments')
@@ -121,7 +125,7 @@ export async function POST(request: NextRequest) {
             userId: attachment.userId,
             emailId: attachment.emailId || null,
             accountId: attachment.accountId || null,
-            storagePath: attachment.storagePath,
+            storagePath: attachment.storagePath || '',
             storageUrl: attachment.storageUrl || null,
             thumbnailPath: attachment.thumbnailPath || null,
             thumbnailUrl: attachment.thumbnailUrl || null,

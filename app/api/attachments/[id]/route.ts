@@ -70,7 +70,7 @@ export async function GET(
       if (attachment.nylasAttachmentId && attachment.nylasMessageId && attachment.nylasGrantId) {
         try {
           // Download from Nylas
-          const fileData = await nylas.attachments.download({
+          const fileStream = await nylas.attachments.download({
             identifier: attachment.nylasGrantId,
             attachmentId: attachment.nylasAttachmentId,
             queryParams: {
@@ -80,8 +80,30 @@ export async function GET(
 
           const mimeType = attachment.mimeType || 'application/octet-stream';
 
+          // Convert stream to buffer
+          const reader = (fileStream as ReadableStream<Uint8Array>).getReader();
+          const chunks: Uint8Array[] = [];
+          let done = false;
+
+          while (!done) {
+            const { value, done: streamDone } = await reader.read();
+            if (value) {
+              chunks.push(value);
+            }
+            done = streamDone;
+          }
+
+          // Combine chunks into single buffer
+          const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+          const buffer = new Uint8Array(totalLength);
+          let offset = 0;
+          for (const chunk of chunks) {
+            buffer.set(chunk, offset);
+            offset += chunk.length;
+          }
+
           // Convert buffer to base64 data URL for preview
-          const base64 = fileData.toString('base64');
+          const base64 = Buffer.from(buffer).toString('base64');
           const dataUrl = `data:${mimeType};base64,${base64}`;
 
           return NextResponse.json({
@@ -126,7 +148,7 @@ export async function GET(
       if (attachment.nylasAttachmentId && attachment.nylasMessageId && attachment.nylasGrantId) {
         try {
           // Download from Nylas
-          const fileData = await nylas.attachments.download({
+          const fileStream = await nylas.attachments.download({
             identifier: attachment.nylasGrantId,
             attachmentId: attachment.nylasAttachmentId,
             queryParams: {
@@ -136,14 +158,18 @@ export async function GET(
 
           const mimeType = attachment.mimeType || 'application/octet-stream';
 
-          // Return file directly as a download
-          return new NextResponse(fileData, {
-            headers: {
-              'Content-Type': mimeType,
-              'Content-Disposition': `attachment; filename="${attachment.filename}"`,
-              'Content-Length': fileData.length.toString(),
-            },
-          });
+          // Return stream directly as a download
+          const headers: Record<string, string> = {
+            'Content-Type': mimeType,
+            'Content-Disposition': `attachment; filename="${attachment.filename}"`,
+          };
+
+          // Add content length if available
+          if (attachment.fileSizeBytes) {
+            headers['Content-Length'] = attachment.fileSizeBytes.toString();
+          }
+
+          return new NextResponse(fileStream as any, { headers });
         } catch (error) {
           console.error('Nylas download error:', error);
           return NextResponse.json(

@@ -101,6 +101,9 @@ export async function POST(request: NextRequest) {
     // Create attachment record
     const [newAttachment] = await db.insert(attachments).values({
       userId,
+      nylasGrantId: '', // Empty string for manual uploads
+      nylasAttachmentId: '', // Empty string for manual uploads
+      nylasMessageId: '', // Empty string for manual uploads
       filename: file.name,
       fileExtension: extension,
       mimeType: file.type,
