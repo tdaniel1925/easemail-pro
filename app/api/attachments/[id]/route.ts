@@ -3,6 +3,8 @@
  * GET /api/attachments/[id]
  * GET /api/attachments/[id]/preview
  * GET /api/attachments/[id]/download
+ *
+ * ✅ ON-DEMAND MODE: Proxies attachments from Nylas (no local storage)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,7 +12,13 @@ import { db } from '@/lib/db/drizzle';
 import { attachments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
-import { getAttachmentUrl } from '@/lib/attachments/upload';
+import Nylas from 'nylas';
+
+// Initialize Nylas client
+const nylas = new Nylas({
+  apiKey: process.env.NYLAS_API_KEY!,
+  apiUri: process.env.NYLAS_API_URI || 'https://api.us.nylas.com',
+});
 
 export async function GET(
   request: NextRequest,
@@ -58,44 +66,110 @@ export async function GET(
 
     // Handle preview request
     if (isPreview) {
-      // Use thumbnail if available, otherwise use original
-      const path = attachment.thumbnailPath || attachment.storagePath;
+      // Check if we have Nylas IDs (new on-demand mode)
+      if (attachment.nylasAttachmentId && attachment.nylasMessageId && attachment.nylasGrantId) {
+        try {
+          // Download from Nylas
+          const fileData = await nylas.attachments.download({
+            identifier: attachment.nylasGrantId,
+            attachmentId: attachment.nylasAttachmentId,
+            queryParams: {
+              messageId: attachment.nylasMessageId,
+            },
+          });
 
-      if (!path) {
-        return NextResponse.json(
-          { error: 'No storage path available' },
-          { status: 404 }
-        );
+          const mimeType = attachment.mimeType || 'application/octet-stream';
+
+          // Convert buffer to base64 data URL for preview
+          const base64 = fileData.toString('base64');
+          const dataUrl = `data:${mimeType};base64,${base64}`;
+
+          return NextResponse.json({
+            url: dataUrl,
+            type: mimeType.startsWith('image/') ? 'image' :
+                  mimeType === 'application/pdf' ? 'pdf' :
+                  'unsupported',
+          });
+        } catch (error) {
+          console.error('Nylas download error:', error);
+          return NextResponse.json(
+            { error: 'Failed to fetch attachment from Nylas' },
+            { status: 500 }
+          );
+        }
       }
 
-      const url = await getAttachmentUrl(path, 3600); // 1 hour expiry
-      const mimeType = attachment.mimeType || '';
+      // Legacy: Fall back to Supabase storage if available
+      if (attachment.storagePath) {
+        // Import lazily to avoid errors if not needed
+        const { getAttachmentUrl } = await import('@/lib/attachments/upload');
+        const url = await getAttachmentUrl(attachment.storagePath, 3600);
+        const mimeType = attachment.mimeType || '';
 
-      return NextResponse.json({
-        url,
-        type: mimeType.startsWith('image/') ? 'image' :
-              mimeType === 'application/pdf' ? 'pdf' :
-              'unsupported',
-      });
+        return NextResponse.json({
+          url,
+          type: mimeType.startsWith('image/') ? 'image' :
+                mimeType === 'application/pdf' ? 'pdf' :
+                'unsupported',
+        });
+      }
+
+      return NextResponse.json(
+        { error: 'No attachment data available' },
+        { status: 404 }
+      );
     }
 
     // Handle download request
     if (isDownload) {
-      if (!attachment.storagePath) {
-        return NextResponse.json(
-          { error: 'No storage path available' },
-          { status: 404 }
-        );
+      // Check if we have Nylas IDs (new on-demand mode)
+      if (attachment.nylasAttachmentId && attachment.nylasMessageId && attachment.nylasGrantId) {
+        try {
+          // Download from Nylas
+          const fileData = await nylas.attachments.download({
+            identifier: attachment.nylasGrantId,
+            attachmentId: attachment.nylasAttachmentId,
+            queryParams: {
+              messageId: attachment.nylasMessageId,
+            },
+          });
+
+          const mimeType = attachment.mimeType || 'application/octet-stream';
+
+          // Return file directly as a download
+          return new NextResponse(fileData, {
+            headers: {
+              'Content-Type': mimeType,
+              'Content-Disposition': `attachment; filename="${attachment.filename}"`,
+              'Content-Length': fileData.length.toString(),
+            },
+          });
+        } catch (error) {
+          console.error('Nylas download error:', error);
+          return NextResponse.json(
+            { error: 'Failed to download attachment from Nylas' },
+            { status: 500 }
+          );
+        }
       }
 
-      const url = await getAttachmentUrl(attachment.storagePath, 3600);
+      // Legacy: Fall back to Supabase storage if available
+      if (attachment.storagePath) {
+        const { getAttachmentUrl } = await import('@/lib/attachments/upload');
+        const url = await getAttachmentUrl(attachment.storagePath, 3600);
 
-      return NextResponse.json({
-        url,
-        filename: attachment.filename,
-        mimeType: attachment.mimeType,
-        sizeBytes: attachment.fileSizeBytes,
-      });
+        return NextResponse.json({
+          url,
+          filename: attachment.filename,
+          mimeType: attachment.mimeType,
+          sizeBytes: attachment.fileSizeBytes,
+        });
+      }
+
+      return NextResponse.json(
+        { error: 'No attachment data available' },
+        { status: 404 }
+      );
     }
 
     // Default: return attachment details
@@ -108,4 +182,3 @@ export async function GET(
     );
   }
 }
-

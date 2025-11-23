@@ -157,6 +157,31 @@ export function EmailListEnhancedV3({
     loadMessages(true);
   }, [accountId, folderId]);
 
+  // Fetch SMS unread count on mount and poll every 30 seconds
+  useEffect(() => {
+    const fetchSMSUnreadCount = async () => {
+      try {
+        const response = await fetch('/api/sms/unread-count');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && typeof data.count === 'number') {
+            setSmsUnreadCount(data.count);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch SMS unread count:', error);
+      }
+    };
+
+    // Initial fetch
+    fetchSMSUnreadCount();
+
+    // Poll every 30 seconds
+    const interval = setInterval(fetchSMSUnreadCount, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Subscribe to real-time email sync events
   useEffect(() => {
     if (!accountId) return;

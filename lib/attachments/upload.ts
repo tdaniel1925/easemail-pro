@@ -30,7 +30,7 @@ export async function uploadAttachment(
   const storagePath = `${userId}/attachments/${timestamp}_${sanitizedFilename}`;
 
   const { data, error } = await supabase.storage
-    .from('email-attachments')
+    .from('attachments')
     .upload(storagePath, file, {
       contentType: mimeType,
       upsert: false,
@@ -53,7 +53,7 @@ export async function getAttachmentUrl(
   expiresIn: number = 3600
 ): Promise<string> {
   const { data, error } = await supabase.storage
-    .from('email-attachments')
+    .from('attachments')
     .createSignedUrl(storagePath, expiresIn);
 
   if (error || !data) {
@@ -68,7 +68,7 @@ export async function getAttachmentUrl(
  */
 export async function deleteAttachment(storagePath: string): Promise<void> {
   const { error } = await supabase.storage
-    .from('email-attachments')
+    .from('attachments')
     .remove([storagePath]);
 
   if (error) {

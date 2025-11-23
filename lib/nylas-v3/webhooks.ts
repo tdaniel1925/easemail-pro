@@ -34,9 +34,13 @@ export function verifyWebhookSignature(
     return false;
   }
 
-  // Skip verification if webhook secret is not configured (dev mode)
+  // CRITICAL: Fail in production if secret not configured
   if (!nylasConfig.webhookSecret) {
-    console.warn('⚠️ NYLAS_WEBHOOK_SECRET not configured - skipping signature verification');
+    if (process.env.NODE_ENV === 'production') {
+      console.error('🚨 CRITICAL: NYLAS_WEBHOOK_SECRET not configured in production!');
+      throw new Error('Webhook secret required in production');
+    }
+    console.warn('⚠️ NYLAS_WEBHOOK_SECRET not configured - skipping signature verification (DEV ONLY)');
     return true;
   }
 

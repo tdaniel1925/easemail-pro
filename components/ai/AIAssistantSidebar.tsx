@@ -34,7 +34,7 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onCompos
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Hi! I\'m your all-knowing AI assistant. I have complete access to your emails, contacts, calendar, and can help you with:\n\n• Searching your data (emails, contacts, events)\n• Getting summaries and insights\n• Finding information quickly\n• Answering questions about your data\n• How to use any EaseMail feature\n\nWhat would you like help with?',
+      content: 'Hi! I\'m your all-knowing AI assistant. I have complete access to your emails, contacts, calendar, and can help you with:\n\n• Searching your data (emails, contacts, events)\n• Getting summaries and insights\n• Finding information quickly\n• Answering questions about your data\n• Performing actions (create events, send emails, etc.)\n• How to use any EaseMail feature\n\nWhat would you like help with?',
       actions: [
         { text: 'What\'s in my inbox?', action: 'navigate', path: '/inbox' },
         { text: 'Show upcoming meetings', action: 'navigate', path: '/calendar' },
@@ -44,6 +44,7 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onCompos
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState<string>('Thinking...');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -64,9 +65,24 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onCompos
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
 
+    // Detect what kind of action the user is requesting
+    const lowerMessage = userMessage.toLowerCase();
+    if (lowerMessage.includes('create') || lowerMessage.includes('schedule') || lowerMessage.includes('add') || lowerMessage.includes('set')) {
+      setLoadingStatus('Creating...');
+    } else if (lowerMessage.includes('search') || lowerMessage.includes('find') || lowerMessage.includes('show')) {
+      setLoadingStatus('Searching...');
+    } else if (lowerMessage.includes('send') || lowerMessage.includes('email')) {
+      setLoadingStatus('Preparing...');
+    } else if (lowerMessage.includes('delete') || lowerMessage.includes('remove')) {
+      setLoadingStatus('Processing...');
+    } else {
+      setLoadingStatus('Thinking...');
+    }
+
     try {
-      // Get conversation history (last 10 messages)
-      const conversationHistory = messages.slice(-10).map(msg => ({
+      // Get conversation history (last 2 messages to match backend limit)
+      // Backend only uses 2 messages + dynamic tool filtering to avoid hitting token limit
+      const conversationHistory = messages.slice(-2).map(msg => ({
         role: msg.role,
         content: msg.content,
       }));
@@ -97,11 +113,30 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onCompos
         ]);
       } else {
         console.error('[AI Assistant] API error:', data);
+
+        // Provide user-friendly error messages
+        let errorMessage = '❌ Something went wrong. ';
+
+        if (data.error?.includes('token') || data.error?.includes('context length')) {
+          errorMessage += 'The conversation is too long. Please refresh the page to start a new conversation.';
+        } else if (data.error?.includes('Unauthorized') || data.error?.includes('401')) {
+          errorMessage += 'Your session has expired. Please refresh the page and sign in again.';
+        } else if (data.error?.includes('rate limit') || data.error?.includes('429')) {
+          errorMessage += 'You\'ve sent too many requests. Please wait a moment and try again.';
+        } else if (data.error?.includes('quota') || data.upgradeUrl) {
+          errorMessage += `You've reached your AI usage limit for this billing period.\n\n${data.tier ? `Current plan: ${data.tier}` : ''}\n${data.used && data.limit ? `Usage: ${data.used}/${data.limit} requests` : ''}`;
+        } else {
+          errorMessage += `${data.error || 'An unexpected error occurred. Please try again.'}`;
+        }
+
         setMessages(prev => [
           ...prev,
           {
             role: 'assistant',
-            content: `Error: ${data.error || 'Unknown error occurred'}${data.details ? '\n\nDetails: ' + data.details : ''}`,
+            content: errorMessage,
+            actions: data.upgradeUrl ? [
+              { text: 'Upgrade Plan', action: 'navigate', path: data.upgradeUrl }
+            ] : undefined,
           },
         ]);
       }
@@ -111,7 +146,7 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onCompos
         ...prev,
         {
           role: 'assistant',
-          content: 'I\'m having trouble connecting right now. Please check your internet connection and try again.',
+          content: '❌ I\'m having trouble connecting right now.\n\nPossible causes:\n• Check your internet connection\n• The server might be down\n• Try refreshing the page\n\nIf the problem persists, please contact support.',
         },
       ]);
     } finally {
@@ -196,7 +231,7 @@ export function AIAssistantSidebar({ isOpen, onClose, fullPage = false, onCompos
             <div className="flex justify-start">
               <div className="bg-muted rounded-lg p-3 flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm text-muted-foreground">Thinking...</span>
+                <span className="text-sm text-muted-foreground">{loadingStatus}</span>
               </div>
             </div>
           )}

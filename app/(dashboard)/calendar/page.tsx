@@ -17,7 +17,8 @@ import {
   Calendar as CalendarIconLucide,
   Loader2,
   ArrowLeft,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,10 +37,9 @@ import DayView from '@/components/calendar/DayView';
 import AgendaView from '@/components/calendar/AgendaView';
 import YearView from '@/components/calendar/YearView';
 import ListView from '@/components/calendar/ListView';
-import QuickAdd from '@/components/calendar/QuickAdd';
+import QuickAddV4 from '@/components/calendar/QuickAddV4';
 import EventSearch from '@/components/calendar/EventSearch';
 import CalendarSelector from '@/components/calendar/CalendarSelector';
-import { CalendarAssistant } from '@/components/calendar/CalendarAssistant';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth } from 'date-fns';
 import { transformNylasEvent } from '@/lib/calendar/event-utils';
 import { notificationService } from '@/lib/services/notification-service';
@@ -53,6 +53,10 @@ function CalendarContent() {
 
   // ✅ Local state for all user accounts (for multi-account calendar support)
   const [allAccounts, setAllAccounts] = useState<any[]>([]);
+
+  // ✅ Calendar metadata (for color coding events)
+  const [calendarMetadata, setCalendarMetadata] = useState<Map<string, { hexColor: string; name: string }>>(new Map());
+  const [metadataLoading, setMetadataLoading] = useState(false);
 
   // View State with localStorage persistence
   const [view, setView] = useState<ViewType>(() => {
@@ -97,6 +101,8 @@ function CalendarContent() {
   // Mini Calendar State
   const [miniCalendarMonth, setMiniCalendarMonth] = useState(new Date());
   const [selectedMiniDate, setSelectedMiniDate] = useState<Date | null>(null);
+  const [isCalendarListOpen, setIsCalendarListOpen] = useState(false);
+  const [sidebarDetailEvent, setSidebarDetailEvent] = useState<any>(null);
 
   // Calendar Selection State with localStorage persistence
   const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>(() => {
@@ -116,6 +122,12 @@ function CalendarContent() {
 
   // Wrapper function to update calendar selection and persist to localStorage
   const handleCalendarSelectionChange = useCallback((calendarIds: string[]) => {
+    console.log('[Calendar] Calendar selection changed:', {
+      previous: selectedCalendarIds,
+      new: calendarIds,
+      count: calendarIds.length,
+    });
+
     setSelectedCalendarIds(calendarIds);
 
     // Persist to localStorage (per account)
@@ -129,7 +141,7 @@ function CalendarContent() {
         selectedCount: calendarIds.length,
       });
     }
-  }, [selectedAccount?.nylasGrantId]);
+  }, [selectedAccount?.nylasGrantId, selectedCalendarIds]);
 
   // ✅ Fetch all accounts on mount for multi-account calendar support
   useEffect(() => {
@@ -150,6 +162,44 @@ function CalendarContent() {
 
     fetchAllAccounts();
   }, []); // Run once on mount
+
+  // ✅ Fetch calendar metadata for color coding events
+  useEffect(() => {
+    const fetchCalendarMetadata = async () => {
+      const activeAccounts = allAccounts.filter(account => account.isActive && account.nylasGrantId);
+      if (activeAccounts.length === 0) {
+        setMetadataLoading(false);
+        return;
+      }
+
+      setMetadataLoading(true);
+      const metadata = new Map<string, { hexColor: string; name: string }>();
+
+      for (const account of activeAccounts) {
+        try {
+          const response = await fetch(`/api/nylas-v3/calendars?accountId=${account.nylasGrantId}`);
+          const data = await response.json();
+
+          if (data.success && data.calendars) {
+            data.calendars.forEach((cal: any) => {
+              metadata.set(cal.id, {
+                hexColor: cal.hexColor || '#3b82f6',
+                name: cal.name || 'Untitled Calendar',
+              });
+            });
+          }
+        } catch (err) {
+          console.error('[Calendar] Failed to fetch calendar metadata for', account.emailAddress, err);
+        }
+      }
+
+      setCalendarMetadata(metadata);
+      setMetadataLoading(false);
+      console.log('[Calendar] Loaded metadata for', metadata.size, 'calendars');
+    };
+
+    fetchCalendarMetadata();
+  }, [allAccounts]);
 
   // Clear calendar selection when account changes
   useEffect(() => {
@@ -175,44 +225,100 @@ function CalendarContent() {
     }
   }, [selectedAccount?.nylasGrantId]);
 
+  // ✅ Enrich events with calendar colors
+  const enrichedEvents = useMemo(() => {
+    return events.map(event => {
+      const calendarId = event.calendarId || event.calendar_id;
+      const calendarInfo = calendarId ? calendarMetadata.get(calendarId) : null;
+      const eventColor = calendarInfo?.hexColor || '#3b82f6'; // Default to blue if no color found
+
+      return {
+        ...event,
+        hexColor: eventColor,
+        color: eventColor, // Set both for compatibility with different views
+        calendarName: calendarInfo?.name,
+      };
+    });
+  }, [events, calendarMetadata]);
+
   // Filtered events based on search and calendar types
   const filteredEvents = useMemo(() => {
-    const baseEvents = isSearchActive ? searchResults : events;
+    const baseEvents = isSearchActive ? searchResults : enrichedEvents;
+
+    console.log('[Calendar] Filtering events:', {
+      totalEvents: baseEvents.length,
+      selectedCalendarIds,
+      selectedCalendarTypes,
+    });
 
     if (selectedCalendarTypes.length === 0) return [];
 
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    return baseEvents.filter(event => {
+    const filtered = baseEvents.filter(event => {
+      // ✅ FILTER BY SELECTED CALENDAR IDs (toggle on/off in sidebar)
+      // If user has selected specific calendars, only show events from those calendars
+      if (selectedCalendarIds.length > 0) {
+        const eventCalendarId = event.calendarId || event.calendar_id;
+        // ALLOW events without calendarId (locally created via Quick Add) to always show
+        if (eventCalendarId && !selectedCalendarIds.includes(eventCalendarId)) {
+          return false; // Hide events from unselected calendars
+        }
+        // If event has NO calendarId, it's a local event - always show it
+      }
+
       // Filter by calendar type
       const eventType = event.calendarType || 'personal';
       if (!selectedCalendarTypes.includes(eventType)) return false;
 
-      // Filter out past events (events that ended before today)
+      // Filter out past events (but keep today's events)
       try {
+        let eventStartTime: Date;
         let eventEndTime: Date;
 
+        // Parse start time
+        if (event.startTime) {
+          eventStartTime = new Date(event.startTime);
+        } else if (event.when?.startTime) {
+          eventStartTime = new Date(event.when.startTime * 1000);
+        } else if (event.when?.date) {
+          eventStartTime = new Date(event.when.date);
+        } else {
+          return true; // Include if we can't determine the start time
+        }
+
+        // Parse end time
         if (event.endTime) {
           eventEndTime = new Date(event.endTime);
         } else if (event.when?.endTime) {
           eventEndTime = new Date(event.when.endTime * 1000);
         } else if (event.when?.date) {
-          // All-day event - include if it's today or future
-          const eventDate = new Date(event.when.date);
-          return eventDate >= startOfToday;
+          // All-day event - set end time to end of day
+          eventEndTime = new Date(event.when.date);
+          eventEndTime.setHours(23, 59, 59, 999);
         } else {
           return true; // Include if we can't determine the end time
         }
 
-        // Only show events that haven't ended yet
-        return eventEndTime >= startOfToday;
+        // ✅ FIXED: Show all of today's events, even if they already ended
+        // Check if event starts today or later
+        const eventStartDate = new Date(eventStartTime.getFullYear(), eventStartTime.getMonth(), eventStartTime.getDate());
+
+        // Show event if it starts today or in the future
+        return eventStartDate >= startOfToday;
       } catch (err) {
         console.error('Error filtering past event:', err, event);
         return true; // Include events with parsing errors
       }
     });
-  }, [events, searchResults, isSearchActive, selectedCalendarTypes]);
+
+    console.log('[Calendar] Filtered events result:', {
+      filteredCount: filtered.length,
+    });
+
+    return filtered;
+  }, [enrichedEvents, searchResults, isSearchActive, selectedCalendarTypes, selectedCalendarIds]);
 
   // Get available calendar types
   const availableTypes = useMemo(() => {
@@ -399,11 +505,23 @@ function CalendarContent() {
     fetchEvents();
   }, [fetchEvents]);
 
-  // Handle search results
+  // Handle search results - enrich with calendar colors
   const handleSearchResults = useCallback((results: any[]) => {
-    setSearchResults(results);
+    // ✅ Enrich search results with calendar colors just like regular events
+    const enrichedResults = results.map(event => {
+      const calendarId = event.calendarId || event.calendar_id;
+      const calendarInfo = calendarId ? calendarMetadata.get(calendarId) : null;
+
+      return {
+        ...event,
+        hexColor: calendarInfo?.hexColor || '#3b82f6',
+        calendarName: calendarInfo?.name,
+      };
+    });
+
+    setSearchResults(enrichedResults);
     setIsSearchActive(results.length !== events.length);
-  }, [events.length]);
+  }, [events.length, calendarMetadata]);
 
   // Sync calendar
   const handleSync = async (silent = false) => {
@@ -502,23 +620,25 @@ function CalendarContent() {
   };
 
   // ✅ OUTLOOK BEHAVIOR: Auto-sync calendar every 3 minutes
-  useEffect(() => {
-    if (!selectedAccount?.nylasGrantId) return;
+  // TEMPORARILY DISABLED - Auto-sync was deleting locally created events that haven't synced to remote calendar yet
+  // TODO: Fix sync service to preserve local events before re-enabling
+  // useEffect(() => {
+  //   if (!selectedAccount?.nylasGrantId) return;
 
-    console.log('[Auto-Sync] Starting auto-sync interval (every 3 minutes)');
+  //   console.log('[Auto-Sync] Starting auto-sync interval (every 3 minutes)');
 
-    // Auto-sync every 3 minutes (180,000 ms)
-    const syncInterval = setInterval(() => {
-      console.log('[Auto-Sync] Running scheduled sync...');
-      handleSync(true); // Silent sync (no toast notifications)
-    }, 3 * 60 * 1000);
+  //   // Auto-sync every 3 minutes (180,000 ms)
+  //   const syncInterval = setInterval(() => {
+  //     console.log('[Auto-Sync] Running scheduled sync...');
+  //     handleSync(true); // Silent sync (no toast notifications)
+  //   }, 3 * 60 * 1000);
 
-    // Cleanup interval on unmount or account change
-    return () => {
-      console.log('[Auto-Sync] Clearing auto-sync interval');
-      clearInterval(syncInterval);
-    };
-  }, [selectedAccount?.nylasGrantId]);
+  //   // Cleanup interval on unmount or account change
+  //   return () => {
+  //     console.log('[Auto-Sync] Clearing auto-sync interval');
+  //     clearInterval(syncInterval);
+  //   };
+  // }, [selectedAccount?.nylasGrantId]);
 
   // ✅ OUTLOOK BEHAVIOR: Request notification permission on mount
   useEffect(() => {
@@ -787,14 +907,6 @@ function CalendarContent() {
                   <Sparkles className="h-4 w-4 mr-2" />
                   Quick Add
                 </Button>
-
-                <Button
-                  size="sm"
-                  onClick={handleNewEvent}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Event
-                </Button>
               </div>
             </div>
 
@@ -931,32 +1043,373 @@ function CalendarContent() {
 
       {/* Right Sidebar - Desktop Only (hidden on mobile/tablet) */}
       <div className="hidden lg:flex w-80 border-l border-border bg-card flex-col">
-        {/* Calendar Assistant Chatbot - Top 2/3 */}
-        <div className="flex-[2] border-b border-border overflow-hidden">
-          {selectedAccount?.nylasGrantId ? (
-            <CalendarAssistant
-              accountId={selectedAccount.nylasGrantId}
-              selectedCalendarId={selectedCalendarIds[0]}
-              onEventCreated={fetchEvents}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full p-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Select an account to use the calendar assistant
-              </p>
+        {/* Mini Monthly Calendar */}
+        <div className="p-4 border-b border-border">
+          <div className="space-y-3">
+            {/* Month Navigation */}
+            <div className="flex items-center justify-between mb-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMiniCalendarMonth(new Date(miniCalendarMonth.getFullYear(), miniCalendarMonth.getMonth() - 1))}
+                className="h-7 w-7"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-semibold">
+                {format(miniCalendarMonth, 'MMMM yyyy')}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMiniCalendarMonth(new Date(miniCalendarMonth.getFullYear(), miniCalendarMonth.getMonth() + 1))}
+                className="h-7 w-7"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-          )}
+
+            {/* Mini Calendar Grid */}
+            <div className="grid grid-cols-7 gap-1 text-center">
+              {/* Day Headers */}
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                <div key={i} className="text-xs font-medium text-muted-foreground py-1">
+                  {day}
+                </div>
+              ))}
+
+              {/* Empty cells before month starts */}
+              {miniEmptyCells.map((_, i) => (
+                <div key={`empty-${i}`} className="aspect-square" />
+              ))}
+
+              {/* Calendar days */}
+              {miniDays.map((day) => {
+                const hasEvents = hasEventsOnDate(day);
+                const isSelected = selectedMiniDate && isSameDay(day, selectedMiniDate);
+                const isTodayDate = isToday(day);
+                const isCurrentMonth = isSameMonth(day, miniCalendarMonth);
+
+                return (
+                  <button
+                    key={day.toString()}
+                    onClick={() => {
+                      setSelectedMiniDate(day);
+                      setCurrentMonth(day);
+                      setCurrentDate(day);
+                    }}
+                    className={cn(
+                      "aspect-square rounded-md text-xs flex items-center justify-center relative transition-colors",
+                      isCurrentMonth ? "text-foreground" : "text-muted-foreground/40",
+                      isTodayDate && "bg-primary text-primary-foreground font-semibold",
+                      isSelected && !isTodayDate && "bg-accent",
+                      !isSelected && !isTodayDate && "hover:bg-accent/50"
+                    )}
+                  >
+                    {format(day, 'd')}
+                    {hasEvents && (
+                      <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
-        {/* Calendar Selector - Bottom 1/3 */}
-        <div className="flex-1 overflow-y-auto">
-          <CalendarSelector
-            accounts={allAccounts.filter(a => a.isActive && a.nylasGrantId)} // ✅ Pass all active accounts
-            selectedCalendarIds={selectedCalendarIds}
-            onCalendarSelectionChange={handleCalendarSelectionChange}
-          />
+        {/* Selected Day Events Panel */}
+        {selectedMiniDate && (
+          <div className="border-b border-border">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold">
+                  {format(selectedMiniDate, 'EEEE, MMMM d')}
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedMiniDate(null)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {(() => {
+                const dayEvents = getEventsForDate(selectedMiniDate);
+
+                if (dayEvents.length === 0) {
+                  return (
+                    <div className="text-xs text-muted-foreground text-center py-4">
+                      No events scheduled
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {dayEvents.map((event) => {
+                      const startTime = new Date(event.startTime);
+                      const endTime = new Date(event.endTime);
+
+                      return (
+                        <button
+                          key={event.id}
+                          onClick={() => setSidebarDetailEvent(event)}
+                          className="w-full text-left p-2 rounded-md hover:bg-accent transition-colors"
+                        >
+                          <div className="flex items-start gap-2">
+                            <div
+                              className="w-1 h-full rounded-full mt-1 flex-shrink-0"
+                              style={{ backgroundColor: event.color || '#3b82f6' }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">
+                                {event.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(startTime, 'h:mm a')} - {format(endTime, 'h:mm a')}
+                              </p>
+                              {event.location && (
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                  📍 {event.location}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Calendar List Toggle Button */}
+        <div className="p-3 border-t border-border">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsCalendarListOpen(!isCalendarListOpen)}
+            className="w-full justify-between"
+          >
+            <span className="flex items-center gap-2">
+              <CalendarIconLucide className="h-4 w-4" />
+              My Calendars
+            </span>
+            <ChevronRight className={cn(
+              "h-4 w-4 transition-transform",
+              isCalendarListOpen && "rotate-90"
+            )} />
+          </Button>
         </div>
       </div>
+
+      {/* Slide-out Event Detail Panel */}
+      {sidebarDetailEvent && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/20 z-40"
+            onClick={() => setSidebarDetailEvent(null)}
+          />
+
+          {/* Detail Panel */}
+          <div className="fixed top-0 right-0 h-full w-96 bg-card border-l border-border shadow-2xl z-50 lg:right-80 transform transition-transform duration-300 ease-in-out">
+            <div className="flex flex-col h-full">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <h2 className="text-lg font-semibold">Event Details</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSidebarDetailEvent(null)}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Event Details */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Title */}
+                <div>
+                  <div
+                    className="w-full h-1 rounded-full mb-3"
+                    style={{ backgroundColor: sidebarDetailEvent.color || '#3b82f6' }}
+                  />
+                  <h3 className="text-xl font-semibold break-words">{sidebarDetailEvent.title}</h3>
+                </div>
+
+                {/* Time */}
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <CalendarIconLucide className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">
+                      {format(new Date(sidebarDetailEvent.startTime), 'EEEE, MMMM d, yyyy')}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {format(new Date(sidebarDetailEvent.startTime), 'h:mm a')} - {format(new Date(sidebarDetailEvent.endTime), 'h:mm a')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Location */}
+                {sidebarDetailEvent.location && (
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+                      <span className="text-accent-foreground">📍</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">Location</p>
+                      <p className="text-sm text-muted-foreground break-words">{sidebarDetailEvent.location}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Description */}
+                {sidebarDetailEvent.description && (
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+                      <span className="text-accent-foreground">📝</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium mb-1">Description</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{sidebarDetailEvent.description}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Attendees */}
+                {sidebarDetailEvent.attendees && sidebarDetailEvent.attendees.length > 0 && (
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+                      <span className="text-accent-foreground">👥</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium mb-2">Attendees</p>
+                      <div className="space-y-1">
+                        {sidebarDetailEvent.attendees.map((attendee: any, idx: number) => (
+                          <div key={idx} className="text-sm text-muted-foreground break-words">
+                            {attendee.email || attendee}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Calendar */}
+                {sidebarDetailEvent.calendar && (
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                      <CalendarIconLucide className="h-4 w-4 text-orange-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">Calendar</p>
+                      <p className="text-sm text-muted-foreground break-words">{sidebarDetailEvent.calendar}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="p-4 border-t border-border space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setSelectedEvent(sidebarDetailEvent);
+                    setSidebarDetailEvent(null);
+                  }}
+                >
+                  Edit Event
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={async () => {
+                    if (confirm('Are you sure you want to delete this event?')) {
+                      try {
+                        const response = await fetch(`/api/calendar/events/${sidebarDetailEvent.id}`, {
+                          method: 'DELETE',
+                        });
+
+                        if (response.ok) {
+                          setSidebarDetailEvent(null);
+                          fetchEvents();
+                          toast({
+                            title: 'Event Deleted',
+                            description: 'The event has been deleted successfully.',
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Failed to delete event:', error);
+                        toast({
+                          title: 'Delete Failed',
+                          description: 'Failed to delete the event.',
+                          variant: 'destructive',
+                        });
+                      }
+                    }
+                  }}
+                >
+                  Delete Event
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Slide-in Calendar List Panel */}
+      {isCalendarListOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/20 z-40 lg:hidden"
+            onClick={() => setIsCalendarListOpen(false)}
+          />
+
+          {/* Calendar List Panel */}
+          <div className={cn(
+            "fixed top-0 right-0 h-full w-80 bg-card border-l border-border shadow-2xl z-50",
+            "transform transition-transform duration-300 ease-in-out",
+            "lg:right-80" // Offset by sidebar width on desktop
+          )}>
+            <div className="flex flex-col h-full">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <CalendarIconLucide className="h-5 w-5" />
+                  My Calendars
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsCalendarListOpen(false)}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Calendar Selector */}
+              <div className="flex-1 overflow-y-auto">
+                <CalendarSelector
+                  accounts={allAccounts.filter(a => a.isActive && a.nylasGrantId)}
+                  selectedCalendarIds={selectedCalendarIds}
+                  onCalendarSelectionChange={handleCalendarSelectionChange}
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Modals */}
       <DayEventsModal
@@ -986,6 +1439,7 @@ function CalendarContent() {
           setIsEventModalOpen(true);
         }}
         onBulkDelete={handleBulkDelete}
+        onQuickAdd={() => setIsQuickAddOpen(true)}
       />
 
       <EventDetailsModal
@@ -1015,7 +1469,7 @@ function CalendarContent() {
         onSuccess={fetchEvents}
       />
 
-      <QuickAdd
+      <QuickAddV4
         isOpen={isQuickAddOpen}
         onClose={() => setIsQuickAddOpen(false)}
         onEventCreated={fetchEvents}

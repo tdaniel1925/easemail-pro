@@ -26,11 +26,13 @@ interface EmailCardProps {
     isStarred: boolean | null;
     hasAttachments: boolean | null;
     attachmentsCount: number | null;
+    threadId?: string | null;
   };
   isSelected: boolean;
   isActive: boolean;
   onSelect: (id: string) => void;
   onClick: (email: any) => void;
+  onThreadClick?: (threadId: string) => void;
   threadCount?: number;
 }
 
@@ -40,6 +42,7 @@ function EmailCard({
   isActive,
   onSelect,
   onClick,
+  onThreadClick,
   threadCount = 0,
 }: EmailCardProps) {
   const getInitial = (name: string | null, email: string | null) => {
@@ -179,10 +182,20 @@ function EmailCard({
 
           {/* Footer Badges */}
           <div className="flex items-center gap-2 mt-2">
-            {threadCount > 1 && (
-              <Badge variant="secondary" className="text-xs">
+            {threadCount > 1 && email.threadId && (
+              <Badge
+                variant="secondary"
+                className="text-xs cursor-pointer hover:bg-primary/20 hover:text-primary transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onThreadClick && email.threadId) {
+                    onThreadClick(email.threadId);
+                  }
+                }}
+                title="View thread summary"
+              >
                 <MessageSquare className="h-3 w-3 mr-1" />
-                {threadCount}
+                {threadCount} messages
               </Badge>
             )}
             {email.hasAttachments && (

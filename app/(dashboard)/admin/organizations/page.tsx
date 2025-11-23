@@ -239,7 +239,8 @@ export default function OrganizationsManagement() {
 
   const filteredOrgs = organizations.filter(org =>
     org.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    org.slug.toLowerCase().includes(searchQuery.toLowerCase())
+    org.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (org.billingEmail && org.billingEmail.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
@@ -262,8 +263,8 @@ export default function OrganizationsManagement() {
         {/* Toast Notification */}
         {toast && (
           <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 animate-in slide-in-from-top-2 ${
-            toast.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' :
-            'bg-red-500/10 border-red-500 text-red-500'
+            toast.type === 'success' ? 'bg-primary/10 border-primary text-primary' :
+            'bg-destructive/10 border-destructive text-destructive'
           }`}>
             <div className="flex-shrink-0 mt-0.5">
               {toast.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <Ban className="h-5 w-5" />}
@@ -285,7 +286,7 @@ export default function OrganizationsManagement() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search organizations by name or slug..."
+              placeholder="Search organizations by name, slug, or billing email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -316,7 +317,7 @@ export default function OrganizationsManagement() {
                     {organizations.filter(o => o.isActive).length}
                   </p>
                 </div>
-                <CheckCircle className="h-8 w-8 text-green-500" />
+                <CheckCircle className="h-8 w-8 text-primary" />
               </div>
             </CardContent>
           </Card>
@@ -365,11 +366,11 @@ export default function OrganizationsManagement() {
                           <div className="flex items-center gap-2">
                             <div className="font-medium">{org.name}</div>
                             {!org.isActive && (
-                              <span className="text-xs bg-red-500/20 text-red-500 px-2 py-0.5 rounded">
+                              <span className="text-xs bg-destructive/20 text-destructive px-2 py-0.5 rounded">
                                 Inactive
                               </span>
                             )}
-                            <span className="text-xs bg-blue-500/20 text-blue-500 px-2 py-0.5 rounded">
+                            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
                               {org.planType}
                             </span>
                           </div>
@@ -408,9 +409,9 @@ export default function OrganizationsManagement() {
 
                           <DropdownMenuSeparator />
                           
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => handleDeleteOrg(org.id)}
-                            className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete Organization
@@ -656,9 +657,9 @@ export default function OrganizationsManagement() {
                     </div>
                   </div>
                   <span className={`text-xs px-2 py-1 rounded ${
-                    member.role === 'owner' ? 'bg-purple-500/20 text-purple-500' :
-                    member.role === 'admin' ? 'bg-blue-500/20 text-blue-500' :
-                    'bg-gray-500/20 text-gray-500'
+                    member.role === 'owner' ? 'bg-primary/20 text-primary' :
+                    member.role === 'admin' ? 'bg-accent text-accent-foreground' :
+                    'bg-muted text-muted-foreground'
                   }`}>
                     {member.role}
                   </span>

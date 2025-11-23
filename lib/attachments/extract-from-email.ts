@@ -1,12 +1,16 @@
 /**
  * Attachment Extraction Helper for Email Sync
- * Add this to your Nylas sync after saving each email
+ *
+ * ✅ ON-DEMAND MODE: Only saves metadata, attachments fetched from Nylas when needed
+ * - No downloads during sync (faster sync)
+ * - No storage costs (zero Supabase storage usage)
+ * - Always up-to-date (Nylas is source of truth)
  */
 
 import { db } from '@/lib/db/drizzle';
 import { attachments } from '@/lib/db/schema';
-import { createClient } from '@/lib/supabase/server';
 import type Nylas from 'nylas';
+import { shouldIndexAttachment } from './attachment-filter';
 
 interface ExtractAttachmentsParams {
   message: any; // Nylas message object
@@ -33,7 +37,6 @@ export async function extractAndSaveAttachments({
   console.log(`📎 Starting attachment extraction for message: ${message.id}`);
   console.log(`📎 Found ${message.attachments.length} attachment(s)`);
 
-  const supabase = await createClient();
   let saved = 0;
   let skipped = 0;
   let failed = 0;
@@ -66,52 +69,28 @@ export async function extractAndSaveAttachments({
         continue;
       }
 
-      // Download attachment from Nylas
-      console.log(`📥 Downloading from Nylas: ${filename}`);
-      const attachmentResponse = await nylas.attachments.download({
-        identifier: grantId,
-        attachmentId: fileId,
-        queryParams: {
-          messageId: message.id,
-        },
+      // Check if attachment should be indexed (exclude .ics, .vcf, signatures, etc.)
+      const indexCheck = shouldIndexAttachment({
+        filename,
+        contentType,
+        isInline,
+        size,
       });
 
-      if (!attachmentResponse) {
-        throw new Error('Empty response from Nylas download');
+      if (!indexCheck.shouldIndex) {
+        skipped++;
+        console.log(`⏭️  Excluding: ${filename} - ${indexCheck.reason}`);
+        continue;
       }
-
-      console.log(`✅ Downloaded ${filename}, size: ${attachmentResponse instanceof Buffer ? attachmentResponse.length : 'unknown'} bytes`);
-
-      // Upload to Supabase Storage
-      const sanitizedFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_'); // Sanitize filename
-      const storagePath = `${userId}/${message.id}/${sanitizedFilename}`;
-      
-      console.log(`☁️  Uploading to Supabase: ${storagePath}`);
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('attachments')
-        .upload(storagePath, attachmentResponse, {
-          contentType: contentType,
-          cacheControl: '3600',
-          upsert: false, // Don't overwrite existing files
-        });
-
-      if (uploadError) {
-        // If file already exists, skip it
-        if (uploadError.message.includes('already exists') || uploadError.message.includes('duplicate')) {
-          skipped++;
-          console.log(`⏭️  Already exists: ${filename}`);
-          continue;
-        }
-        throw uploadError;
-      }
-
-      console.log(`✅ Uploaded to Supabase: ${filename}`);
 
       // Get file extension
       const extension = filename.split('.').pop()?.toLowerCase() || '';
 
-      // Create attachment record
+      // ✅ NEW APPROACH: Save metadata only - NO downloading/uploading
+      // Attachments will be fetched on-demand from Nylas when user requests preview/download
+      console.log(`💾 Saving metadata (on-demand mode): ${filename}`);
+
+      // Create attachment record with Nylas IDs
       await db.insert(attachments).values({
         userId,
         emailId: emailRecord.id,
@@ -120,7 +99,11 @@ export async function extractAndSaveAttachments({
         fileExtension: extension,
         mimeType: contentType,
         fileSizeBytes: size,
-        storagePath,
+        // Nylas IDs for on-demand fetching
+        nylasAttachmentId: fileId,
+        nylasMessageId: message.id,
+        nylasGrantId: grantId,
+        // Email context
         emailSubject: message.subject || '(No Subject)',
         senderEmail: message.from?.[0]?.email || '',
         senderName: message.from?.[0]?.name || '',
@@ -130,7 +113,7 @@ export async function extractAndSaveAttachments({
       });
 
       saved++;
-      console.log(`✅ Saved to database: ${filename}`);
+      console.log(`✅ Saved metadata to database: ${filename}`);
 
     } catch (error: any) {
       failed++;

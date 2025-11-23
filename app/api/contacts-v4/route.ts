@@ -220,7 +220,24 @@ export async function POST(request: NextRequest) {
     // Insert contact
     const [newContact] = await db.insert(contactsV4).values(contactData).returning();
 
-    // TODO: If sync_immediately is true, trigger sync to Nylas
+    // Trigger immediate sync to Nylas if requested
+    if (sync_immediately) {
+      const { triggerContactSync } = await import('@/lib/services/contacts-v4-sync-trigger');
+
+      // Trigger async (don't wait for response)
+      triggerContactSync({
+        contactId: newContact.id,
+        userId: user.id,
+      }).then((result) => {
+        if (result.success) {
+          console.log(`✅ Contact synced to Nylas: ${newContact.id}`);
+        } else {
+          console.error(`⚠️ Contact sync failed: ${result.error}`);
+        }
+      }).catch((error) => {
+        console.error(`❌ Contact sync trigger error:`, error);
+      });
+    }
 
     return NextResponse.json({
       success: true,

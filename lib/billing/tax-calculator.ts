@@ -206,19 +206,39 @@ export function calculateTaxAmount(subtotal: number, location: TaxLocation): {
  * Get tax rate for user from database
  */
 export async function getTaxRateForUser(userId: string): Promise<TaxRate> {
-  // This would fetch user's billing address from database
-  // For now, return a default implementation
-  
-  // TODO: Implement database lookup for user's billing address
-  // const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
-  // const billingAddress = user?.billingAddress;
-  
-  // Default to no tax if location unknown
-  return {
-    rate: 0,
-    name: 'No Tax',
-    jurisdiction: 'Unknown',
+  // Import database modules dynamically to avoid circular dependencies
+  const { db } = await import('@/lib/db/drizzle');
+  const { users } = await import('@/lib/db/schema');
+  const { eq } = await import('drizzle-orm');
+
+  // Fetch user's billing address from database
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+  });
+
+  if (!user || !user.billingAddress) {
+    // Default to no tax if billing address not set
+    return {
+      rate: 0,
+      name: 'No Tax',
+      jurisdiction: 'Unknown',
+    };
+  }
+
+  const billingAddress = user.billingAddress as {
+    country?: string;
+    state?: string;
+    province?: string;
+    zipCode?: string;
   };
+
+  // Calculate tax rate based on billing address
+  return calculateTaxRate({
+    country: billingAddress.country || '',
+    state: billingAddress.state,
+    province: billingAddress.province,
+    zipCode: billingAddress.zipCode,
+  });
 }
 
 /**

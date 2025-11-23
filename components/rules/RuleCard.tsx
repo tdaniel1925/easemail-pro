@@ -13,9 +13,10 @@ interface RuleCardProps {
   onEdit: (rule: SimpleEmailRule) => void;
   onDelete: (ruleId: string) => void;
   onToggle: (ruleId: string, isEnabled: boolean) => void;
+  onTest: (rule: SimpleEmailRule) => void;
 }
 
-export default function RuleCard({ rule, onEdit, onDelete, onToggle }: RuleCardProps) {
+export default function RuleCard({ rule, onEdit, onDelete, onToggle, onTest }: RuleCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -66,6 +67,14 @@ export default function RuleCard({ rule, onEdit, onDelete, onToggle }: RuleCardP
               ) : (
                 <ChevronDown className="h-4 w-4" />
               )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onTest(rule)}
+              title="Test this rule"
+            >
+              <Play className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"

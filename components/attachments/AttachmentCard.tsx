@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import {
   Paperclip as PaperClipIcon,
   Download as ArrowDownTrayIcon,
-  Mail as EnvelopeIcon,
+  ExternalLink as ExternalLinkIcon,
   Eye as EyeIcon,
 } from 'lucide-react';
 import type { Attachment } from '@/lib/attachments/types';
@@ -30,7 +30,7 @@ export function AttachmentCard({
   attachment,
   onPreview,
   onDownload,
-  onOpenEmail,
+  onOpenEmail, // Keep for backwards compatibility but will use as "Open" instead
   isSelected = false,
   onSelect,
   showCheckbox = false,
@@ -173,11 +173,11 @@ export function AttachmentCard({
             <ArrowDownTrayIcon className="h-4 w-4 text-gray-600" size={16} />
           </button>
           <button
-            onClick={onOpenEmail}
+            onClick={onPreview}
             className="rounded-lg border border-gray-300 p-1.5 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            title="Open Email"
+            title="Open"
           >
-            <EnvelopeIcon className="h-4 w-4 text-gray-600" size={16} />
+            <ExternalLinkIcon className="h-4 w-4 text-gray-600" size={16} />
           </button>
         </div>
       </div>

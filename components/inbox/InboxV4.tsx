@@ -10,6 +10,7 @@ import EmailDetail from './EmailDetail';
 import FolderNav from './FolderNav';
 import SearchBar from './SearchBar';
 import BulkActions from './BulkActions';
+import { ThreadSummaryModal } from './ThreadSummaryModal';
 import {
   Mail,
   RefreshCw,
@@ -92,6 +93,8 @@ export default function InboxV4({
   const [filterAttachments, setFilterAttachments] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(50);
+  const [threadModalOpen, setThreadModalOpen] = useState(false);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
 
   // Reset folder to inbox when account changes or on page refresh
   useEffect(() => {
@@ -374,6 +377,12 @@ export default function InboxV4({
     });
   }, []);
 
+  // Handle thread click (open AI summary modal)
+  const handleThreadClick = useCallback((threadId: string) => {
+    setSelectedThreadId(threadId);
+    setThreadModalOpen(true);
+  }, []);
+
   // Select all
   const selectAll = useCallback(() => {
     if (selectedIds.size === displayEmails.length) {
@@ -492,6 +501,7 @@ export default function InboxV4({
                   isActive={selectedEmail?.id === email.id}
                   onSelect={toggleSelection}
                   onClick={handleEmailClick}
+                  onThreadClick={handleThreadClick}
                   threadCount={(email as any).threadCount || 0}
                 />
               ))}
@@ -548,6 +558,19 @@ export default function InboxV4({
           </div>
         </div>
       )}
+
+      {/* Thread Summary Modal */}
+      <ThreadSummaryModal
+        open={threadModalOpen}
+        onOpenChange={setThreadModalOpen}
+        threadId={selectedThreadId}
+        onEmailClick={(emailId) => {
+          const email = emails.find(e => e.id === emailId);
+          if (email) {
+            handleEmailClick(email);
+          }
+        }}
+      />
     </div>
   );
 }

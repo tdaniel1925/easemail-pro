@@ -1,6 +1,6 @@
 /**
  * Billing Email Notifications
- * 
+ *
  * Sends email notifications for billing events via Resend
  */
 
@@ -45,6 +45,24 @@ interface ChargeFailureData {
   amount: number;
   reason: string;
   retryDate?: Date;
+}
+
+interface TrialEndingData {
+  userEmail: string;
+  userName: string;
+  planName: string;
+  trialEndsAt: Date;
+  daysRemaining: number;
+}
+
+interface InvoiceData {
+  userEmail: string;
+  userName: string;
+  invoiceNumber: string;
+  amount: number;
+  dueDate: Date;
+  invoiceUrl?: string;
+  invoicePdfUrl?: string;
 }
 
 /**
@@ -102,7 +120,7 @@ export async function sendBillingRunNotification(
                 <span class="success"><strong>$${data.totalAmountCharged.toFixed(2)}</strong></span>
               </div>
             </div>
-            
+
             ${data.errors.length > 0 ? `
               <div class="errors">
                 <h3 style="margin-top: 0; color: #dc2626;">Failed Charges (${data.errors.length})</h3>
@@ -117,9 +135,9 @@ export async function sendBillingRunNotification(
                 </ul>
               </div>
             ` : ''}
-            
+
             <p style="margin-top: 20px;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/billing-config" 
+              <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/billing-config"
                  style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
                 View Billing Dashboard
               </a>
@@ -178,26 +196,26 @@ export async function sendPaymentMethodRequiredEmail(
           </div>
           <div class="content">
             <p>Hi ${data.userName},</p>
-            
+
             <div class="alert">
               <p style="margin: 0;"><strong>Action Required:</strong> Your EaseMail ${data.subscriptionTier} subscription requires a payment method on file.</p>
             </div>
-            
+
             <p>To continue using EaseMail without interruption, please add a payment method to your account within the next <strong>${daysLeft} day${daysLeft !== 1 ? 's' : ''}</strong>.</p>
-            
+
             <p><strong>What happens if I don't add a payment method?</strong></p>
             <ul>
               <li>Your account will be temporarily suspended after ${data.gracePeriodDays} days</li>
               <li>You won't be able to send emails or use AI features</li>
               <li>Your account will be automatically reactivated once you add a payment method</li>
             </ul>
-            
+
             <div class="cta">
               <a href="${process.env.NEXT_PUBLIC_APP_URL}/settings/billing" class="button">
                 Add Payment Method
               </a>
             </div>
-            
+
             <p style="color: #6b7280; font-size: 14px;">
               <strong>Note:</strong> You can continue using all features during the grace period. This is just a friendly reminder to add your payment information.
             </p>
@@ -255,13 +273,13 @@ export async function sendChargeSuccessEmail(
           </div>
           <div class="content">
             <p>Hi ${data.userName},</p>
-            
+
             <p>Your payment has been processed successfully. Thank you for using EaseMail!</p>
-            
+
             <div class="invoice">
               <p><strong>Billing Period:</strong><br>
               ${data.periodStart.toLocaleDateString()} - ${data.periodEnd.toLocaleDateString()}</p>
-              
+
               <div class="breakdown">
                 <h3 style="margin: 0 0 15px 0;">Usage Charges</h3>
                 ${data.breakdown.sms > 0 ? `
@@ -283,15 +301,15 @@ export async function sendChargeSuccessEmail(
                   </div>
                 ` : ''}
               </div>
-              
+
               <div class="line-item total">
                 <span>Total Charged</span>
                 <span style="color: #059669;">$${data.amount.toFixed(2)}</span>
               </div>
             </div>
-            
+
             <p style="text-align: center; margin-top: 25px;">
-              <a href="${process.env.NEXT_PUBLIC_APP_URL}/settings/billing" 
+              <a href="${process.env.NEXT_PUBLIC_APP_URL}/settings/billing"
                  style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
                 View Billing Details
               </a>
@@ -348,26 +366,26 @@ export async function sendChargeFailureEmail(
           </div>
           <div class="content">
             <p>Hi ${data.userName},</p>
-            
+
             <div class="alert">
               <p style="margin: 0;"><strong>Payment Failed:</strong> We were unable to process your payment of $${data.amount.toFixed(2)}.</p>
             </div>
-            
+
             <p><strong>Reason:</strong> ${data.reason}</p>
-            
+
             ${data.retryDate ? `
               <p>We'll automatically retry this charge on ${data.retryDate.toLocaleDateString()}. You can also update your payment method now to process the charge immediately.</p>
             ` : `
               <p>Please update your payment method to avoid service interruption.</p>
             `}
-            
+
             <p><strong>What you should do:</strong></p>
             <ul>
               <li>Check if your card is expired or has insufficient funds</li>
               <li>Update your payment method in billing settings</li>
               <li>Contact your bank if the issue persists</li>
             </ul>
-            
+
             <div class="cta">
               <a href="${process.env.NEXT_PUBLIC_APP_URL}/settings/billing" class="button">
                 Update Payment Method
@@ -396,3 +414,161 @@ export async function sendChargeFailureEmail(
   }
 }
 
+/**
+ * Send trial ending soon notification
+ */
+export async function sendTrialEndingEmail(
+  data: TrialEndingData
+): Promise<void> {
+  try {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #f59e0b; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+          .alert { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0; }
+          .cta { text-align: center; margin: 25px 0; }
+          .button { background: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; }
+          .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0;">⏰ Your Trial is Ending Soon</h1>
+          </div>
+          <div class="content">
+            <p>Hi ${data.userName},</p>
+
+            <div class="alert">
+              <p style="margin: 0;"><strong>Reminder:</strong> Your ${data.planName} trial ends in ${data.daysRemaining} day${data.daysRemaining !== 1 ? 's' : ''}!</p>
+            </div>
+
+            <p>Your trial will end on <strong>${data.trialEndsAt.toLocaleDateString()}</strong>. To continue enjoying all the benefits of EaseMail without interruption, please add a payment method to your account.</p>
+
+            <p><strong>What happens when my trial ends?</strong></p>
+            <ul>
+              <li>If you have a payment method on file, your subscription will continue automatically</li>
+              <li>If no payment method is added, your account will be downgraded to the free plan</li>
+              <li>You can cancel anytime from your billing settings</li>
+            </ul>
+
+            <div class="cta">
+              <a href="${process.env.NEXT_PUBLIC_APP_URL}/settings/billing" class="button">
+                Add Payment Method
+              </a>
+            </div>
+
+            <p style="text-align: center; margin-top: 20px;">
+              <a href="${process.env.NEXT_PUBLIC_APP_URL}/settings/billing" style="color: #6b7280; font-size: 14px; text-decoration: underline;">
+                Or cancel subscription
+              </a>
+            </p>
+          </div>
+          <div class="footer">
+            <p>EaseMail - Making Email Management Effortless</p>
+            <p>Questions? Contact us at support@easemail.app</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await resend.emails.send({
+      from: 'EaseMail <notifications@easemail.app>',
+      to: data.userEmail,
+      subject: `⏰ Your ${data.planName} Trial Ends in ${data.daysRemaining} Day${data.daysRemaining !== 1 ? 's' : ''}`,
+      html,
+    });
+
+    console.log(`✅ Trial ending notification sent to ${data.userEmail}`);
+  } catch (error) {
+    console.error('Failed to send trial ending notification:', error);
+  }
+}
+
+/**
+ * Send invoice email to user
+ */
+export async function sendInvoiceEmail(
+  data: InvoiceData
+): Promise<void> {
+  try {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #4f46e5; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+          .invoice { background: white; padding: 20px; border-radius: 6px; margin: 15px 0; }
+          .amount { font-size: 24px; font-weight: bold; color: #4f46e5; text-align: center; margin: 20px 0; }
+          .cta { text-align: center; margin: 25px 0; }
+          .button { background: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; margin: 0 10px; }
+          .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0;">📄 New Invoice from EaseMail</h1>
+            <p style="margin: 5px 0 0 0;">Invoice #${data.invoiceNumber}</p>
+          </div>
+          <div class="content">
+            <p>Hi ${data.userName},</p>
+
+            <p>A new invoice has been generated for your EaseMail account.</p>
+
+            <div class="invoice">
+              <p><strong>Invoice Number:</strong> ${data.invoiceNumber}</p>
+              <p><strong>Due Date:</strong> ${data.dueDate.toLocaleDateString()}</p>
+
+              <div class="amount">
+                $${data.amount.toFixed(2)}
+              </div>
+            </div>
+
+            <div class="cta">
+              ${data.invoiceUrl ? `
+                <a href="${data.invoiceUrl}" class="button">
+                  View Invoice
+                </a>
+              ` : ''}
+              ${data.invoicePdfUrl ? `
+                <a href="${data.invoicePdfUrl}" class="button" style="background: #059669;">
+                  Download PDF
+                </a>
+              ` : ''}
+            </div>
+
+            <p style="color: #6b7280; font-size: 14px; text-align: center;">
+              If you have a payment method on file, this invoice will be charged automatically on the due date.
+            </p>
+          </div>
+          <div class="footer">
+            <p>EaseMail - Making Email Management Effortless</p>
+            <p>Questions? Contact us at billing@easemail.app</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await resend.emails.send({
+      from: 'EaseMail Billing <billing@easemail.app>',
+      to: data.userEmail,
+      subject: `📄 Invoice ${data.invoiceNumber} - Due ${data.dueDate.toLocaleDateString()}`,
+      html,
+    });
+
+    console.log(`✅ Invoice email sent to ${data.userEmail}`);
+  } catch (error) {
+    console.error('Failed to send invoice email:', error);
+  }
+}

@@ -219,12 +219,12 @@ export default function AdminDashboard() {
             </Card>
           </Link>
 
-          <Card className="hover:bg-accent cursor-pointer transition-colors opacity-50">
+          <Card className="opacity-50 cursor-not-allowed">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Activity className="h-5 w-5" />
                 Activity Logs
-                <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
                   Coming Soon
                 </span>
               </CardTitle>
@@ -234,12 +234,12 @@ export default function AdminDashboard() {
             </CardHeader>
           </Card>
 
-          <Card className="hover:bg-accent cursor-pointer transition-colors opacity-50">
+          <Card className="opacity-50 cursor-not-allowed">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="h-5 w-5" />
                 System Health
-                <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
                   Coming Soon
                 </span>
               </CardTitle>

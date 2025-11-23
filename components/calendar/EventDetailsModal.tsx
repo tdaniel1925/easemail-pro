@@ -53,6 +53,38 @@ function sanitizeEventText(text: string | undefined | null): string {
   return decoded.replace(/<[^>]*>/g, '').trim();
 }
 
+// Convert URLs in text to clickable links
+function linkifyText(text: string): JSX.Element {
+  if (!text) return <></>;
+
+  // URL regex pattern
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.match(urlRegex)) {
+          return (
+            <a
+              key={index}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline inline-flex items-center gap-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {part}
+              <ExternalLink className="h-3 w-3 inline" />
+            </a>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 export default function EventDetailsModal({
   isOpen,
   onClose,
@@ -336,7 +368,7 @@ export default function EventDetailsModal({
               <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
                 <p className="font-medium">Location</p>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{sanitizeEventText(event.location)}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{linkifyText(sanitizeEventText(event.location))}</p>
               </div>
             </div>
           )}
@@ -347,7 +379,7 @@ export default function EventDetailsModal({
               <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div className="flex-1">
                 <p className="font-medium">Description</p>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{sanitizeEventText(event.description)}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{linkifyText(sanitizeEventText(event.description))}</p>
               </div>
             </div>
           )}

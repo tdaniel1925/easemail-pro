@@ -238,8 +238,8 @@ export default function SystemSettingsContent() {
         {toast && (
           <div className="mx-6 mt-4">
             <div className={`p-4 rounded-lg border flex items-start gap-3 animate-in slide-in-from-top-2 ${
-              toast.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' :
-              'bg-red-500/10 border-red-500 text-red-500'
+              toast.type === 'success' ? 'bg-primary/10 border-primary text-primary' :
+              'bg-destructive/10 border-destructive text-destructive'
             }`}>
               <div className="flex-shrink-0 mt-0.5">
                 {toast.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <Ban className="h-5 w-5" />}
@@ -501,10 +501,10 @@ export default function SystemSettingsContent() {
                     </CardContent>
                   </Card>
 
-                  <Card className="border-yellow-500/50 bg-yellow-500/5">
+                  <Card className="border-border bg-muted">
                     <CardHeader>
-                      <CardTitle className="text-yellow-600 dark:text-yellow-500 flex items-center gap-2">
-                        <Ban className="h-5 w-5" />
+                      <CardTitle className="text-foreground flex items-center gap-2">
+                        <Ban className="h-5 w-5 text-primary" />
                         Warning
                       </CardTitle>
                     </CardHeader>

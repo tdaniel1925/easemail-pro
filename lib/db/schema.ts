@@ -70,7 +70,18 @@ export const users = pgTable('users', {
   // Billing & Promo fields
   isPromoUser: boolean('is_promo_user').default(false), // Promo users get free access without billing
   subscriptionTier: varchar('subscription_tier', { length: 50 }).default('free'), // 'free', 'starter', 'pro', 'enterprise'
-  
+
+  // Billing Address (for tax calculation)
+  billingAddress: jsonb('billing_address').$type<{
+    street?: string;
+    street2?: string;
+    city?: string;
+    state?: string;
+    province?: string;
+    zipCode?: string;
+    country?: string;
+  }>(),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -156,7 +167,8 @@ export const emailAccounts = pgTable('email_accounts', {
   // Webhooks
   webhookId: varchar('webhook_id', { length: 255 }),
   webhookStatus: varchar('webhook_status', { length: 50 }).default('inactive'),
-  
+  suppressWebhooks: boolean('suppress_webhooks').default(false), // Suppress webhooks during initial sync
+
   // Storage
   storageUsed: bigint('storage_used', { mode: 'number' }).default(0),
   storageLimit: bigint('storage_limit', { mode: 'number' }).default(5368709120),
@@ -264,9 +276,14 @@ export const attachments = pgTable('attachments', {
   fileExtension: varchar('file_extension', { length: 50 }),
   mimeType: varchar('mime_type', { length: 255 }),
   fileSizeBytes: bigint('file_size_bytes', { mode: 'number' }).notNull(),
-  
-  // Storage
-  storagePath: varchar('storage_path', { length: 1000 }).notNull(),
+
+  // Nylas attachment IDs (for on-demand fetching)
+  nylasAttachmentId: varchar('nylas_attachment_id', { length: 255 }).notNull(),
+  nylasMessageId: varchar('nylas_message_id', { length: 255 }).notNull(),
+  nylasGrantId: varchar('nylas_grant_id', { length: 255 }).notNull(),
+
+  // Legacy storage fields (optional, for backwards compatibility)
+  storagePath: varchar('storage_path', { length: 1000 }),
   storageUrl: text('storage_url'),
   thumbnailPath: varchar('thumbnail_path', { length: 1000 }),
   thumbnailUrl: text('thumbnail_url'),

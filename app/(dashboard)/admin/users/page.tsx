@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Mail, Shield, Trash2, ArrowLeft, Search, MoreVertical, Ban, Key, UserX, CheckCircle, Edit, X, Crown, Zap, Sparkles, UserCog, UserPlus, FileText, Loader2 } from 'lucide-react';
+import { Users, Mail, Shield, Trash2, ArrowLeft, Search, MoreVertical, Ban, Key, UserX, CheckCircle, Edit, X, Crown, Zap, Sparkles, UserCog, UserPlus, FileText, Loader2, CheckSquare, Square } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
 import {
@@ -63,6 +64,13 @@ export default function UsersManagement() {
   const [impersonating, setImpersonating] = useState(false);
   const [addUserModalOpen, setAddUserModalOpen] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
+
+  // Bulk actions state
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [bulkActionModalOpen, setBulkActionModalOpen] = useState(false);
+  const [bulkAction, setBulkAction] = useState<'suspend' | 'delete' | 'tier' | null>(null);
+  const [bulkTier, setBulkTier] = useState<string>('free');
+  const [performingBulkAction, setPerformingBulkAction] = useState(false);
   
   // Activity log state
   const [activityLogModalOpen, setActivityLogModalOpen] = useState(false);
@@ -95,16 +103,16 @@ export default function UsersManagement() {
   const getSubscriptionBadge = (tier?: string) => {
     switch(tier) {
       case 'beta':
-        return { label: 'Beta', color: 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30', icon: Sparkles };
+        return { label: 'Beta', color: 'bg-accent text-accent-foreground border-accent-foreground/30', icon: Sparkles };
       case 'enterprise':
-        return { label: 'Enterprise', color: 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30', icon: Shield };
+        return { label: 'Enterprise', color: 'bg-primary/30 text-primary border-primary/40', icon: Shield };
       case 'pro':
-        return { label: 'Pro', color: 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/30', icon: Crown };
+        return { label: 'Pro', color: 'bg-primary/20 text-primary border-primary/30', icon: Crown };
       case 'starter':
-        return { label: 'Starter', color: 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30', icon: Zap };
+        return { label: 'Starter', color: 'bg-primary/10 text-primary border-primary/20', icon: Zap };
       case 'free':
       default:
-        return { label: 'Free', color: 'bg-gray-500/20 text-gray-600 dark:text-gray-400 border-gray-500/30', icon: Mail };
+        return { label: 'Free', color: 'bg-muted text-muted-foreground border-border', icon: Mail };
     }
   };
 
@@ -402,6 +410,88 @@ export default function UsersManagement() {
     }
   };
 
+  // Bulk action handlers
+  const handleSelectAll = () => {
+    if (selectedUsers.size === filteredUsers.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(filteredUsers.map(u => u.id)));
+    }
+  };
+
+  const handleSelectUser = (userId: string) => {
+    const newSelected = new Set(selectedUsers);
+    if (newSelected.has(userId)) {
+      newSelected.delete(userId);
+    } else {
+      newSelected.add(userId);
+    }
+    setSelectedUsers(newSelected);
+  };
+
+  const handleOpenBulkAction = (action: 'suspend' | 'delete' | 'tier') => {
+    setBulkAction(action);
+    setBulkActionModalOpen(true);
+  };
+
+  const handlePerformBulkAction = async () => {
+    if (!bulkAction || selectedUsers.size === 0) return;
+
+    setPerformingBulkAction(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (const userId of Array.from(selectedUsers)) {
+        try {
+          let response;
+
+          if (bulkAction === 'suspend') {
+            response = await fetch(`/api/admin/users/${userId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ suspended: true }),
+            });
+          } else if (bulkAction === 'delete') {
+            response = await fetch(`/api/admin/users/${userId}`, {
+              method: 'DELETE',
+            });
+          } else if (bulkAction === 'tier') {
+            response = await fetch(`/api/admin/users/${userId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ subscriptionTier: bulkTier }),
+            });
+          }
+
+          if (response?.ok) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (error) {
+          console.error(`Failed to perform action on user ${userId}:`, error);
+          errorCount++;
+        }
+      }
+
+      await fetchUsers();
+      setSelectedUsers(new Set());
+      setBulkActionModalOpen(false);
+
+      if (errorCount === 0) {
+        showToast('success', `Successfully ${bulkAction === 'tier' ? 'changed tier for' : bulkAction === 'delete' ? 'deleted' : 'suspended'} ${successCount} user(s)`);
+      } else {
+        showToast('error', `Completed with ${successCount} success(es) and ${errorCount} error(s)`);
+      }
+    } catch (error) {
+      console.error('Bulk action failed:', error);
+      showToast('error', 'Bulk action failed');
+    } finally {
+      setPerformingBulkAction(false);
+    }
+  };
+
   const filteredUsers = users.filter(user =>
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (user.fullName?.toLowerCase() || '').includes(searchQuery.toLowerCase())
@@ -437,12 +527,61 @@ export default function UsersManagement() {
           </div>
         </div>
 
+        {/* Bulk Actions Toolbar */}
+        {selectedUsers.size > 0 && (
+          <Card className="mb-6 bg-primary/5 border-primary">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-primary" />
+                  <span className="font-medium">{selectedUsers.size} user{selectedUsers.size !== 1 ? 's' : ''} selected</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenBulkAction('suspend')}
+                  >
+                    <Ban className="h-4 w-4 mr-2" />
+                    Suspend Selected
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenBulkAction('tier')}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Change Tier
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenBulkAction('delete')}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Selected
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedUsers(new Set())}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Toast Notification */}
         {toast && (
           <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 animate-in slide-in-from-top-2 ${
-            toast.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' :
-            toast.type === 'error' ? 'bg-red-500/10 border-red-500 text-red-500' :
-            'bg-blue-500/10 border-blue-500 text-blue-500'
+            toast.type === 'success' ? 'bg-primary/10 border-primary text-primary' :
+            toast.type === 'error' ? 'bg-destructive/10 border-destructive text-destructive' :
+            'bg-accent border-accent-foreground/20 text-accent-foreground'
           }`}>
             <div className="flex-shrink-0 mt-0.5">
               {toast.type === 'success' && <CheckCircle className="h-5 w-5" />}
@@ -507,10 +646,27 @@ export default function UsersManagement() {
         {/* Users Table */}
         <Card>
           <CardHeader>
-            <CardTitle>All Users</CardTitle>
-            <CardDescription>
-              {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''} found
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>All Users</CardTitle>
+                <CardDescription>
+                  {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''} found
+                </CardDescription>
+              </div>
+              {filteredUsers.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAll}
+                >
+                  {selectedUsers.size === filteredUsers.length ? (
+                    <><CheckSquare className="h-4 w-4 mr-2" />Deselect All</>
+                  ) : (
+                    <><Square className="h-4 w-4 mr-2" />Select All</>
+                  )}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -522,9 +678,16 @@ export default function UsersManagement() {
                 {filteredUsers.map((user) => (
                   <div
                     key={user.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+                    className={`flex items-center justify-between p-4 border rounded-lg transition-colors ${
+                      selectedUsers.has(user.id) ? 'bg-primary/5 border-primary' : 'hover:bg-accent'
+                    }`}
                   >
-                    <div className="flex-1">
+                    <div className="flex items-center gap-4 flex-1">
+                      <Checkbox
+                        checked={selectedUsers.has(user.id)}
+                        onCheckedChange={() => handleSelectUser(user.id)}
+                      />
+                      <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold">
                           {(user.fullName || user.email)[0].toUpperCase()}
@@ -533,19 +696,19 @@ export default function UsersManagement() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <div className="font-medium">{user.fullName || 'No name'}</div>
                             {user.suspended && (
-                              <span className="text-xs bg-red-500/20 text-red-500 px-2 py-0.5 rounded border border-red-500/30">
+                              <span className="text-xs bg-destructive/20 text-destructive px-2 py-0.5 rounded border border-destructive/30">
                                 Suspended
                               </span>
                             )}
                             {/* Invitation Status Badge */}
                             {!user.invitationAcceptedAt && user.invitationToken && (
-                              <span className="text-xs bg-yellow-500/20 text-yellow-600 px-2 py-0.5 rounded border border-yellow-500/30 flex items-center gap-1">
+                              <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded border border-accent-foreground/30 flex items-center gap-1">
                                 <Mail className="h-3 w-3" />
                                 Pending Invitation
                               </span>
                             )}
                             {user.invitationAcceptedAt && (
-                              <span className="text-xs bg-green-500/20 text-green-600 px-2 py-0.5 rounded border border-green-500/30 flex items-center gap-1">
+                              <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded border border-primary/30 flex items-center gap-1">
                                 <CheckCircle className="h-3 w-3" />
                                 Accepted
                               </span>
@@ -563,6 +726,7 @@ export default function UsersManagement() {
                           </div>
                           <div className="text-sm text-muted-foreground">{user.email}</div>
                         </div>
+                      </div>
                       </div>
                     </div>
 
@@ -1107,12 +1271,12 @@ export default function UsersManagement() {
                           {activity.activityType}
                         </span>
                         {activity.status === 'error' && (
-                          <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">
+                          <span className="text-xs px-2 py-0.5 rounded bg-destructive/20 text-destructive">
                             Error
                           </span>
                         )}
                         {activity.isFlagged && (
-                          <span className="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700">
+                          <span className="text-xs px-2 py-0.5 rounded bg-accent text-accent-foreground">
                             Flagged
                           </span>
                         )}
@@ -1123,7 +1287,7 @@ export default function UsersManagement() {
                         </div>
                       )}
                       {activity.errorMessage && (
-                        <div className="text-xs text-red-600 mt-1">
+                        <div className="text-xs text-destructive mt-1">
                           {activity.errorMessage}
                         </div>
                       )}
@@ -1151,6 +1315,70 @@ export default function UsersManagement() {
               ))}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Action Modal */}
+      <Dialog open={bulkActionModalOpen} onOpenChange={setBulkActionModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {bulkAction === 'suspend' && 'Suspend Selected Users'}
+              {bulkAction === 'delete' && 'Delete Selected Users'}
+              {bulkAction === 'tier' && 'Change Subscription Tier'}
+            </DialogTitle>
+            <DialogDescription>
+              {bulkAction === 'suspend' && `You are about to suspend ${selectedUsers.size} user(s). They will not be able to access their accounts.`}
+              {bulkAction === 'delete' && `You are about to permanently delete ${selectedUsers.size} user(s). This action cannot be undone.`}
+              {bulkAction === 'tier' && `You are about to change the subscription tier for ${selectedUsers.size} user(s).`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {bulkAction === 'tier' && (
+            <div className="py-4">
+              <Label htmlFor="bulkTier">Select New Tier</Label>
+              <Select value={bulkTier} onValueChange={setBulkTier}>
+                <SelectTrigger id="bulkTier" className="mt-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="starter">Starter</SelectItem>
+                  <SelectItem value="pro">Pro</SelectItem>
+                  <SelectItem value="enterprise">Enterprise</SelectItem>
+                  <SelectItem value="beta">Beta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkActionModalOpen(false)}
+              disabled={performingBulkAction}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePerformBulkAction}
+              disabled={performingBulkAction}
+              variant={bulkAction === 'delete' ? 'destructive' : 'default'}
+            >
+              {performingBulkAction ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  {bulkAction === 'suspend' && 'Suspend Users'}
+                  {bulkAction === 'delete' && 'Delete Users'}
+                  {bulkAction === 'tier' && 'Change Tier'}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AdminLayout>

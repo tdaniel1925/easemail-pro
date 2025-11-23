@@ -192,16 +192,19 @@ export function RichTextEditor({
 
   return (
     <div className={cn('border border-border rounded-lg', className)}>
-      {/* Custom CSS to preserve signature formatting */}
+      {/* Custom CSS to preserve signature formatting and enable paragraph spacing */}
       <style jsx global>{`
         .ProseMirror p {
-          line-height: 1.2 !important;
-          margin: 0 !important;
+          line-height: 1.5 !important;
+          margin-bottom: 0.75em !important;
+        }
+        /* Remove bottom margin from the last paragraph to prevent extra space */
+        .ProseMirror p:last-child {
+          margin-bottom: 0 !important;
         }
         .ProseMirror br {
           content: "";
           display: block;
-          margin: 0 !important;
         }
       `}</style>
       {/* Toolbar */}

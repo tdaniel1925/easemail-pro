@@ -1,61 +1,43 @@
 /**
- * AI-Powered Calendar Event Parser
- * Uses GPT-4o to intelligently parse natural language event descriptions
- * Handles durations, complex timing, and asks clarifying questions when needed
+ * AI-Powered Calendar Event Parser V4
+ * Uses GPT-4o with structured output for INSTANT event creation
+ * NO clarification questions - uses smart defaults instead
+ *
+ * Changes from V3:
+ * - Uses response_format with strict JSON schema
+ * - Never asks clarification questions
+ * - Auto-fills missing fields with intelligent defaults
+ * - Returns structured CalendarEvent object
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { zodResponseFormat } from 'openai/helpers/zod';
+import { z } from 'zod';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 /**
- * Validate parsed event data has required fields
+ * Zod schema for calendar event - enforces strict structure
  */
-function validateEventData(data: any): string[] {
-  const errors: string[] = [];
+const CalendarEventSchema = z.object({
+  title: z.string().describe('Event title or summary'),
+  startTime: z.string().describe('Start time in ISO 8601 format'),
+  endTime: z.string().describe('End time in ISO 8601 format'),
+  location: z.string().nullable().describe('Location or null if not specified'),
+  description: z.string().nullable().describe('Event description or null'),
+  attendees: z.array(z.string().email()).describe('Array of attendee email addresses'),
+  confidence: z.enum(['high', 'medium', 'low']).describe('Confidence level of the parse'),
+  explanation: z.string().describe('Brief explanation of what was understood and any defaults used'),
+});
 
-  // Check for required fields
-  if (!data.title || typeof data.title !== 'string' || data.title.trim() === '') {
-    errors.push('Event title is required');
-  }
-
-  if (!data.startTime || typeof data.startTime !== 'string') {
-    errors.push('Event start time is required and must be in ISO 8601 format');
-  } else {
-    // Validate it's a valid date
-    const startDate = new Date(data.startTime);
-    if (isNaN(startDate.getTime())) {
-      errors.push('Event start time is not a valid date');
-    }
-  }
-
-  if (!data.endTime || typeof data.endTime !== 'string') {
-    errors.push('Event end time is required and must be in ISO 8601 format');
-  } else {
-    // Validate it's a valid date
-    const endDate = new Date(data.endTime);
-    if (isNaN(endDate.getTime())) {
-      errors.push('Event end time is not a valid date');
-    }
-
-    // Validate end time is after start time
-    if (data.startTime) {
-      const startDate = new Date(data.startTime);
-      if (endDate <= startDate) {
-        errors.push('Event end time must be after start time');
-      }
-    }
-  }
-
-  return errors;
-}
+type CalendarEvent = z.infer<typeof CalendarEventSchema>;
 
 export async function POST(request: NextRequest) {
   try {
-    const { input, conversationHistory = [], timezone: clientTimezone } = await request.json();
+    const { input, timezone: clientTimezone } = await request.json();
 
     if (!input || typeof input !== 'string') {
       return NextResponse.json(
@@ -65,10 +47,9 @@ export async function POST(request: NextRequest) {
     }
 
     const currentDate = new Date();
-    // Use client-provided timezone (from browser) instead of server timezone
     const timezone = clientTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
-    // Get current time in user's local timezone for better context
+    // Get current time in user's timezone for context
     const currentLocalTime = currentDate.toLocaleString('en-US', {
       timeZone: timezone,
       year: 'numeric',
@@ -80,196 +61,138 @@ export async function POST(request: NextRequest) {
       weekday: 'long'
     });
 
-    // Build conversation messages for OpenAI
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      ...conversationHistory,
-      {
-        role: 'user',
-        content: input,
-      },
-    ];
-
-    // System prompt for intelligent event parsing
-    const systemPrompt = `You are an intelligent calendar event parser assistant. Your job is to understand natural language event descriptions and extract structured event data.
+    // System prompt for INSTANT parsing with smart defaults
+    const systemPrompt = `You are a calendar event parser that creates events INSTANTLY with smart defaults.
 
 Current Context:
-- Current date/time IN USER'S TIMEZONE (${timezone}): ${currentLocalTime}
+- Current date/time in ${timezone}: ${currentLocalTime}
 - ISO timestamp: ${currentDate.toISOString()}
-- **IMPORTANT: All times mentioned by the user are in ${timezone} unless explicitly stated otherwise**
+- User timezone: ${timezone}
 
-Your Responsibilities:
+Core Rules - NEVER ASK QUESTIONS:
 
-1. **Parse event details comprehensively:**
-   - Title (what is the event about?)
-   - Start date and time (when does it begin?)
-   - End date and time (when does it end?)
-   - Duration (if specified like "for 2 hours", "for 30 minutes", calculate end time from start time + duration)
-   - Location (where is it happening?)
-   - Description (any additional context)
-   - Attendees (who should be invited?)
+1. **ALWAYS create an event immediately** - Use smart defaults for missing information:
+   - **Missing title**: Extract topic from context or use "New Event"
+   - **Missing time**: Use next available hour (round up from current time)
+   - **Missing duration**: Default to 1 hour
+   - **Missing date**: Default to today if time in future, otherwise tomorrow
+   - **Missing location**: Set to null
+   - **Missing attendees**: Empty array
 
-2. **Handle duration expressions intelligently:**
-   - "for 2 hours" means event lasts 2 hours from start time
-   - "for 30 minutes" means event lasts 30 minutes from start time
-   - "from X to Y" means explicit start and end times
-   - If only start time given and no duration, ask for clarification or assume 1 hour
+2. **Smart Defaults:**
+   - "lunch" → 12:00 PM, 1 hour duration
+   - "dinner" → 6:00 PM, 1.5 hour duration
+   - "breakfast" → 8:00 AM, 1 hour duration
+   - "meeting" → 1 hour duration
+   - "call" → 30 minutes duration
+   - "coffee" → 30 minutes duration
 
-3. **Ask clarifying questions when information is ambiguous or missing:**
-   - **CRITICAL: If no title/event name is provided, ALWAYS ask for clarification**
-   - If no date/time is provided: "When would you like to schedule this event?"
-   - If duration is unclear: "How long should this event last?"
-   - If only a duration is provided (e.g., "2 hours") without event name or time: "What event would you like to schedule, and when?"
-   - If the description is too vague: "Could you provide more details about this event?"
-   - If "12" is mentioned without am/pm: "Did you mean 12:00 PM (noon) or 12:00 AM (midnight)?"
-   - **DO NOT make up or assume event titles - always ask if unclear**
+3. **Duration Parsing:**
+   - "for 2 hours" → 2 hour duration
+   - "for 30 minutes" → 30 min duration
+   - "from X to Y" → explicit start/end
+   - No duration specified → 1 hour default
 
-4. **Output Format:**
-   You MUST respond in one of two ways:
+4. **Time Parsing (${timezone}):**
+   - "tomorrow at 3pm" → tomorrow 15:00 in ${timezone}
+   - "Friday at 10am" → next Friday 10:00 in ${timezone}
+   - "12" without am/pm → assume 12:00 PM (noon)
+   - Always return ISO 8601 with local timezone offset
+   - NEVER use Z suffix (UTC) unless explicitly UTC
 
-   **Option A - If you have enough information to create the event:**
-   \`\`\`json
-   {
-     "needsClarification": false,
-     "event": {
-       "title": "Event Title",
-       "startTime": "2025-11-22T14:00:00Z",
-       "endTime": "2025-11-22T16:00:00Z",
-       "location": "Location name or null",
-       "description": "Description or null",
-       "attendees": ["email1@example.com"] or []
-     },
-     "confidence": "high" | "medium" | "low",
-     "explanation": "Brief explanation of what you understood"
-   }
-   \`\`\`
+5. **Confidence Levels:**
+   - HIGH: All key details provided (title, time, duration)
+   - MEDIUM: Some details inferred from context
+   - LOW: Most details defaulted
 
-   **Option B - If you need clarification:**
-   \`\`\`json
-   {
-     "needsClarification": true,
-     "question": "Your clarifying question here",
-     "partialEvent": {
-       "title": "Partial title if available",
-       "startTime": "ISO date if known, or null",
-       "endTime": "ISO date if known, or null",
-       "location": "Location if mentioned, or null"
-     }
-   }
-   \`\`\`
+6. **Examples:**
 
-5. **Important Rules:**
-   - **NEVER create an event without a clear title - always ask for clarification if title is missing**
-   - ALWAYS parse duration expressions (e.g., "for X hours/minutes")
-   - **CRITICAL: When following up on a clarification question, PRESERVE all previously mentioned times and details from the conversation history**
-   - **When user confirms with "yes", "correct", "that's right", etc., use the EXACT times from your previous message - DO NOT recalculate or change them**
-   - Be conversational and friendly when asking questions
-   - Default to the future (never suggest past dates)
-   - Use 24-hour time internally but understand 12-hour format
-   - If input is incomplete (e.g., just a duration), request the missing information
-   - **CRITICAL: Parse AM/PM correctly:**
-     * "10 a.m." or "10am" = 10:00 (morning)
-     * "10 p.m." or "10pm" = 22:00 (evening)
-     * "12 a.m." or "12am" = 00:00 (midnight)
-     * "12 p.m." or "12pm" = 12:00 (noon)
-   - **CRITICAL TIMEZONE RULE: The user is in ${timezone} timezone. ALL times they mention are in ${timezone}**
-     * When user says "10am tomorrow", they mean 10am ${timezone} time
-     * Return ISO timestamps that represent the LOCAL time in ${timezone}, not UTC
-     * Use format like "2025-11-22T10:00:00" (which JavaScript will interpret as local time)
-     * OR use format with explicit offset like "2025-11-22T10:00:00-06:00" for Central Time
-     * NEVER return "2025-11-22T10:00:00Z" (Z means UTC) when user means 10am local time
-     * If you say "10:00 AM" in your explanation, the timestamp MUST also be 10:00 AM in ${timezone}, not 10:00 AM UTC
-   - If "Friday" is mentioned, find the next Friday from current date
-   - If "tomorrow" is mentioned, use the next day
-   - If "tonight" is mentioned, use today's date with evening time
-   - Be intelligent about context (e.g., "lunch" implies around 12pm, "dinner" implies around 6-7pm)
+Input: "lunch tomorrow"
+Output:
+{
+  "title": "Lunch",
+  "startTime": "[tomorrow at 12:00 PM in ${timezone}]",
+  "endTime": "[tomorrow at 1:00 PM in ${timezone}]",
+  "location": null,
+  "description": null,
+  "attendees": [],
+  "confidence": "medium",
+  "explanation": "Created lunch event tomorrow at noon (default lunch time) for 1 hour"
+}
 
-6. **Examples of Good Parsing:**
+Input: "team meeting Friday 3pm for 90 minutes"
+Output:
+{
+  "title": "Team meeting",
+  "startTime": "[next Friday at 3:00 PM in ${timezone}]",
+  "endTime": "[next Friday at 4:30 PM in ${timezone}]",
+  "location": null,
+  "description": null,
+  "attendees": [],
+  "confidence": "high",
+  "explanation": "Created team meeting on Friday at 3pm for 90 minutes"
+}
 
-Input: "10 a.m. on Friday for 2 hours with John from accounting"
-Output: Event on Friday at 10:00 (morning) for 2 hours (until 12:00)
+Input: "call"
+Output:
+{
+  "title": "Call",
+  "startTime": "[next hour in ${timezone}]",
+  "endTime": "[next hour + 30 min in ${timezone}]",
+  "location": null,
+  "description": null,
+  "attendees": [],
+  "confidence": "low",
+  "explanation": "Created call for next available hour, 30 minute duration (default for calls)"
+}
 
-Input: "Friday at 12 am for 2 hours"
-Output: Event from Friday 00:00 to Friday 02:00 (2 hours duration correctly applied)
+Now parse the user's input and create an event immediately with smart defaults.`;
 
-Input: "Team meeting tomorrow at 3pm for 90 minutes"
-Output: Event tomorrow at 15:00 for 1.5 hours (until 16:30)
-
-Input: "Lunch with Sarah next Tuesday"
-Output: Ask "What time should I schedule lunch with Sarah? (default is 12:00 PM)"
-
-Input: "Dentist appointment"
-Output: Ask "When would you like to schedule your dentist appointment?"
-
-Input: "Meeting at 12"
-Output: Ask "Did you mean 12:00 PM (noon) or 12:00 AM (midnight)?"
-
-Now, parse the user's input and respond with the appropriate JSON format.`;
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      max_tokens: 1024,
-      temperature: 0.3, // Lower temperature for more consistent parsing
+    // Use structured output with Zod schema - guaranteed valid response
+    const response = await openai.beta.chat.completions.parse({
+      model: 'gpt-4o-2024-08-06', // Latest model with structured output support
+      temperature: 0.3,
       messages: [
         {
           role: 'system',
           content: systemPrompt,
         },
-        ...messages,
+        {
+          role: 'user',
+          content: input,
+        },
       ],
-      response_format: { type: 'json_object' }, // Force JSON response
+      response_format: zodResponseFormat(CalendarEventSchema, 'calendar_event'),
     });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from GPT-4o');
-    }
+    const event = response.choices[0]?.message?.parsed;
 
-    // Extract JSON from the response
-    let parsedData;
-    try {
-      // Try to extract JSON from code blocks first
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) ||
-                       content.match(/```\s*([\s\S]*?)\s*```/);
-
-      if (jsonMatch) {
-        parsedData = JSON.parse(jsonMatch[1]);
-      } else {
-        // Try to parse the entire response as JSON
-        parsedData = JSON.parse(content);
-      }
-    } catch (parseError) {
-      // If JSON parsing fails, treat it as a clarification question
-      return NextResponse.json({
-        success: true,
-        needsClarification: true,
-        question: content,
-        rawResponse: content,
-      });
+    if (!event) {
+      throw new Error('No valid event parsed from GPT-4o');
     }
 
     // Log for debugging
-    console.log('[AI Parser] Raw AI Response:', content);
-    console.log('[AI Parser] Parsed Data:', JSON.stringify(parsedData, null, 2));
-    console.log('[AI Parser] Client timezone:', clientTimezone);
-    console.log('[AI Parser] Using timezone:', timezone);
-    console.log('[AI Parser] Current date:', currentDate.toISOString());
-    console.log('[AI Parser] Current local time:', currentLocalTime);
+    console.log('[AI Parser V4] Input:', input);
+    console.log('[AI Parser V4] Parsed Event:', JSON.stringify(event, null, 2));
+    console.log('[AI Parser V4] Timezone:', timezone);
+    console.log('[AI Parser V4] Confidence:', event.confidence);
+    console.log('[AI Parser V4] Explanation:', event.explanation);
 
-    // ✅ Validate event data before returning
-    const validationErrors = validateEventData(parsedData);
-    if (validationErrors.length > 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid event data',
-        validationErrors,
-        parsedData, // Return parsed data for debugging
-      }, { status: 400 });
+    // Validate dates
+    const startDate = new Date(event.startTime);
+    const endDate = new Date(event.endTime);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new Error('Invalid date format in parsed event');
+    }
+
+    if (endDate <= startDate) {
+      throw new Error('End time must be after start time');
     }
 
     return NextResponse.json({
       success: true,
-      ...parsedData,
-      rawResponse: content,
+      event,
     });
 
   } catch (error: any) {

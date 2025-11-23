@@ -146,17 +146,18 @@ export class AIRemixService {
     }
 
     prompt += `\nFORMATTING REQUIREMENTS:
-1. Format the email with proper HTML paragraphs using <p> tags
-2. Use double line breaks (\\n\\n) to separate paragraphs
-3. Each paragraph should address one main idea
-4. Use <br> tags only for line breaks within a paragraph
-5. Ensure professional spacing between sections
+1. Use double line breaks (\\n\\n) to separate paragraphs - these will be converted to HTML <p> tags
+2. Each paragraph should address one main idea
+3. Use single line breaks (\\n) only for line breaks within a paragraph
+4. Salutation line (e.g., "Best regards,") should be in its own final paragraph
+5. Do NOT add extra blank paragraphs after the salutation
+6. Ensure professional spacing between sections
 
 CONTENT RULES:
 1. Preserve the core message and intent
 2. Keep all important facts and figures
-3. Maintain the overall structure (greeting, body, closing)
-4. Return ONLY the transformed email text
+3. Maintain the overall structure (greeting, body, closing with salutation)
+4. Return ONLY the transformed email text (plain text, not HTML)
 5. Do not add commentary or explanations
 
 Return the transformed email with professional formatting:`;
@@ -183,13 +184,14 @@ Return the transformed email with professional formatting:`;
       .map(p => p.trim())
       .filter(p => p.length > 0);
 
-    // Wrap each paragraph in <p> tags, convert single newlines to <br>
+    // Wrap each paragraph in <p> tags
+    // CSS margin-bottom on <p> tags will provide spacing
     const formatted = paragraphs
       .map(p => {
         const withBreaks = p.replace(/\n/g, '<br>');
         return `<p>${withBreaks}</p>`;
       })
-      .join('\n\n');
+      .join('');
 
     return formatted;
   }

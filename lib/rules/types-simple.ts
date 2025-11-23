@@ -38,7 +38,8 @@ export type SimpleActionType =
   | 'move'          // Move to folder
   | 'mark_read'     // Mark as read
   | 'star'          // Star/flag message
-  | 'delete';       // Delete permanently
+  | 'delete'        // Delete permanently
+  | 'notify';       // Send notification
 
 export interface SimpleMoveAction {
   type: 'move';
@@ -58,11 +59,18 @@ export interface SimpleDeleteAction {
   type: 'delete';
 }
 
+export interface SimpleNotifyAction {
+  type: 'notify';
+  title: string;
+  message: string;
+}
+
 export type SimpleAction =
   | SimpleMoveAction
   | SimpleMarkReadAction
   | SimpleStarAction
-  | SimpleDeleteAction;
+  | SimpleDeleteAction
+  | SimpleNotifyAction;
 
 // ============================================================================
 // Rule Definition

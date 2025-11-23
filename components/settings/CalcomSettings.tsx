@@ -432,9 +432,9 @@ export default function CalcomSettings() {
               </Button>
 
               {/* Auto-Sync Info Alert */}
-              <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-                <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
+              <Alert className="bg-primary/5 border-primary/20">
+                <AlertCircle className="h-4 w-4 text-primary" />
+                <AlertDescription className="text-sm text-muted-foreground">
                   <strong>Manual Sync Only:</strong> Bookings are synced when you click the button above.
                   For automatic real-time updates, set up webhooks below.
                 </AlertDescription>
@@ -454,9 +454,9 @@ export default function CalcomSettings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Alert className="bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
-                <Zap className="h-4 w-4 text-green-600 dark:text-green-400" />
-                <AlertDescription className="text-sm text-green-800 dark:text-green-200">
+              <Alert className="bg-accent border-primary/20">
+                <Zap className="h-4 w-4 text-primary" />
+                <AlertDescription className="text-sm text-muted-foreground">
                   <strong>Recommended:</strong> Set up webhooks to automatically sync new bookings in real-time
                   without clicking "Sync Bookings Now".
                 </AlertDescription>

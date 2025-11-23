@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Mail, Settings, History, Send, Eye, EyeOff, Code, Edit2, Trash2, Save, X } from 'lucide-react';
+import { Plus, Mail, Settings, History, Send, Eye, EyeOff, Code, Edit2, Trash2, Save, X, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -60,6 +60,7 @@ export default function EmailTemplatesPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
   const [showCode, setShowCode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Form state
   const [formData, setFormData] = useState({
@@ -313,6 +314,14 @@ export default function EmailTemplatesPage() {
     );
   };
 
+  // Filter templates based on search query
+  const filteredTemplates = templates.filter(template =>
+    template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    template.templateKey.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (template.description && template.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    template.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -338,11 +347,27 @@ export default function EmailTemplatesPage() {
           <p className="text-sm text-muted-foreground mb-4">
             Manage and customize email templates
           </p>
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search templates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
 
         {/* Template List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {templates.map((template) => (
+          {filteredTemplates.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              No templates found
+            </div>
+          ) : (
+            filteredTemplates.map((template) => (
             <Card
               key={template.id}
               className={`p-4 cursor-pointer transition-all hover:shadow-md ${
@@ -367,7 +392,8 @@ export default function EmailTemplatesPage() {
                 <Badge variant="outline" className="mt-2 text-xs">System Default</Badge>
               )}
             </Card>
-          ))}
+            ))
+          )}
         </div>
       </aside>
 
@@ -397,7 +423,7 @@ export default function EmailTemplatesPage() {
                       <Button
                         variant="outline"
                         onClick={() => handleDelete(selectedTemplate.id)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete

@@ -6,8 +6,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { attachments } from '@/lib/db/schema';
-import { eq, and, desc, asc, gte, lte, inArray, sql, or, like } from 'drizzle-orm';
+import { eq, and, desc, asc, gte, lte, inArray, sql, or, like, notInArray } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server'; // ✅ ADD THIS
+
+// Excluded file extensions (should match attachment-filter.ts)
+const EXCLUDED_EXTENSIONS = ['ics', 'vcf', 'p7s', 'asc', 'sig', 'eml', 'winmail.dat'];
 
 // Force dynamic rendering - this route uses searchParams
 export const dynamic = 'force-dynamic';
@@ -44,7 +47,11 @@ export async function GET(request: NextRequest) {
     const dateTo = searchParams.get('dateTo');
 
     // Build where conditions
-    const conditions = [eq(attachments.userId, userId)];
+    const conditions = [
+      eq(attachments.userId, userId),
+      // Exclude .ics, .vcf, and other non-document/media files
+      notInArray(attachments.fileExtension, EXCLUDED_EXTENSIONS)
+    ];
 
     // Search filter (filename, sender, subject)
     if (search) {

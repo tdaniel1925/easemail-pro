@@ -59,7 +59,22 @@
       "Bash(npx drizzle-kit studio:*)",
       "Bash(node:*)",
       "Bash(npx tsc --noEmit --skipLibCheck)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(tasklist:*)",
+      "Bash(cmd.exe /c \"taskkill /F /IM node.exe && timeout /t 3 /nobreak && cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && npm run dev\")",
+      "Bash(cmd.exe /c \"taskkill /F /IM node.exe && timeout /t 3 /nobreak && npm run dev\")",
+      "Bash(curl:*)",
+      "Bash(Select-Object -First 50)",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(cmd.exe /c \"taskkill /F /PID 37564 && timeout /t 2 /nobreak && cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && npm run dev\")",
+      "Bash(cmd.exe /c \"taskkill /F /IM node.exe\")",
+      "Bash(cmd.exe /c \"dir /b node_modules\\ai\")",
+      "Bash(npm search:*)",
+      "Bash(npx tsc:*)",
+      "Bash(ls:*)",
+      "Bash(Select-String -Pattern \"error|warning|✓\")",
+      "Bash(timeout 60 npm run build)",
+      "Bash(.env.local)"
     ],
     "deny": [],
     "ask": []

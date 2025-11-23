@@ -60,6 +60,7 @@ const contactUpdateSchema = z.object({
     is_favorite: z.boolean().optional(),
   }),
   sync_immediately: z.boolean().optional(),
+  last_updated_at: z.string().datetime().optional(), // For optimistic locking
 });
 
 /**
@@ -136,7 +137,41 @@ export async function PUT(
       );
     }
 
-    const { updates, sync_immediately } = validationResult.data;
+    const { updates, sync_immediately, last_updated_at } = validationResult.data;
+
+    // Optimistic locking: Check if contact has been updated since client last saw it
+    if (last_updated_at) {
+      const existingContact = await db.query.contactsV4.findFirst({
+        where: and(
+          eq(contactsV4.id, params.id),
+          eq(contactsV4.userId, user.id),
+          eq(contactsV4.isDeleted, false)
+        ),
+      });
+
+      if (!existingContact) {
+        return NextResponse.json(
+          { success: false, error: 'Contact not found' },
+          { status: 404 }
+        );
+      }
+
+      // Check if contact was modified after client's version
+      const clientTimestamp = new Date(last_updated_at);
+      const serverTimestamp = existingContact.localUpdatedAt || existingContact.createdAt;
+
+      if (serverTimestamp > clientTimestamp) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Contact has been modified by another process',
+            conflict: true,
+            serverVersion: existingContact,
+          },
+          { status: 409 } // 409 Conflict
+        );
+      }
+    }
 
     // Prepare update data
     const updateData: any = {
@@ -186,7 +221,24 @@ export async function PUT(
       );
     }
 
-    // TODO: If sync_immediately is true, trigger sync to Nylas
+    // Trigger immediate sync to Nylas if requested
+    if (body.sync_immediately) {
+      const { triggerContactSync } = await import('@/lib/services/contacts-v4-sync-trigger');
+
+      // Trigger async (don't wait for response)
+      triggerContactSync({
+        contactId: updatedContact.id,
+        userId: user.id,
+      }).then((result) => {
+        if (result.success) {
+          console.log(`✅ Contact updated in Nylas: ${updatedContact.id}`);
+        } else {
+          console.error(`⚠️ Contact update sync failed: ${result.error}`);
+        }
+      }).catch((error) => {
+        console.error(`❌ Contact update sync trigger error:`, error);
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -241,7 +293,22 @@ export async function DELETE(
       );
     }
 
-    // TODO: Trigger sync to Nylas to delete remotely
+    // Trigger immediate sync to Nylas to delete remotely
+    const { triggerContactSync } = await import('@/lib/services/contacts-v4-sync-trigger');
+
+    // Trigger async (don't wait for response)
+    triggerContactSync({
+      contactId: deletedContact.id,
+      userId: user.id,
+    }).then((result) => {
+      if (result.success) {
+        console.log(`✅ Contact deleted in Nylas: ${deletedContact.id}`);
+      } else {
+        console.error(`⚠️ Contact deletion sync failed: ${result.error}`);
+      }
+    }).catch((error) => {
+      console.error(`❌ Contact deletion sync trigger error:`, error);
+    });
 
     return NextResponse.json({
       success: true,

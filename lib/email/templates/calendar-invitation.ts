@@ -37,6 +37,12 @@ function escapeText(text: string): string {
   return escapeHtml(text).replace(/\n/g, '<br>');
 }
 
+/**
+ * Generate calendar invitation email template
+ * NOTE: This template uses a fixed relaxed color scheme (soft blues, grays)
+ * and is NOT affected by the user's app theme preferences.
+ * Colors are hardcoded for consistent, professional email appearance.
+ */
 export function getCalendarInvitationTemplate(data: CalendarInvitationData): string {
   const formatDate = (date: Date, allDay: boolean, timezone?: string): string => {
     if (allDay) {

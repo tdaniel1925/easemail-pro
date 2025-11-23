@@ -164,6 +164,7 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
     { value: 'move_to_folder', label: 'Move to Folder', needsValue: true },
     { value: 'add_label', label: 'Add Label', needsValue: true },
     { value: 'forward_to', label: 'Forward To', needsValue: true },
+    { value: 'notify', label: 'Send Notification', needsValue: true },
   ];
 
   // Add condition
@@ -429,73 +430,91 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
                       key={index}
                       className="flex items-start gap-3 p-4 border border-border rounded-lg bg-card"
                     >
-                      <div className="flex-1 grid grid-cols-2 gap-3">
-                        {/* Action Type */}
-                        <Select
-                          value={action.type}
-                          onValueChange={(v) => updateAction(index, { type: v as ActionType })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {actionOptions.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div className="flex-1 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* Action Type */}
+                          <Select
+                            value={action.type}
+                            onValueChange={(v) => updateAction(index, { type: v as ActionType })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {actionOptions.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
 
-                        {/* Action Value (if needed) */}
-                        {actionOption?.needsValue && (
-                          <>
-                            {action.type === 'move_to_folder' ? (
-                              <Select
-                                value={(action as any).folder || ''}
-                                onValueChange={(v) => updateAction(index, { folder: v } as any)}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder={loadingFolders ? "Loading folders..." : "Select folder..."} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {folders.length > 0 ? (
-                                    folders.map((folder) => (
-                                      <SelectItem key={`${folder.id}-${folder.accountEmail}`} value={folder.name}>
-                                        {folder.name}
-                                        {(folder as any).accountEmail && (
-                                          <span className="text-xs text-muted-foreground ml-2">
-                                            ({(folder as any).accountEmail})
-                                          </span>
-                                        )}
-                                      </SelectItem>
-                                    ))
-                                  ) : (
-                                    !loadingFolders && (
-                                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                                        {accountsLoading ? 'Loading accounts...' : 'No folders available'}
-                                      </div>
-                                    )
-                                  )}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <Input
-                                value={(action as any).label || (action as any).email || ''}
-                                onChange={(e) => {
-                                  if (action.type === 'add_label') {
-                                    updateAction(index, { label: e.target.value } as any);
-                                  } else if (action.type === 'forward_to') {
-                                    updateAction(index, { email: e.target.value, includeOriginal: true } as any);
+                          {/* Action Value (if needed) */}
+                          {actionOption?.needsValue && action.type !== 'notify' && (
+                            <>
+                              {action.type === 'move_to_folder' ? (
+                                <Select
+                                  value={(action as any).folder || ''}
+                                  onValueChange={(v) => updateAction(index, { folder: v } as any)}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={loadingFolders ? "Loading folders..." : "Select folder..."} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {folders.length > 0 ? (
+                                      folders.map((folder) => (
+                                        <SelectItem key={`${folder.id}-${folder.accountEmail}`} value={folder.name}>
+                                          {folder.name}
+                                          {(folder as any).accountEmail && (
+                                            <span className="text-xs text-muted-foreground ml-2">
+                                              ({(folder as any).accountEmail})
+                                            </span>
+                                          )}
+                                        </SelectItem>
+                                      ))
+                                    ) : (
+                                      !loadingFolders && (
+                                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                          {accountsLoading ? 'Loading accounts...' : 'No folders available'}
+                                        </div>
+                                      )
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <Input
+                                  value={(action as any).label || (action as any).email || ''}
+                                  onChange={(e) => {
+                                    if (action.type === 'add_label') {
+                                      updateAction(index, { label: e.target.value } as any);
+                                    } else if (action.type === 'forward_to') {
+                                      updateAction(index, { email: e.target.value, includeOriginal: true } as any);
+                                    }
+                                  }}
+                                  placeholder={
+                                    action.type === 'add_label'
+                                      ? 'Label name...'
+                                      : 'Email address...'
                                   }
-                                }}
-                                placeholder={
-                                  action.type === 'add_label'
-                                    ? 'Label name...'
-                                    : 'Email address...'
-                                }
-                              />
-                            )}
+                                />
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        {/* Notification fields (title and message) */}
+                        {action.type === 'notify' && (
+                          <>
+                            <Input
+                              value={(action as any).title || ''}
+                              onChange={(e) => updateAction(index, { ...action, title: e.target.value } as any)}
+                              placeholder="Notification title..."
+                            />
+                            <Input
+                              value={(action as any).message || ''}
+                              onChange={(e) => updateAction(index, { ...action, message: e.target.value } as any)}
+                              placeholder="Notification message..."
+                            />
                           </>
                         )}
                       </div>

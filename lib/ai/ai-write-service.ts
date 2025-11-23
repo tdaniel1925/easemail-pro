@@ -201,12 +201,13 @@ RULES:
 2. Match the specified tone and formality level
 3. Keep the length appropriate (brief: 2-3 sentences, normal: 1-2 paragraphs, detailed: 3-4 paragraphs)
 4. Include a clear subject line
-5. Use proper email structure (greeting, body, closing)
+5. Use proper email structure (greeting, body, closing with salutation)
 6. Be concise and to the point
 7. Proofread for grammar and spelling
 8. Format emails with clear paragraph breaks (use double line breaks between paragraphs)
 9. Each paragraph should address one main idea
-10. Use professional spacing for readability`;
+10. Use professional spacing for readability
+11. Salutation line (e.g., "Best regards,", "Thanks,") should be in its own paragraph at the end`;
 
     // Add writing style profile if available
     if (input.writingStyle) {
@@ -217,11 +218,15 @@ RULES:
 Return ONLY a JSON object with this structure:
 {
   "subject": "Email subject line",
-  "body": "Email body with greeting\n\nMain content paragraph\n\nClosing paragraph"
+  "body": "Greeting paragraph\\n\\nMain content paragraph\\n\\nClosing paragraph with salutation"
 }
 
-IMPORTANT: Use double line breaks (\\n\\n) between paragraphs for proper formatting.
-Do not include any text outside the JSON object.`;
+CRITICAL FORMATTING RULES:
+- Use double line breaks (\\n\\n) between paragraphs - these will be converted to HTML <p> tags
+- Salutation line (e.g., "Best regards,") should be in its own final paragraph
+- Do NOT add extra blank lines after the salutation
+- Each paragraph addresses one idea
+- Do not include any text outside the JSON object`;
 
     return systemPrompt;
   }
@@ -318,7 +323,8 @@ Do not include any text outside the JSON object.`;
       return `<p>${lines.join('<br>')}</p>`;
     }
 
-    // Wrap each paragraph in <p> tags, convert single newlines to <br>
+    // Wrap each paragraph in <p> tags
+    // CSS margin-bottom on <p> tags will provide spacing
     return paragraphs
       .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
       .join('');

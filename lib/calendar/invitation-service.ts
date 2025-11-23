@@ -90,68 +90,85 @@ export async function sendCalendarInvitations(
   let sent = 0;
   let errors = 0;
 
-  // Send invitation to each attendee
-  for (const attendee of attendeesToInvite) {
-    try {
-      // Generate RSVP links for this attendee
-      const rsvpLinks = generateRSVPLinks(event.id, attendee.email, baseUrl);
+  // Check if RESEND_API_KEY is configured
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('⚠️ RESEND_API_KEY not configured - invitations not sent');
+    return { success: false, sent: 0, errors: attendeesToInvite.length };
+  }
 
-      // Generate email HTML
-      const emailHtml = getCalendarInvitationTemplate({
-        eventTitle: event.title,
-        eventDescription: event.description || undefined,
-        eventLocation: event.location || undefined,
-        startDate: event.startTime,
-        endDate: event.endTime,
-        allDay: event.allDay,
-        organizerName: organizer.name,
-        organizerEmail: organizer.email,
-        attendeeEmail: attendee.email,
-        attendeeName: attendee.name,
-        rsvpAcceptLink: rsvpLinks.accept,
-        rsvpDeclineLink: rsvpLinks.decline,
-        rsvpTentativeLink: rsvpLinks.tentative,
-        timezone: event.timezone || undefined,
-        customMessage: options?.customMessage,
-      });
+  // Parallel sending with concurrency limit (5 emails at a time)
+  const pLimit = (await import('p-limit')).default;
+  const limit = pLimit(5);
 
-      // Send email with attachment via Resend
-      const resend = getResendClient();
-      
-      if (!process.env.RESEND_API_KEY) {
-        console.warn('⚠️ RESEND_API_KEY not configured - invitation not sent');
-        errors++;
-        continue;
-      }
+  const sendPromises = attendeesToInvite.map(attendee =>
+    limit(async () => {
+      try {
+        // Generate RSVP links for this attendee
+        const rsvpLinks = generateRSVPLinks(event.id, attendee.email, baseUrl);
 
-      const { data, error } = await resend.emails.send({
-        from: `${process.env.EMAIL_FROM_NAME || 'EaseMail'} <${process.env.EMAIL_FROM || 'noreply@easemail.app'}>`,
-        to: attendee.email,
-        subject: options?.subjectOverride || getCalendarInvitationSubject({
+        // Generate email HTML
+        const emailHtml = getCalendarInvitationTemplate({
           eventTitle: event.title,
-        }),
-        html: emailHtml,
-        attachments: [
-          {
-            filename: 'invite.ics',
-            content: Buffer.from(icalContent).toString('base64'),
-          },
-        ],
-        replyTo: organizer.email,
-      });
+          eventDescription: event.description || undefined,
+          eventLocation: event.location || undefined,
+          startDate: event.startTime,
+          endDate: event.endTime,
+          allDay: event.allDay,
+          organizerName: organizer.name,
+          organizerEmail: organizer.email,
+          attendeeEmail: attendee.email,
+          attendeeName: attendee.name,
+          rsvpAcceptLink: rsvpLinks.accept,
+          rsvpDeclineLink: rsvpLinks.decline,
+          rsvpTentativeLink: rsvpLinks.tentative,
+          timezone: event.timezone || undefined,
+          customMessage: options?.customMessage,
+        });
 
-      if (error) {
-        console.error(`❌ Failed to send invitation to ${attendee.email}:`, error);
-        errors++;
-      } else {
-        console.log(`✅ Invitation sent to ${attendee.email}:`, data?.id);
-        sent++;
+        // Send email with attachment via Resend
+        const resend = getResendClient();
+
+        const { data, error } = await resend.emails.send({
+          from: `${process.env.EMAIL_FROM_NAME || 'EaseMail'} <${process.env.EMAIL_FROM || 'noreply@easemail.app'}>`,
+          to: attendee.email,
+          subject: options?.subjectOverride || getCalendarInvitationSubject({
+            eventTitle: event.title,
+          }),
+          html: emailHtml,
+          attachments: [
+            {
+              filename: 'invite.ics',
+              content: Buffer.from(icalContent).toString('base64'),
+            },
+          ],
+          replyTo: organizer.email,
+        });
+
+        if (error) {
+          console.error(`❌ Failed to send invitation to ${attendee.email}:`, error);
+          return { success: false, email: attendee.email, error };
+        } else {
+          console.log(`✅ Invitation sent to ${attendee.email}:`, data?.id);
+          return { success: true, email: attendee.email, messageId: data?.id };
+        }
+      } catch (error: any) {
+        console.error(`❌ Error sending invitation to ${attendee.email}:`, error);
+        return { success: false, email: attendee.email, error };
       }
-    } catch (error: any) {
-      console.error(`❌ Error sending invitation to ${attendee.email}:`, error);
+    })
+  );
+
+  // Wait for all emails to be sent
+  const results = await Promise.all(sendPromises);
+
+  // Count successes and failures
+  results.forEach(result => {
+    if (result.success) {
+      sent++;
+    } else {
       errors++;
     }
-  }
+  });
 
   return {
     success: errors === 0,

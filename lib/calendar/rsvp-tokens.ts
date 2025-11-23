@@ -11,7 +11,15 @@ interface RSVPTokenData {
   response: 'accepted' | 'declined' | 'tentative';
 }
 
-const SECRET_KEY = process.env.RSVP_SECRET_KEY || process.env.NEXT_PUBLIC_APP_URL || 'default-secret-key-change-in-production';
+// Enforce secure secret key - no fallbacks allowed
+const SECRET_KEY = process.env.RSVP_SECRET_KEY;
+
+if (!SECRET_KEY) {
+  throw new Error(
+    'RSVP_SECRET_KEY environment variable is required for secure RSVP token generation. ' +
+    'Please set it in your .env.local file with a strong random key.'
+  );
+}
 
 /**
  * Generate a secure RSVP token

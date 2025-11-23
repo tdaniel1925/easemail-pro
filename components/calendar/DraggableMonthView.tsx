@@ -37,18 +37,19 @@ function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEve
     onEventClick(e, event);
   };
 
+  // ✅ Use calendar's hex color if available
+  const hexColor = event.hexColor || '#3b82f6';
+  const bgStyle = {
+    backgroundColor: `${hexColor}20`, // 20 = 12.5% opacity in hex
+    borderLeft: `3px solid ${hexColor}`,
+  };
+
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, ...bgStyle }}
       className={cn(
         'text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5 group relative',
-        event.color === 'blue' && 'bg-blue-500/20 text-blue-700 dark:text-blue-300',
-        event.color === 'green' && 'bg-green-500/20 text-green-700 dark:text-green-300',
-        event.color === 'red' && 'bg-red-500/20 text-red-700 dark:text-red-300',
-        event.color === 'purple' && 'bg-purple-500/20 text-purple-700 dark:text-purple-300',
-        event.color === 'orange' && 'bg-orange-500/20 text-orange-700 dark:text-orange-300',
-        event.color === 'pink' && 'bg-pink-500/20 text-pink-700 dark:text-pink-300',
         isDragging && 'opacity-50'
       )}
     >
@@ -261,15 +262,14 @@ export default function DraggableMonthView({
       {/* Drag overlay */}
       <DragOverlay>
         {activeEvent ? (
-          <div className={cn(
-            'px-2 py-1 rounded shadow-lg text-xs font-medium',
-            activeEvent.color === 'blue' && 'bg-blue-500 text-white',
-            activeEvent.color === 'green' && 'bg-green-500 text-white',
-            activeEvent.color === 'red' && 'bg-red-500 text-white',
-            activeEvent.color === 'purple' && 'bg-purple-500 text-white',
-            activeEvent.color === 'orange' && 'bg-orange-500 text-white',
-            activeEvent.color === 'pink' && 'bg-pink-500 text-white'
-          )}>
+          <div
+            className="px-2 py-1 rounded shadow-lg text-xs font-medium"
+            style={{
+              backgroundColor: activeEvent.hexColor || '#3b82f6',
+              color: '#ffffff',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
+            }}
+          >
             {activeEvent.title}
           </div>
         ) : null}

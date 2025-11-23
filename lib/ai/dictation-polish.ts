@@ -50,11 +50,19 @@ IMPORTANT: Format your response EXACTLY as follows:
 SUBJECT: [Your subject line here]
 
 BODY:
-<p>[First paragraph with greeting]</p>
+[First paragraph with greeting]
 
-<p>[Main content paragraph]</p>
+[Main content paragraph]
 
-<p>[Closing paragraph]</p>`;
+[Closing paragraph - just the closing sentence, NOT the salutation]
+
+[Salutation on its own line: "Best regards," or "Thanks," etc]
+
+CRITICAL FORMATTING:
+- Return PLAIN TEXT with double line breaks (\\n\\n) between paragraphs
+- The salutation (e.g., "Best regards,") MUST be separated from the closing sentence with \\n\\n
+- Do NOT add extra blank lines after the salutation
+- Each paragraph should be separated by exactly \\n\\n`;
 
   const userPrompt = recipientName
     ? `Recipient: ${recipientName}\n\nDictated text:\n${text}`
@@ -116,7 +124,8 @@ function formatEmailBody(body: string): string {
     return `<p>${lines.join('<br>')}</p>`;
   }
 
-  // Wrap each paragraph in <p> tags, convert single newlines to <br>
+  // Wrap each paragraph in <p> tags
+  // CSS margin-bottom on <p> tags will provide spacing
   return paragraphs
     .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
     .join('');

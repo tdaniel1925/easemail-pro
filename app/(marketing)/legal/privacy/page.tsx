@@ -39,8 +39,18 @@ export default function PrivacyPolicyPage() {
           <ul className="list-disc pl-6 mb-4 space-y-2">
             <li>Account information (name, email address, password)</li>
             <li>Profile information (avatar, preferences, signatures)</li>
-            <li>Billing information (processed securely through Stripe)</li>
+            <li>Billing information (payment methods, billing address, tax information)</li>
             <li>Communication preferences and settings</li>
+          </ul>
+
+          <h3 className="text-xl font-semibold mb-3 mt-6">2.1.1 Billing and Payment Data</h3>
+          <p className="mb-4">For subscription and usage-based billing, we collect:</p>
+          <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li><strong>Payment Information:</strong> Processed securely through Stripe (we do not store credit card numbers)</li>
+            <li><strong>Billing Address:</strong> Required for tax calculation and compliance (US, Canada, EU)</li>
+            <li><strong>Transaction History:</strong> Invoices, payment receipts, and billing records</li>
+            <li><strong>Usage Metrics:</strong> SMS messages sent, AI requests made, storage consumed</li>
+            <li><strong>Tax Information:</strong> Calculated based on your billing address location</li>
           </ul>
 
           <h3 className="text-xl font-semibold mb-3 mt-6">2.2 Email Content</h3>
@@ -122,10 +132,28 @@ export default function PrivacyPolicyPage() {
             <li>Regular security audits and penetration testing</li>
             <li>Multi-factor authentication (MFA) support</li>
             <li>Role-based access controls for admin functions</li>
+            <li>PCI DSS compliance for payment processing (via Stripe)</li>
+          </ul>
+
+          <h3 className="text-xl font-semibold mb-3 mt-6">5.1 Data Retention</h3>
+          <p className="mb-4">We retain your data for as long as your account is active, with the following specifics:</p>
+          <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li><strong>Account Data:</strong> Retained while account is active</li>
+            <li><strong>Billing Records:</strong> Retained for 7 years (tax compliance requirements)</li>
+            <li><strong>Usage Metrics:</strong> Retained for 2 years (billing and analytics)</li>
+            <li><strong>Invoices:</strong> Retained for 7 years (legal and accounting requirements)</li>
+            <li><strong>Payment Methods:</strong> Stored securely by Stripe; deleted immediately upon removal</li>
           </ul>
           <p className="mb-4">
-            <strong>Data Retention:</strong> We retain your data for as long as your account is active.
-            You may request deletion at any time through your account settings.
+            You may request deletion of account data at any time through your account settings.
+            Note that billing records may be retained for legal compliance even after account deletion.
+          </p>
+
+          <h3 className="text-xl font-semibold mb-3 mt-6">5.2 Payment Card Industry (PCI) Compliance</h3>
+          <p className="mb-4">
+            We do not directly store, process, or transmit credit card information. All payment processing
+            is handled by Stripe, a PCI DSS Level 1 certified payment processor. This ensures the highest
+            level of security for your payment information.
           </p>
         </section>
 
@@ -186,7 +214,51 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">11. Contact Us</h2>
+          <h2 className="text-2xl font-semibold mb-4">11. Usage-Based Billing and Metering</h2>
+          <p className="mb-4">
+            {companyName} uses usage-based billing for certain features. Here's how we track and bill for usage:
+          </p>
+
+          <h3 className="text-xl font-semibold mb-3 mt-6">11.1 What We Track</h3>
+          <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li><strong>SMS Messages:</strong> Count of SMS messages sent through the platform</li>
+            <li><strong>AI Requests:</strong> Number of AI-powered features used (summarization, email generation, etc.)</li>
+            <li><strong>Storage:</strong> Total storage consumed by emails, attachments, and other data</li>
+          </ul>
+
+          <h3 className="text-xl font-semibold mb-3 mt-6">11.2 How We Track Usage</h3>
+          <p className="mb-4">
+            Usage is tracked automatically and in real-time when you use billable features. You can view
+            your current usage at any time in your billing dashboard. Usage metrics are calculated hourly
+            and aggregated monthly for billing purposes.
+          </p>
+
+          <h3 className="text-xl font-semibold mb-3 mt-6">11.3 Billing Process</h3>
+          <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>Usage is calculated at the end of each billing period (monthly)</li>
+            <li>You receive an email notification before charges are processed</li>
+            <li>Charges are automatically applied to your payment method on file</li>
+            <li>Failed payments trigger automated retry attempts with email notifications</li>
+            <li>Detailed invoices are available for download in your billing dashboard</li>
+          </ul>
+
+          <h3 className="text-xl font-semibold mb-3 mt-6">11.4 Tax Calculation</h3>
+          <p className="mb-4">
+            Sales tax, VAT, or GST/HST is calculated based on your billing address and applied to all charges.
+            Tax rates are automatically updated to reflect current regulations in your jurisdiction.
+            We collect and remit taxes as required by law.
+          </p>
+
+          <h3 className="text-xl font-semibold mb-3 mt-6">11.5 Payment Method Requirements</h3>
+          <p className="mb-4">
+            Paid plan subscribers are required to maintain a valid payment method on file.
+            Accounts without a payment method may be subject to service restrictions or suspension
+            after a grace period. You will receive email notifications before any restrictions are applied.
+          </p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-2xl font-semibold mb-4">12. Contact Us</h2>
           <p className="mb-4">
             For privacy-related questions or concerns:
           </p>

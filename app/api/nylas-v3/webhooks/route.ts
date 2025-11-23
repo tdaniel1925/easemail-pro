@@ -89,7 +89,19 @@ export async function POST(request: NextRequest) {
       grantId: payload.data.grant_id?.substring(0, 8),
     });
 
-    // 4. Define webhook handlers
+    // 4. Check if account has webhooks suppressed during initial sync
+    if (payload.data.grant_id) {
+      const account = await db.query.emailAccounts.findFirst({
+        where: eq(emailAccounts.nylasGrantId, payload.data.grant_id),
+      });
+
+      if (account?.suppressWebhooks) {
+        console.log(`⏭️ Skipping webhook - suppressed during sync for grant ${payload.data.grant_id.substring(0, 8)}`);
+        return NextResponse.json({ success: true, skipped: true });
+      }
+    }
+
+    // 5. Define webhook handlers
     const handlers: WebhookHandlers = {
       // Grant lifecycle handlers
       onGrantCreated: async (data) => {
@@ -141,6 +153,20 @@ export async function POST(request: NextRequest) {
       onMessageCreated: async (data) => {
         console.log(`📧 New message: ${data.id} in grant ${data.grant_id}`);
 
+        // Skip trash/spam folder webhooks to reduce noise
+        if (data.folders && Array.isArray(data.folders)) {
+          const folderNames = data.folders.map((f: string) => f.toLowerCase());
+          if (folderNames.some((name: string) =>
+            name.includes('trash') ||
+            name.includes('spam') ||
+            name.includes('junk') ||
+            name.includes('deleted')
+          )) {
+            console.log(`⏭️ Skipping webhook for trash/spam message: ${data.id}`);
+            return;
+          }
+        }
+
         // Find account ID from grant ID
         const account = await db.query.emailAccounts.findFirst({
           where: eq(emailAccounts.nylasGrantId, data.grant_id),
@@ -160,6 +186,20 @@ export async function POST(request: NextRequest) {
 
       onMessageUpdated: async (data) => {
         console.log(`✏️ Message updated: ${data.id}`);
+
+        // Skip trash/spam folder webhooks to reduce noise
+        if (data.folders && Array.isArray(data.folders)) {
+          const folderNames = data.folders.map((f: string) => f.toLowerCase());
+          if (folderNames.some((name: string) =>
+            name.includes('trash') ||
+            name.includes('spam') ||
+            name.includes('junk') ||
+            name.includes('deleted')
+          )) {
+            console.log(`⏭️ Skipping webhook for trash/spam message: ${data.id}`);
+            return;
+          }
+        }
 
         const account = await db.query.emailAccounts.findFirst({
           where: eq(emailAccounts.nylasGrantId, data.grant_id),
@@ -216,10 +256,10 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    // 5. Process the webhook event
+    // 6. Process the webhook event
     await processWebhookEvent(payload, handlers);
 
-    // 6. Return success
+    // 7. Return success
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('❌ Webhook processing error:', error);

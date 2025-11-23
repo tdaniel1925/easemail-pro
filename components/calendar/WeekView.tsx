@@ -164,6 +164,7 @@ export default function WeekView({
                   <div className="absolute inset-0 pointer-events-none">
                     {dayEvents.map(event => {
                       const style = getEventStyle(event);
+                      const hexColor = event.hexColor || '#3b82f6';
                       return (
                         <div
                           key={event.id}
@@ -171,16 +172,12 @@ export default function WeekView({
                             e.stopPropagation();
                             onEventClick(event);
                           }}
-                          style={style}
-                          className={cn(
-                            'absolute left-1 right-1 rounded p-1 text-xs overflow-hidden pointer-events-auto cursor-pointer',
-                            event.color === 'blue' && 'bg-blue-500/80 text-white',
-                            event.color === 'green' && 'bg-green-500/80 text-white',
-                            event.color === 'red' && 'bg-red-500/80 text-white',
-                            event.color === 'purple' && 'bg-purple-500/80 text-white',
-                            event.color === 'orange' && 'bg-orange-500/80 text-white',
-                            event.color === 'pink' && 'bg-pink-500/80 text-white'
-                          )}
+                          style={{
+                            ...style,
+                            backgroundColor: `${hexColor}CC`, // CC = 80% opacity in hex
+                            borderLeft: `3px solid ${hexColor}`,
+                          }}
+                          className="absolute left-1 right-1 rounded p-1 text-xs overflow-hidden pointer-events-auto cursor-pointer text-white"
                         >
                           <div className="font-medium truncate">{event.title}</div>
                           {event.location && (

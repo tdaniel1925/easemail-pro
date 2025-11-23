@@ -128,6 +128,37 @@ export async function GET(request: NextRequest) {
 
     console.log(`[DB Email Search] Found ${results.length} emails in database`);
 
+    // Log detailed results for debugging
+    if (from) {
+      console.log(`[DB Email Search] Searching for emails from: "${from}"`);
+      console.log(`[DB Email Search] First 5 results:`, results.slice(0, 5).map((e: any) => ({
+        id: e.id,
+        subject: e.subject,
+        fromEmail: e.fromEmail,
+        fromName: e.fromName,
+        receivedAt: e.receivedAt
+      })));
+    }
+
+    // If no results and we have a "from" filter, let's debug why
+    if (results.length === 0 && from) {
+      console.log(`[DB Email Search] ⚠️ No results found for from="${from}". Checking all emails for this account...`);
+      const allEmails = await db.query.emails.findMany({
+        where: and(
+          eq(emails.accountId, accountId),
+          eq(emails.isTrashed, false)
+        ),
+        orderBy: desc(emails.receivedAt),
+        limit: 10,
+      });
+      console.log(`[DB Email Search] Total emails in account: ${allEmails.length}`);
+      console.log(`[DB Email Search] Sample emails:`, allEmails.slice(0, 5).map((e: any) => ({
+        fromEmail: e.fromEmail,
+        fromName: e.fromName,
+        subject: e.subject
+      })));
+    }
+
     // Format results to match the expected email format
     const formattedEmails = results.map((email: any) => ({
       id: email.id,

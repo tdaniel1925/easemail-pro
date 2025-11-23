@@ -6,15 +6,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Calendar as CalendarIcon, Mail, Phone, UserPlus, MessageSquare, FileText, Bot } from 'lucide-react';
+import { User, Calendar as CalendarIcon, Mail, Phone, UserPlus, MessageSquare, FileText, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getInitials, generateAvatarColor, cn } from '@/lib/utils';
 import { MiniCalendar } from '@/components/calendar/MiniCalendar';
-import { AIAssistantSidebar } from '@/components/ai/AIAssistantSidebar';
+import { YourDay } from '@/components/calendar/YourDay';
 import ContactModal from '@/components/contacts/ContactModal';
 import { SMSModal } from '@/components/sms/SMSModal';
 import { ContactNotes } from '@/components/contacts/ContactNotes';
 import { CommunicationTimeline } from '@/components/contacts/CommunicationTimeline';
+import QuickAddV4 from '@/components/calendar/QuickAddV4';
 
 interface EmailMessage {
   id: string;
@@ -28,19 +29,21 @@ interface EmailMessage {
 
 interface ContactPanelV3Props {
   email?: EmailMessage;
-  activeTab?: 'contact' | 'calendar' | 'ai';
-  onTabChange?: (tab: 'contact' | 'calendar' | 'ai') => void;
+  activeTab?: 'agenda' | 'contact' | 'calendar';
+  onTabChange?: (tab: 'agenda' | 'contact' | 'calendar') => void;
   onComposeEmail?: (emailData: { to: string; subject: string; body: string }) => void;
 }
 
 export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChange, onComposeEmail }: ContactPanelV3Props) {
-  const [internalActiveTab, setInternalActiveTab] = useState<'contact' | 'calendar' | 'ai'>('calendar');
+  const [internalActiveTab, setInternalActiveTab] = useState<'agenda' | 'contact' | 'calendar'>('agenda');
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
 
   // Use external activeTab if provided, otherwise use internal
   const activeTab = externalActiveTab !== undefined ? externalActiveTab : internalActiveTab;
 
   // Handle tab change
-  const handleTabChange = (tab: 'contact' | 'calendar' | 'ai') => {
+  const handleTabChange = (tab: 'agenda' | 'contact' | 'calendar') => {
     if (onTabChange) {
       onTabChange(tab);
     } else {
@@ -54,10 +57,8 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
       // Email selected → switch to Contact tab
       handleTabChange('contact');
     } else {
-      // No email selected → switch to Calendar tab (unless on AI tab)
-      if (activeTab !== 'ai') {
-        handleTabChange('calendar');
-      }
+      // No email selected → switch to Your Day tab
+      handleTabChange('agenda');
     }
   }, [email]);
 
@@ -69,6 +70,18 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
       {/* Tabs Header - Fixed */}
       <div className="flex-shrink-0 h-14 border-b border-border flex items-center px-4">
         <div className="flex gap-2">
+          <button
+            className={cn(
+              'px-3 py-2 text-sm rounded-sm transition-colors',
+              activeTab === 'agenda'
+                ? 'text-primary font-bold'
+                : 'text-muted-foreground font-medium hover:text-foreground'
+            )}
+            onClick={() => handleTabChange('agenda')}
+          >
+            <Sun className="h-4 w-4 inline mr-2" />
+            Agenda
+          </button>
           <button
             className={cn(
               'px-3 py-2 text-sm rounded-sm transition-colors',
@@ -93,24 +106,14 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
             <CalendarIcon className="h-4 w-4 inline mr-2" />
             Calendar
           </button>
-          <button
-            className={cn(
-              'px-3 py-2 text-sm rounded-sm transition-colors',
-              activeTab === 'ai'
-                ? 'text-primary font-bold'
-                : 'text-muted-foreground font-medium hover:text-foreground'
-            )}
-            onClick={() => handleTabChange('ai')}
-          >
-            <Bot className="h-4 w-4 inline mr-2" />
-            AI
-          </button>
         </div>
       </div>
 
       {/* Tab Content - Scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {activeTab === 'contact' ? (
+        {activeTab === 'agenda' ? (
+          <YourDay />
+        ) : activeTab === 'contact' ? (
           email ? (
             <ContactInfoTab email={email} avatarColor={avatarColor} />
           ) : (
@@ -121,19 +124,23 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
               </p>
             </div>
           )
-        ) : activeTab === 'calendar' ? (
-          <MiniCalendar />
         ) : (
-          <div className="h-full">
-            <AIAssistantSidebar
-              isOpen={true}
-              onClose={() => handleTabChange('calendar')}
-              onComposeEmail={onComposeEmail}
-              fullPage={true}
-            />
-          </div>
+          <MiniCalendar
+            key={calendarRefreshKey}
+            onQuickAddClick={() => setIsQuickAddOpen(true)}
+          />
         )}
       </div>
+
+      {/* QuickAdd Modal */}
+      <QuickAddV4
+        isOpen={isQuickAddOpen}
+        onClose={() => setIsQuickAddOpen(false)}
+        onEventCreated={() => {
+          // Refresh MiniCalendar by updating key
+          setCalendarRefreshKey(prev => prev + 1);
+        }}
+      />
     </div>
   );
 }

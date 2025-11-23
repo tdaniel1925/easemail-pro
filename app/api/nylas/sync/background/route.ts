@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update status to background_syncing and clear stop flag
+    // Enable webhook suppression during initial sync
     await db.update(emailAccounts)
       .set({
         syncStatus: 'background_syncing',
@@ -121,6 +122,7 @@ export async function POST(request: NextRequest) {
         syncStopped: false, // Clear the stop flag when starting
         retryCount: 0, // Reset retry count on manual start
         lastActivityAt: new Date(), // ✅ Track when sync started
+        suppressWebhooks: !account.initialSyncCompleted, // Suppress webhooks during initial sync only
       })
       .where(eq(emailAccounts.id, accountId));
 
@@ -776,6 +778,7 @@ async function performBackgroundSync(
         syncStatus: 'completed',
         syncProgress: 100,
         initialSyncCompleted: true,
+        suppressWebhooks: false, // Re-enable webhooks after initial sync completes
         totalEmailCount: syncedCount,
         lastSyncedAt: new Date(),
         continuationCount: 0, // Reset continuation counter on successful completion
@@ -801,12 +804,49 @@ async function performBackgroundSync(
   } catch (error) {
     console.error(`❌ Background sync failed for account ${accountId}:`, error);
 
+    // Categorize error type for better user messaging
+    let errorMessage = 'Unknown error';
+    let isTransient = false;
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+
+      // Check if error is transient (can retry)
+      const transientPatterns = [
+        'timeout',
+        'network',
+        'econnreset',
+        'rate limit',
+        '429',
+        '500',
+        '502',
+        '503',
+        '504',
+      ];
+
+      isTransient = transientPatterns.some(pattern =>
+        errorMessage.toLowerCase().includes(pattern)
+      );
+    }
+
+    // Get current retry count
+    const currentAccount = await db.query.emailAccounts.findFirst({
+      where: eq(emailAccounts.id, accountId),
+    });
+
+    // Update account with error details
     await db.update(emailAccounts)
       .set({
-        syncStatus: 'error',
-        lastError: error instanceof Error ? error.message : 'Unknown error',
+        syncStatus: isTransient ? 'error' : 'error_permanent',
+        lastError: errorMessage,
+        retryCount: isTransient ? ((currentAccount?.retryCount || 0) + 1) : 0,
+        lastActivityAt: new Date(),
       })
       .where(eq(emailAccounts.id, accountId));
+
+    console.log(
+      `[Sync] Error categorized as ${isTransient ? 'TRANSIENT' : 'PERMANENT'} for account ${accountId}`
+    );
 
     // ✅ NEW: Release sync slot even on error
     completeSyncSlot(accountId);

@@ -104,10 +104,10 @@ export function SyncStatusMonitor({ userId, isAdmin = false }: SyncStatusMonitor
       return <Badge variant="destructive" className="gap-1"><AlertCircle className="h-3 w-3" /> Error</Badge>;
     }
     if (account.isSyncing) {
-      return <Badge variant="default" className="gap-1 bg-blue-600"><Loader2 className="h-3 w-3 animate-spin" /> Syncing</Badge>;
+      return <Badge variant="default" className="gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Syncing</Badge>;
     }
     if (account.isComplete) {
-      return <Badge variant="default" className="gap-1 bg-green-600"><CheckCircle2 className="h-3 w-3" /> Complete</Badge>;
+      return <Badge variant="default" className="gap-1"><CheckCircle2 className="h-3 w-3" /> Complete</Badge>;
     }
     return <Badge variant="secondary">Idle</Badge>;
   };
@@ -178,7 +178,7 @@ export function SyncStatusMonitor({ userId, isAdmin = false }: SyncStatusMonitor
                 <p className="text-sm text-muted-foreground">Total Accounts</p>
                 <p className="text-2xl font-bold">{data.summary.totalAccounts}</p>
               </div>
-              <Mail className="h-8 w-8 text-blue-600" />
+              <Mail className="h-8 w-8 text-primary" />
             </div>
           </CardContent>
         </Card>
@@ -190,7 +190,7 @@ export function SyncStatusMonitor({ userId, isAdmin = false }: SyncStatusMonitor
                 <p className="text-sm text-muted-foreground">Syncing</p>
                 <p className="text-2xl font-bold">{data.summary.syncing}</p>
               </div>
-              <Activity className="h-8 w-8 text-blue-600 animate-pulse" />
+              <Activity className="h-8 w-8 text-primary animate-pulse" />
             </div>
           </CardContent>
         </Card>
@@ -202,7 +202,7 @@ export function SyncStatusMonitor({ userId, isAdmin = false }: SyncStatusMonitor
                 <p className="text-sm text-muted-foreground">Complete</p>
                 <p className="text-2xl font-bold">{data.summary.complete}</p>
               </div>
-              <CheckCircle2 className="h-8 w-8 text-green-600" />
+              <CheckCircle2 className="h-8 w-8 text-primary" />
             </div>
           </CardContent>
         </Card>
@@ -214,7 +214,7 @@ export function SyncStatusMonitor({ userId, isAdmin = false }: SyncStatusMonitor
                 <p className="text-sm text-muted-foreground">Total Emails</p>
                 <p className="text-2xl font-bold">{data.summary.totalEmailsInDB.toLocaleString()}</p>
               </div>
-              <Database className="h-8 w-8 text-purple-600" />
+              <Database className="h-8 w-8 text-primary" />
             </div>
           </CardContent>
         </Card>
@@ -309,7 +309,7 @@ export function SyncStatusMonitor({ userId, isAdmin = false }: SyncStatusMonitor
                           <p className="text-xs text-muted-foreground">Continuations</p>
                           <p className="text-lg font-semibold flex items-center gap-1">
                             {account.continuationCount}
-                            {account.isSyncing && <TrendingUp className="h-3 w-3 text-blue-600" />}
+                            {account.isSyncing && <TrendingUp className="h-3 w-3 text-primary" />}
                           </p>
                         </div>
                         <div>

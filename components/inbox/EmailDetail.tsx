@@ -215,15 +215,53 @@ export default function EmailDetail({
         return;
       }
 
-      // TODO: Parse .ics file and create calendar event
-      // For now, just show the response visually
       console.log(`Meeting response: ${response}`, icsAttachment);
 
-      // In a full implementation, you would:
-      // 1. Download and parse the .ics file
-      // 2. Extract event details (title, date, time, location, etc.)
-      // 3. Create calendar event via /api/calendar/events
-      // 4. Send RSVP email response to organizer
+      // Download the .ics file
+      const params = new URLSearchParams({
+        accountId: accountId,
+        messageId: email.id,
+        attachmentId: icsAttachment.id,
+      });
+
+      const downloadResponse = await fetch(
+        `/api/nylas-v3/messages/download/attachment?${params.toString()}`
+      );
+
+      if (!downloadResponse.ok) {
+        throw new Error('Failed to download ICS attachment');
+      }
+
+      const icsBlob = await downloadResponse.blob();
+      const icsText = await icsBlob.text();
+
+      // Parse the ICS file and create calendar event
+      const parseResponse = await fetch('/api/calendar/parse-ics', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          icsData: icsText,
+          accountId: accountId,
+          messageId: email.id,
+          response: response,
+        }),
+      });
+
+      const parseData = await parseResponse.json();
+
+      if (parseData.success) {
+        console.log('Meeting invitation processed:', parseData);
+
+        // Show success message
+        if (response === 'accepted' && parseData.calendarEventId) {
+          console.log('Event added to calendar:', parseData.calendarEventId);
+        }
+      } else {
+        console.error('Failed to process meeting invitation:', parseData.error);
+        setMeetingResponse(null);
+      }
 
     } catch (error) {
       console.error('Error responding to meeting invitation:', error);

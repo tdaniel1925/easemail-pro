@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { SearchBar } from '@/components/attachments/SearchBar';
 import { FilterBar } from '@/components/attachments/FilterBar';
 import { AttachmentsGrid } from '@/components/attachments/AttachmentsGrid';
+import { AttachmentsList } from '@/components/attachments/AttachmentsList';
 import { PreviewModal } from '@/components/attachments/PreviewModal';
 import { UploadButton } from '@/components/attachments/UploadButton';
 import { useAttachments, useAttachmentStats, useDownloadAttachment } from '@/lib/attachments/hooks';
@@ -43,66 +44,12 @@ function AttachmentsContent() {
   } = useAttachmentsStore();
 
   const [page, setPage] = useState(1);
-  const [aiEnabled, setAiEnabled] = useState<boolean | null>(null);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isAllSelected, setIsAllSelected] = useState(false);
-
-  // Fetch AI setting with cleanup
-  useEffect(() => {
-    let mounted = true;
-    
-    fetch('/api/user/preferences')
-      .then(res => res.json())
-      .then(data => {
-        if (mounted) setAiEnabled(data.preferences?.aiAttachmentProcessing || false);
-      })
-      .catch(err => {
-        if (mounted) {
-          setAiEnabled(false);
-          setError('Failed to load AI preferences');
-        }
-      });
-    
-    return () => { mounted = false; };
-  }, []);
-
-  // Handle AI toggle with error handling and cache invalidation
-  const handleAiToggle = async (enabled: boolean) => {
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-    
-    try {
-      const response = await fetch('/api/user/preferences', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aiAttachmentProcessing: enabled }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update preference');
-      }
-
-      setAiEnabled(enabled);
-      setSuccess(enabled ? 'AI Analysis enabled!' : 'AI Analysis disabled');
-      
-      // Invalidate cache to refresh data
-      queryClient.invalidateQueries({ queryKey: ['attachments'] });
-      queryClient.invalidateQueries({ queryKey: ['attachmentStats'] });
-      
-      // Auto-dismiss success message
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (error: any) {
-      setError(error.message || 'Failed to save preference');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // Build query params
   const params: GetAttachmentsParams = {
@@ -298,7 +245,7 @@ function AttachmentsContent() {
           </div>
         )}
 
-        {/* Header with AI Toggle */}
+        {/* Header */}
         <div className="border-b bg-card px-6 py-4 space-y-4">
           <div className="flex items-center justify-between">
             {/* Title & Stats */}
@@ -322,26 +269,8 @@ function AttachmentsContent() {
               <UploadButton />
             </div>
 
-            {/* Controls: AI Toggle + View Toggle */}
+            {/* Controls: View Toggle */}
             <div className="flex items-center gap-4">
-              {/* AI Toggle */}
-              {aiEnabled !== null && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">AI Attachment Analysis:</span>
-                  <Switch
-                    checked={aiEnabled}
-                    onCheckedChange={handleAiToggle}
-                    disabled={saving}
-                    className="scale-90"
-                  />
-                  <span className={`text-xs font-medium ${
-                    aiEnabled ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'
-                  }`}>
-                    {saving ? 'saving...' : aiEnabled ? 'ON' : 'OFF'}
-                  </span>
-                </div>
-              )}
-
               {/* View Toggle */}
               <div className="flex items-center gap-2">
                 <Button
@@ -389,15 +318,27 @@ function AttachmentsContent() {
           
           {!isLoading && !fetchError && hasAttachments && (
             <>
-              <AttachmentsGrid
-                attachments={data.data}
-                onPreview={openPreview}
-                onDownload={handleDownload}
-                onOpenEmail={handleOpenEmail}
-                selectedIds={Array.from(selectedIds)}
-                onToggleSelect={toggleSelectAttachment}
-                showCheckboxes={true}
-              />
+              {view === 'grid' ? (
+                <AttachmentsGrid
+                  attachments={data.data}
+                  onPreview={openPreview}
+                  onDownload={handleDownload}
+                  onOpenEmail={handleOpenEmail}
+                  selectedIds={Array.from(selectedIds)}
+                  onToggleSelect={toggleSelectAttachment}
+                  showCheckboxes={true}
+                />
+              ) : (
+                <AttachmentsList
+                  attachments={data.data}
+                  onPreview={openPreview}
+                  onDownload={handleDownload}
+                  onOpenEmail={handleOpenEmail}
+                  selectedIds={Array.from(selectedIds)}
+                  onToggleSelect={toggleSelectAttachment}
+                  showCheckboxes={true}
+                />
+              )}
 
               {/* Pagination */}
               {data.pagination.totalPages > 1 && (

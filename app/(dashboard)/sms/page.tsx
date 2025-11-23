@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
-import { SMSInbox } from '@/components/sms/SMSInbox';
+import { SMSMessaging } from '@/components/sms/SMSMessaging';
 
 export default function SMSPage() {
   return (
@@ -9,9 +9,7 @@ export default function SMSPage() {
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     }>
-      <div className="h-full">
-        <SMSInbox />
-      </div>
+      <SMSMessaging />
     </Suspense>
   );
 }

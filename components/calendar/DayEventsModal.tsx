@@ -10,7 +10,7 @@
 'use client';
 
 import { format, parseISO, differenceInMinutes, isSameDay } from 'date-fns';
-import { Calendar, Clock, MapPin, Users, Plus, X, TrendingUp, Trash2, CheckSquare, Square } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Plus, X, TrendingUp, Trash2, CheckSquare, Square, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -26,6 +26,37 @@ function sanitizeEventText(text: string | undefined | null): string {
   return decoded.replace(/<[^>]*>/g, '').trim();
 }
 
+// Convert URLs in text to clickable links
+function linkifyText(text: string): JSX.Element {
+  if (!text) return <></>;
+
+  // URL regex pattern
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.match(urlRegex)) {
+          return (
+            <a
+              key={index}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline inline-flex items-center gap-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {part}
+            </a>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 interface DayEventsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -34,6 +65,7 @@ interface DayEventsModalProps {
   onEventClick: (event: CalendarEvent) => void;
   onAddEvent: (prefilledData?: { date: Date; time?: string }) => void;
   onBulkDelete?: (eventIds: string[]) => Promise<void>;
+  onQuickAdd?: () => void;
 }
 
 interface TimeGroup {
@@ -51,6 +83,7 @@ export default function DayEventsModal({
   onEventClick,
   onAddEvent,
   onBulkDelete,
+  onQuickAdd,
 }: DayEventsModalProps) {
   // Bulk delete state
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
@@ -317,14 +350,27 @@ export default function DayEventsModal({
               )}
             </div>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleClose}
-              className="flex-shrink-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              {onQuickAdd && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onQuickAdd}
+                  className="flex items-center gap-2"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Quick Add
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleClose}
+                className="flex-shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Bulk Delete Toolbar */}
@@ -506,7 +552,7 @@ export default function DayEventsModal({
                                   {event.location && (
                                     <div className="flex items-center gap-1">
                                       <MapPin className="h-3.5 w-3.5" />
-                                      <span className="truncate">{sanitizeEventText(event.location)}</span>
+                                      <span className="truncate">{linkifyText(sanitizeEventText(event.location))}</span>
                                     </div>
                                   )}
 

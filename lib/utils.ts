@@ -72,4 +72,33 @@ export function truncateText(text: string, maxLength: number): string {
   return text.slice(0, maxLength) + '...';
 }
 
+/**
+ * Convert text to title case (capitalize first letter of each word)
+ * Handles names, titles, and company names properly
+ */
+export function toTitleCase(text: string | null | undefined): string {
+  if (!text || text.trim() === '') return '';
+
+  // Words that should stay lowercase in titles (unless they're the first word)
+  const smallWords = new Set(['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'in', 'of', 'on', 'or', 'the', 'to', 'with']);
+
+  return text
+    .toLowerCase()
+    .split(' ')
+    .map((word, index) => {
+      // Always capitalize first word
+      if (index === 0) {
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      }
+
+      // Keep small words lowercase unless they're the first word
+      if (smallWords.has(word)) {
+        return word;
+      }
+
+      // Capitalize all other words
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(' ');
+}
 

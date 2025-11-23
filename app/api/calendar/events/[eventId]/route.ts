@@ -115,6 +115,39 @@ export async function PATCH(
       }
     }
     
+    // Detect changes and send notifications to attendees if needed
+    const { detectEventChanges, sendEventUpdateNotifications } = await import('@/lib/calendar/event-change-detector');
+    const { users } = await import('@/lib/db/schema');
+
+    const changeDetection = detectEventChanges(
+      {
+        id: existingEvent.id,
+        title: existingEvent.title,
+        description: existingEvent.description,
+        location: existingEvent.location,
+        startTime: existingEvent.startTime,
+        endTime: existingEvent.endTime,
+        allDay: existingEvent.allDay !== null ? existingEvent.allDay : false,
+        timezone: existingEvent.timezone,
+        organizerEmail: existingEvent.organizerEmail,
+        attendees: existingEvent.attendees as any,
+        recurrenceRule: existingEvent.recurrenceRule,
+      },
+      {
+        id: existingEvent.id,
+        title: updates.title ?? existingEvent.title,
+        description: updates.description !== undefined ? updates.description : existingEvent.description,
+        location: updates.location !== undefined ? updates.location : existingEvent.location,
+        startTime: updates.startTime ?? existingEvent.startTime,
+        endTime: updates.endTime ?? existingEvent.endTime,
+        allDay: updates.allDay ?? (existingEvent.allDay !== null ? existingEvent.allDay : false),
+        timezone: updates.timezone !== undefined ? updates.timezone : existingEvent.timezone,
+        organizerEmail: existingEvent.organizerEmail,
+        attendees: updates.attendees !== undefined ? updates.attendees : (existingEvent.attendees as any),
+        recurrenceRule: updates.recurrenceRule !== undefined ? updates.recurrenceRule : existingEvent.recurrenceRule,
+      }
+    );
+
     // Update event
     const [event] = await db.update(calendarEvents)
       .set(updates)
@@ -125,6 +158,49 @@ export async function PATCH(
       .returning();
 
     console.log('✅ Calendar event updated locally:', event.id);
+
+    // Send update notifications to attendees if there are meaningful changes
+    if (changeDetection.hasChanges && event.attendees && (event.attendees as any[]).length > 0) {
+      try {
+        const dbUser = await db.query.users.findFirst({
+          where: eq(users.id, user.id),
+        });
+
+        const organizerName = dbUser?.fullName || dbUser?.email || user.email || 'Event Organizer';
+        const organizerEmail = event.organizerEmail || user.email || '';
+
+        const notificationResult = await sendEventUpdateNotifications(
+          {
+            id: event.id,
+            title: event.title,
+            description: event.description,
+            location: event.location,
+            startTime: event.startTime,
+            endTime: event.endTime,
+            allDay: event.allDay !== null ? event.allDay : false,
+            timezone: event.timezone,
+            organizerEmail: event.organizerEmail,
+            attendees: event.attendees as any,
+            recurrenceRule: event.recurrenceRule,
+          },
+          {
+            name: organizerName,
+            email: organizerEmail,
+          },
+          changeDetection.changes,
+          changeDetection.requiresReconfirmation
+        );
+
+        console.log(`✅ Sent ${notificationResult.sent} update notifications to attendees`);
+
+        if (notificationResult.errors > 0) {
+          console.warn(`⚠️ ${notificationResult.errors} update notifications failed to send`);
+        }
+      } catch (notificationError: any) {
+        console.error('⚠️ Failed to send update notifications:', notificationError);
+        // Don't fail the request if notifications fail - event is still updated
+      }
+    }
 
     // 2-WAY SYNC: Push updates to Google/Microsoft Calendar via Nylas
     if (!data.skipSync) {

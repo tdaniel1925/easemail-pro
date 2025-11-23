@@ -44,7 +44,7 @@ export default function InboxV3Page() {
   const [selectedMessage, setSelectedMessage] = useState<any>(null);
   const [composeReplyTo, setComposeReplyTo] = useState<any>(null);
   const [composeType, setComposeType] = useState<'compose' | 'reply' | 'reply-all' | 'forward'>('compose');
-  const [rightPanelTab, setRightPanelTab] = useState<'contact' | 'calendar' | 'ai'>('calendar');
+  const [rightPanelTab, setRightPanelTab] = useState<'agenda' | 'contact' | 'calendar'>('agenda');
   const [aiReplyText, setAiReplyText] = useState<string | null>(null);
   const [composeDraft, setComposeDraft] = useState<any>(null);
 

@@ -28,7 +28,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { getInitials, generateAvatarColor, cn } from '@/lib/utils';
+import { getInitials, generateAvatarColor, cn, toTitleCase } from '@/lib/utils';
 import { getAccountColor } from '@/lib/utils/account-colors';
 import { formatPhoneForTwilio } from '@/lib/utils/phone';
 import { useRouter } from 'next/navigation';
@@ -1119,12 +1119,12 @@ function ContactCard({ contact, onDelete, onToggleFavorite, onEdit, onSendSMS, i
           </div>
 
           {/* Name and Info */}
-          <h3 className="font-semibold text-lg mb-1">{contact.display_name}</h3>
+          <h3 className="font-semibold text-lg mb-1">{toTitleCase(contact.display_name)}</h3>
           {contact.job_title && (
-            <p className="text-sm text-muted-foreground mb-1">{contact.job_title}</p>
+            <p className="text-sm text-muted-foreground mb-1">{toTitleCase(contact.job_title)}</p>
           )}
           {contact.company_name && (
-            <p className="text-sm text-muted-foreground mb-1">{contact.company_name}</p>
+            <p className="text-sm text-muted-foreground mb-1">{toTitleCase(contact.company_name)}</p>
           )}
           <p className="text-sm text-muted-foreground mb-3">
             {contact.primary_email || (contact.primary_phone ? formatPhoneForTwilio(contact.primary_phone) : 'No contact info')}
@@ -1291,7 +1291,7 @@ function ContactListItem({ contact, onDelete, onToggleFavorite, onEdit, onSendSM
           {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold truncate">{contact.display_name}</h3>
+              <h3 className="font-semibold truncate">{toTitleCase(contact.display_name)}</h3>
               <Button
                 variant="ghost"
                 size="icon"
@@ -1313,8 +1313,8 @@ function ContactListItem({ contact, onDelete, onToggleFavorite, onEdit, onSendSM
             {(contact.job_title || contact.company_name) && (
               <p className="text-xs text-muted-foreground truncate">
                 {contact.job_title && contact.company_name
-                  ? `${contact.job_title} at ${contact.company_name}`
-                  : contact.job_title || contact.company_name
+                  ? `${toTitleCase(contact.job_title)} at ${toTitleCase(contact.company_name)}`
+                  : toTitleCase(contact.job_title) || toTitleCase(contact.company_name)
                 }
               </p>
             )}

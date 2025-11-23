@@ -20,14 +20,14 @@ export function FeatureFlagsContent() {
       </div>
 
       {/* Warning */}
-      <Card className="p-4 bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900">
+      <Card className="p-4 bg-muted border-border">
         <div className="flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
           <div className="text-sm">
-            <p className="font-medium text-yellow-900 dark:text-yellow-100">
+            <p className="font-medium text-foreground">
               Experimental Features
             </p>
-            <p className="text-yellow-800 dark:text-yellow-200 mt-1">
+            <p className="text-muted-foreground mt-1">
               These features are currently in testing. They may have bugs or incomplete functionality. Use at your own risk.
             </p>
           </div>
@@ -54,7 +54,7 @@ export function FeatureFlagsContent() {
                   New email rendering system with iframe isolation for better CSS compatibility and security.
                 </p>
                 <div className="mt-2 space-y-1 text-sm">
-                  <p className="text-green-600 dark:text-green-400 font-medium">Improvements:</p>
+                  <p className="text-primary font-medium">Improvements:</p>
                   <ul className="list-disc list-inside space-y-0.5 text-muted-foreground ml-2">
                     <li>Complete CSS isolation - no more layout conflicts</li>
                     <li>Better attachment download with progress tracking</li>

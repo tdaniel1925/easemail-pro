@@ -11,6 +11,7 @@ import { eq, and } from 'drizzle-orm';
 import { validateRSVPToken } from '@/lib/calendar/rsvp-tokens';
 import { createCalendarSyncService } from '@/lib/services/calendar-sync-service';
 import { sendEmail } from '@/lib/email/send';
+import { ratelimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,6 +137,32 @@ export async function GET(
     const email = searchParams.get('email');
     const response = searchParams.get('response') as 'accepted' | 'declined' | 'tentative' | null;
 
+    // Rate limiting: 5 RSVP changes per email per hour
+    if (email) {
+      const identifier = `rsvp:${params.eventId}:${email.toLowerCase()}`;
+      const { success, limit, remaining, reset } = await ratelimit.limit(identifier);
+
+      if (!success) {
+        return new NextResponse(
+          generateConfirmationPage(
+            'Rate Limit Exceeded',
+            'System',
+            'declined',
+            email
+          ).replace('Invitation Declined', 'Too Many Requests').replace('You have declined this invitation.', `You've made too many RSVP changes. Please try again in ${Math.ceil((reset - Date.now()) / 60000)} minutes.`),
+          {
+            status: 429,
+            headers: {
+              'Content-Type': 'text/html',
+              'X-RateLimit-Limit': limit.toString(),
+              'X-RateLimit-Remaining': remaining.toString(),
+              'X-RateLimit-Reset': new Date(reset).toISOString(),
+            }
+          }
+        );
+      }
+    }
+
     // Validate required parameters
     if (!token || !email || !response) {
       return new NextResponse(
@@ -230,7 +257,7 @@ export async function GET(
     // Update attendee status
     type AttendeeStatus = 'pending' | 'accepted' | 'declined' | 'maybe';
     type Attendee = { email: string; name?: string; status: AttendeeStatus };
-    
+
     const attendees: Attendee[] = ((event.attendees as Array<{ email: string; name?: string; status?: string }>) || []).map(a => ({
       email: a.email,
       name: a.name,
@@ -238,10 +265,13 @@ export async function GET(
         ? a.status as AttendeeStatus
         : 'pending' as AttendeeStatus,
     }));
-    
+
     const attendeeIndex = attendees.findIndex(
       a => a.email.toLowerCase() === email.toLowerCase()
     );
+
+    // Track old status for change detection
+    const oldStatus = attendeeIndex !== -1 ? attendees[attendeeIndex].status : 'pending';
 
     if (attendeeIndex === -1) {
       return new NextResponse(
@@ -280,11 +310,24 @@ export async function GET(
       };
     });
 
-    // Update event in database
+    // Update event in database with RSVP history
+    const rsvpHistory = (event.metadata as any)?.rsvpHistory || [];
+    rsvpHistory.push({
+      email,
+      oldStatus,
+      newStatus,
+      timestamp: new Date().toISOString(),
+      userAgent: request.headers.get('user-agent') || 'Unknown',
+    });
+
     await db.update(calendarEvents)
       .set({
         attendees: updatedAttendees,
         updatedAt: new Date(),
+        metadata: {
+          ...(event.metadata as any || {}),
+          rsvpHistory,
+        },
       })
       .where(eq(calendarEvents.id, params.eventId));
 
@@ -334,38 +377,78 @@ export async function GET(
       }
     }
 
-    // Send notification email to organizer (optional)
+    // Send notification email to organizer
     if (organizerEmail && process.env.RESEND_API_KEY) {
       try {
-        const responseEmoji = {
-          accepted: '✅',
-          declined: '❌',
-          tentative: '❓',
-        };
+        // Detect if this is a status change (not first response)
+        const isStatusChange = oldStatus !== 'pending' && oldStatus !== newStatus;
 
-        const responseText = {
-          accepted: 'accepted',
-          declined: 'declined',
-          tentative: 'marked as tentative',
-        };
+        if (isStatusChange) {
+          // Send RSVP change notification
+          const { getRSVPChangeNotificationTemplate, getRSVPChangeNotificationSubject } = await import('@/lib/email/templates/rsvp-change-notification');
 
-        await sendEmail({
-          to: organizerEmail,
-          subject: `${responseEmoji[response]} ${email} ${responseText[response]} your invitation: ${event.title}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2>RSVP Response</h2>
-              <p><strong>${email}</strong> has ${responseText[response]} your invitation to:</p>
-              <div style="background: #f5f6f8; padding: 16px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="margin: 0;">${event.title}</h3>
-                ${event.startTime ? `<p style="margin: 8px 0 0; color: #666;">${new Date(event.startTime).toLocaleString()}</p>` : ''}
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
+          const eventDetailsUrl = `${baseUrl}/calendar?event=${params.eventId}`;
+
+          const emailHtml = getRSVPChangeNotificationTemplate({
+            eventTitle: event.title,
+            eventStartTime: event.startTime,
+            eventLocation: event.location || undefined,
+            attendeeEmail: email,
+            attendeeName: attendees[attendeeIndex]?.name,
+            oldStatus,
+            newStatus,
+            organizerName,
+            eventDetailsUrl,
+          });
+
+          const subject = getRSVPChangeNotificationSubject({
+            eventTitle: event.title,
+            attendeeEmail: email,
+            newStatus,
+          });
+
+          await sendEmail({
+            to: organizerEmail,
+            subject,
+            html: emailHtml,
+          });
+
+          console.log(`✅ RSVP change notification sent to ${organizerEmail}`);
+        } else {
+          // Send initial RSVP response notification (simple format)
+          const responseEmoji = {
+            accepted: '✅',
+            declined: '❌',
+            tentative: '❓',
+          };
+
+          const responseText = {
+            accepted: 'accepted',
+            declined: 'declined',
+            tentative: 'marked as tentative',
+          };
+
+          await sendEmail({
+            to: organizerEmail,
+            subject: `${responseEmoji[response]} ${email} ${responseText[response]} your invitation: ${event.title}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>RSVP Response</h2>
+                <p><strong>${email}</strong> has ${responseText[response]} your invitation to:</p>
+                <div style="background: #f5f6f8; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin: 0;">${event.title}</h3>
+                  ${event.startTime ? `<p style="margin: 8px 0 0; color: #666;">${new Date(event.startTime).toLocaleString()}</p>` : ''}
+                </div>
+                <p style="color: #666; font-size: 14px;">
+                  You can view all RSVP responses in your calendar.
+                </p>
               </div>
-              <p style="color: #666; font-size: 14px;">
-                You can view all RSVP responses in your calendar.
-              </p>
-            </div>
-          `,
-        });
+            `,
+          });
+
+          console.log(`✅ Initial RSVP notification sent to ${organizerEmail}`);
+        }
       } catch (emailError: any) {
         console.error('⚠️ Failed to send RSVP notification email:', emailError);
         // Don't fail the RSVP if notification fails

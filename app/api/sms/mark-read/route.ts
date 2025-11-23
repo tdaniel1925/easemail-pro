@@ -16,13 +16,54 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { messageIds } = body;
+    const { messageIds, markAll, phoneNumber } = body;
 
-    if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
-      return NextResponse.json({ error: 'Invalid message IDs' }, { status: 400 });
+    // Handle mark all messages as read
+    if (markAll) {
+      await db
+        .update(smsMessages)
+        .set({ isRead: true, updatedAt: new Date() })
+        .where(
+          and(
+            eq(smsMessages.userId, user.id),
+            eq(smsMessages.direction, 'inbound')
+          )
+        );
+
+      console.log('✅ Marked all SMS messages as read');
+
+      return NextResponse.json({
+        success: true,
+        message: 'All messages marked as read',
+      });
     }
 
-    // Mark messages as read
+    // Handle mark messages from specific phone number as read
+    if (phoneNumber) {
+      await db
+        .update(smsMessages)
+        .set({ isRead: true, updatedAt: new Date() })
+        .where(
+          and(
+            eq(smsMessages.userId, user.id),
+            eq(smsMessages.fromPhone, phoneNumber),
+            eq(smsMessages.direction, 'inbound')
+          )
+        );
+
+      console.log(`✅ Marked all messages from ${phoneNumber} as read`);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Messages marked as read',
+      });
+    }
+
+    // Handle mark specific messages as read
+    if (!messageIds || !Array.isArray(messageIds) || messageIds.length === 0) {
+      return NextResponse.json({ error: 'Invalid request: provide messageIds, markAll, or phoneNumber' }, { status: 400 });
+    }
+
     await db
       .update(smsMessages)
       .set({ isRead: true, updatedAt: new Date() })

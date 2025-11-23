@@ -84,45 +84,24 @@ export function UnifiedAIToolbar({
     setShowInlineDictation(false);
   };
 
-  // ✅ FIX: Smart insertion - place dictation at the VERY TOP, above blank lines and signature
+  /**
+   * Smart insertion - place text at the top with proper formatting
+   * Preserves paragraph structure and ensures 2 blank lines before signature
+   */
   const insertAtTop = (textToInsert: string): string => {
     const currentBody = body.trim();
 
     if (!currentBody) {
-      // Empty body - just return the dictation
+      // Empty body - just return the text (already formatted with <p> tags)
       return textToInsert;
     }
 
-    // Parse body to find where actual content starts (skip blank divs)
-    // Body structure: <div><br/></div><div><br/></div> [signature] [quoted content]
+    // Text coming from AI is already formatted with <p> tags
+    // Add 2 empty paragraphs with <br> to ensure they render as visible blank lines
+    // This creates professional spacing before signature
+    const spacing = '<p><br></p><p><br></p>';
 
-    // Convert HTML to temporary element for parsing
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = currentBody;
-
-    // Find the first non-empty div (signature or quoted content)
-    const allDivs = tempDiv.querySelectorAll('div');
-    let insertPosition = 0;
-
-    // Skip leading blank divs (<div><br/></div>)
-    for (let i = 0; i < allDivs.length; i++) {
-      const div = allDivs[i];
-      const textContent = div.textContent?.trim() || '';
-      const innerHTML = div.innerHTML.trim();
-
-      // Check if it's a blank div: <br/> or <br> only
-      const isBlankDiv = innerHTML === '<br>' || innerHTML === '<br/>' || textContent === '';
-
-      if (!isBlankDiv) {
-        // Found first non-blank div - this is where we insert
-        break;
-      }
-      insertPosition = i + 1;
-    }
-
-    // Build new body: dictation + blank line + existing content (signature + quoted text)
-    const dictationHtml = `<div>${textToInsert}</div><div><br/></div>`;
-    return dictationHtml + currentBody;
+    return textToInsert + spacing + currentBody;
   };
 
   // Handle "Use As-Is" from dialog
@@ -158,13 +137,13 @@ export function UnifiedAIToolbar({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+Shift+W: AI Write
-      if (e.ctrlKey && e.shiftKey && e.key === 'W') {
-        e.preventDefault();
-        setShowAIWrite(true);
-      }
+      // Ctrl+Shift+W: AI Write - COMMENTED OUT (redundant)
+      // if (e.ctrlKey && e.shiftKey && e.key === 'W') {
+      //   e.preventDefault();
+      //   setShowAIWrite(true);
+      // }
       // Ctrl+Shift+R: AI Remix
-      else if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
         e.preventDefault();
         if (hasContent) {
           setShowAIRemix(true);
@@ -206,8 +185,8 @@ export function UnifiedAIToolbar({
 
       {/* Toolbar */}
       <div className={cn('flex items-center gap-2 p-3 border-t border-border bg-card', className)}>
-        {/* AI Write */}
-        <Button
+        {/* AI Write - COMMENTED OUT (redundant with AI Remix) */}
+        {/* <Button
           variant="ghost"
           size="sm"
           onClick={() => setShowAIWrite(true)}
@@ -216,7 +195,7 @@ export function UnifiedAIToolbar({
         >
           <Sparkles className="w-4 h-4 mr-2 text-primary" />
           <span className="hidden sm:inline">AI Write</span>
-        </Button>
+        </Button> */}
 
         {/* AI Remix */}
         <Button
@@ -277,7 +256,8 @@ export function UnifiedAIToolbar({
       </div>
 
       {/* Modals */}
-      <AIWriteModal
+      {/* AI Write Modal - COMMENTED OUT (redundant) */}
+      {/* <AIWriteModal
         isOpen={showAIWrite}
         onClose={() => setShowAIWrite(false)}
         onGenerate={handleAIWrite}
@@ -286,7 +266,7 @@ export function UnifiedAIToolbar({
           recipientName,
           subject,
         }}
-      />
+      /> */}
 
       <AIRemixPanel
         isOpen={showAIRemix}
@@ -317,11 +297,11 @@ export function AIToolbarShortcuts({ toolbar }: { toolbar: HTMLDivElement | null
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!toolbar) return;
 
-      // Ctrl+Shift+W - AI Write
-      if (e.ctrlKey && e.shiftKey && e.key === 'W') {
-        e.preventDefault();
-        (toolbar.querySelector('[title*="AI Write"]') as HTMLElement)?.click();
-      }
+      // Ctrl+Shift+W - AI Write - COMMENTED OUT (redundant)
+      // if (e.ctrlKey && e.shiftKey && e.key === 'W') {
+      //   e.preventDefault();
+      //   (toolbar.querySelector('[title*="AI Write"]') as HTMLElement)?.click();
+      // }
 
       // Ctrl+Shift+R - AI Remix
       if (e.ctrlKey && e.shiftKey && e.key === 'R') {

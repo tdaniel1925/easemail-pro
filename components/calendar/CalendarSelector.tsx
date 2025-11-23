@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { Calendar, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import CreateCalendarDialog from './CreateCalendarDialog';
 
 interface CalendarItem {
   id: string;
@@ -45,6 +47,7 @@ export default function CalendarSelector({
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   // ✅ Fetch calendars when accounts change
   useEffect(() => {
@@ -221,8 +224,21 @@ export default function CalendarSelector({
                 </button>
               </div>
 
+              {/* Create Calendar Button */}
+              <div className="px-2 pb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Calendar
+                </Button>
+              </div>
+
               {/* Calendar Items */}
-              <div className="space-y-1 max-h-64 overflow-y-auto">
+              <div className="space-y-1 max-h-96 overflow-y-auto">
                 {calendars.map((calendar) => {
                   const isSelected = selectedCalendarIds.includes(calendar.id);
                   const calendarColor = calendar.hexColor || '#3b82f6';
@@ -268,6 +284,17 @@ export default function CalendarSelector({
           )}
         </div>
       )}
+
+      {/* Create Calendar Dialog */}
+      <CreateCalendarDialog
+        isOpen={isCreateDialogOpen}
+        onClose={() => setIsCreateDialogOpen(false)}
+        accounts={accounts}
+        onCalendarCreated={() => {
+          // Refresh calendars after creation
+          fetchCalendarsForAllAccounts();
+        }}
+      />
     </div>
   );
 }

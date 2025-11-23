@@ -22,6 +22,7 @@ function getOpenAIClient(): OpenAI {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('🚀🚀🚀 [AI Assistant] POST endpoint HIT!!! 🚀🚀🚀');
   try {
     // Authenticate user
     const supabase = await createClient();
@@ -198,8 +199,10 @@ export async function POST(request: NextRequest) {
     ];
 
     // Add conversation history if provided
+    // IMPORTANT: Keep only last 2 messages to avoid hitting OpenAI's 128k token limit
+    // With dynamic tool filtering, 2 messages should be enough while staying under token limit
     if (conversationHistory && Array.isArray(conversationHistory)) {
-      messages.push(...conversationHistory.slice(-10)); // Keep last 10 messages for context
+      messages.push(...conversationHistory.slice(-2)); // Keep last 2 messages for context
     }
 
     // Add current user message
@@ -218,23 +221,54 @@ export async function POST(request: NextRequest) {
 
     // Add tools if we have user context
     if (accountId && aiContext) {
-      completionParams.tools = AI_TOOLS;
+      // OPTIMIZATION: Only send relevant tools based on user's message to reduce token usage
+      // This prevents hitting the 128k token limit
+      const lowerMessage = message.toLowerCase();
+      const relevantTools = AI_TOOLS.filter(tool => {
+        const toolName = tool.function.name.toLowerCase();
 
-      // Force tool usage for data queries by detecting keywords in user message
+        // Email tools
+        if (lowerMessage.includes('email') || lowerMessage.includes('inbox') || lowerMessage.includes('sender') || lowerMessage.includes('from')) {
+          if (toolName.includes('email')) return true;
+        }
+
+        // Calendar tools
+        if (lowerMessage.includes('calendar') || lowerMessage.includes('meeting') || lowerMessage.includes('event') || lowerMessage.includes('schedule') || lowerMessage.includes('appointment')) {
+          if (toolName.includes('calendar') || toolName.includes('event')) return true;
+        }
+
+        // Contact tools
+        if (lowerMessage.includes('contact') || lowerMessage.includes('people') || lowerMessage.includes('person')) {
+          if (toolName.includes('contact')) return true;
+        }
+
+        // Always include search tool for general queries
+        if (toolName === 'search_emails') return true;
+
+        return false;
+      });
+
+      // If no specific tools matched, include all tools (fallback)
+      completionParams.tools = relevantTools.length > 0 ? relevantTools : AI_TOOLS;
+
+      // Force tool usage for data queries AND actions by detecting keywords in user message
       const dataQueryKeywords = ['email', 'inbox', 'from', 'sender', 'contact', 'meeting', 'event', 'calendar', 'how many', 'do i have', 'show me', 'find', 'search', 'are there', 'any'];
-      const isDataQuery = dataQueryKeywords.some(keyword => message.toLowerCase().includes(keyword));
+      const actionKeywords = ['set', 'create', 'schedule', 'make', 'add', 'book', 'send', 'reply', 'delete', 'remove', 'archive', 'mark', 'star', 'unstar', 'update', 'edit', 'change'];
 
-      // If this looks like a data query, strongly prefer using tools
+      const isDataQuery = dataQueryKeywords.some(keyword => lowerMessage.includes(keyword));
+      const isAction = actionKeywords.some(keyword => lowerMessage.includes(keyword));
+
+      // If this looks like a data query OR action, strongly prefer using tools
       // OpenAI will see 'required' and MUST make at least one tool call
-      if (isDataQuery) {
-        console.log(`[AI Assistant] 🔧 FORCING tool usage - detected data query keywords in: "${message}"`);
+      if (isDataQuery || isAction) {
+        console.log(`[AI Assistant] 🔧 FORCING tool usage - detected ${isDataQuery ? 'data query' : 'action'} keywords in: "${message}"`);
         completionParams.tool_choice = 'required';
       } else {
         console.log(`[AI Assistant] Using tool_choice='auto' for: "${message}"`);
         completionParams.tool_choice = 'auto';
       }
 
-      console.log(`[AI Assistant] ✅ Tools enabled. tool_choice=${completionParams.tool_choice}, tools_count=${AI_TOOLS.length}`);
+      console.log(`[AI Assistant] ✅ Tools enabled. tool_choice=${completionParams.tool_choice}, relevant_tools=${relevantTools.length}/${AI_TOOLS.length}`);
     } else {
       console.log(`[AI Assistant] ❌ Tools DISABLED. accountId=${accountId}, hasContext=${!!aiContext}`);
     }
@@ -256,8 +290,21 @@ export async function POST(request: NextRequest) {
           const result = await executeAITool(
             toolCall.function.name,
             args,
-            { userId, accountId: dbAccountId || accountId } // Use database account ID for tools
+            { userId, accountId: accountId } // Use Nylas Grant ID for API calls
           );
+
+          // Log what the tool returned
+          console.log(`[AI Assistant] ✅ Tool ${toolCall.function.name} returned:`);
+          console.log(`  - Type: ${result.constructor.name}`);
+          console.log(`  - Keys: ${Object.keys(result).join(', ')}`);
+          console.log(`  - Email count: ${result.emails?.length || 0}`);
+          console.log(`  - Total: ${result.total}`);
+          if (result.emails && result.emails.length > 0) {
+            console.log(`  - First email: ${JSON.stringify(result.emails[0])}`);
+          } else {
+            console.log(`  - No emails returned!`);
+          }
+
           toolCallResults.push({
             tool_call_id: toolCall.id,
             role: 'tool' as const,

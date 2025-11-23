@@ -360,8 +360,17 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
     },
   });
 
-  // TODO: Send payment failed email notification to user
-  console.log('[Stripe Webhook] Payment failure recorded - email notification needed');
+  // Send payment failed email notification
+  const { sendChargeFailureEmail } = await import('@/lib/billing/email-notifications');
+  await sendChargeFailureEmail({
+    userEmail: user.email,
+    userName: user.fullName || user.email,
+    amount: invoice.amount_due / 100,
+    reason: invoice.last_finalization_error?.message || 'Payment failed',
+    retryDate: invoice.next_payment_attempt ? new Date(invoice.next_payment_attempt * 1000) : undefined,
+  });
+
+  console.log('[Stripe Webhook] Payment failure recorded and notification sent');
 }
 
 /**
@@ -370,6 +379,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
  */
 async function handleTrialWillEnd(subscription: Stripe.Subscription) {
   const userId = subscription.metadata?.userId;
+  const planId = subscription.metadata?.planId;
 
   if (!userId) {
     console.error('[Stripe Webhook] Missing userId in subscription metadata');
@@ -378,6 +388,29 @@ async function handleTrialWillEnd(subscription: Stripe.Subscription) {
 
   console.log('[Stripe Webhook] Trial ending soon for user:', userId);
 
-  // TODO: Send trial ending email notification to user
-  console.log('[Stripe Webhook] Trial ending notification - email needed');
+  // Get user details
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+  });
+
+  if (!user) {
+    console.error('[Stripe Webhook] User not found:', userId);
+    return;
+  }
+
+  // Calculate days remaining
+  const trialEnd = subscription.trial_end ? new Date(subscription.trial_end * 1000) : new Date();
+  const daysRemaining = Math.ceil((trialEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+  // Send trial ending notification
+  const { sendTrialEndingEmail } = await import('@/lib/billing/email-notifications');
+  await sendTrialEndingEmail({
+    userEmail: user.email,
+    userName: user.fullName || user.email,
+    planName: planId ? planId.charAt(0).toUpperCase() + planId.slice(1) : 'Premium',
+    trialEndsAt: trialEnd,
+    daysRemaining,
+  });
+
+  console.log('[Stripe Webhook] Trial ending notification sent successfully');
 }

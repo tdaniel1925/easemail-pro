@@ -156,8 +156,8 @@ export default function ApiKeysManagement() {
         {/* Toast Notification */}
         {toast && (
           <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 animate-in slide-in-from-top-2 ${
-            toast.type === 'success' ? 'bg-green-500/10 border-green-500 text-green-500' :
-            'bg-red-500/10 border-red-500 text-red-500'
+            toast.type === 'success' ? 'bg-primary/10 border-primary text-primary' :
+            'bg-destructive/10 border-destructive text-destructive'
           }`}>
             <div className="flex-shrink-0 mt-0.5">
               {toast.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <Ban className="h-5 w-5" />}
@@ -175,12 +175,12 @@ export default function ApiKeysManagement() {
         )}
 
         {/* Warning Banner */}
-        <div className="bg-orange-500/10 border border-orange-500 text-orange-500 p-4 rounded-lg mb-6">
+        <div className="bg-muted border border-border p-4 rounded-lg mb-6">
           <div className="flex items-start gap-3">
-            <Ban className="h-5 w-5 flex-shrink-0 mt-0.5" />
+            <Ban className="h-5 w-5 flex-shrink-0 mt-0.5 text-primary" />
             <div>
-              <p className="font-semibold mb-1">Security Warning</p>
-              <p className="text-sm">
+              <p className="font-semibold mb-1 text-foreground">Security Warning</p>
+              <p className="text-sm text-muted-foreground">
                 These API keys are sensitive. Never share them publicly. They are stored securely and encrypted in the database.
               </p>
             </div>
@@ -206,7 +206,7 @@ export default function ApiKeysManagement() {
                       <Label htmlFor={config.id} className="flex items-center gap-2">
                         {config.name}
                         {config.required && (
-                          <span className="text-xs text-red-500">*</span>
+                          <span className="text-xs text-destructive">*</span>
                         )}
                       </Label>
                       <Button

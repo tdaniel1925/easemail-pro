@@ -130,7 +130,7 @@ export default function AccountSelector({ onAccountChange }: AccountSelectorProp
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="flex items-center gap-2 w-full justify-start">
+        <Button variant="ghost" size="sm" className="flex items-center gap-2 w-full justify-start pr-2">
           {selectedAccount && (
             <>
               <div
@@ -139,8 +139,8 @@ export default function AccountSelector({ onAccountChange }: AccountSelectorProp
               >
                 {getInitials(selectedAccount.emailAddress)}
               </div>
-              <span className="text-sm truncate flex-1 min-w-0 text-left">{selectedAccount.emailAddress}</span>
-              <ChevronDown className="h-4 w-4 flex-shrink-0" />
+              <span className="text-sm truncate flex-1 min-w-0 text-left pr-1">{selectedAccount.emailAddress}</span>
+              <ChevronDown className="h-4 w-4 flex-shrink-0 ml-auto" />
             </>
           )}
         </Button>

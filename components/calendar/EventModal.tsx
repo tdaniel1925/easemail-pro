@@ -22,17 +22,6 @@ interface EventModalProps {
   defaultDate?: Date; // Pre-fill date when creating
 }
 
-const COLORS = [
-  { value: 'blue', label: 'Blue', bg: 'bg-blue-500' },
-  { value: 'green', label: 'Green', bg: 'bg-green-500' },
-  { value: 'red', label: 'Red', bg: 'bg-red-500' },
-  { value: 'purple', label: 'Purple', bg: 'bg-purple-500' },
-  { value: 'orange', label: 'Orange', bg: 'bg-orange-500' },
-  { value: 'pink', label: 'Pink', bg: 'bg-pink-500' },
-  { value: 'yellow', label: 'Yellow', bg: 'bg-yellow-500' },
-  { value: 'gray', label: 'Gray', bg: 'bg-gray-500' },
-];
-
 const TIMEZONES = [
   { value: 'America/New_York', label: 'Eastern Time (ET)' },
   { value: 'America/Chicago', label: 'Central Time (CT)' },
@@ -75,7 +64,6 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   });
   const [busy, setBusy] = useState(true);
-  const [color, setColor] = useState('blue');
   const [reminder, setReminder] = useState<number>(15); // minutes before
   const [attendees, setAttendees] = useState<Array<{email: string, name?: string}>>([]);
   
@@ -149,18 +137,6 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
 
                       if (defaultCal) {
                         setSelectedCalendarId(defaultCal.id);
-                        // Set color from calendar
-                        if (defaultCal.hexColor) {
-                          const hexToColor = (hex: string): string => {
-                            const map: Record<string, string> = {
-                              '#3b82f6': 'blue', '#10b981': 'green', '#ef4444': 'red',
-                              '#8b5cf6': 'purple', '#f59e0b': 'orange', '#ec4899': 'pink',
-                              '#eab308': 'yellow', '#6b7280': 'gray'
-                            };
-                            return map[hex.toLowerCase()] || 'blue';
-                          };
-                          setColor(hexToColor(defaultCal.hexColor));
-                        }
                       }
                       setSyncStatus('will-sync');
                     }
@@ -209,8 +185,7 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
       setEndDate(format(end, 'yyyy-MM-dd'));
       setEndTime(format(end, 'HH:mm'));
       setAllDay(event.allDay || false);
-      setColor(event.color || 'blue');
-      
+
       if (event.reminders && event.reminders.length > 0) {
         setReminder(event.reminders[0].minutesBefore);
       }
@@ -303,9 +278,16 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
         return;
       }
 
-      // Validate: End time must be after start time
-      if (endDateObj <= startDateObj) {
+      // Validate: End time must be after start time (unless it's an all-day event on the same day)
+      if (!allDay && endDateObj <= startDateObj) {
         setError('End date and time must be after start date and time.');
+        setLoading(false);
+        return;
+      }
+
+      // For all-day events, ensure end is at or after start date
+      if (allDay && endDateObj < startDateObj) {
+        setError('End date must be on or after start date.');
         setLoading(false);
         return;
       }
@@ -329,7 +311,6 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
         allDay,
         timezone,
         busy,
-        color,
         calendarId: selectedCalendarId || null,
         accountId: selectedAccountId || null,
         reminders: reminder > 0 ? [{ type: 'popup', minutesBefore: reminder }] : [],
@@ -393,7 +374,6 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
     setAllDay(false);
     setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
     setBusy(true);
-    setColor('blue');
     setReminder(15);
     setIsRecurring(false);
     setRecurrenceType('WEEKLY');
@@ -434,75 +414,60 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
           </div>
 
           {/* Calendar Selector */}
-          {availableCalendars.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <label className="text-sm font-medium">Calendar *</label>
-              </div>
-              <select
-                value={selectedCalendarId}
-                onChange={(e) => {
-                  setSelectedCalendarId(e.target.value);
-                  // Update color based on selected calendar
-                  const selectedCal = availableCalendars.find(c => c.id === e.target.value);
-                  if (selectedCal?.hexColor) {
-                    const hexToColor = (hex: string): string => {
-                      const map: Record<string, string> = {
-                        '#3b82f6': 'blue', '#10b981': 'green', '#ef4444': 'red',
-                        '#8b5cf6': 'purple', '#f59e0b': 'orange', '#ec4899': 'pink',
-                        '#eab308': 'yellow', '#6b7280': 'gray'
-                      };
-                      return map[hex.toLowerCase()] || 'blue';
-                    };
-                    setColor(hexToColor(selectedCal.hexColor));
-                  }
-                }}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                required
-                disabled={loadingCalendars}
-              >
-                {loadingCalendars ? (
-                  <option>Loading calendars...</option>
-                ) : (
-                  availableCalendars
-                    .filter(cal => !cal.readOnly)
-                    .map((cal) => (
-                      <option key={cal.id} value={cal.id}>
-                        {cal.name}{cal.isPrimary ? ' (Primary)' : ''}
-                      </option>
-                    ))
-                )}
-              </select>
-              {/* Sync Status Indicator */}
-              <div className="mt-2 text-xs flex items-center gap-1.5">
-                {syncStatus === 'will-sync' && (
-                  <>
-                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                    <span className="text-muted-foreground">
-                      Will sync to {availableCalendars.find(c => c.id === selectedCalendarId)?.name}
-                    </span>
-                  </>
-                )}
-                {syncStatus === 'local-only' && (
-                  <>
-                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                    <span className="text-muted-foreground">
-                      Will be created locally (sync may happen later)
-                    </span>
-                  </>
-                )}
-                {syncStatus === 'no-account' && (
-                  <>
-                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                    <span className="text-muted-foreground">
-                      No calendar account connected - event will be local only
-                    </span>
-                  </>
-                )}
-              </div>
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <label className="text-sm font-medium">Calendar *</label>
             </div>
-          )}
+            <select
+              value={selectedCalendarId}
+              onChange={(e) => setSelectedCalendarId(e.target.value)}
+              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
+              required
+              disabled={loadingCalendars || availableCalendars.length === 0}
+            >
+              {loadingCalendars ? (
+                <option>Loading calendars...</option>
+              ) : availableCalendars.length === 0 ? (
+                <option value="">No calendars available - Connect a calendar account in Settings</option>
+              ) : (
+                availableCalendars
+                  .filter(cal => !cal.readOnly)
+                  .map((cal) => (
+                    <option key={cal.id} value={cal.id}>
+                      {cal.name}{cal.isPrimary ? ' (Primary)' : ''}
+                    </option>
+                  ))
+              )}
+            </select>
+            {/* Sync Status Indicator */}
+            <div className="mt-2 text-xs flex items-center gap-1.5">
+              {syncStatus === 'will-sync' && (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                  <span className="text-muted-foreground">
+                    Will sync to {availableCalendars.find(c => c.id === selectedCalendarId)?.name}
+                  </span>
+                </>
+              )}
+              {syncStatus === 'local-only' && (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                  <span className="text-muted-foreground">
+                    Will be created locally (sync may happen later)
+                  </span>
+                </>
+              )}
+              {syncStatus === 'no-account' && (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                  <span className="text-muted-foreground">
+                    No calendar account connected - event will be local only
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
 
           {/* Description */}
           <div>
@@ -646,24 +611,6 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
               onChange={setAttendees}
               placeholder="Add attendees by name or email"
             />
-          </div>
-
-          {/* Color */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Color</label>
-            <div className="flex gap-2">
-              {COLORS.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  onClick={() => setColor(c.value)}
-                  className={`w-8 h-8 rounded-full ${c.bg} ${
-                    color === c.value ? 'ring-2 ring-offset-2 ring-primary' : ''
-                  }`}
-                  title={c.label}
-                />
-              ))}
-            </div>
           </div>
 
           {/* Reminder */}

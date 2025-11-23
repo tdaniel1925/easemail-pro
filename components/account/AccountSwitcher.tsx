@@ -58,9 +58,9 @@ export default function AccountSwitcher() {
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between gap-2 px-3 py-2 h-auto"
+          className="w-full justify-start gap-2 px-3 py-2 h-auto pr-2"
         >
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
             {/* Avatar */}
             <div
               className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
@@ -70,16 +70,16 @@ export default function AccountSwitcher() {
             </div>
 
             {/* Account Info */}
-            <div className="flex flex-col items-start min-w-0">
-              <span className="text-sm font-medium truncate max-w-[200px]">
+            <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden pr-1">
+              <span className="text-sm font-medium truncate w-full">
                 {selectedAccount.emailAddress}
               </span>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground truncate">
                   {selectedAccount.emailProvider || selectedAccount.nylasProvider || 'Email'}
                 </span>
                 {selectedAccount.syncStatus === 'syncing' && (
-                  <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                  <Badge variant="secondary" className="h-4 px-1 text-[10px] flex-shrink-0">
                     Syncing
                   </Badge>
                 )}
@@ -87,7 +87,7 @@ export default function AccountSwitcher() {
             </div>
           </div>
 
-          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-auto" />
         </Button>
       </PopoverTrigger>
 

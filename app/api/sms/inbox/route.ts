@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         sentAt: smsMessages.sentAt,
         deliveredAt: smsMessages.deliveredAt,
         twilioStatus: smsMessages.twilioStatus,
+        isRead: smsMessages.isRead,
         createdAt: smsMessages.createdAt,
         // Contact info
         contactId: smsMessages.contactId,
@@ -74,13 +75,16 @@ export async function GET(request: NextRequest) {
       id: msg.id,
       from: msg.fromPhone,
       to: msg.toPhone,
+      body: msg.messageBody,
+      receivedAt: msg.sentAt,
       message: msg.messageBody,
       sentAt: msg.sentAt,
       deliveredAt: msg.deliveredAt,
       status: msg.twilioStatus,
+      isRead: msg.isRead ?? false,
       contact: msg.contactId ? {
         id: msg.contactId,
-        name: msg.contactFirstName && msg.contactLastName 
+        name: msg.contactFirstName && msg.contactLastName
           ? `${msg.contactFirstName} ${msg.contactLastName}`
           : msg.contactFirstName || msg.contactLastName || msg.contactEmail || 'Unknown',
         email: msg.contactEmail,

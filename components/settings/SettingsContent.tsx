@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker, Search, Calendar } from 'lucide-react';
+import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker, Search, Calendar, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -76,8 +76,16 @@ export default function SettingsContent() {
               placeholder="Search settings..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 pr-9"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           {/* Mobile Tabs - Horizontal scroll */}
@@ -87,10 +95,7 @@ export default function SettingsContent() {
               return (
                 <button
                   key={section.id}
-                  onClick={() => {
-                    setActiveSection(section.id);
-                    setSearchQuery(''); // Clear search when selecting
-                  }}
+                  onClick={() => setActiveSection(section.id)}
                   className={cn(
                     'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0',
                     activeSection === section.id
@@ -130,8 +135,16 @@ export default function SettingsContent() {
               placeholder="Search settings..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 pr-9"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
         <nav className="space-y-1">
@@ -145,10 +158,7 @@ export default function SettingsContent() {
               return (
                 <button
                   key={section.id}
-                  onClick={() => {
-                    setActiveSection(section.id);
-                    setSearchQuery(''); // Clear search when selecting
-                  }}
+                  onClick={() => setActiveSection(section.id)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
                     activeSection === section.id
@@ -318,21 +328,21 @@ function SyncStatusSettings() {
           </Card>
 
           {/* Info Card */}
-          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900">
+          <Card className="border-primary/20 bg-primary/5">
             <CardContent className="pt-6">
               <div className="flex gap-3">
-                <Database className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <Database className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                 <div className="space-y-2">
-                  <p className="font-medium text-blue-900 dark:text-blue-100">
+                  <p className="font-medium text-foreground">
                     Understanding Email Sync
                   </p>
-                  <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                  <div className="text-sm text-muted-foreground space-y-1">
                     <p><strong>In Database:</strong> Emails already downloaded and stored locally - these are immediately searchable and viewable.</p>
                     <p><strong>Total in Mailbox:</strong> Complete count of emails in your email provider's servers.</p>
                     <p><strong>Progress:</strong> Percentage of emails that have been downloaded from the server to your local database.</p>
                     <p><strong>Sync Speed:</strong> How many emails per minute are being processed during synchronization.</p>
                   </div>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 pt-2">
+                  <p className="text-xs text-muted-foreground pt-2">
                     Syncs run automatically in the background. You can use the app while syncing continues.
                   </p>
                 </div>
@@ -459,17 +469,17 @@ function SyncStatusSettings() {
 
                       {/* Status Messages */}
                       {account.syncStatus === 'completed' && progress === 100 && (
-                        <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900 p-3">
-                          <p className="text-sm text-green-800 dark:text-green-200">
-                            <CheckCircle className="inline h-4 w-4 mr-2" />
+                        <div className="rounded-lg border border-primary/20 bg-accent p-3">
+                          <p className="text-sm text-foreground">
+                            <CheckCircle className="inline h-4 w-4 mr-2 text-primary" />
                             All emails have been synced! Your mailbox is fully up to date.
                           </p>
                         </div>
                       )}
                       {account.syncStatus === 'syncing' && (
-                        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900 p-3">
-                          <p className="text-sm text-blue-800 dark:text-blue-200">
-                            <RefreshCw className="inline h-4 w-4 mr-2 animate-spin" />
+                        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                          <p className="text-sm text-muted-foreground">
+                            <RefreshCw className="inline h-4 w-4 mr-2 animate-spin text-primary" />
                             Sync in progress... You can continue using the app while emails are being downloaded.
                           </p>
                         </div>
@@ -852,12 +862,42 @@ function NotificationsSettings() {
 
   const handleToggle = async (key: string, value: boolean) => {
     const { saveNotificationPreferences } = await import('@/lib/notifications/notification-service');
-    
+
     const newPreferences = {
       ...preferences,
       [key]: value,
     };
-    
+
+    setPreferences(newPreferences);
+    saveNotificationPreferences(newPreferences);
+  };
+
+  const handleQuietHoursToggle = async (enabled: boolean) => {
+    const { saveNotificationPreferences } = await import('@/lib/notifications/notification-service');
+
+    const newPreferences = {
+      ...preferences,
+      quietHours: {
+        ...preferences.quietHours,
+        enabled,
+      },
+    };
+
+    setPreferences(newPreferences);
+    saveNotificationPreferences(newPreferences);
+  };
+
+  const handleQuietHoursTimeChange = async (field: 'start' | 'end', value: string) => {
+    const { saveNotificationPreferences } = await import('@/lib/notifications/notification-service');
+
+    const newPreferences = {
+      ...preferences,
+      quietHours: {
+        ...preferences.quietHours,
+        [field]: value,
+      },
+    };
+
     setPreferences(newPreferences);
     saveNotificationPreferences(newPreferences);
   };
@@ -898,7 +938,7 @@ function NotificationsSettings() {
       <div className="p-4 md:p-6">
         <div className="w-full space-y-6">
           {!permission.granted && (
-            <Card className="border-primary/50 bg-primary/5">
+            <Card className="border-primary/20 bg-primary/5">
               <CardHeader>
                 <CardTitle>Enable Notifications</CardTitle>
                 <CardDescription>
@@ -968,6 +1008,60 @@ function NotificationsSettings() {
               )}
             </CardContent>
           </Card>
+
+          {/* Quiet Hours */}
+          {permission.granted && preferences.enabled && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Quiet Hours</CardTitle>
+                <CardDescription>
+                  Pause notifications during specific hours
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Enable Quiet Hours</p>
+                    <p className="text-sm text-muted-foreground">Mute notifications during sleep hours</p>
+                  </div>
+                  <Switch
+                    checked={preferences.quietHours.enabled}
+                    onCheckedChange={handleQuietHoursToggle}
+                  />
+                </div>
+
+                {preferences.quietHours.enabled && (
+                  <div className="space-y-4 pt-4 border-t">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="quiet-start">Start Time</Label>
+                        <Input
+                          id="quiet-start"
+                          type="time"
+                          value={preferences.quietHours.start}
+                          onChange={(e) => handleQuietHoursTimeChange('start', e.target.value)}
+                          className="[color-scheme:light] dark:[color-scheme:dark]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="quiet-end">End Time</Label>
+                        <Input
+                          id="quiet-end"
+                          type="time"
+                          value={preferences.quietHours.end}
+                          onChange={(e) => handleQuietHoursTimeChange('end', e.target.value)}
+                          className="[color-scheme:light] dark:[color-scheme:dark]"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Notifications will be paused from {preferences.quietHours.start} to {preferences.quietHours.end} every day.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </>
@@ -1046,13 +1140,13 @@ function PrivacySettings() {
                     {saving && <span className="text-xs text-muted-foreground">(saving...)</span>}
                   </div>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Automatically classify attachments as invoices, receipts, contracts, and more. 
+                    Automatically classify attachments as invoices, receipts, contracts, and more.
                     Extract key data like amounts, dates, and vendors using OpenAI's API.
                   </p>
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900 p-3">
-                    <p className="text-xs text-amber-900 dark:text-amber-200">
-                      <strong>Privacy Notice:</strong> When enabled, attachment files are sent to OpenAI for processing. 
-                      Files are analyzed and deleted after 30 days per OpenAI's data retention policy. 
+                  <div className="rounded-lg border border-border bg-muted p-3">
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Privacy Notice:</strong> When enabled, attachment files are sent to OpenAI for processing.
+                      Files are analyzed and deleted after 30 days per OpenAI's data retention policy.
                       Your files are never used for AI training.
                     </p>
                   </div>
@@ -1065,17 +1159,17 @@ function PrivacySettings() {
               </div>
 
               {aiEnabled && (
-                <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900 p-4">
+                <div className="rounded-lg border border-primary/20 bg-accent p-4">
                   <div className="flex items-start gap-3">
-                    <Sparkles className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
+                    <Sparkles className="h-5 w-5 text-primary mt-0.5" />
                     <div>
-                      <p className="font-medium text-green-900 dark:text-green-100 mb-1">
+                      <p className="font-medium text-foreground mb-1">
                         AI Analysis Enabled
                       </p>
-                      <p className="text-sm text-green-800 dark:text-green-200 mb-2">
+                      <p className="text-sm text-muted-foreground mb-2">
                         New attachments will be automatically classified and analyzed.
                       </p>
-                      <p className="text-xs text-green-700 dark:text-green-300">
+                      <p className="text-xs text-muted-foreground">
                         Cost: ~$0.003 per attachment • Powered by OpenAI GPT-4
                       </p>
                     </div>
@@ -1127,40 +1221,71 @@ function IntegrationsSettings() {
 
       {/* Content */}
       <div className="p-4 md:p-6">
-        <div className="max-w-4xl space-y-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-blue-500 flex items-center justify-center">
-                    <span className="text-white font-bold">Z</span>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Zoom</h3>
-                    <p className="text-sm text-muted-foreground">Add Zoom meetings to emails</p>
-                  </div>
+        <div className="w-full space-y-6">
+          {/* Available Integration: Cal.com */}
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <Calendar className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-foreground mb-1">
+                    Cal.com Integration Available
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Connect your Cal.com account to sync bookings and meetings. Go to "Cal.com Calendar" section to set it up.
+                  </p>
                 </div>
-                <Button variant="outline">Connect</Button>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-green-500 flex items-center justify-center">
-                    <span className="text-white font-bold">S</span>
+          {/* Coming Soon */}
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Coming Soon</h2>
+            <div className="space-y-4">
+              <Card className="opacity-60">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
+                        <span className="text-foreground font-bold">Z</span>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">Zoom</h3>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium">
+                            Coming Soon
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Add Zoom meetings to emails</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold">Slack</h3>
-                    <p className="text-sm text-muted-foreground">Receive email notifications in Slack</p>
+                </CardContent>
+              </Card>
+
+              <Card className="opacity-60">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
+                        <span className="text-foreground font-bold">S</span>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">Slack</h3>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium">
+                            Coming Soon
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Receive email notifications in Slack</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <Button variant="outline">Connect</Button>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     </>

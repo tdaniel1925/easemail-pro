@@ -398,11 +398,11 @@ export function WritingStyleSettings() {
           )}
 
           {/* How it Works */}
-          <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg p-4">
-            <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+            <h4 className="text-sm font-semibold text-foreground mb-2">
               How It Works
             </h4>
-            <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Analyzes your last 50 sent emails</li>
               <li>• Identifies your tone, vocabulary, and sentence structure</li>
               <li>• Learns your typical greetings and closings</li>

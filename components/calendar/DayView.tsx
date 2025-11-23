@@ -122,6 +122,7 @@ export default function DayView({
 
                 if (!start || !end) return null;
 
+                const hexColor = event.hexColor || '#3b82f6';
                 return (
                   <div
                     key={event.id}
@@ -129,17 +130,13 @@ export default function DayView({
                       e.stopPropagation();
                       onEventClick(event);
                     }}
-                    style={style}
-                    className={cn(
-                      'absolute left-2 right-2 rounded-lg p-3 pointer-events-auto cursor-pointer shadow-md',
-                      'hover:shadow-lg transition-shadow',
-                      event.color === 'blue' && 'bg-blue-500 text-white',
-                      event.color === 'green' && 'bg-green-500 text-white',
-                      event.color === 'red' && 'bg-red-500 text-white',
-                      event.color === 'purple' && 'bg-purple-500 text-white',
-                      event.color === 'orange' && 'bg-orange-500 text-white',
-                      event.color === 'pink' && 'bg-pink-500 text-white'
-                    )}
+                    style={{
+                      ...style,
+                      backgroundColor: hexColor,
+                      borderLeft: `4px solid ${hexColor}`,
+                      filter: 'brightness(0.95)',
+                    }}
+                    className="absolute left-2 right-2 rounded-lg p-3 pointer-events-auto cursor-pointer shadow-md hover:shadow-lg transition-shadow text-white"
                   >
                     <div className="font-semibold">{event.title}</div>
                     <div className="text-sm opacity-90">

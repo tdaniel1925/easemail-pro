@@ -92,6 +92,12 @@ export default function SMSNotificationBell({
     router.push('/sms');
   };
 
+  const handleViewMessage = (message: SMSMessage) => {
+    setOpen(false);
+    // Navigate to SMS page with phone number parameter
+    router.push(`/sms?phone=${encodeURIComponent(message.from)}`);
+  };
+
   const formatPhoneNumber = (phone: string) => {
     // Basic phone number formatting
     const cleaned = phone.replace(/\D/g, '');
@@ -174,7 +180,7 @@ export default function SMSNotificationBell({
                 <div
                   key={message.id}
                   className="px-4 py-3 hover:bg-accent cursor-pointer transition-colors"
-                  onClick={handleViewAllMessages}
+                  onClick={() => handleViewMessage(message)}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p className="font-medium text-sm">

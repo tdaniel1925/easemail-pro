@@ -128,16 +128,10 @@ export default function ListView({ events, onEventClick, currentDate }: ListView
                       )}
                     >
                       {/* Color Bar */}
-                      <div className={cn(
-                        "absolute left-0 top-0 bottom-0 w-1 rounded-l-lg",
-                        event.color === 'blue' && 'bg-blue-500',
-                        event.color === 'green' && 'bg-green-500',
-                        event.color === 'red' && 'bg-red-500',
-                        event.color === 'purple' && 'bg-purple-500',
-                        event.color === 'orange' && 'bg-orange-500',
-                        event.color === 'pink' && 'bg-pink-500',
-                        !event.color && 'bg-primary'
-                      )} />
+                      <div
+                        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
+                        style={{ backgroundColor: event.hexColor || event.color || '#3b82f6' }}
+                      />
 
                       {/* Time */}
                       <div className="w-24 flex-shrink-0 pt-1">

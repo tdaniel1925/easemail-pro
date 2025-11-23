@@ -112,15 +112,10 @@ export default function AgendaView({ events, onEventClick }: AgendaViewProps) {
                         </div>
 
                         {/* Color bar */}
-                        <div className={cn(
-                          'w-1 rounded-full flex-shrink-0',
-                          event.color === 'blue' && 'bg-blue-500',
-                          event.color === 'green' && 'bg-green-500',
-                          event.color === 'red' && 'bg-red-500',
-                          event.color === 'purple' && 'bg-purple-500',
-                          event.color === 'orange' && 'bg-orange-500',
-                          event.color === 'pink' && 'bg-pink-500'
-                        )} />
+                        <div
+                          className="w-1 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: event.hexColor || '#3b82f6' }}
+                        />
 
                         {/* Event details */}
                         <div className="flex-1 min-w-0">

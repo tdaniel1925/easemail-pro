@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Zap, TrendingUp, Loader2, Filter } from 'lucide-react';
+import { Plus, Search, Zap, TrendingUp, Loader2, Filter, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import RuleCard from './RuleCard';
 import RuleTemplates from './RuleTemplates';
 import RuleBuilder from './RuleBuilder';
+import TestRuleModal from './TestRuleModal';
 import type { SimpleEmailRule, SimpleRuleTemplate } from '@/lib/rules/types-simple';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/use-toast';
@@ -23,6 +24,8 @@ export default function RulesContent() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [editingRule, setEditingRule] = useState<SimpleEmailRule | null>(null);
   const [filterEnabled, setFilterEnabled] = useState<boolean | null>(null);
+  const [isRunningRules, setIsRunningRules] = useState(false);
+  const [testingRule, setTestingRule] = useState<SimpleEmailRule | null>(null);
   const { confirm, Dialog } = useConfirm();
   const { toast } = useToast();
 
@@ -171,6 +174,60 @@ export default function RulesContent() {
     fetchRules();
   };
 
+  const handleRunAllRules = async () => {
+    const activeRulesCount = rules.filter(r => r.isActive).length;
+
+    if (activeRulesCount === 0) {
+      toast({
+        title: 'No Active Rules',
+        description: 'Please enable at least one rule before running.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Run All Rules Now',
+      message: `This will process all emails in your inbox against ${activeRulesCount} active rule${activeRulesCount > 1 ? 's' : ''}. This may take a few moments. Continue?`,
+      confirmText: 'Run Rules',
+      cancelText: 'Cancel',
+    });
+
+    if (!confirmed) return;
+
+    setIsRunningRules(true);
+    try {
+      const response = await fetch('/api/rules/run-all', {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: 'Rules Executed Successfully',
+          description: `Processed ${data.processed} emails, ${data.matched} matched rules`,
+        });
+        fetchRules(); // Refresh to update statistics
+      } else {
+        throw new Error(data.error || 'Failed to run rules');
+      }
+    } catch (error) {
+      console.error('Error running rules:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to run rules',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRunningRules(false);
+    }
+  };
+
+  const handleTestRule = (rule: SimpleEmailRule) => {
+    setTestingRule(rule);
+  };
+
   const filteredRules = rules.filter(rule =>
     rule.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     rule.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -272,10 +329,30 @@ export default function RulesContent() {
               </div>
 
               {activeTab === 'active' && (
-                <Button onClick={handleCreateRule} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Create Rule
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleRunAllRules}
+                    variant="outline"
+                    disabled={isRunningRules || rules.filter(r => r.isActive).length === 0}
+                    className="gap-2"
+                  >
+                    {isRunningRules ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Running...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4" />
+                        Run Rules Now
+                      </>
+                    )}
+                  </Button>
+                  <Button onClick={handleCreateRule} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Create Rule
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -296,6 +373,7 @@ export default function RulesContent() {
                       onEdit={handleEditRule}
                       onDelete={handleDeleteRule}
                       onToggle={handleToggleRule}
+                      onTest={handleTestRule}
                     />
                   ))}
                 </div>
@@ -333,6 +411,12 @@ export default function RulesContent() {
           onSave={handleSaveRule}
         />
       )}
+
+      {/* Test Rule Modal */}
+      <TestRuleModal
+        rule={testingRule}
+        onClose={() => setTestingRule(null)}
+      />
     </>
   );
 }

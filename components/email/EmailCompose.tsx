@@ -149,6 +149,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   // Refs for debouncing
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const saveRetryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isAIUpdatingRef = useRef<boolean>(false); // Track AI updates to skip auto-save
+  const isSavingRef = useRef<boolean>(false); // Track save operation to prevent send race
 
   // Text formatting state - REMOVED (they don't actually work)
   const [isHtmlMode, setIsHtmlMode] = useState(true); // HTML vs Plain text mode
@@ -255,8 +257,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         // Render signature with template variables
         const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to[0]?.email || '' });
 
-        // Add 2 blank HTML lines at the top for typing space, then signature
-        const blankLinesHtml = '<div><br/></div><div><br/></div>';
+        // Add 2 blank paragraphs with <br> at the top for typing space, then signature
+        // Using <p><br></p> ensures they render as visible blank lines
+        const blankLinesHtml = '<p><br></p><p><br></p>';
         setBody(blankLinesHtml + renderedSignature);
         setIsInitialized(true);
       }
@@ -480,7 +483,36 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
   // Helper function to validate email addresses
   const isValidEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    // More robust email validation
+    // Allows: letters, numbers, dots, hyphens, underscores, plus signs
+    // Requires: @ symbol, domain with at least one dot
+    // Prevents: spaces, leading/trailing dots, consecutive dots
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+    if (!emailRegex.test(email)) {
+      return false;
+    }
+
+    // Additional checks
+    const [localPart, domain] = email.split('@');
+
+    // Check for consecutive dots
+    if (localPart.includes('..') || domain.includes('..')) {
+      return false;
+    }
+
+    // Check for leading/trailing dots in local part
+    if (localPart.startsWith('.') || localPart.endsWith('.')) {
+      return false;
+    }
+
+    // Check domain has at least 2 characters before TLD
+    const domainParts = domain.split('.');
+    if (domainParts[0].length < 2) {
+      return false;
+    }
+
+    return true;
   };
 
   // Helper function to reset form state
@@ -501,6 +533,18 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   };
 
   const handleSend = async (skipSignature: boolean = false) => {
+    // Wait for any in-flight save to complete
+    if (isSavingRef.current) {
+      console.log('[Send] ⏳ Waiting for save to complete...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Check again after waiting
+      if (isSavingRef.current) {
+        console.log('[Send] ⚠️ Save still in progress, waiting longer...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
     // Clear previous validation errors
     setValidationError(null);
 
@@ -576,36 +620,58 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       const uploadedAttachments = [];
       if (attachments.length > 0) {
         console.log(`📎 Uploading ${attachments.length} attachment(s)...`);
-        
+
         for (const file of attachments) {
           console.log('📎 Processing file:', file.name, file.size, 'bytes');
           const formData = new FormData();
           formData.append('file', file);
-          
+
           console.log('📎 About to call /api/attachments/upload for:', file.name);
-          const uploadResponse = await fetch('/api/attachments/upload', {
-            method: 'POST',
-            body: formData,
-          });
-          
-          console.log('📎 Upload response status:', uploadResponse.status);
-          
-          if (uploadResponse.ok) {
-            const uploadData = await uploadResponse.json();
-            console.log('📎 Upload successful:', uploadData);
-            uploadedAttachments.push({
-              filename: file.name,
-              url: uploadData.attachment.storageUrl,
-              contentType: file.type,
-              size: file.size,
+
+          try {
+            // Add timeout wrapper (60 seconds max per attachment)
+            const uploadPromise = fetch('/api/attachments/upload', {
+              method: 'POST',
+              body: formData,
             });
-          } else {
-            const errorText = await uploadResponse.text();
-            console.error('Failed to upload attachment:', file.name, errorText);
+
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Upload timeout')), 60000)
+            );
+
+            const uploadResponse = await Promise.race([uploadPromise, timeoutPromise]) as Response;
+
+            console.log('📎 Upload response status:', uploadResponse.status);
+
+            if (uploadResponse.ok) {
+              const uploadData = await uploadResponse.json();
+              console.log('📎 Upload successful:', uploadData);
+              uploadedAttachments.push({
+                filename: file.name,
+                url: uploadData.attachment.storageUrl,
+                contentType: file.type,
+                size: file.size,
+              });
+            } else {
+              const errorText = await uploadResponse.text();
+              console.error('Failed to upload attachment:', file.name, errorText);
+              toast({
+                title: 'Attachment Upload Failed',
+                description: `Failed to upload ${file.name}. Continuing without this attachment.`,
+                variant: 'destructive',
+              });
+            }
+          } catch (error) {
+            console.error('❌ Attachment upload error/timeout:', file.name, error);
+            toast({
+              title: 'Attachment Upload Error',
+              description: `Failed to upload ${file.name} (timeout or error). Continuing without this attachment.`,
+              variant: 'destructive',
+            });
           }
         }
-        
-        console.log(`[Attach] Uploaded attachment(s)`);
+
+        console.log(`[Attach] Uploaded ${uploadedAttachments.length}/${attachments.length} attachment(s)`);
       }
 
       const response = await fetch('/api/nylas/messages/send', {
@@ -666,6 +732,12 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const handleSaveDraft = useCallback(async (silent = false) => {
     console.log('[Draft Save] Called with:', { silent, accountId, to: to.length, subject: subject.length, body: body.length });
 
+    // Check if send is in progress
+    if (isSending) {
+      console.log('[Draft Save] ⏭️ Skipping auto-save - send in progress');
+      return;
+    }
+
     if (!accountId) {
       console.log('[Draft Save] ❌ No accountId, aborting');
       if (!silent) {
@@ -690,6 +762,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     console.log('[Draft Save] ✅ Validation passed, proceeding with save...');
     setIsSavingDraft(true);
     setSavingStatus('saving');
+    isSavingRef.current = true; // Set saving flag
 
     try {
       if (!silent) {
@@ -791,12 +864,20 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       }
     } finally {
       setIsSavingDraft(false);
+      isSavingRef.current = false; // Clear saving flag
     }
-  }, [accountId, to, cc, bcc, subject, body, replyTo, type]);
+  }, [accountId, to, cc, bcc, subject, body, replyTo, type, isSending, toast]);
 
   // Debounced auto-save with instant first save
   useEffect(() => {
     if (!isOpen || !isDirty || !accountId) return;
+
+    // ✅ FIX: Skip auto-save if AI is updating the content
+    if (isAIUpdatingRef.current) {
+      console.log('[Draft] Skipping auto-save - AI is updating content');
+      isAIUpdatingRef.current = false; // Reset flag
+      return;
+    }
 
     // Clear existing debounce timer
     if (debounceTimerRef.current) {
@@ -1446,8 +1527,14 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               <UnifiedAIToolbar
                 subject={subject}
                 body={body}
-                onSubjectChange={setSubject}
-                onBodyChange={setBody}
+                onSubjectChange={(newSubject) => {
+                  isAIUpdatingRef.current = true; // Set flag before AI updates
+                  setSubject(newSubject);
+                }}
+                onBodyChange={(newBody) => {
+                  isAIUpdatingRef.current = true; // Set flag before AI updates
+                  setBody(newBody);
+                }}
                 recipientEmail={to.length > 0 ? to[0].email : undefined}
                 recipientName={to.length > 0 ? to[0].name : undefined}
                 userTier="free"
