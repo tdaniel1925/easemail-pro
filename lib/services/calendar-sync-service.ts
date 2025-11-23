@@ -487,7 +487,8 @@ export class CalendarSyncService {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Nylas API error: ${errorData.error || response.statusText}`);
+        console.error('🔴 [Sync Service] Nylas API error response:', JSON.stringify(errorData, null, 2));
+        throw new Error(`Nylas API error: ${JSON.stringify(errorData)}`);
       }
 
       const data = await response.json();
