@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Calendar as CalendarIcon, Mail, Phone, UserPlus, MessageSquare, FileText, Sun } from 'lucide-react';
+import { User, Calendar as CalendarIcon, Mail, Phone, UserPlus, MessageSquare, FileText, Sun, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getInitials, generateAvatarColor, cn } from '@/lib/utils';
 import { MiniCalendar } from '@/components/calendar/MiniCalendar';
@@ -16,6 +16,7 @@ import { SMSModal } from '@/components/sms/SMSModal';
 import { ContactNotes } from '@/components/contacts/ContactNotes';
 import { CommunicationTimeline } from '@/components/contacts/CommunicationTimeline';
 import QuickAddV4 from '@/components/calendar/QuickAddV4';
+import { AIAssistantSidebar } from '@/components/ai/AIAssistantSidebar';
 
 interface EmailMessage {
   id: string;
@@ -29,13 +30,13 @@ interface EmailMessage {
 
 interface ContactPanelV3Props {
   email?: EmailMessage;
-  activeTab?: 'agenda' | 'contact' | 'calendar';
-  onTabChange?: (tab: 'agenda' | 'contact' | 'calendar') => void;
+  activeTab?: 'agenda' | 'contact' | 'calendar' | 'ai';
+  onTabChange?: (tab: 'agenda' | 'contact' | 'calendar' | 'ai') => void;
   onComposeEmail?: (emailData: { to: string; subject: string; body: string }) => void;
 }
 
 export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChange, onComposeEmail }: ContactPanelV3Props) {
-  const [internalActiveTab, setInternalActiveTab] = useState<'agenda' | 'contact' | 'calendar'>('agenda');
+  const [internalActiveTab, setInternalActiveTab] = useState<'agenda' | 'contact' | 'calendar' | 'ai'>('agenda');
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
 
@@ -43,7 +44,7 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
   const activeTab = externalActiveTab !== undefined ? externalActiveTab : internalActiveTab;
 
   // Handle tab change
-  const handleTabChange = (tab: 'agenda' | 'contact' | 'calendar') => {
+  const handleTabChange = (tab: 'agenda' | 'contact' | 'calendar' | 'ai') => {
     if (onTabChange) {
       onTabChange(tab);
     } else {
@@ -106,6 +107,18 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
             <CalendarIcon className="h-4 w-4 inline mr-2" />
             Calendar
           </button>
+          <button
+            className={cn(
+              'px-3 py-2 text-sm rounded-sm transition-colors',
+              activeTab === 'ai'
+                ? 'text-primary font-bold'
+                : 'text-muted-foreground font-medium hover:text-foreground'
+            )}
+            onClick={() => handleTabChange('ai')}
+          >
+            <Sparkles className="h-4 w-4 inline mr-2" />
+            AI Chat
+          </button>
         </div>
       </div>
 
@@ -124,10 +137,17 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
               </p>
             </div>
           )
-        ) : (
+        ) : activeTab === 'calendar' ? (
           <MiniCalendar
             key={calendarRefreshKey}
             onQuickAddClick={() => setIsQuickAddOpen(true)}
+          />
+        ) : (
+          <AIAssistantSidebar
+            isOpen={true}
+            onClose={() => {}}
+            fullPage={true}
+            onComposeEmail={onComposeEmail}
           />
         )}
       </div>
