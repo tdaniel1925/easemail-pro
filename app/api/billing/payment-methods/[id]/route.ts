@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { paymentMethods, users } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, ne } from 'drizzle-orm';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -153,7 +153,7 @@ export async function DELETE(
           user.organizationId
             ? eq(paymentMethods.organizationId, user.organizationId)
             : eq(paymentMethods.userId, user.id),
-          (pm: any, { ne }: any) => ne(pm.id, paymentMethodId)
+          ne(paymentMethods.id, paymentMethodId)
         ),
       });
 
