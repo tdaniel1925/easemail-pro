@@ -35,6 +35,7 @@ import {
   Ban,
   Bell,
   X,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { cn, formatDate, getInitials, generateAvatarColor, formatFileSize } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -45,6 +46,22 @@ import { Switch } from '@/components/ui/switch';
 import { useEmailSummary } from '@/lib/hooks/useEmailSummary';
 import { ThreadSummaryPanelV3 } from './thread-summary-panel-v3';
 import SMSNotificationBell from '@/components/sms/SMSNotificationBell';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface EmailMessage {
   id: string;
@@ -108,6 +125,20 @@ export function EmailListEnhancedV3({
     timestamp: number;
   } | null>(null);
 
+  // Advanced search state
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    from: '',
+    to: '',
+    subject: '',
+    anywhere: '',
+    dateOption: 'any',
+    dateValue: '',
+    isUnread: false,
+    isStarred: false,
+    includeSpamTrash: false,
+  });
+
   // Intersection observer for infinite scroll
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -127,18 +158,56 @@ export function EmailListEnhancedV3({
     });
   };
 
-  // Filter messages by search query and locally deleted
+  // Filter messages by search query, advanced filters, and locally deleted
   const visibleMessages = messages.filter((message) => {
     if (locallyRemovedEmails.has(message.id)) return false;
 
-    if (!searchQuery) return true;
+    // Simple search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const subject = message.subject?.toLowerCase() || '';
+      const from = message.from?.[0]?.email?.toLowerCase() || message.from?.[0]?.name?.toLowerCase() || '';
+      const snippet = message.snippet?.toLowerCase() || '';
 
-    const query = searchQuery.toLowerCase();
-    const subject = message.subject?.toLowerCase() || '';
-    const from = message.from?.[0]?.email?.toLowerCase() || message.from?.[0]?.name?.toLowerCase() || '';
-    const snippet = message.snippet?.toLowerCase() || '';
+      if (!(subject.includes(query) || from.includes(query) || snippet.includes(query))) {
+        return false;
+      }
+    }
 
-    return subject.includes(query) || from.includes(query) || snippet.includes(query);
+    // Advanced filters
+    if (advancedFilters.from) {
+      const from = message.from?.[0]?.email?.toLowerCase() || message.from?.[0]?.name?.toLowerCase() || '';
+      if (!from.includes(advancedFilters.from.toLowerCase())) return false;
+    }
+
+    if (advancedFilters.to) {
+      const toEmails = message.to?.map(t => t.email?.toLowerCase() || t.name?.toLowerCase() || '').join(' ') || '';
+      const ccEmails = message.cc?.map(c => c.email?.toLowerCase() || c.name?.toLowerCase() || '').join(' ') || '';
+      const allRecipients = `${toEmails} ${ccEmails}`;
+      if (!allRecipients.includes(advancedFilters.to.toLowerCase())) return false;
+    }
+
+    if (advancedFilters.subject) {
+      const subject = message.subject?.toLowerCase() || '';
+      if (!subject.includes(advancedFilters.subject.toLowerCase())) return false;
+    }
+
+    if (advancedFilters.anywhere) {
+      const query = advancedFilters.anywhere.toLowerCase();
+      const subject = message.subject?.toLowerCase() || '';
+      const from = message.from?.[0]?.email?.toLowerCase() || message.from?.[0]?.name?.toLowerCase() || '';
+      const snippet = message.snippet?.toLowerCase() || '';
+      const body = message.body?.toLowerCase() || '';
+
+      if (!(subject.includes(query) || from.includes(query) || snippet.includes(query) || body.includes(query))) {
+        return false;
+      }
+    }
+
+    if (advancedFilters.isUnread && message.unread !== true) return false;
+    if (advancedFilters.isStarred && message.starred !== true) return false;
+
+    return true;
   });
 
   // Reset and load messages when folder changes
@@ -545,24 +614,35 @@ export function EmailListEnhancedV3({
               </label>
             </div>
 
-            {/* Simple Search Bar */}
-            <div className="flex-1 relative min-w-0">
-              <Search className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 h-3.5 md:h-4 w-3.5 md:w-4 text-muted-foreground z-10" />
-              <Input
-                type="search"
-                placeholder="Search emails..."
-                className="w-full pl-8 md:pl-10 pr-8 h-8 md:h-9 bg-background border-border text-xs md:text-sm"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-3 w-3 md:h-4 md:w-4" />
-                </button>
-              )}
+            {/* Search Bar with Advanced Search */}
+            <div className="flex-1 relative min-w-0 flex items-center gap-1">
+              <div className="flex-1 relative">
+                <Search className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 h-3.5 md:h-4 w-3.5 md:w-4 text-muted-foreground z-10" />
+                <Input
+                  type="search"
+                  placeholder="Search emails..."
+                  className="w-full pl-8 md:pl-10 pr-8 h-8 md:h-9 bg-background border-border text-xs md:text-sm"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3 w-3 md:h-4 md:w-4" />
+                  </button>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAdvancedSearch(true)}
+                className="h-8 px-2 flex-shrink-0"
+                title="Advanced search"
+              >
+                <SlidersHorizontal className="h-3.5 md:h-4 w-3.5 md:w-4" />
+              </Button>
             </div>
 
             {/* SMS Notification Bell */}
@@ -1698,6 +1778,180 @@ function EmailCard({
           />
         </div>
       )}
+
+      {/* Advanced Search Dialog */}
+      <Dialog open={showAdvancedSearch} onOpenChange={setShowAdvancedSearch}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Advanced Search</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            {/* Search Location */}
+            <div className="grid gap-2">
+              <Label htmlFor="search-location">In</Label>
+              <Select defaultValue="all">
+                <SelectTrigger id="search-location">
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All mail</SelectItem>
+                  <SelectItem value="inbox">Inbox</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="drafts">Drafts</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Include Spam/Trash */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="include-spam-trash"
+                checked={advancedFilters.includeSpamTrash}
+                onCheckedChange={(checked) =>
+                  setAdvancedFilters({ ...advancedFilters, includeSpamTrash: checked as boolean })
+                }
+              />
+              <Label htmlFor="include-spam-trash" className="text-sm font-normal cursor-pointer">
+                Include Spam and Trash in search
+              </Label>
+            </div>
+
+            {/* From */}
+            <div className="grid gap-2">
+              <Label htmlFor="from">From</Label>
+              <Input
+                id="from"
+                placeholder="sender@example.com"
+                value={advancedFilters.from}
+                onChange={(e) => setAdvancedFilters({ ...advancedFilters, from: e.target.value })}
+              />
+            </div>
+
+            {/* To/Cc */}
+            <div className="grid gap-2">
+              <Label htmlFor="to">To/Cc</Label>
+              <Input
+                id="to"
+                placeholder="recipient@example.com"
+                value={advancedFilters.to}
+                onChange={(e) => setAdvancedFilters({ ...advancedFilters, to: e.target.value })}
+              />
+            </div>
+
+            {/* Subject */}
+            <div className="grid gap-2">
+              <Label htmlFor="subject">Subject</Label>
+              <Input
+                id="subject"
+                placeholder="Enter subject"
+                value={advancedFilters.subject}
+                onChange={(e) => setAdvancedFilters({ ...advancedFilters, subject: e.target.value })}
+              />
+            </div>
+
+            {/* Anywhere (body search) */}
+            <div className="grid gap-2">
+              <Label htmlFor="anywhere">Anywhere</Label>
+              <Input
+                id="anywhere"
+                placeholder="Search in email body"
+                value={advancedFilters.anywhere}
+                onChange={(e) => setAdvancedFilters({ ...advancedFilters, anywhere: e.target.value })}
+              />
+            </div>
+
+            {/* Date */}
+            <div className="grid gap-2">
+              <Label htmlFor="date-option">Date</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={advancedFilters.dateOption}
+                  onValueChange={(value) => setAdvancedFilters({ ...advancedFilters, dateOption: value })}
+                >
+                  <SelectTrigger id="date-option" className="w-[200px]">
+                    <SelectValue placeholder="Select date option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Any time</SelectItem>
+                    <SelectItem value="after">On or after...</SelectItem>
+                    <SelectItem value="before">On or before...</SelectItem>
+                    <SelectItem value="between">Between...</SelectItem>
+                  </SelectContent>
+                </Select>
+                {advancedFilters.dateOption !== 'any' && (
+                  <Input
+                    type="text"
+                    placeholder="e.g. 25 Nov, last wednesday"
+                    value={advancedFilters.dateValue}
+                    onChange={(e) => setAdvancedFilters({ ...advancedFilters, dateValue: e.target.value })}
+                    className="flex-1"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Status Filters */}
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="is-unread"
+                  checked={advancedFilters.isUnread}
+                  onCheckedChange={(checked) =>
+                    setAdvancedFilters({ ...advancedFilters, isUnread: checked as boolean })
+                  }
+                />
+                <Label htmlFor="is-unread" className="text-sm font-normal cursor-pointer">
+                  Is unread
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="is-starred"
+                  checked={advancedFilters.isStarred}
+                  onCheckedChange={(checked) =>
+                    setAdvancedFilters({ ...advancedFilters, isStarred: checked as boolean })
+                  }
+                />
+                <Label htmlFor="is-starred" className="text-sm font-normal cursor-pointer">
+                  Is pinned
+                </Label>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAdvancedFilters({
+                  from: '',
+                  to: '',
+                  subject: '',
+                  anywhere: '',
+                  dateOption: 'any',
+                  dateValue: '',
+                  isUnread: false,
+                  isStarred: false,
+                  includeSpamTrash: false,
+                });
+                setShowAdvancedSearch(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowAdvancedSearch(false);
+                // Filters will automatically be applied via visibleMessages
+              }}
+            >
+              Search
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
