@@ -226,14 +226,33 @@ function CalendarContent() {
     }
   }, [selectedAccount?.nylasGrantId]);
 
-  // ✅ Enrich events with calendar colors
+  // ✅ Enrich events with calendar colors and ensure all events have calendarId
   const enrichedEvents = useMemo(() => {
+    // Find primary calendar from metadata for orphaned events
+    let primaryCalendarId: string | null = null;
+    for (const [id, info] of calendarMetadata.entries()) {
+      if (info.isPrimary) {
+        primaryCalendarId = id;
+        break;
+      }
+    }
+    // If no primary, use first available calendar
+    if (!primaryCalendarId && calendarMetadata.size > 0) {
+      primaryCalendarId = Array.from(calendarMetadata.keys())[0];
+    }
+
     return events.map(event => {
-      const calendarId = event.calendarId || event.calendar_id;
+      let calendarId = event.calendarId || event.calendar_id;
+
+      // ✅ FIX: Assign orphaned events to primary calendar
+      if (!calendarId && primaryCalendarId) {
+        console.warn('[Calendar] Event without calendarId, assigning to primary:', event.title);
+        calendarId = primaryCalendarId;
+      }
+
       const calendarInfo = calendarId ? calendarMetadata.get(calendarId) : null;
 
       // ✅ FIX BUG #3: Try multiple sources for color before defaulting to blue
-      // Log when calendar metadata is not found for debugging
       if (calendarId && !calendarInfo) {
         console.warn('[Calendar] No metadata found for calendar:', calendarId, 'Event:', event.title);
       }
@@ -246,6 +265,7 @@ function CalendarContent() {
 
       return {
         ...event,
+        calendarId, // ✅ Ensure calendarId is always set
         hexColor: eventColor,
         color: eventColor, // Set both for compatibility with different views
         calendarName: calendarInfo?.name || event.calendar?.name,
@@ -270,14 +290,13 @@ function CalendarContent() {
 
     const filtered = baseEvents.filter(event => {
       // ✅ FIX BUG #2: STRICT CALENDAR FILTERING
-      // If user has selected specific calendars, only show events from those calendars
+      // All events now have calendarId (assigned in enrichment), so we can be strict
       if (selectedCalendarIds.length > 0) {
         const eventCalendarId = event.calendarId || event.calendar_id;
 
-        // If event HAS a calendarId and it's NOT in the selected list, hide it
-        // Events without calendarId are shown (orphaned/legacy events)
-        if (eventCalendarId && !selectedCalendarIds.includes(eventCalendarId)) {
-          return false; // Hide events from unselected calendars
+        // Strict: only show events from selected calendars
+        if (!eventCalendarId || !selectedCalendarIds.includes(eventCalendarId)) {
+          return false; // Hide events not in selected calendars
         }
       }
 
