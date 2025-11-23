@@ -87,7 +87,7 @@ export default function SearchBar({ onSearch, debounceMs = 500 }: SearchBarProps
           onChange={handleChange}
           className="pl-10 pr-20"
         />
-        <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+        <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex items-center gap-1 z-10">
           {query && (
             <Button
               type="button"
@@ -106,9 +106,10 @@ export default function SearchBar({ onSearch, debounceMs = 500 }: SearchBarProps
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "h-7 w-7",
+                  "h-7 w-7 relative",
                   hasActiveFilters && "text-blue-600 dark:text-blue-400"
                 )}
+                title="Advanced search filters"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 {hasActiveFilters && (

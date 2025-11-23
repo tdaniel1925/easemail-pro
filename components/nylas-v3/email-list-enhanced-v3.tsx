@@ -34,9 +34,12 @@ import {
   Clock,
   Ban,
   Bell,
+  SlidersHorizontal,
+  X,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import { cn, formatDate, getInitials, generateAvatarColor, formatFileSize } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { EmailRendererV3 } from '@/components/email/EmailRendererV3';
 import { Input } from '@/components/ui/input';
@@ -44,6 +47,22 @@ import { Switch } from '@/components/ui/switch';
 import { useEmailSummary } from '@/lib/hooks/useEmailSummary';
 import { ThreadSummaryPanelV3 } from './thread-summary-panel-v3';
 import SMSNotificationBell from '@/components/sms/SMSNotificationBell';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+
+interface SearchFilters {
+  query?: string;
+  from?: string;
+  to?: string;
+  subject?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  isUnread?: boolean;
+  isStarred?: boolean;
+  hasAttachment?: boolean;
+}
 
 interface EmailMessage {
   id: string;
@@ -98,7 +117,10 @@ export function EmailListEnhancedV3({
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const [showAISummaries, setShowAISummaries] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [showDateFromCalendar, setShowDateFromCalendar] = useState(false);
+  const [showDateToCalendar, setShowDateToCalendar] = useState(false);
   const [locallyRemovedEmails, setLocallyRemovedEmails] = useState<Set<string>>(new Set());
   const [smsUnreadCount, setSmsUnreadCount] = useState(0);
   const [undoStack, setUndoStack] = useState<{
@@ -106,6 +128,7 @@ export function EmailListEnhancedV3({
     emailIds: string[];
     timestamp: number;
   } | null>(null);
+  const [isSearchMode, setIsSearchMode] = useState(false);
 
   // Intersection observer for infinite scroll
   const observerTarget = useRef<HTMLDivElement>(null);
@@ -126,25 +149,8 @@ export function EmailListEnhancedV3({
     });
   };
 
-  // Filter messages: remove locally deleted + apply search
-  const visibleMessages = messages
-    .filter((message) => !locallyRemovedEmails.has(message.id))
-    .filter((message) => {
-      if (!searchQuery.trim()) return true;
-
-      const query = searchQuery.toLowerCase();
-      const subject = message.subject?.toLowerCase() || '';
-      const fromName = message.from?.[0]?.name?.toLowerCase() || '';
-      const fromEmail = message.from?.[0]?.email?.toLowerCase() || '';
-      const snippet = message.snippet?.toLowerCase() || '';
-
-      return (
-        subject.includes(query) ||
-        fromName.includes(query) ||
-        fromEmail.includes(query) ||
-        snippet.includes(query)
-      );
-    });
+  // Filter messages: remove locally deleted only (search is handled by API)
+  const visibleMessages = messages.filter((message) => !locallyRemovedEmails.has(message.id));
 
   // Reset and load messages when folder changes
   useEffect(() => {
@@ -324,6 +330,58 @@ export function EmailListEnhancedV3({
     } catch (err) {
       console.error('Error loading messages:', err);
       setError(err instanceof Error ? err.message : 'Failed to load messages');
+    } finally {
+      setLoading(false);
+      setInitialLoading(false);
+    }
+  };
+
+  const handleSearch = async (filters: SearchFilters) => {
+    setSearchFilters(filters);
+
+    const hasAnyFilter = Object.keys(filters).length > 0;
+    if (!hasAnyFilter) {
+      setIsSearchMode(false);
+      setMessages([]);
+      setNextCursor(null);
+      loadMessages(true);
+      return;
+    }
+
+    setIsSearchMode(true);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams({ accountId });
+      if (filters.query) params.append('query', filters.query);
+      if (filters.from) params.append('from', filters.from);
+      if (filters.to) params.append('to', filters.to);
+      if (filters.subject) params.append('subject', filters.subject);
+      if (filters.dateFrom) params.append('dateFrom', filters.dateFrom.toISOString());
+      if (filters.dateTo) params.append('dateTo', filters.dateTo.toISOString());
+      if (filters.isUnread !== undefined) params.append('isUnread', String(filters.isUnread));
+      if (filters.isStarred !== undefined) params.append('isStarred', String(filters.isStarred));
+      if (filters.hasAttachment !== undefined) params.append('hasAttachment', String(filters.hasAttachment));
+
+      const response = await fetch(`/api/search/emails-db?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.emails) {
+        setMessages(data.emails);
+        setNextCursor(null);
+        setHasMore(false);
+      } else {
+        throw new Error(data.error || 'Search failed');
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+      setError(err instanceof Error ? err.message : 'Search failed');
     } finally {
       setLoading(false);
       setInitialLoading(false);
@@ -549,16 +607,288 @@ export function EmailListEnhancedV3({
               </label>
             </div>
 
-            {/* Search bar */}
+            {/* Search bar with Advanced Filters */}
             <div className="flex-1 relative min-w-0">
-              <Search className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 h-3.5 md:h-4 w-3.5 md:w-4 text-muted-foreground" />
+              <Search className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 h-3.5 md:h-4 w-3.5 md:w-4 text-muted-foreground z-10" />
               <Input
                 type="search"
                 placeholder="Search..."
-                className="w-full pl-8 md:pl-10 pr-2 md:pr-3 h-8 md:h-9 bg-background border-border text-xs md:text-sm"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 md:pl-10 pr-16 md:pr-20 h-8 md:h-9 bg-background border-border text-xs md:text-sm"
+                value={searchFilters.query || ''}
+                onChange={(e) => {
+                  const newFilters = { ...searchFilters, query: e.target.value };
+                  setSearchFilters(newFilters);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSearch(searchFilters);
+                  }
+                }}
               />
+              <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex items-center gap-0.5 md:gap-1 z-10">
+                {searchFilters.query && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 md:h-7 md:w-7"
+                    onClick={() => {
+                      setSearchFilters({});
+                      handleSearch({});
+                    }}
+                  >
+                    <X className="h-3 w-3 md:h-4 md:w-4" />
+                  </Button>
+                )}
+                <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        "h-6 w-6 md:h-7 md:w-7 relative",
+                        (Object.keys(searchFilters).filter(key => key !== 'query').length > 0) && "text-blue-600 dark:text-blue-400"
+                      )}
+                      title="Advanced search filters"
+                    >
+                      <SlidersHorizontal className="h-3 w-3 md:h-4 md:w-4" />
+                      {Object.keys(searchFilters).filter(key => key !== 'query').length > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 h-3 w-3 md:h-4 md:w-4 rounded-full bg-blue-600 text-[8px] md:text-[10px] text-white flex items-center justify-center font-medium">
+                          {Object.keys(searchFilters).filter(key => key !== 'query').length}
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 md:w-96" align="end">
+                    <div className="space-y-3 md:space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-base md:text-lg">Advanced Search</h3>
+                        {Object.keys(searchFilters).filter(key => key !== 'query').length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSearchFilters({ query: searchFilters.query })}
+                            className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            Clear filters
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* From Filter */}
+                      <div className="space-y-2">
+                        <Label htmlFor="filter-from" className="text-xs md:text-sm font-medium">From</Label>
+                        <div className="relative">
+                          <Input
+                            id="filter-from"
+                            placeholder="sender@example.com"
+                            value={searchFilters.from || ''}
+                            onChange={(e) => setSearchFilters({ ...searchFilters, from: e.target.value })}
+                            className="pr-8 text-xs md:text-sm"
+                          />
+                          {searchFilters.from && (
+                            <button
+                              onClick={() => {
+                                const { from, ...rest } = searchFilters;
+                                setSearchFilters(rest);
+                              }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="h-3 w-3 md:h-4 md:w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* To Filter */}
+                      <div className="space-y-2">
+                        <Label htmlFor="filter-to" className="text-xs md:text-sm font-medium">To</Label>
+                        <div className="relative">
+                          <Input
+                            id="filter-to"
+                            placeholder="recipient@example.com"
+                            value={searchFilters.to || ''}
+                            onChange={(e) => setSearchFilters({ ...searchFilters, to: e.target.value })}
+                            className="pr-8 text-xs md:text-sm"
+                          />
+                          {searchFilters.to && (
+                            <button
+                              onClick={() => {
+                                const { to, ...rest } = searchFilters;
+                                setSearchFilters(rest);
+                              }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="h-3 w-3 md:h-4 md:w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Subject Filter */}
+                      <div className="space-y-2">
+                        <Label htmlFor="filter-subject" className="text-xs md:text-sm font-medium">Subject</Label>
+                        <div className="relative">
+                          <Input
+                            id="filter-subject"
+                            placeholder="Enter subject keywords"
+                            value={searchFilters.subject || ''}
+                            onChange={(e) => setSearchFilters({ ...searchFilters, subject: e.target.value })}
+                            className="pr-8 text-xs md:text-sm"
+                          />
+                          {searchFilters.subject && (
+                            <button
+                              onClick={() => {
+                                const { subject, ...rest } = searchFilters;
+                                setSearchFilters(rest);
+                              }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="h-3 w-3 md:h-4 md:w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Date Range Filters */}
+                      <div className="space-y-2">
+                        <Label className="text-xs md:text-sm font-medium">Date Range</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Popover open={showDateFromCalendar} onOpenChange={setShowDateFromCalendar}>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={cn(
+                                    'w-full justify-start text-left font-normal text-xs',
+                                    !searchFilters.dateFrom && 'text-muted-foreground'
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-1.5 h-3 w-3 md:h-4 md:w-4" />
+                                  {searchFilters.dateFrom ? format(searchFilters.dateFrom, 'PP') : 'From'}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={searchFilters.dateFrom}
+                                  onSelect={(date) => {
+                                    setSearchFilters({ ...searchFilters, dateFrom: date });
+                                    setShowDateFromCalendar(false);
+                                  }}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          <div>
+                            <Popover open={showDateToCalendar} onOpenChange={setShowDateToCalendar}>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={cn(
+                                    'w-full justify-start text-left font-normal text-xs',
+                                    !searchFilters.dateTo && 'text-muted-foreground'
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-1.5 h-3 w-3 md:h-4 md:w-4" />
+                                  {searchFilters.dateTo ? format(searchFilters.dateTo, 'PP') : 'To'}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={searchFilters.dateTo}
+                                  onSelect={(date) => {
+                                    setSearchFilters({ ...searchFilters, dateTo: date });
+                                    setShowDateToCalendar(false);
+                                  }}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </div>
+                        {(searchFilters.dateFrom || searchFilters.dateTo) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const { dateFrom, dateTo, ...rest } = searchFilters;
+                              setSearchFilters(rest);
+                            }}
+                            className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            Clear dates
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Toggle Filters */}
+                      <div className="space-y-2 md:space-y-3 border-t pt-2 md:pt-3">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="filter-unread" className="text-xs md:text-sm font-medium cursor-pointer">
+                            Unread only
+                          </Label>
+                          <Switch
+                            id="filter-unread"
+                            checked={searchFilters.isUnread || false}
+                            onCheckedChange={(checked) => setSearchFilters({ ...searchFilters, isUnread: checked })}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="filter-starred" className="text-xs md:text-sm font-medium cursor-pointer">
+                            Starred only
+                          </Label>
+                          <Switch
+                            id="filter-starred"
+                            checked={searchFilters.isStarred || false}
+                            onCheckedChange={(checked) => setSearchFilters({ ...searchFilters, isStarred: checked })}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="filter-attachment" className="text-xs md:text-sm font-medium cursor-pointer">
+                            Has attachments
+                          </Label>
+                          <Switch
+                            id="filter-attachment"
+                            checked={searchFilters.hasAttachment || false}
+                            onCheckedChange={(checked) => setSearchFilters({ ...searchFilters, hasAttachment: checked })}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2 border-t pt-2 md:pt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsFiltersOpen(false)}
+                          className="flex-1 text-xs"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            handleSearch(searchFilters);
+                            setIsFiltersOpen(false);
+                          }}
+                          className="flex-1 text-xs"
+                        >
+                          Apply Filters
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
             {/* SMS Notification Bell */}
@@ -578,6 +908,77 @@ export function EmailListEnhancedV3({
           </div>
         )}
       </div>
+
+      {/* Active Filters Bar */}
+      {Object.keys(searchFilters).filter(key => key !== 'query').length > 0 && (
+        <div className="flex-shrink-0 flex items-center gap-2 flex-wrap px-3 md:px-4 py-2 bg-muted/30 border-b border-border">
+          <span className="text-xs md:text-sm text-muted-foreground">Active filters:</span>
+          {Object.entries(searchFilters).map(([key, value]) => {
+            if (key === 'query' || !value) return null;
+            if (typeof value === 'boolean' && !value) return null;
+
+            let label = '';
+            switch (key) {
+              case 'from':
+                label = `From: ${value}`;
+                break;
+              case 'to':
+                label = `To: ${value}`;
+                break;
+              case 'subject':
+                label = `Subject: ${value}`;
+                break;
+              case 'dateFrom':
+                label = `From: ${format(value as Date, 'PP')}`;
+                break;
+              case 'dateTo':
+                label = `To: ${format(value as Date, 'PP')}`;
+                break;
+              case 'isUnread':
+                label = 'Unread';
+                break;
+              case 'isStarred':
+                label = 'Starred';
+                break;
+              case 'hasAttachment':
+                label = 'Has attachment';
+                break;
+              default:
+                label = `${key}: ${value}`;
+            }
+
+            return (
+              <Badge
+                key={key}
+                variant="secondary"
+                className="gap-1 pr-1 text-xs"
+              >
+                {label}
+                <button
+                  onClick={() => {
+                    const newFilters = { ...searchFilters };
+                    delete newFilters[key as keyof SearchFilters];
+                    setSearchFilters(newFilters);
+                    handleSearch(newFilters);
+                  }}
+                  className="ml-1 rounded-sm hover:bg-muted-foreground/20 p-0.5"
+                >
+                  <X className="h-2.5 w-2.5 md:h-3 md:w-3" />
+                </button>
+              </Badge>
+            );
+          })}
+          <button
+            onClick={() => {
+              setSearchFilters({});
+              handleSearch({});
+            }}
+            className="text-xs text-muted-foreground hover:text-foreground underline"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       {/* Email List - Scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0 px-3 py-2">
