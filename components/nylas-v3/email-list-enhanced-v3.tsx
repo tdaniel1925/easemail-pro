@@ -774,7 +774,7 @@ export function EmailListEnhancedV3({
                                   {searchFilters.dateFrom ? format(searchFilters.dateFrom, 'PP') : 'From'}
                                 </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0 z-50" align="center" side="top">
+                              <PopoverContent className="w-[280px] p-0 z-50" align="center" side="top">
                                 <Calendar
                                   mode="single"
                                   selected={searchFilters.dateFrom}
@@ -803,7 +803,7 @@ export function EmailListEnhancedV3({
                                   {searchFilters.dateTo ? format(searchFilters.dateTo, 'PP') : 'To'}
                                 </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0 z-50" align="center" side="top">
+                              <PopoverContent className="w-[280px] p-0 z-50" align="center" side="top">
                                 <Calendar
                                   mode="single"
                                   selected={searchFilters.dateTo}
