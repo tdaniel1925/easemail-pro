@@ -4,7 +4,7 @@
  */
 
 import { openai } from '@ai-sdk/openai';
-import { streamText, tool, CoreTool } from 'ai';
+import { streamText, tool } from 'ai';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
@@ -167,7 +167,7 @@ Important Rules:
                 allDay: false,
                 timezone: timezone,
                 status: 'confirmed',
-                organizerEmail: account.email,
+                organizerEmail: account.emailAddress,
               };
 
               // Add attendees if provided
@@ -254,8 +254,8 @@ Important Rules:
                     identifier: account.nylasGrantId!,
                     queryParams: {
                       calendar_id: calId,
-                      start: startTimestamp,
-                      end: endTimestamp,
+                      start: startTimestamp.toString(),
+                      end: endTimestamp.toString(),
                     },
                   });
                   return events.data;
