@@ -97,6 +97,7 @@ export type ActionType =
   | 'forward_to'
   | 'redirect_to'
   | 'auto_reply'
+  | 'notify'
   
   // Notifications
   | 'send_notification'

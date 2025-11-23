@@ -1,0 +1,78 @@
+lib/email/__tests__/folder-assignment.test.ts(8,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-assignment.test.ts(9,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-assignment.test.ts(13,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-assignment.test.ts(17,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-assignment.test.ts(20,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-assignment.test.ts(25,7): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-assignment.test.ts(26,7): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-assignment.test.ts(30,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-assignment.test.ts(33,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-assignment.test.ts(36,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-assignment.test.ts(39,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-assignment.test.ts(42,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-assignment.test.ts(53,7): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-assignment.test.ts(57,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-assignment.test.ts(68,7): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(7,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(8,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(9,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(10,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(11,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(14,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(15,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(16,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(17,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(20,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(21,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(22,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(25,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(26,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(27,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(30,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(31,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(34,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(37,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(38,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(42,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(43,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(44,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(49,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(50,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(55,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(56,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(61,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(62,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(68,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(69,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(70,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(71,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(72,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(75,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(76,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(77,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(80,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/email/__tests__/folder-utils.test.ts(81,5): error TS2304: Cannot find name 'expect'.
+lib/email/__tests__/folder-utils.test.ts(82,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(8,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/utils/__tests__/text-sanitizer.test.ts(9,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/utils/__tests__/text-sanitizer.test.ts(10,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(11,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(14,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/utils/__tests__/text-sanitizer.test.ts(15,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(16,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(19,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/utils/__tests__/text-sanitizer.test.ts(20,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(23,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/utils/__tests__/text-sanitizer.test.ts(24,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(25,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(28,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/utils/__tests__/text-sanitizer.test.ts(31,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(36,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(40,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/utils/__tests__/text-sanitizer.test.ts(41,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/utils/__tests__/text-sanitizer.test.ts(46,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(47,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(50,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/utils/__tests__/text-sanitizer.test.ts(51,5): error TS2304: Cannot find name 'expect'.
+lib/utils/__tests__/text-sanitizer.test.ts(54,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+lib/utils/__tests__/text-sanitizer.test.ts(55,5): error TS2304: Cannot find name 'expect'.

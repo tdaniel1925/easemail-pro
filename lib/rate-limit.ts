@@ -26,7 +26,7 @@ class InMemoryRateLimit {
     // Clean up expired entries every minute
     setInterval(() => {
       const now = Date.now();
-      for (const [key, value] of this.storage.entries()) {
+      for (const [key, value] of Array.from(this.storage.entries())) {
         if (value.resetAt < now) {
           this.storage.delete(key);
         }

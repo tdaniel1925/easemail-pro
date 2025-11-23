@@ -75,7 +75,8 @@
       "Bash(Select-String -Pattern \"error|warning|✓\")",
       "Bash(timeout 60 npm run build)",
       "Bash(.env.local)",
-      "Bash(Select-Object -First 100)"
+      "Bash(Select-Object -First 100)",
+      "Bash(tsc-errors.txt)"
     ],
     "deny": [],
     "ask": []

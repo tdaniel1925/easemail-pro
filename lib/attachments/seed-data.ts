@@ -208,6 +208,9 @@ export async function seedAttachments() {
 
       await db.insert(attachments).values({
         userId: TEST_USER_ID,
+        nylasGrantId: '', // Empty string for seed data
+        nylasAttachmentId: '',
+        nylasMessageId: '',
         filename: seed.filename,
         fileExtension: seed.extension,
         mimeType: seed.mimeType,

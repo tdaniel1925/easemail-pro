@@ -59,7 +59,6 @@ Format your response as JSON:
       model: openai('gpt-4o-mini'),
       prompt,
       temperature: 0.7,
-      maxTokens: 500,
     });
 
     console.log('[Thread Analyzer] AI Response:', text);

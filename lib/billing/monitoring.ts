@@ -105,8 +105,8 @@ export async function getBillingHealth(): Promise<BillingHealth> {
       timestamp: lastRun.completedAt || now,
     });
     status = 'critical';
-  } else if (lastRun.chargesFailed > 0) {
-    const failureRate = (lastRun.chargesFailed / lastRun.accountsProcessed) * 100;
+  } else if ((lastRun.chargesFailed ?? 0) > 0) {
+    const failureRate = ((lastRun.chargesFailed ?? 0) / (lastRun.accountsProcessed ?? 1)) * 100;
     if (failureRate > 50) {
       alerts.push({
         severity: 'critical',
@@ -120,7 +120,7 @@ export async function getBillingHealth(): Promise<BillingHealth> {
         message: `Elevated failure rate: ${failureRate.toFixed(1)}% (${lastRun.chargesFailed}/${lastRun.accountsProcessed} failed)`,
         timestamp: lastRun.completedAt || now,
       });
-      if (status !== 'critical') status = 'warning';
+      status = 'warning';
     }
   }
 
@@ -165,7 +165,15 @@ export async function getBillingHealth(): Promise<BillingHealth> {
 
   return {
     status,
-    lastBillingRun: lastRun,
+    lastBillingRun: lastRun ? {
+      id: lastRun.id,
+      status: lastRun.status ?? 'unknown',
+      accountsProcessed: lastRun.accountsProcessed ?? 0,
+      chargesSuccessful: lastRun.chargesSuccessful ?? 0,
+      chargesFailed: lastRun.chargesFailed ?? 0,
+      totalAmountChargedUsd: lastRun.totalAmountChargedUsd ?? '0.00',
+      completedAt: lastRun.completedAt,
+    } : null,
     failedTransactions24h: failedTransactions24h.length,
     failedTransactions7d: failedTransactions7d.length,
     revenueToday,
