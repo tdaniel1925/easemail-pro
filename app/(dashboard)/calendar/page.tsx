@@ -231,13 +231,24 @@ function CalendarContent() {
     return events.map(event => {
       const calendarId = event.calendarId || event.calendar_id;
       const calendarInfo = calendarId ? calendarMetadata.get(calendarId) : null;
-      const eventColor = calendarInfo?.hexColor || '#3b82f6'; // Default to blue if no color found
+
+      // ✅ FIX BUG #3: Try multiple sources for color before defaulting to blue
+      // Log when calendar metadata is not found for debugging
+      if (calendarId && !calendarInfo) {
+        console.warn('[Calendar] No metadata found for calendar:', calendarId, 'Event:', event.title);
+      }
+
+      // Priority: calendarInfo.hexColor > event.calendar.hexColor > event.hexColor > default blue
+      const eventColor = calendarInfo?.hexColor ||
+                        event.calendar?.hexColor ||
+                        event.hexColor ||
+                        '#3b82f6'; // Last resort default
 
       return {
         ...event,
         hexColor: eventColor,
         color: eventColor, // Set both for compatibility with different views
-        calendarName: calendarInfo?.name,
+        calendarName: calendarInfo?.name || event.calendar?.name,
       };
     });
   }, [events, calendarMetadata]);
@@ -258,15 +269,15 @@ function CalendarContent() {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     const filtered = baseEvents.filter(event => {
-      // ✅ FILTER BY SELECTED CALENDAR IDs (toggle on/off in sidebar)
-      // If user has selected specific calendars, only show events from those calendars
+      // ✅ FIX BUG #2: STRICT CALENDAR FILTERING
+      // If user has selected specific calendars, ONLY show events from those calendars
       if (selectedCalendarIds.length > 0) {
         const eventCalendarId = event.calendarId || event.calendar_id;
-        // ALLOW events without calendarId (locally created via Quick Add) to always show
-        if (eventCalendarId && !selectedCalendarIds.includes(eventCalendarId)) {
-          return false; // Hide events from unselected calendars
+
+        // Strict filtering: if no calendarId OR not in selected list, hide it
+        if (!eventCalendarId || !selectedCalendarIds.includes(eventCalendarId)) {
+          return false; // Hide events without calendarId OR from unselected calendars
         }
-        // If event has NO calendarId, it's a local event - always show it
       }
 
       // Filter by calendar type
