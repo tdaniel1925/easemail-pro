@@ -77,7 +77,8 @@
       "Bash(.env.local)",
       "Bash(Select-Object -First 100)",
       "Bash(tsc-errors.txt)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npx shadcn@latest add:*)"
     ],
     "deny": [],
     "ask": []
