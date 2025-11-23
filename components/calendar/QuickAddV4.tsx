@@ -44,6 +44,7 @@ interface CalendarOption {
   id: string;
   name: string;
   accountId: string; // Database account ID
+  nylasGrantId: string; // Nylas grant ID (required for API calls)
   accountEmail: string;
   hexColor?: string;
   isPrimary?: boolean;
@@ -102,6 +103,7 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
                 id: cal.id,
                 name: cal.name,
                 accountId: account.id, // Store database account ID for API calls
+                nylasGrantId: account.nylasGrantId, // Store Nylas grant ID for event creation
                 accountEmail: account.emailAddress,
                 hexColor: cal.hexColor,
                 isPrimary: cal.isPrimary,
@@ -184,6 +186,7 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
           description: event.description,
           calendarId: selectedCalendarId, // ✅ Nylas calendar ID for sync
           accountId: selectedCalendar.accountId, // ✅ Database account ID for proper account resolution
+          nylasGrantId: selectedCalendar.nylasGrantId, // ✅ Nylas grant ID to ensure correct account is used
           attendees: event.attendees.map((email: string) => ({
             email,
             status: 'pending',

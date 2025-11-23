@@ -135,17 +135,25 @@ export async function POST(request: NextRequest) {
     }
     
     // Get user's calendar account for 2-way sync
-    // Use accountId if provided, otherwise use primary account
+    // Priority: nylasGrantId > accountId > primary account
     let targetAccount;
 
-    if (data.accountId) {
-      // Find specific account by ID
+    if (data.nylasGrantId) {
+      // Use specific Nylas grant ID (most reliable for calendar targeting)
+      const accounts = await db.query.emailAccounts.findMany({
+        where: eq(emailAccounts.userId, user.id),
+      });
+      targetAccount = accounts.find(acc => acc.nylasGrantId === data.nylasGrantId);
+      console.log('🔍 [Event Creation] Using nylasGrantId:', data.nylasGrantId, 'Found account:', !!targetAccount);
+    } else if (data.accountId) {
+      // Fall back to database account ID
       const accounts = await db.query.emailAccounts.findMany({
         where: eq(emailAccounts.userId, user.id),
       });
       targetAccount = accounts.find(acc => acc.id === data.accountId);
+      console.log('🔍 [Event Creation] Using accountId:', data.accountId, 'Found account:', !!targetAccount);
     } else {
-      // Fall back to primary account
+      // Last resort: primary account
       const accounts = await db.query.emailAccounts.findMany({
         where: eq(emailAccounts.userId, user.id),
       });
@@ -154,6 +162,7 @@ export async function POST(request: NextRequest) {
         (acc.provider === 'google' || acc.provider === 'microsoft') &&
         acc.nylasScopes?.some((s: string) => s.toLowerCase().includes('calendar'))
       );
+      console.log('🔍 [Event Creation] Using primary account fallback. Found account:', !!targetAccount);
     }
 
     const primaryAccount = targetAccount;
@@ -187,6 +196,14 @@ export async function POST(request: NextRequest) {
     // 2-WAY SYNC: Push event to Google/Microsoft Calendar via Nylas
     if (primaryAccount && !data.skipSync) {
       try {
+        console.log('🔍 [Event Creation] Using account:', {
+          accountId: primaryAccount.id,
+          grantId: primaryAccount.nylasGrantId,
+          email: primaryAccount.emailAddress,
+          provider: primaryAccount.provider,
+          calendarId: data.calendarId || 'primary',
+        });
+
         const syncService = createCalendarSyncService({
           accountId: primaryAccount.id,
           userId: user.id,
