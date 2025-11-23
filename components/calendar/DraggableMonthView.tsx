@@ -5,12 +5,13 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable, closestCenter } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight, Repeat, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Repeat, GripVertical, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
+import { buildConflictMap, type CalendarEvent } from '@/lib/calendar/calendar-utils';
 
 interface DraggableMonthViewProps {
   currentMonth: Date;
@@ -21,7 +22,12 @@ interface DraggableMonthViewProps {
   onEventClick: (e: React.MouseEvent, event: any) => void;
 }
 
-function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEvents: any[]; onEventClick: (e: React.MouseEvent, event: any) => void }) {
+function DraggableEvent({ event, allEvents, conflicts, onEventClick }: {
+  event: any;
+  allEvents: any[];
+  conflicts: CalendarEvent[];
+  onEventClick: (e: React.MouseEvent, event: any) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: event.id,
     data: event,
@@ -37,11 +43,13 @@ function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEve
     onEventClick(e, event);
   };
 
+  const hasConflict = conflicts.length > 0;
+
   // ✅ Use calendar's hex color if available
   const hexColor = event.hexColor || '#3b82f6';
   const bgStyle = {
-    backgroundColor: `${hexColor}20`, // 20 = 12.5% opacity in hex
-    borderLeft: `3px solid ${hexColor}`,
+    backgroundColor: hasConflict ? '#fee2e2' : `${hexColor}20`, // Red tint if conflict, otherwise calendar color
+    borderLeft: `3px solid ${hasConflict ? '#ef4444' : hexColor}`, // Red border if conflict
   };
 
   return (
@@ -50,8 +58,10 @@ function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEve
       style={{ ...style, ...bgStyle }}
       className={cn(
         'text-xs px-1 py-0.5 rounded truncate flex items-center gap-0.5 group relative',
-        isDragging && 'opacity-50'
+        isDragging && 'opacity-50',
+        hasConflict && 'ring-1 ring-red-400'
       )}
+      title={hasConflict ? `Conflicts with ${conflicts.length} event(s)` : undefined}
     >
       {/* Drag Handle - only this part triggers drag */}
       <div
@@ -62,6 +72,11 @@ function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEve
       >
         <GripVertical className="h-3 w-3" />
       </div>
+
+      {/* Conflict Warning Icon */}
+      {hasConflict && (
+        <AlertTriangle className="h-2.5 w-2.5 text-red-600 flex-shrink-0" />
+      )}
 
       {/* Clickable Event Content */}
       <div
@@ -75,7 +90,7 @@ function DraggableEvent({ event, allEvents, onEventClick }: { event: any; allEve
   );
 }
 
-function DroppableDay({ day, isToday, events, allEvents, onDayClick, onEventClick }: any) {
+function DroppableDay({ day, isToday, events, allEvents, conflictMap, onDayClick, onEventClick }: any) {
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${day.day}`,
     data: { date: day.date },
@@ -100,7 +115,13 @@ function DroppableDay({ day, isToday, events, allEvents, onDayClick, onEventClic
       </div>
       <div className="space-y-0.5">
         {events.slice(0, 3).map((event: any) => (
-          <DraggableEvent key={event.id} event={event} allEvents={allEvents} onEventClick={onEventClick} />
+          <DraggableEvent
+            key={event.id}
+            event={event}
+            allEvents={allEvents}
+            conflicts={conflictMap.get(event.id) || []}
+            onEventClick={onEventClick}
+          />
         ))}
         {events.length > 3 && (
           <div className="text-xs text-muted-foreground">
@@ -121,6 +142,11 @@ export default function DraggableMonthView({
   onEventClick,
 }: DraggableMonthViewProps) {
   const [activeEvent, setActiveEvent] = useState<any>(null);
+
+  // ✅ Build conflict map for all events (memoized for performance)
+  const conflictMap = useMemo(() => {
+    return buildConflictMap(events as CalendarEvent[]);
+  }, [events]);
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
@@ -252,6 +278,7 @@ export default function DraggableMonthView({
               isToday={isToday(day.day)}
               events={day.events}
               allEvents={events}
+              conflictMap={conflictMap}
               onDayClick={onDayClick}
               onEventClick={onEventClick}
             />

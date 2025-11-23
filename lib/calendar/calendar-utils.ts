@@ -254,3 +254,39 @@ export function isMultiDayEvent(event: CalendarEvent): boolean {
     return false;
   }
 }
+
+/**
+ * Build a conflict map for all events
+ * Returns a Map where key is event ID and value is array of conflicting events
+ * This is more efficient than calling findConflictingEvents for each event individually
+ */
+export function buildConflictMap(events: CalendarEvent[]): Map<string, CalendarEvent[]> {
+  const conflictMap = new Map<string, CalendarEvent[]>();
+
+  // Initialize map with empty arrays
+  events.forEach(event => {
+    conflictMap.set(event.id, []);
+  });
+
+  // Compare each event with every other event
+  for (let i = 0; i < events.length; i++) {
+    for (let j = i + 1; j < events.length; j++) {
+      const event1 = events[i];
+      const event2 = events[j];
+
+      // Skip cancelled events
+      if (event1.status === 'cancelled' || event2.status === 'cancelled') {
+        continue;
+      }
+
+      // Check if they overlap
+      if (eventsOverlap(event1, event2)) {
+        // Add each event to the other's conflict list
+        conflictMap.get(event1.id)?.push(event2);
+        conflictMap.get(event2.id)?.push(event1);
+      }
+    }
+  }
+
+  return conflictMap;
+}

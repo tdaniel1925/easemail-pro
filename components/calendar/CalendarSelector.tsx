@@ -247,11 +247,20 @@ export default function CalendarSelector({
                     <div
                       key={calendar.id}
                       className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent cursor-pointer transition-colors"
-                      onClick={() => handleCalendarToggle(calendar.id)}
+                      onClick={(e) => {
+                        // Prevent double-toggle if clicking directly on checkbox
+                        if ((e.target as HTMLElement).closest('button[role="checkbox"]')) {
+                          return;
+                        }
+                        handleCalendarToggle(calendar.id);
+                      }}
                     >
                       <Checkbox
                         checked={isSelected}
-                        onCheckedChange={() => handleCalendarToggle(calendar.id)}
+                        onCheckedChange={(checked) => {
+                          // Checkbox onChange receives the new checked state
+                          handleCalendarToggle(calendar.id);
+                        }}
                         className="flex-shrink-0"
                         style={{
                           borderColor: isSelected ? calendarColor : undefined,
