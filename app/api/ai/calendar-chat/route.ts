@@ -83,21 +83,7 @@ Important Rules:
             location: z.string().optional().describe('Event location'),
             attendees: z.array(z.string()).optional().describe('Attendee email addresses'),
           }),
-          execute: async ({
-            title,
-            startTime,
-            endTime,
-            description,
-            location,
-            attendees
-          }: {
-            title: string;
-            startTime: string;
-            endTime: string;
-            description?: string;
-            location?: string;
-            attendees?: string[];
-          }) => {
+          execute: async ({ title, startTime, endTime, description, location, attendees }) => {
             try {
               console.log('[Calendar Chat] Creating event:', { title, startTime, endTime });
 
@@ -225,13 +211,7 @@ Important Rules:
             startDate: z.string().describe('Start date in ISO 8601 format'),
             endDate: z.string().describe('End date in ISO 8601 format'),
           }),
-          execute: async ({
-            startDate,
-            endDate
-          }: {
-            startDate: string;
-            endDate: string;
-          }) => {
+          execute: async ({ startDate, endDate }) => {
             try {
               console.log('[Calendar Chat] Fetching events:', { startDate, endDate });
 
