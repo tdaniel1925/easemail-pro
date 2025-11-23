@@ -853,7 +853,8 @@ function CalendarContent() {
   // Mini calendar functions
   const getEventsForDate = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    return events.filter(event => {
+    // ✅ Use filteredEvents instead of events to match main calendar display
+    return filteredEvents.filter(event => {
       try {
         // Nylas v3 events use 'when' object with different formats
         let eventStartTime;
