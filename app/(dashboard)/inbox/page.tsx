@@ -22,6 +22,7 @@ import SettingsMenuNew from '@/components/layout/SettingsMenuNew';
 import AccountSwitcher from '@/components/account/AccountSwitcher';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import EventDetailsModal from '@/components/calendar/EventDetailsModal';
 
 function InboxV3Content() {
   const searchParams = useSearchParams();
@@ -47,6 +48,8 @@ function InboxV3Content() {
   const [rightPanelTab, setRightPanelTab] = useState<'agenda' | 'contact' | 'calendar'>('agenda');
   const [aiReplyText, setAiReplyText] = useState<string | null>(null);
   const [composeDraft, setComposeDraft] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
 
   // ✅ REMOVED: Account selection/persistence logic (now handled by AccountContext)
   // AccountContext automatically:
@@ -335,6 +338,10 @@ function InboxV3Content() {
           activeTab={rightPanelTab}
           onTabChange={setRightPanelTab}
           onComposeEmail={handleAICompose}
+          onEventClick={(event) => {
+            setSelectedEvent(event);
+            setIsEventDetailsOpen(true);
+          }}
         />
       </div>
     </div>
@@ -354,6 +361,18 @@ function InboxV3Content() {
       accountId={selectedDbAccountId || undefined}
       draft={composeDraft}
     />
+
+    {/* Event Details Modal */}
+    {selectedEvent && (
+      <EventDetailsModal
+        isOpen={isEventDetailsOpen}
+        onClose={() => {
+          setIsEventDetailsOpen(false);
+          setSelectedEvent(null);
+        }}
+        event={selectedEvent}
+      />
+    )}
     </>
   );
 }

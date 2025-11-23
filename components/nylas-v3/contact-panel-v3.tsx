@@ -32,9 +32,10 @@ interface ContactPanelV3Props {
   activeTab?: 'agenda' | 'contact' | 'calendar';
   onTabChange?: (tab: 'agenda' | 'contact' | 'calendar') => void;
   onComposeEmail?: (emailData: { to: string; subject: string; body: string }) => void;
+  onEventClick?: (event: any) => void;
 }
 
-export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChange }: ContactPanelV3Props) {
+export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChange, onEventClick }: ContactPanelV3Props) {
   const [internalActiveTab, setInternalActiveTab] = useState<'agenda' | 'contact' | 'calendar'>('agenda');
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
@@ -128,6 +129,7 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
           <MiniCalendar
             key={calendarRefreshKey}
             onQuickAddClick={() => setIsQuickAddOpen(true)}
+            onEventClick={onEventClick}
           />
         )}
       </div>
