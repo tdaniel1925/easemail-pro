@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 
 interface EventSearchProps {
   events: any[];
-  onResultsChange: (filteredEvents: any[]) => void;
+  onResultsChange: (filteredEvents: any[], isActive: boolean) => void;
   className?: string;
 }
 
@@ -53,6 +53,16 @@ export default function EventSearch({ events, onResultsChange, className }: Even
     });
     return Array.from(colors).sort();
   }, [events]);
+
+  // Helper to check if any filters are active
+  const hasActiveFilters = () => {
+    return filterTypes.length > 0 ||
+           filterColors.length > 0 ||
+           !showPastEvents ||
+           hasLocation !== null ||
+           hasAttendees !== null ||
+           hasMeetingLink !== null;
+  };
 
   // Filter events
   const filteredEvents = useMemo(() => {
@@ -120,17 +130,9 @@ export default function EventSearch({ events, onResultsChange, className }: Even
 
   // Update parent when filtered events change
   useMemo(() => {
-    onResultsChange(filteredEvents);
-  }, [filteredEvents, onResultsChange]);
-
-  const hasActiveFilters = () => {
-    return filterTypes.length > 0 ||
-           filterColors.length > 0 ||
-           !showPastEvents ||
-           hasLocation !== null ||
-           hasAttendees !== null ||
-           hasMeetingLink !== null;
-  };
+    const isActive = searchQuery.trim() !== '' || hasActiveFilters();
+    onResultsChange(filteredEvents, isActive);
+  }, [filteredEvents, searchQuery, onResultsChange]);
 
   const clearAllFilters = () => {
     setFilterTypes([]);

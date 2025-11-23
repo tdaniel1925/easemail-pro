@@ -552,8 +552,8 @@ function CalendarContent() {
     fetchEvents();
   }, [fetchEvents]);
 
-  // Handle search results - enrich with calendar colors
-  const handleSearchResults = useCallback((results: any[]) => {
+  // Handle search results - enrich with calendar colors and track active state
+  const handleSearchResults = useCallback((results: any[], isActive: boolean) => {
     // ✅ Enrich search results with calendar colors just like regular events
     const enrichedResults = results.map(event => {
       const calendarId = event.calendarId || event.calendar_id;
@@ -567,8 +567,8 @@ function CalendarContent() {
     });
 
     setSearchResults(enrichedResults);
-    setIsSearchActive(results.length !== events.length);
-  }, [events.length, calendarMetadata]);
+    setIsSearchActive(isActive); // ✅ FIX: Use the isActive flag from EventSearch
+  }, [calendarMetadata]);
 
   // Sync calendar
   const handleSync = async (silent = false) => {
