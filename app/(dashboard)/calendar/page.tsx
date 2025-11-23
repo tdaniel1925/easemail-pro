@@ -1155,7 +1155,10 @@ function CalendarContent() {
                       return (
                         <button
                           key={event.id}
-                          onClick={() => setSidebarDetailEvent(event)}
+                          onClick={() => {
+                            setSelectedEvent(event);
+                            setIsEventDetailsOpen(true);
+                          }}
                           className="w-full text-left p-2 rounded-md hover:bg-accent transition-colors"
                         >
                           <div className="flex items-start gap-2">

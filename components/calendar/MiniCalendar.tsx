@@ -24,9 +24,10 @@ interface Event {
 
 interface MiniCalendarProps {
   onQuickAddClick?: () => void;
+  onEventClick?: (event: Event) => void;
 }
 
-export function MiniCalendar({ onQuickAddClick }: MiniCalendarProps = {}) {
+export function MiniCalendar({ onQuickAddClick, onEventClick }: MiniCalendarProps = {}) {
   const { selectedAccount } = useAccount();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -300,7 +301,14 @@ export function MiniCalendar({ onQuickAddClick }: MiniCalendarProps = {}) {
                     return (
                       <button
                         key={event.id}
-                        onClick={() => window.location.href = '/calendar'}
+                        onClick={() => {
+                          if (onEventClick) {
+                            onEventClick(event);
+                          } else {
+                            // Fallback: navigate to calendar page
+                            window.location.href = '/calendar';
+                          }
+                        }}
                         className="w-full text-left p-2 rounded-md hover:bg-accent transition-colors"
                       >
                         <div className="flex items-start gap-2">
