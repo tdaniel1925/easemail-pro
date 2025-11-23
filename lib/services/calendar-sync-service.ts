@@ -619,6 +619,21 @@ export class CalendarSyncService {
       };
     });
 
+    // Transform reminders array to Nylas notifications object format
+    // Nylas V3 expects { use_default: boolean, overrides?: [...] }
+    let notifications: any = undefined;
+    if (event.reminders && Array.isArray(event.reminders) && event.reminders.length > 0) {
+      // Convert array of reminders to Nylas format
+      notifications = {
+        use_default: false,
+        overrides: event.reminders.map((reminder: any) => ({
+          reminder_minutes: reminder.minutesBefore || reminder.minutes || 0,
+          reminder_method: reminder.method || 'email',
+        })),
+      };
+    }
+    // If no reminders or empty array, don't include the field (or use default)
+
     return {
       title: event.title,
       description: event.description || '',
@@ -627,7 +642,7 @@ export class CalendarSyncService {
       busy: !event.isPrivate, // If private, mark as free
       participants,
       recurrence: event.recurrenceRule ? event.recurrenceRule.split(';') : undefined,
-      reminders: event.reminders,
+      notifications,
       metadata: event.metadata,
     };
   }
