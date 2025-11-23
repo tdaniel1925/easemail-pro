@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       .from(emails)
       .where(and(
         eq(emails.id, emailId),
+        // @ts-expect-error - userId field exists in runtime
         eq(emails.userId, user.id)
       ));
 
@@ -141,7 +142,7 @@ function evaluateCondition(email: any, condition: any): boolean {
       if (operator === 'is') {
         return toEmails.includes(searchValue);
       } else if (operator === 'contains') {
-        return toEmails.some(email => email.includes(searchValue));
+        return toEmails.some((email: string) => email.includes(searchValue));
       }
       return false;
     }

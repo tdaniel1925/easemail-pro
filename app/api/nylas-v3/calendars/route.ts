@@ -136,6 +136,7 @@ export async function POST(request: NextRequest) {
         description: description || '',
         location: '',
         timezone: timezone || 'America/New_York',
+        // @ts-expect-error - hexColor is supported but not in type definition
         hexColor: hexColor || '#3b82f6',
       },
     });

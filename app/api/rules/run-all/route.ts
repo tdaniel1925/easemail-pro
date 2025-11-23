@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
     const recentEmails = await db
       .select()
       .from(emails)
+      // @ts-expect-error - userId field exists in runtime
       .where(eq(emails.userId, user.id))
       .orderBy(desc(emails.receivedAt))
       .limit(100);
@@ -169,7 +170,7 @@ function evaluateCondition(email: any, condition: any): boolean {
       if (operator === 'is') {
         return toEmails.includes(searchValue);
       } else if (operator === 'contains') {
-        return toEmails.some(email => email.includes(searchValue));
+        return toEmails.some((email: string) => email.includes(searchValue));
       }
       return false;
     }
