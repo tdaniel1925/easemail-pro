@@ -56,7 +56,7 @@ function CalendarContent() {
   const [allAccounts, setAllAccounts] = useState<any[]>([]);
 
   // ✅ Calendar metadata (for color coding events)
-  const [calendarMetadata, setCalendarMetadata] = useState<Map<string, { hexColor: string; name: string }>>(new Map());
+  const [calendarMetadata, setCalendarMetadata] = useState<Map<string, { hexColor: string; name: string; isPrimary?: boolean }>>(new Map());
   const [metadataLoading, setMetadataLoading] = useState(false);
 
   // View State with localStorage persistence
@@ -186,6 +186,7 @@ function CalendarContent() {
               metadata.set(cal.id, {
                 hexColor: cal.hexColor || '#3b82f6',
                 name: cal.name || 'Untitled Calendar',
+                isPrimary: cal.isPrimary || false,
               });
             });
           }
