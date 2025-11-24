@@ -144,69 +144,68 @@ export async function GET(request: NextRequest) {
       console.log('✅ New account created:', account.id);
     }
     
-    // Setup webhook for this account
-    try {
-      console.log('🪝 Setting up webhook...');
-      const webhook = await createNylasWebhook(account.id);
-      // Nylas v3 returns webhook in the data property
-      const webhookId = webhook.data?.id || (webhook as any).id;
+    // Setup webhook for this account with timeout protection
+    const webhookPromise = (async () => {
+      try {
+        console.log('🪝 Setting up webhook...');
+        const webhook = await createNylasWebhook(account.id);
+        // Nylas v3 returns webhook in the data property
+        const webhookId = webhook.data?.id || (webhook as any).id;
+        await db.update(emailAccounts)
+          .set({
+            webhookId: webhookId,
+            webhookStatus: 'active',
+          })
+          .where(eq(emailAccounts.id, account.id));
+        console.log('✅ Webhook created:', webhookId);
+        return true;
+      } catch (webhookError) {
+        console.error('⚠️ Webhook creation error:', webhookError);
+        // Mark as pending so it can be activated later
+        await db.update(emailAccounts)
+          .set({
+            webhookStatus: 'pending',
+          })
+          .where(eq(emailAccounts.id, account.id));
+        return false;
+      }
+    })();
+
+    // Race webhook creation with 10-second timeout
+    const webhookResult = await Promise.race([
+      webhookPromise,
+      new Promise<boolean>((resolve) => setTimeout(() => {
+        console.log('⏱️ Webhook creation timeout - will be activated later');
+        resolve(false);
+      }, 10000)),
+    ]);
+
+    // ✅ FIX: Move folder/email sync to background - DON'T block callback
+    if (!existingAccount) {
+      console.log('🚀 New account - triggering background sync jobs (async)...');
+
+      // Set account status to 'syncing' immediately
       await db.update(emailAccounts)
         .set({
-          webhookId: webhookId,
-          webhookStatus: 'active',
+          syncStatus: 'syncing',
         })
         .where(eq(emailAccounts.id, account.id));
-      console.log('✅ Webhook created:', webhookId);
-    } catch (webhookError) {
-      console.error('⚠️ Webhook creation error:', webhookError);
-      // Continue anyway - webhooks can be setup later
-    }
-    
-    // Sync folders and initial emails ONLY for NEW accounts
-    if (!existingAccount) {
-      console.log('🚀 New account - starting parallel folder and email sync...');
-      const [folderResult, emailResult] = await Promise.allSettled([
-        // Sync folders (async)
-        fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${account.id}`, {
-          method: 'POST',
-        }),
-        // Sync initial emails (200)
-        fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountId: account.id, limit: 200, fullSync: true }),
-        }),
-      ]);
-      
-      let syncErrors = [];
-      
-      if (folderResult.status === 'fulfilled') {
-        console.log('✅ Folders synced');
-      } else {
-        console.error('⚠️ Folder sync error:', folderResult.reason);
-        syncErrors.push('folders');
-      }
-      
-      if (emailResult.status === 'fulfilled') {
-        console.log('✅ Initial emails synced');
-      } else {
-        console.error('⚠️ Email sync error:', emailResult.reason);
-        syncErrors.push('emails');
-      }
-      
-      // Trigger background sync for remaining emails (async - don't wait)
-      console.log('🔄 Triggering background sync for remaining emails...');
+
+      // Trigger folder sync (async - fire and forget with short timeout)
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${account.id}`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(5000), // 5 second timeout for trigger
+      }).catch(err => console.error('⚠️ Folder sync trigger error:', err));
+
+      // Trigger background sync for emails (async - fire and forget)
       fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId: account.id }),
+        signal: AbortSignal.timeout(5000), // 5 second timeout for trigger
       }).catch(err => console.error('⚠️ Background sync trigger error:', err));
-      
-      // Redirect with sync status info
-      if (syncErrors.length > 0) {
-        console.log('⚠️ Some sync operations failed:', syncErrors);
-        return NextResponse.redirect(new URL(`/inbox?success=account_added&syncing=true&warnings=${syncErrors.join(',')}`, request.url));
-      }
+
+      console.log('✅ Background sync jobs triggered');
     } else {
       console.log('✅ Reconnected - skipping initial sync, cursor preserved');
       console.log('📊 Existing sync state:', {

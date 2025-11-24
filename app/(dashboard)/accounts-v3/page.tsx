@@ -895,7 +895,15 @@ export default function AccountsV3Page() {
                     </div>
 
                     {/* Webhook Status & Activation */}
-                    {account.webhookStatus !== 'active' && (
+                    {/* ✅ FIX: Only show webhook activation for accounts that failed webhook setup
+                        - Don't show for 'active' webhooks
+                        - Don't show for 'pending' webhooks (being set up)
+                        - Don't show for accounts in 'initializing' or 'syncing' state (new accounts still setting up)
+                    */}
+                    {account.webhookStatus !== 'active' &&
+                     account.webhookStatus !== 'pending' &&
+                     account.syncStatus !== 'initializing' &&
+                     account.syncStatus !== 'syncing' && (
                       <Alert className="bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800">
                         <WifiOff className="h-4 w-4 text-orange-600" />
                         <AlertTitle>Real-time notifications disabled</AlertTitle>
