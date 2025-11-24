@@ -5,6 +5,7 @@ import { Calendar, Clock, MapPin, Users, Sun, Moon, Coffee, Pencil } from 'lucid
 import { useAccount } from '@/contexts/AccountContext';
 import { format, isToday, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import EventModal from './EventModal';
 
 interface Event {
   id: string;
@@ -31,6 +32,8 @@ export function YourDay() {
   const [displayName, setDisplayName] = useState<string>('');
   const [isEditingName, setIsEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
 
   // Load display name from localStorage on mount
   useEffect(() => {
@@ -178,6 +181,63 @@ export function YourDay() {
     }
   };
 
+  const handleEventClick = (event: Event) => {
+    setSelectedEvent(event);
+    setIsEventModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsEventModalOpen(false);
+    setSelectedEvent(null);
+  };
+
+  const handleEventUpdate = () => {
+    // Refresh events after update
+    if (selectedAccount?.nylasGrantId) {
+      const fetchTodayEvents = async () => {
+        try {
+          const now = new Date();
+          const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+          const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+          const startTimestamp = Math.floor(startOfDay.getTime() / 1000);
+          const endTimestamp = Math.floor(endOfDay.getTime() / 1000);
+
+          const apiUrl = `/api/nylas-v3/calendars/events?accountId=${selectedAccount.nylasGrantId}&start=${startTimestamp}&end=${endTimestamp}`;
+          const response = await fetch(apiUrl);
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+              const sortedEvents = (data.events || []).sort((a: Event, b: Event) => {
+                let aStart, bStart;
+                if (a.when?.startTime) {
+                  aStart = new Date(a.when.startTime * 1000);
+                } else if (a.when?.date) {
+                  aStart = new Date(a.when.date);
+                } else {
+                  aStart = new Date(a.startTime);
+                }
+                if (b.when?.startTime) {
+                  bStart = new Date(b.when.startTime * 1000);
+                } else if (b.when?.date) {
+                  bStart = new Date(b.when.date);
+                } else {
+                  bStart = new Date(b.startTime);
+                }
+                return aStart.getTime() - bStart.getTime();
+              });
+              setEvents(sortedEvents);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to refresh events:', err);
+        }
+      };
+      fetchTodayEvents();
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
@@ -256,8 +316,9 @@ export function YourDay() {
               return (
                 <div
                   key={event.id}
+                  onClick={() => handleEventClick(event)}
                   className={cn(
-                    'p-3 rounded-lg border transition-colors',
+                    'p-3 rounded-lg border transition-colors cursor-pointer',
                     isCurrent
                       ? 'bg-primary/10 border-primary shadow-sm'
                       : 'bg-card border-border hover:bg-accent'
@@ -325,6 +386,16 @@ export function YourDay() {
           View full calendar →
         </a>
       </div>
+
+      {/* Event Details Modal */}
+      {selectedEvent && (
+        <EventModal
+          isOpen={isEventModalOpen}
+          onClose={handleModalClose}
+          event={selectedEvent}
+          onSuccess={handleEventUpdate}
+        />
+      )}
     </div>
   );
 }
