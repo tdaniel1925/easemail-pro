@@ -7,7 +7,13 @@
       "Bash(if exist .swc rmdir /s /q .swc)",
       "Bash(if exist tsconfig.tsbuildinfo del /q tsconfig.tsbuildinfo)",
       "Bash(cmd.exe /c \"timeout /t 3 /nobreak >nul && cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && (if exist .next rmdir /s /q .next) && (if exist node_modules\\.cache rmdir /s /q node_modules\\.cache) && (if exist .swc rmdir /s /q .swc) && (if exist tsconfig.tsbuildinfo del /q tsconfig.tsbuildinfo) && echo All caches cleared successfully\")",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(cmd.exe /c \"taskkill /F /IM node.exe 2>nul & timeout /t 2 /nobreak >nul & cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && npm run dev\")",
+      "Bash(Select-String -Pattern \"Calendar Pro|404\")",
+      "Bash(cmd.exe /c \"taskkill /F /IM node.exe 2>nul & timeout /t 3 /nobreak >nul & cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && rmdir /s /q .next && rmdir /s /q node_modules\\.cache && npm run dev\")",
+      "Bash(cmd.exe /c \"if exist .next rmdir /s /q .next && if exist node_modules\\.cache rmdir /s /q node_modules\\.cache && if exist .swc rmdir /s /q .swc && echo Caches cleared\")",
+      "Bash(Select-String -Pattern \"Calendar Pro|404|Test\")",
+      "Bash(Select-Object -First 5)"
     ],
     "deny": [],
     "ask": []

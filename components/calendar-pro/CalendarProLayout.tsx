@@ -65,10 +65,21 @@ export default function CalendarProLayout() {
     return events.filter(event => {
       const eventStart = event.start_time;
       const eventEnd = event.end_time;
-      return (eventStart >= todayStart && eventStart < todayEnd) ||
-             (eventEnd > todayStart && eventEnd <= todayEnd) ||
-             (eventStart < todayStart && eventEnd > todayEnd);
-    }).sort((a, b) => a.start_time - b.start_time);
+      // Filter out events without valid timestamps
+      if (!eventStart || !eventEnd) return false;
+
+      // Convert string timestamps to numbers for comparison
+      const startNum = typeof eventStart === 'string' ? parseInt(eventStart) : eventStart;
+      const endNum = typeof eventEnd === 'string' ? parseInt(eventEnd) : eventEnd;
+
+      return (startNum >= todayStart && startNum < todayEnd) ||
+             (endNum > todayStart && endNum <= todayEnd) ||
+             (startNum < todayStart && endNum > todayEnd);
+    }).sort((a, b) => {
+      const aTime = typeof a.start_time === 'string' ? parseInt(a.start_time) : (a.start_time || 0);
+      const bTime = typeof b.start_time === 'string' ? parseInt(b.start_time) : (b.start_time || 0);
+      return aTime - bTime;
+    });
   }, [events]);
 
   // Get formatted date range for header
@@ -239,14 +250,17 @@ export default function CalendarProLayout() {
                           <div className="flex items-start gap-2">
                             <div
                               className="w-1 h-full rounded-full"
-                              style={{ backgroundColor: event.calendar?.hex_color || '#6366f1' }}
+                              style={{ backgroundColor: event.hexColor || event.color || '#6366f1' }}
                             />
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-sm truncate">{event.title}</p>
                               <p className="text-xs text-muted-foreground">
-                                {format(new Date(event.start_time * 1000), 'h:mm a')}
-                                {' - '}
-                                {format(new Date(event.end_time * 1000), 'h:mm a')}
+                                {(() => {
+                                  if (!event.start_time || !event.end_time) return 'Time TBD';
+                                  const startTime: number = typeof event.start_time === 'string' ? parseInt(event.start_time) : event.start_time;
+                                  const endTime: number = typeof event.end_time === 'string' ? parseInt(event.end_time) : event.end_time;
+                                  return `${format(new Date(startTime * 1000), 'h:mm a')} - ${format(new Date(endTime * 1000), 'h:mm a')}`;
+                                })()}
                               </p>
                             </div>
                           </div>
