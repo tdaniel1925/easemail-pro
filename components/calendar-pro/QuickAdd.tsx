@@ -1,30 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCalendarPro } from '@/contexts/CalendarProContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Mic, MicOff } from 'lucide-react';
 
 interface QuickAddProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialTime?: { hour: number; minute: number };
 }
 
-export default function QuickAdd({ open, onOpenChange }: QuickAddProps) {
+export default function QuickAdd({ open, onOpenChange, initialTime }: QuickAddProps) {
   const [input, setInput] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { grantId, calendars, refreshEvents } = useCalendarPro();
+  const [isListening, setIsListening] = useState(false);
+  const { grantId, calendars, refreshEvents, selectedDate } = useCalendarPro();
+  const recognitionRef = useRef<any>(null);
+  const shouldAutoCreateRef = useRef(false);
 
   const parseNaturalLanguage = (text: string) => {
-    // Simple parsing - in production, you'd use a more sophisticated parser
     const now = new Date();
 
-    // Default: 1 hour from now
-    const start = new Date(now.getTime() + 60 * 60 * 1000);
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    let start: Date;
+    let end: Date;
+
+    // If we have initialTime from click-to-create, use it
+    if (initialTime) {
+      const baseDate = selectedDate || new Date();
+      start = new Date(baseDate);
+      start.setHours(initialTime.hour, initialTime.minute, 0, 0);
+      end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour later
+    } else {
+      // Default: 1 hour from now
+      start = new Date(now.getTime() + 60 * 60 * 1000);
+      end = new Date(start.getTime() + 60 * 60 * 1000);
+    }
 
     // Extract title (everything before time indicators)
     const title = text.split(/\bat\b|\bon\b|\btomorrow\b|\bnext\b/i)[0].trim();
@@ -86,6 +100,75 @@ export default function QuickAdd({ open, onOpenChange }: QuickAddProps) {
       setError(err.message || 'Failed to create event');
     } finally {
       setIsCreating(false);
+      shouldAutoCreateRef.current = false;
+    }
+  };
+
+  // Initialize speech recognition ONCE on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(prev => prev ? `${prev} ${transcript}` : transcript);
+        setIsListening(false);
+        // Mark that we should auto-create after input is set
+        shouldAutoCreateRef.current = true;
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        setError('Voice input failed. Please try again.');
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+    };
+  }, []);
+
+  // Auto-create event after voice input completes
+  useEffect(() => {
+    if (shouldAutoCreateRef.current && input.trim() && !isListening) {
+      // Brief delay to show user what was captured
+      const timer = setTimeout(() => {
+        handleCreate();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [input, isListening]);
+
+  const toggleVoiceInput = () => {
+    if (!recognitionRef.current) {
+      setError('Voice input not supported in this browser');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      setError(null);
+      shouldAutoCreateRef.current = false;
+      recognitionRef.current.start();
+      setIsListening(true);
     }
   };
 
@@ -105,15 +188,33 @@ export default function QuickAdd({ open, onOpenChange }: QuickAddProps) {
 
         <div className="space-y-4">
           <div>
-            <Input
-              placeholder="e.g., 'Team meeting tomorrow at 2pm' or 'Lunch with Sarah'"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              autoFocus
-            />
+            <div className="relative">
+              <Input
+                placeholder="e.g., 'Team meeting tomorrow at 2pm' or 'Lunch with Sarah'"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                autoFocus
+                className="pr-12"
+                disabled={isListening}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                onClick={toggleVoiceInput}
+                title={isListening ? 'Stop voice input' : 'Start voice input'}
+              >
+                {isListening ? (
+                  <MicOff className="h-4 w-4 text-red-500 animate-pulse" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Type naturally - we'll parse the date and time for you
+              {isListening ? 'Listening... Speak now' : 'Type naturally or use voice input - we\'ll parse the date and time for you'}
             </p>
           </div>
 
@@ -129,6 +230,7 @@ export default function QuickAdd({ open, onOpenChange }: QuickAddProps) {
               onClick={() => {
                 setInput('');
                 setError(null);
+                shouldAutoCreateRef.current = false;
                 onOpenChange(false);
               }}
             >

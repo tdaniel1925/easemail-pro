@@ -6,7 +6,11 @@ import EventCard from '../EventCard';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export default function WeekView() {
+interface WeekViewProps {
+  onTimeSlotClick?: (hour: number, minute: number) => void;
+}
+
+export default function WeekView({ onTimeSlotClick }: WeekViewProps) {
   const { selectedDate, events, isLoadingEvents, setSelectedEvent } = useCalendarPro();
 
   // Get week start (Sunday)
@@ -141,7 +145,11 @@ export default function WeekView() {
                 >
                   {/* Hour slots */}
                   {hours.map(hour => (
-                    <div key={hour} className="h-[60px] border-b border-border" />
+                    <div
+                      key={hour}
+                      className="h-[60px] border-b border-border cursor-pointer hover:bg-accent/20 transition-colors"
+                      onClick={() => onTimeSlotClick?.(hour, 0)}
+                    />
                   ))}
 
                   {/* Events */}

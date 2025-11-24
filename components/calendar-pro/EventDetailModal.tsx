@@ -220,12 +220,6 @@ export default function EventDetailModal({ event, open, onOpenChange }: EventDet
               <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
                 Close
               </Button>
-              {!event.readOnly && (
-                <Button size="sm" disabled>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              )}
             </div>
           </div>
         </div>

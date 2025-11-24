@@ -296,18 +296,16 @@ function CalendarContent() {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     const filtered = baseEvents.filter(event => {
-      // ✅ FIX BUG #2: STRICT CALENDAR FILTERING
+      // ✅ FIX BUG #2: CALENDAR FILTERING
       // All events now have calendarId (assigned in enrichment), so we can be strict
       const eventCalendarId = event.calendarId || event.calendar_id;
 
-      // If no calendars are selected, hide all events
-      if (selectedCalendarIds.length === 0) {
-        return false;
-      }
-
-      // Strict: only show events from selected calendars
-      if (!eventCalendarId || !selectedCalendarIds.includes(eventCalendarId)) {
-        return false; // Hide events not in selected calendars
+      // ✅ FIX: If no calendars are selected, show ALL events (default behavior)
+      if (selectedCalendarIds.length > 0) {
+        // Only filter by calendar when specific calendars are selected
+        if (!eventCalendarId || !selectedCalendarIds.includes(eventCalendarId)) {
+          return false; // Hide events not in selected calendars
+        }
       }
 
       // Filter by calendar type
@@ -1012,17 +1010,6 @@ function CalendarContent() {
             </div>
           ) : (
             <>
-              {/* Warning: No calendars selected */}
-              {selectedCalendarIds.length === 0 && (
-                <Alert className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>No calendars selected</AlertTitle>
-                  <AlertDescription>
-                    Select at least one calendar from the sidebar to view events.
-                  </AlertDescription>
-                </Alert>
-              )}
-
               {view === 'month' && (
                 <DraggableMonthView
                   currentMonth={currentMonth}

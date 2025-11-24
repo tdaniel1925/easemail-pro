@@ -6,7 +6,11 @@ import EventCard from '../EventCard';
 import { useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
-export default function DayView() {
+interface DayViewProps {
+  onTimeSlotClick?: (hour: number, minute: number) => void;
+}
+
+export default function DayView({ onTimeSlotClick }: DayViewProps) {
   const { selectedDate, events, isLoadingEvents, setSelectedEvent } = useCalendarPro();
   const [dragStart, setDragStart] = useState<{ hour: number; minute: number } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -79,15 +83,13 @@ export default function DayView() {
   };
 
   const handleMouseUp = (hour: number, minute: number) => {
-    if (dragStart) {
-      // Calculate start and end times
+    if (dragStart && onTimeSlotClick) {
+      // Use the start time from drag
       const startHour = Math.min(dragStart.hour, hour);
       const startMinute = dragStart.minute;
-      const endHour = Math.max(dragStart.hour, hour);
-      const endMinute = minute;
 
-      // Create new event (would open QuickAdd modal)
-      console.log('Create event:', { startHour, startMinute, endHour, endMinute });
+      // Open QuickAdd with the selected time
+      onTimeSlotClick(startHour, startMinute);
 
       setDragStart(null);
     }

@@ -36,7 +36,7 @@ export default function AccountSwitcher() {
       <Button
         variant="outline"
         onClick={() => router.push('/accounts-v3')}
-        className="gap-2"
+        className="w-full justify-center gap-2"
       >
         <Plus className="h-4 w-4" />
         Add Account
