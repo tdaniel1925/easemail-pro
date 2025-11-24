@@ -58,8 +58,8 @@ function CalendarContent() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
 
-  // ✅ Local state for all user accounts (for multi-account calendar support)
-  const [allAccounts, setAllAccounts] = useState<any[]>([]);
+  // ✅ Use accounts from context (same source as YourDay and other components)
+  const allAccounts = contextAccounts;
 
   // ✅ Calendar metadata (for color coding events)
   const [calendarMetadata, setCalendarMetadata] = useState<Map<string, CalendarMetadata>>(new Map());
@@ -150,25 +150,7 @@ function CalendarContent() {
     }
   }, [selectedAccount?.nylasGrantId, selectedCalendarIds]);
 
-  // ✅ Fetch all accounts on mount for multi-account calendar support
-  useEffect(() => {
-    const fetchAllAccounts = async () => {
-      try {
-        const response = await fetch('/api/nylas/accounts');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            setAllAccounts(data.accounts || []);
-            console.log('[Calendar] Loaded all accounts:', data.accounts.length);
-          }
-        }
-      } catch (error) {
-        console.error('[Calendar] Failed to fetch accounts:', error);
-      }
-    };
-
-    fetchAllAccounts();
-  }, []); // Run once on mount
+  // ✅ Accounts are now sourced from AccountContext (no separate fetch needed)
 
   // ✅ Fetch calendar metadata for color coding events
   useEffect(() => {
