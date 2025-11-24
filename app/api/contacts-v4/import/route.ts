@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { contactsV4 } from '@/lib/db/schema-contacts-v4';
 import { eq, and } from 'drizzle-orm';
+import type { NylasEmail, NylasPhoneNumber } from '@/lib/types/contacts-v4';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,23 +125,24 @@ export async function POST(request: NextRequest) {
         }
 
         // Create contact
-        await db.insert(contactsV4).values({
+        const contactData = {
           userId: user.id,
           accountId,
           nylasGrantId: accounts.nylas_grant_id,
           provider: accounts.provider as 'google' | 'microsoft',
-          source: 'easemail', // Mark as imported
+          source: 'easemail' as const, // Mark as imported
           givenName: contact.givenName || '',
           surname: contact.surname || '',
           displayName,
-          emails: contact.emails || [],
-          phoneNumbers: contact.phoneNumbers || [],
+          emails: (contact.emails || []) as NylasEmail[],
+          phoneNumbers: (contact.phoneNumbers || []) as NylasPhoneNumber[],
           physicalAddresses,
           companyName: contact.companyName || '',
           jobTitle: contact.jobTitle || '',
           notes: contact.notes || '',
-          syncStatus: 'pending_create', // Will be synced to Nylas later
-        });
+          syncStatus: 'pending_create' as const, // Will be synced to Nylas later
+        };
+        await db.insert(contactsV4).values(contactData);
 
         imported++;
       } catch (error) {

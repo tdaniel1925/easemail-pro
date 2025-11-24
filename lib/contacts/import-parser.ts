@@ -254,8 +254,8 @@ export function getSuggestedMapping(headers: string[]): Record<string, string> {
     const originalHeader = headers[index];
 
     // Check each pattern
-    for (const [targetField, patterns] of Object.entries(patterns)) {
-      if (patterns.some(pattern => headerLC.includes(pattern))) {
+    for (const [targetField, patternList] of Object.entries(patterns)) {
+      if (patternList.some(pattern => headerLC.includes(pattern))) {
         mapping[originalHeader] = targetField;
         break;
       }

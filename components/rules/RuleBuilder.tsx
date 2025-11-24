@@ -246,7 +246,8 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
     const actionsNeedingValues = actionOptions.filter(a => a.needsValue);
     const invalidActions = actions.filter(action => {
       const actionDef = actionsNeedingValues.find(a => a.value === action.type);
-      return actionDef && (!action.value || (typeof action.value === 'string' && !action.value.trim()));
+      const actionValue = 'value' in action ? action.value : undefined;
+      return actionDef && (!actionValue || (typeof actionValue === 'string' && !actionValue.trim()));
     });
 
     if (invalidActions.length > 0) {
