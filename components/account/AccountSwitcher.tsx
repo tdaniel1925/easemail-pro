@@ -16,6 +16,16 @@ import { cn, getInitials, generateAvatarColor } from '@/lib/utils';
 import { useAccount } from '@/contexts/AccountContext';
 import { useRouter } from 'next/navigation';
 
+// Helper function to capitalize provider names
+function formatProviderName(provider: string | undefined): string {
+  if (!provider) return 'Email';
+  // Handle special cases
+  if (provider.toLowerCase() === 'microsoft') return 'Microsoft';
+  if (provider.toLowerCase() === 'google') return 'Google';
+  // Title case for other providers
+  return provider.charAt(0).toUpperCase() + provider.slice(1).toLowerCase();
+}
+
 export default function AccountSwitcher() {
   const { selectedAccount, setSelectedAccount, accounts, isLoading } = useAccount();
   const [open, setOpen] = useState(false);
@@ -76,7 +86,7 @@ export default function AccountSwitcher() {
               </span>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground truncate">
-                  {selectedAccount.emailProvider || selectedAccount.nylasProvider || 'Email'}
+                  {formatProviderName(selectedAccount.emailProvider || selectedAccount.nylasProvider)}
                 </span>
                 {selectedAccount.syncStatus === 'syncing' && (
                   <Badge variant="secondary" className="h-4 px-1 text-[10px] flex-shrink-0">
@@ -148,7 +158,7 @@ export default function AccountSwitcher() {
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span className="text-xs text-muted-foreground">
-                          {account.emailProvider || account.nylasProvider || 'Email'}
+                          {formatProviderName(account.emailProvider || account.nylasProvider)}
                         </span>
                         {account.syncStatus === 'syncing' && (
                           <span className="text-xs text-blue-600">• Syncing</span>
