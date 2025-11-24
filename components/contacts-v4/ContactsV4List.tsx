@@ -616,13 +616,19 @@ export default function ContactsV4List() {
 
   // Form modal handlers
   const handleAddContact = () => {
+    // If "All Accounts" is selected, auto-select first active account
     if (selectedAccountId === 'all') {
-      toast({
-        title: 'Select an account',
-        description: 'Please select a specific account to add a contact',
-        variant: 'destructive'
-      });
-      return;
+      const firstActiveAccount = accounts.find(acc => acc.isActive);
+      if (firstActiveAccount) {
+        setSelectedAccountId(firstActiveAccount.id);
+      } else {
+        toast({
+          title: 'No active accounts',
+          description: 'Please connect an email account first',
+          variant: 'destructive'
+        });
+        return;
+      }
     }
     setEditingContact(null);
     setIsFormModalOpen(true);
