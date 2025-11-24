@@ -1,15 +1,17 @@
 /**
  * Quick Add Component - GPT-4o Powered Chatbot
  * Natural language event creation with conversational AI
+ * Enhanced UX with success screens, better previews, and improved interactions
  */
 
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, Calendar, Clock, MapPin, Mic, MicOff, Users, Send, Bot, User } from 'lucide-react';
+import { Sparkles, Calendar, Clock, MapPin, Mic, MicOff, Users, Send, Bot, User, CheckCircle2, AlertCircle, X, Edit2, RotateCcw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import * as Sentry from '@sentry/nextjs';
 
 interface QuickAddProps {
@@ -37,6 +39,15 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
   const [browserSupportsVoice, setBrowserSupportsVoice] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Success state
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [createdEvent, setCreatedEvent] = useState<any>(null);
+  const [autoCloseTimer, setAutoCloseTimer] = useState<NodeJS.Timeout | null>(null);
+
+  // Edit mode
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+
   // Calendar selection
   const [availableCalendars, setAvailableCalendars] = useState<any[]>([]);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string>('');
@@ -46,6 +57,38 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoCloseTimer) {
+        clearTimeout(autoCloseTimer);
+      }
+    };
+  }, [autoCloseTimer]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + Enter to create event
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && preview && !loading && !showSuccess) {
+        e.preventDefault();
+        handleCreate();
+      }
+      // Escape to cancel (only if not in success screen)
+      if (e.key === 'Escape' && !showSuccess) {
+        handleClose();
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, preview, loading, showSuccess]);
 
   // Fetch available calendars
   useEffect(() => {
@@ -194,7 +237,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         body: JSON.stringify({
           input: messageText,
           conversationHistory,
-          timezone: userTimezone, // Pass client timezone
+          timezone: userTimezone,
         }),
       });
 
@@ -371,8 +414,22 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
           console.log('[QuickAdd] Event created successfully:', data.event);
           span.setAttribute('eventId', data.event?.id);
 
-          onEventCreated();
-          handleClose();
+          // Show success screen instead of closing immediately
+          setCreatedEvent({
+            ...data.event,
+            title: preview.title,
+            startTime: preview.startTime,
+            endTime: preview.endTime,
+            location: preview.location,
+          });
+          setShowSuccess(true);
+          onEventCreated(); // Refresh calendar in background
+
+          // Auto-close after 3 seconds
+          const timer = setTimeout(() => {
+            handleClose();
+          }, 3000);
+          setAutoCloseTimer(timer);
         }
       );
 
@@ -399,16 +456,61 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
       recognition.stop();
       setIsListening(false);
     }
+
+    // Clear auto-close timer
+    if (autoCloseTimer) {
+      clearTimeout(autoCloseTimer);
+      setAutoCloseTimer(null);
+    }
+
     setInput('');
     setMessages([]);
     setPreview(null);
     setError(null);
     setConversationHistory([]);
+    setShowSuccess(false);
+    setCreatedEvent(null);
+    setEditingField(null);
     onClose();
   };
 
+  const handleStartOver = () => {
+    setMessages([]);
+    setPreview(null);
+    setError(null);
+    setConversationHistory([]);
+    setEditingField(null);
+  };
+
+  const handleEditField = (field: string, currentValue: any) => {
+    setEditingField(field);
+    setEditValue(String(currentValue || ''));
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingField || !preview) return;
+
+    const newPreview = { ...preview };
+
+    if (editingField === 'title') {
+      newPreview.title = editValue;
+    } else if (editingField === 'location') {
+      newPreview.location = editValue;
+    } else if (editingField === 'description') {
+      newPreview.description = editValue;
+    }
+
+    setPreview(newPreview);
+    setEditingField(null);
+    setEditValue('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingField(null);
+    setEditValue('');
+  };
+
   const formatDate = (date: Date) => {
-    // Ensure date is a Date object and is valid
     if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
       return 'Invalid Date';
     }
@@ -422,6 +524,13 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     });
   };
 
+  const formatTime = (date: Date) => {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return '';
+    }
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl h-[600px] flex flex-col">
@@ -433,202 +542,401 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
         </DialogHeader>
 
         <div className="flex-1 flex flex-col min-h-0">
-          {/* Chat Messages Area */}
-          <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
-            {messages.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-center text-muted-foreground">
-                <div>
-                  <Bot className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">Hi! Describe the event you'd like to create.</p>
-                  <p className="text-xs mt-1">For example: "Team meeting tomorrow at 2pm for 1 hour"</p>
+          {/* Success Screen */}
+          {showSuccess && createdEvent && (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center" role="status" aria-live="polite">
+              <div className="relative mb-6">
+                <div className="flex items-center justify-center w-20 h-20 rounded-full bg-green-500 animate-bounce">
+                  <CheckCircle2 className="h-10 w-10 text-white" />
                 </div>
-              </div>
-            ) : (
-              <>
-                {messages.map((msg, index) => (
-                  <div
-                    key={index}
-                    className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    {msg.role === 'assistant' && (
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Bot className="h-4 w-4 text-primary" />
-                      </div>
-                    )}
-                    <div
-                      className={`max-w-[75%] rounded-lg px-4 py-2.5 ${
-                        msg.role === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-accent text-accent-foreground'
-                      }`}
-                    >
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                      <p className="text-xs opacity-60 mt-1">
-                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                    {msg.role === 'user' && (
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                        <User className="h-4 w-4 text-primary-foreground" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {parsing && (
-                  <div className="flex gap-3 justify-start">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Bot className="h-4 w-4 text-primary animate-pulse" />
-                    </div>
-                    <div className="bg-accent text-accent-foreground rounded-lg px-4 py-2.5">
-                      <p className="text-sm">Thinking...</p>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </>
-            )}
-          </div>
-
-          {/* Event Preview */}
-          {preview && preview.title && (
-            <div className="p-3 bg-accent/50 rounded-lg space-y-2 mb-4 border border-border">
-              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <Calendar className="h-3.5 w-3.5" />
-                <span>Event Preview</span>
-                {preview.confidence && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                    preview.confidence === 'high'
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                      : preview.confidence === 'medium'
-                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                      : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                  }`}>
-                    {preview.confidence}
-                  </span>
-                )}
+                {/* Celebration effect */}
+                <div className="absolute inset-0 rounded-full bg-green-500/20 animate-ping" />
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-muted-foreground">Title:</span>
-                  <p className="font-medium">{preview.title}</p>
-                </div>
-                {preview.startTime && preview.endTime && (
-                  <div>
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      Time:
-                    </span>
-                    <p className="text-xs">
-                      {formatDate(preview.startTime)} → {preview.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                )}
-                {preview.location && (
-                  <div>
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      Location:
-                    </span>
-                    <p>{preview.location}</p>
-                  </div>
-                )}
-                {preview.attendees && preview.attendees.length > 0 && (
-                  <div>
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      Attendees:
-                    </span>
-                    <p>{preview.attendees.join(', ')}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+              <h3 className="text-2xl font-bold text-green-900 dark:text-green-100 mb-2">
+                Event Created Successfully!
+              </h3>
 
-          {/* Calendar Selector */}
-          {availableCalendars.length > 0 && (
-            <div className="mb-3">
-              <label className="block text-xs font-medium mb-1.5 text-muted-foreground">
-                Calendar
-              </label>
-              <select
-                value={selectedCalendarId}
-                onChange={(e) => setSelectedCalendarId(e.target.value)}
-                className="w-full px-2.5 py-1.5 border border-border rounded-lg bg-background text-xs"
-                disabled={loadingCalendars || loading}
-              >
-                {loadingCalendars ? (
-                  <option>Loading calendars...</option>
-                ) : (
-                  availableCalendars.map((cal) => (
-                    <option key={cal.id} value={cal.id}>
-                      {cal.name}{cal.isPrimary ? ' (Primary)' : ''}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-          )}
-
-          {/* Input Area */}
-          <div className="border-t pt-3">
-            <div className="flex gap-2 items-end">
-              <div className="flex-1 relative">
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder={messages.length === 0 ? "Describe your event..." : "Type your answer..."}
-                  className="pr-10"
-                  disabled={parsing || loading}
-                  autoFocus
-                />
-                {browserSupportsVoice && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={toggleVoiceInput}
-                    className={`absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 ${
-                      isListening ? 'text-red-500 animate-pulse' : 'text-muted-foreground'
-                    }`}
-                    disabled={parsing || loading}
-                  >
-                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                  </Button>
-                )}
-              </div>
-              <Button
-                onClick={() => handleSendMessage()}
-                disabled={!input.trim() || parsing || loading}
-                size="icon"
-                className="h-10 w-10"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-            {isListening && (
-              <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
-                <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                Listening...
+              <p className="text-muted-foreground mb-6 max-w-md">
+                {createdEvent.title} has been added to your calendar
               </p>
-            )}
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-2 mt-3 pt-3 border-t">
-            <Button type="button" variant="outline" onClick={handleClose} disabled={loading} size="sm">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={loading || !preview || !preview.title || !preview.startTime}
-              size="sm"
-            >
-              {loading ? 'Creating...' : 'Create Event'}
-            </Button>
-          </div>
+              <div className="bg-accent/50 rounded-lg p-4 mb-6 space-y-2 text-sm max-w-md w-full">
+                <div className="flex items-center gap-2 text-left">
+                  <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="font-medium">{formatDate(new Date(createdEvent.startTime))}</span>
+                </div>
+                {createdEvent.location && (
+                  <div className="flex items-center gap-2 text-left">
+                    <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span>{createdEvent.location}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={handleClose} size="lg">
+                  Close
+                </Button>
+                <Button onClick={() => {
+                  handleClose();
+                  // Could add navigation to calendar view here
+                }} size="lg">
+                  View in Calendar
+                </Button>
+              </div>
+
+              <p className="text-xs text-muted-foreground mt-4">
+                Closing automatically in a few seconds...
+              </p>
+            </div>
+          )}
+
+          {/* Main Interface (hidden when success is shown) */}
+          {!showSuccess && (
+            <>
+              {/* Sticky Error Display */}
+              {error && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>{error}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setError(null)}
+                      aria-label="Dismiss error"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Chat Messages Area */}
+              <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
+                {messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-center text-muted-foreground">
+                    <div>
+                      <Bot className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p className="text-sm font-medium mb-2">Hi! Describe the event you'd like to create.</p>
+                      <p className="text-xs mt-1 text-muted-foreground/70">
+                        For example: "Team meeting tomorrow at 2pm for 1 hour"
+                      </p>
+                      <div className="flex flex-wrap gap-2 justify-center mt-4">
+                        <button
+                          onClick={() => setInput('Lunch with Sarah tomorrow at noon')}
+                          className="px-3 py-1.5 text-xs bg-accent hover:bg-accent/80 rounded-full transition-colors"
+                        >
+                          Lunch meeting
+                        </button>
+                        <button
+                          onClick={() => setInput('Team standup every weekday at 9am')}
+                          className="px-3 py-1.5 text-xs bg-accent hover:bg-accent/80 rounded-full transition-colors"
+                        >
+                          Recurring meeting
+                        </button>
+                        <button
+                          onClick={() => setInput('Doctor appointment next Tuesday at 3pm')}
+                          className="px-3 py-1.5 text-xs bg-accent hover:bg-accent/80 rounded-full transition-colors"
+                        >
+                          Appointment
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {messages.map((msg, index) => (
+                      <div
+                        key={index}
+                        className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        {msg.role === 'assistant' && (
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Bot className="h-4 w-4 text-primary" />
+                          </div>
+                        )}
+                        <div
+                          className={`max-w-[75%] rounded-lg px-4 py-2.5 ${
+                            msg.role === 'user'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-accent text-accent-foreground'
+                          }`}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                          <p className="text-xs opacity-60 mt-1">
+                            {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        {msg.role === 'user' && (
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                            <User className="h-4 w-4 text-primary-foreground" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {parsing && (
+                      <div className="flex gap-3 justify-start">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Bot className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="bg-accent text-accent-foreground rounded-lg px-4 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <p className="text-sm">Thinking...</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </>
+                )}
+              </div>
+
+              {/* Enhanced Event Preview */}
+              {preview && preview.title && (
+                <div className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg space-y-3 mb-4 border-2 border-primary/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <Calendar className="h-4 w-4 text-primary" />
+                      </div>
+                      <span className="text-sm font-semibold">Event Preview</span>
+                      {preview.confidence && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          preview.confidence === 'high'
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : preview.confidence === 'medium'
+                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                            : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                        }`}>
+                          {preview.confidence} confidence
+                        </span>
+                      )}
+                    </div>
+                    {messages.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleStartOver}
+                        className="h-7 gap-1.5"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Start Over
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {/* Title */}
+                    <div className="group">
+                      {editingField === 'title' ? (
+                        <div className="flex gap-2">
+                          <Input
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="text-sm"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveEdit();
+                              if (e.key === 'Escape') handleCancelEdit();
+                            }}
+                          />
+                          <Button size="sm" onClick={handleSaveEdit}>Save</Button>
+                          <Button size="sm" variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-start justify-between gap-2 p-2 rounded hover:bg-accent/50 transition-colors">
+                          <div className="flex-1">
+                            <p className="text-xs text-muted-foreground mb-1">Title</p>
+                            <p className="font-semibold text-base">{preview.title}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleEditField('title', preview.title)}
+                            aria-label="Edit title"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Time */}
+                    {preview.startTime && preview.endTime && (
+                      <div className="flex items-center gap-2 p-2 bg-background/50 rounded">
+                        <Clock className="h-4 w-4 text-primary flex-shrink-0" />
+                        <div className="flex-1 text-sm">
+                          <p className="font-medium">{formatDate(preview.startTime)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatTime(preview.startTime)} → {formatTime(preview.endTime)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Location */}
+                    {editingField === 'location' ? (
+                      <div className="flex gap-2">
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          placeholder="Add location"
+                          className="text-sm"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveEdit();
+                            if (e.key === 'Escape') handleCancelEdit();
+                          }}
+                        />
+                        <Button size="sm" onClick={handleSaveEdit}>Save</Button>
+                        <Button size="sm" variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
+                      </div>
+                    ) : preview.location ? (
+                      <div className="group flex items-center justify-between gap-2 p-2 rounded hover:bg-accent/50 transition-colors">
+                        <div className="flex items-center gap-2 flex-1">
+                          <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                          <p className="text-sm">{preview.location}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleEditField('location', preview.location)}
+                          aria-label="Edit location"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs justify-start gap-2 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleEditField('location', '')}
+                      >
+                        <MapPin className="h-3 w-3" />
+                        Add location
+                      </Button>
+                    )}
+
+                    {/* Attendees */}
+                    {preview.attendees && preview.attendees.length > 0 && (
+                      <div className="flex items-center gap-2 p-2 bg-background/50 rounded">
+                        <Users className="h-4 w-4 text-primary flex-shrink-0" />
+                        <p className="text-sm">{preview.attendees.join(', ')}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Calendar Selector */}
+              {availableCalendars.length > 0 && (
+                <div className="mb-3">
+                  <label className="block text-xs font-medium mb-1.5 text-muted-foreground">
+                    Calendar
+                  </label>
+                  <select
+                    value={selectedCalendarId}
+                    onChange={(e) => setSelectedCalendarId(e.target.value)}
+                    className="w-full px-2.5 py-1.5 border border-border rounded-lg bg-background text-xs focus:ring-2 focus:ring-primary focus:border-primary"
+                    disabled={loadingCalendars || loading}
+                  >
+                    {loadingCalendars ? (
+                      <option>Loading calendars...</option>
+                    ) : (
+                      availableCalendars.map((cal) => (
+                        <option key={cal.id} value={cal.id}>
+                          {cal.name}{cal.isPrimary ? ' (Primary)' : ''}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              )}
+
+              {/* Input Area */}
+              <div className="border-t pt-3">
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1 relative">
+                    <Input
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder={messages.length === 0 ? "Describe your event..." : "Type your answer..."}
+                      className="pr-10"
+                      disabled={parsing || loading}
+                      autoFocus
+                      aria-label="Event description input"
+                    />
+                    {browserSupportsVoice && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={toggleVoiceInput}
+                        className={`absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 ${
+                          isListening ? 'text-red-500 animate-pulse' : 'text-muted-foreground'
+                        }`}
+                        disabled={parsing || loading}
+                        aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                      >
+                        {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                      </Button>
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => handleSendMessage()}
+                    disabled={!input.trim() || parsing || loading}
+                    size="icon"
+                    className="h-10 w-10"
+                    aria-label="Send message"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+                {isListening && (
+                  <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                    <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                    Listening...
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1.5 flex items-center justify-between">
+                  <span>Press Enter to send</span>
+                  {preview && (
+                    <span>Press Cmd/Ctrl+Enter to create</span>
+                  )}
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2 mt-3 pt-3 border-t">
+                <Button type="button" variant="outline" onClick={handleClose} disabled={loading} size="sm">
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreate}
+                  disabled={loading || !preview || !preview.title || !preview.startTime}
+                  size="sm"
+                  className="min-w-[120px]"
+                >
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Creating...
+                    </span>
+                  ) : (
+                    'Create Event'
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
