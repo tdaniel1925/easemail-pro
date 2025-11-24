@@ -54,6 +54,7 @@ import { useAccount } from '@/contexts/AccountContext';
 import type { ContactListItem, ContactSearchFilters, GetContactsResponse, ContactV4 } from '@/lib/types/contacts-v4';
 import ContactDetailModal from './ContactDetailModal';
 import ContactFormModal from './ContactFormModal';
+import ImportContactsModal from './ImportContactsModal';
 import { SMSModal } from '@/components/sms/SMSModal';
 
 export default function ContactsV4List() {
@@ -96,6 +97,9 @@ export default function ContactsV4List() {
   // Form modal
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ContactV4 | null>(null);
+
+  // Import modal
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Infinite scroll
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -675,6 +679,23 @@ export default function ContactsV4List() {
     setSMSContact(null);
   };
 
+  // Import handlers
+  const handleImport = () => {
+    if (selectedAccountId === 'all') {
+      toast({
+        title: 'Select an Account',
+        description: 'Please select a specific account to import contacts',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsImportModalOpen(true);
+  };
+
+  const handleImportComplete = () => {
+    fetchContacts(true);
+  };
+
   if (loading && contacts.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -788,6 +809,10 @@ export default function ContactsV4List() {
             <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export
+            </Button>
+            <Button variant="outline" onClick={handleImport}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import
             </Button>
             <Button onClick={handleAddContact}>
               <Plus className="h-4 w-4 mr-2" />
@@ -1018,6 +1043,14 @@ export default function ContactsV4List() {
         isOpen={isSMSModalOpen}
         onClose={handleCloseSMS}
         contact={smsContact}
+      />
+
+      {/* Import Modal */}
+      <ImportContactsModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        accountId={selectedAccountId}
+        onImportComplete={handleImportComplete}
       />
 
       {/* Delete Contact Confirmation */}
