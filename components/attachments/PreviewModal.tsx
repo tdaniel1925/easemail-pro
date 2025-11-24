@@ -109,6 +109,7 @@ function PreviewContent({ attachment }: { attachment: Attachment }) {
 
   useEffect(() => {
     let mounted = true;
+    let objectUrl: string | null = null;
 
     async function fetchPreviewUrl() {
       try {
@@ -121,11 +122,23 @@ function PreviewContent({ attachment }: { attachment: Attachment }) {
           throw new Error('Failed to load preview');
         }
 
-        const data = await response.json();
-
-        if (mounted) {
-          setPreviewUrl(data.url);
-          setLoading(false);
+        // Check if response is JSON or blob
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          // API returns JSON with URL
+          const data = await response.json();
+          if (mounted) {
+            setPreviewUrl(data.url);
+            setLoading(false);
+          }
+        } else {
+          // API returns blob directly
+          const blob = await response.blob();
+          objectUrl = URL.createObjectURL(blob);
+          if (mounted) {
+            setPreviewUrl(objectUrl);
+            setLoading(false);
+          }
         }
       } catch (err) {
         if (mounted) {
@@ -139,6 +152,10 @@ function PreviewContent({ attachment }: { attachment: Attachment }) {
 
     return () => {
       mounted = false;
+      // Clean up object URL to prevent memory leaks
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
     };
   }, [attachment.id]);
 

@@ -16,7 +16,7 @@ import { PreviewModal } from '@/components/attachments/PreviewModal';
 import { UploadButton } from '@/components/attachments/UploadButton';
 import { useAttachments, useAttachmentStats, useDownloadAttachment } from '@/lib/attachments/hooks';
 import { useAttachmentsStore } from '@/lib/attachments/store';
-import type { GetAttachmentsParams } from '@/lib/attachments/types';
+import type { GetAttachmentsParams, Attachment } from '@/lib/attachments/types';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { InlineAlert } from '@/components/ui/inline-alert';
@@ -83,9 +83,15 @@ function AttachmentsContent() {
     downloadMutation.mutate(attachmentId);
   };
 
-  const handleOpenEmail = (emailId: string) => {
-    // Navigate to inbox with email selected
-    window.location.href = `/inbox?email=${emailId}`;
+  const handleShare = (attachment: Attachment) => {
+    // Navigate to inbox composer with attachment
+    // Note: This is a placeholder implementation
+    // In a full implementation, you would:
+    // 1. Open the compose dialog
+    // 2. Attach the file to the draft
+    // For now, we'll just show a success message with the attachment details
+    setSuccess(`Share functionality: Would open composer with ${attachment.filename} attached`);
+    setTimeout(() => setSuccess(null), 3000);
   };
 
   const handleSearch = (search: string) => {
@@ -323,7 +329,7 @@ function AttachmentsContent() {
                   attachments={data.data}
                   onPreview={openPreview}
                   onDownload={handleDownload}
-                  onOpenEmail={handleOpenEmail}
+                  onShare={handleShare}
                   selectedIds={Array.from(selectedIds)}
                   onToggleSelect={toggleSelectAttachment}
                   showCheckboxes={true}
@@ -333,7 +339,7 @@ function AttachmentsContent() {
                   attachments={data.data}
                   onPreview={openPreview}
                   onDownload={handleDownload}
-                  onOpenEmail={handleOpenEmail}
+                  onShare={handleShare}
                   selectedIds={Array.from(selectedIds)}
                   onToggleSelect={toggleSelectAttachment}
                   showCheckboxes={true}

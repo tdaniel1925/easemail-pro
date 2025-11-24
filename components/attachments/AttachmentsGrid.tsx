@@ -12,7 +12,7 @@ interface AttachmentsGridProps {
   attachments: Attachment[];
   onPreview: (attachment: Attachment) => void;
   onDownload: (id: string) => void;
-  onOpenEmail: (emailId: string) => void;
+  onShare: (attachment: Attachment) => void;
   selectedIds?: string[];
   onToggleSelect?: (id: string) => void;
   showCheckboxes?: boolean;
@@ -22,7 +22,7 @@ export function AttachmentsGrid({
   attachments,
   onPreview,
   onDownload,
-  onOpenEmail,
+  onShare,
   selectedIds = [],
   onToggleSelect,
   showCheckboxes = false,
@@ -57,7 +57,7 @@ export function AttachmentsGrid({
           attachment={attachment}
           onPreview={() => onPreview(attachment)}
           onDownload={() => onDownload(attachment.id)}
-          onOpenEmail={() => attachment.emailId && onOpenEmail(attachment.emailId)}
+          onShare={() => onShare(attachment)}
           isSelected={selectedIds.includes(attachment.id)}
           onSelect={() => onToggleSelect?.(attachment.id)}
           showCheckbox={showCheckboxes}

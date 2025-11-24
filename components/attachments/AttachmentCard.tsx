@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import {
   Paperclip as PaperClipIcon,
   Download as ArrowDownTrayIcon,
-  ExternalLink as ExternalLinkIcon,
+  Share2 as ShareIcon,
   Eye as EyeIcon,
 } from 'lucide-react';
 import type { Attachment } from '@/lib/attachments/types';
@@ -20,7 +20,7 @@ interface AttachmentCardProps {
   attachment: Attachment;
   onPreview: () => void;
   onDownload: () => void;
-  onOpenEmail: () => void;
+  onShare: () => void;
   isSelected?: boolean;
   onSelect?: () => void;
   showCheckbox?: boolean;
@@ -30,7 +30,7 @@ export function AttachmentCard({
   attachment,
   onPreview,
   onDownload,
-  onOpenEmail, // Keep for backwards compatibility but will use as "Open" instead
+  onShare,
   isSelected = false,
   onSelect,
   showCheckbox = false,
@@ -58,8 +58,7 @@ export function AttachmentCard({
       )}
 
       {/* Thumbnail / Icon */}
-      <button
-        onClick={onPreview}
+      <div
         className="flex h-32 w-full items-center justify-center overflow-hidden"
         style={{ backgroundColor: `${color}15` }}
       >
@@ -78,7 +77,7 @@ export function AttachmentCard({
             </span>
           </div>
         )}
-      </button>
+      </div>
 
       {/* Content */}
       <div className="p-3">
@@ -173,11 +172,11 @@ export function AttachmentCard({
             <ArrowDownTrayIcon className="h-4 w-4 text-gray-600" size={16} />
           </button>
           <button
-            onClick={onPreview}
+            onClick={onShare}
             className="rounded-lg border border-gray-300 p-1.5 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            title="Open"
+            title="Share via email"
           >
-            <ExternalLinkIcon className="h-4 w-4 text-gray-600" size={16} />
+            <ShareIcon className="h-4 w-4 text-gray-600" size={16} />
           </button>
         </div>
       </div>

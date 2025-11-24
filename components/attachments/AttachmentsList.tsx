@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import {
   Download as ArrowDownTrayIcon,
   Eye as EyeIcon,
-  ExternalLink as ExternalLinkIcon,
+  Share2 as ShareIcon,
 } from 'lucide-react';
 import type { Attachment } from '@/lib/attachments/types';
 import { formatFileSize, getFileTypeColor } from '@/lib/attachments/utils';
@@ -18,7 +18,7 @@ interface AttachmentsListProps {
   attachments: Attachment[];
   onPreview: (attachment: Attachment) => void;
   onDownload: (id: string) => void;
-  onOpenEmail: (emailId: string) => void;
+  onShare: (attachment: Attachment) => void;
   selectedIds?: string[];
   onToggleSelect?: (id: string) => void;
   showCheckboxes?: boolean;
@@ -28,7 +28,7 @@ export function AttachmentsList({
   attachments,
   onPreview,
   onDownload,
-  onOpenEmail,
+  onShare,
   selectedIds = [],
   onToggleSelect,
   showCheckboxes = false,
@@ -185,11 +185,11 @@ export function AttachmentsList({
                       <ArrowDownTrayIcon className="h-4 w-4 text-gray-600" size={16} />
                     </button>
                     <button
-                      onClick={() => onPreview(attachment)}
+                      onClick={() => onShare(attachment)}
                       className="rounded-lg border border-gray-300 p-1.5 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                      title="Open"
+                      title="Share via email"
                     >
-                      <ExternalLinkIcon className="h-4 w-4 text-gray-600" size={16} />
+                      <ShareIcon className="h-4 w-4 text-gray-600" size={16} />
                     </button>
                   </div>
                 </td>
