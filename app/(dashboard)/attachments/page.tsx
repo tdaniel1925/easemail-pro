@@ -94,6 +94,11 @@ function AttachmentsContent() {
     setTimeout(() => setSuccess(null), 3000);
   };
 
+  const handleOpenEmail = (emailId: string) => {
+    // Navigate to inbox with email selected
+    router.push(`/inbox?emailId=${emailId}`);
+  };
+
   const handleSearch = (search: string) => {
     setSearch(search);
     setPage(1); // Reset to first page
