@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { X, Plus, Trash2, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAccounts } from '@/lib/hooks/use-accounts';
+import { useToast } from '@/components/ui/use-toast';
 import type {
   EmailRule,
   RuleCondition,
@@ -28,6 +29,7 @@ interface RuleBuilderProps {
 }
 
 export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps) {
+  const { toast } = useToast();
   const [name, setName] = useState(rule?.name || '');
   const [description, setDescription] = useState(rule?.description || '');
   const [isEnabled, setIsEnabled] = useState(
@@ -212,12 +214,47 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
   const handleSave = async () => {
     // Validation
     if (!name.trim()) {
-      alert('Please enter a rule name');
+      toast({
+        title: 'Rule name required',
+        description: 'Please enter a name for this rule',
+        variant: 'destructive',
+      });
       return;
     }
 
-    if (conditions.some(c => !c.value && c.value !== false)) {
-      alert('Please fill in all condition values');
+    // Validate conditions - allow false for boolean fields
+    const emptyConditions = conditions.filter(c => {
+      const isBooleanField = ['is_read', 'is_starred', 'has_attachments'].includes(c.field);
+      if (isBooleanField) {
+        // For boolean fields, value can be true or false
+        return c.value !== true && c.value !== false;
+      }
+      // For string fields, check if value is empty or just whitespace
+      return !c.value || (typeof c.value === 'string' && !c.value.trim());
+    });
+
+    if (emptyConditions.length > 0) {
+      toast({
+        title: 'Incomplete conditions',
+        description: 'Please fill in all condition values before saving',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate actions that need values
+    const actionsNeedingValues = actionOptions.filter(a => a.needsValue);
+    const invalidActions = actions.filter(action => {
+      const actionDef = actionsNeedingValues.find(a => a.value === action.type);
+      return actionDef && (!action.value || (typeof action.value === 'string' && !action.value.trim()));
+    });
+
+    if (invalidActions.length > 0) {
+      toast({
+        title: 'Incomplete actions',
+        description: 'Some actions are missing required values (folder, label, email, etc.)',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -238,7 +275,11 @@ export default function RuleBuilder({ rule, onClose, onSave }: RuleBuilderProps)
       await onSave(ruleData);
     } catch (error) {
       console.error('Error saving rule:', error);
-      alert('Failed to save rule');
+      toast({
+        title: 'Failed to save rule',
+        description: error instanceof Error ? error.message : 'An error occurred while saving the rule',
+        variant: 'destructive',
+      });
     } finally {
       setSaving(false);
     }

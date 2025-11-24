@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Edit2, Trash2, ChevronDown, ChevronUp, Play } from 'lucide-react';
+import { Edit2, Trash2, ChevronDown, ChevronUp, Play, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SimpleEmailRule } from '@/lib/rules/types-simple';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,9 +14,10 @@ interface RuleCardProps {
   onDelete: (ruleId: string) => void;
   onToggle: (ruleId: string, isEnabled: boolean) => void;
   onTest: (rule: SimpleEmailRule) => void;
+  onRunNow?: (rule: SimpleEmailRule) => void;
 }
 
-export default function RuleCard({ rule, onEdit, onDelete, onToggle, onTest }: RuleCardProps) {
+export default function RuleCard({ rule, onEdit, onDelete, onToggle, onTest, onRunNow }: RuleCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -57,6 +58,18 @@ export default function RuleCard({ rule, onEdit, onDelete, onToggle, onTest }: R
               checked={rule.isActive}
               onCheckedChange={(checked) => onToggle(rule.id, checked)}
             />
+            {onRunNow && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onRunNow(rule)}
+                title="Run this rule now on all emails"
+                className="gap-1.5"
+              >
+                <Zap className="h-3.5 w-3.5" />
+                Run Now
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -72,7 +85,7 @@ export default function RuleCard({ rule, onEdit, onDelete, onToggle, onTest }: R
               variant="ghost"
               size="icon"
               onClick={() => onTest(rule)}
-              title="Test this rule"
+              title="Test this rule on sample emails"
             >
               <Play className="h-4 w-4" />
             </Button>

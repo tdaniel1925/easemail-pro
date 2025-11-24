@@ -228,6 +228,42 @@ export default function RulesContent() {
     setTestingRule(rule);
   };
 
+  const handleRunNow = async (rule: SimpleEmailRule) => {
+    const confirmed = await confirm({
+      title: 'Run Rule Now',
+      message: `This will run "${rule.name}" on all emails in your inbox. This may take a few moments. Continue?`,
+      confirmText: 'Run Rule',
+      cancelText: 'Cancel',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/rules/${rule.id}/run`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: 'Rule Executed Successfully',
+          description: `Processed ${data.processed || 0} emails, ${data.matched || 0} matched`,
+        });
+        fetchRules(); // Refresh to update statistics
+      } else {
+        throw new Error(data.error || 'Failed to run rule');
+      }
+    } catch (error) {
+      console.error('Error running rule:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to run rule',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const filteredRules = rules.filter(rule =>
     rule.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     rule.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -374,6 +410,7 @@ export default function RulesContent() {
                       onDelete={handleDeleteRule}
                       onToggle={handleToggleRule}
                       onTest={handleTestRule}
+                      onRunNow={handleRunNow}
                     />
                   ))}
                 </div>
