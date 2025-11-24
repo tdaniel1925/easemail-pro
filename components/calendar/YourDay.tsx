@@ -182,7 +182,20 @@ export function YourDay() {
   };
 
   const handleEventClick = (event: Event) => {
-    setSelectedEvent(event);
+    // Transform the event data to match EventModal's expected format
+    const transformedEvent = {
+      ...event,
+      // Ensure startTime and endTime are ISO strings
+      startTime: event.when?.startTime
+        ? new Date(event.when.startTime * 1000).toISOString()
+        : event.startTime,
+      endTime: event.when?.endTime
+        ? new Date(event.when.endTime * 1000).toISOString()
+        : event.endTime,
+      // Handle all-day events
+      allDay: event.when?.date ? true : false,
+    };
+    setSelectedEvent(transformedEvent as any);
     setIsEventModalOpen(true);
   };
 
