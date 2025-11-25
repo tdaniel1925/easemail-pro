@@ -66,7 +66,7 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
 
   // More Options state
   const [showMoreOptions, setShowMoreOptions] = useState(false);
-  const [additionalAttendees, setAdditionalAttendees] = useState<string[]>([]);
+  const [additionalAttendees, setAdditionalAttendees] = useState<Array<{ email: string; name?: string }>>([]);
   const [additionalLocation, setAdditionalLocation] = useState('');
   const [additionalNotes, setAdditionalNotes] = useState('');
 
@@ -206,9 +206,10 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
       const endTime = new Date(startTime.getTime() + customDuration * 60 * 1000);
 
       // Combine AI-parsed attendees with additional attendees from More Options
+      const additionalEmails = additionalAttendees.map(a => a.email);
       const allAttendees = [
         ...event.attendees,
-        ...additionalAttendees
+        ...additionalEmails
       ].filter((email, index, self) => self.indexOf(email) === index); // Remove duplicates
 
       // Use additional location/notes if provided, otherwise use AI-parsed values
@@ -447,8 +448,8 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
                   Add Attendees
                 </label>
                 <EmailAutocomplete
-                  selectedEmails={additionalAttendees}
-                  onEmailsChange={setAdditionalAttendees}
+                  value={additionalAttendees}
+                  onChange={setAdditionalAttendees}
                   placeholder="Add attendees (comma separated or select from contacts)"
                 />
               </div>
