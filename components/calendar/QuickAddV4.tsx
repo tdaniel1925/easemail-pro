@@ -60,6 +60,7 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
   const [calendars, setCalendars] = useState<CalendarOption[]>([]);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string>('');
   const [loadingCalendars, setLoadingCalendars] = useState(false);
+  const [customDuration, setCustomDuration] = useState<number>(60); // Default 60 minutes
 
   // Fetch writable calendars when dialog opens
   useEffect(() => {
@@ -68,6 +69,7 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
       setError(null);
       setShowSuccess(false);
       setLastCreatedEvent(null);
+      setCustomDuration(60); // Reset to default 1 hour
       fetchWritableCalendars();
     }
   }, [isOpen]);
@@ -187,11 +189,15 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
 
       const { event } = await parseResponse.json();
 
+      // Override endTime with custom duration (in minutes)
+      const startTime = new Date(event.startTime);
+      const endTime = new Date(startTime.getTime() + customDuration * 60 * 1000);
+
       // Step 2: Create the event immediately (no confirmation) with selected calendar AND account
       const eventPayload = {
         title: event.title,
         startTime: event.startTime,
-        endTime: event.endTime,
+        endTime: endTime.toISOString(), // Use custom duration
         location: event.location,
         description: event.description,
         calendarId: selectedCalendarId, // ✅ Nylas calendar ID for sync
@@ -347,6 +353,32 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
           )}
         </div>
 
+        {/* Duration Selection */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Event Duration
+          </label>
+          <Select
+            value={customDuration.toString()}
+            onValueChange={(value) => setCustomDuration(parseInt(value))}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="15">15 minutes</SelectItem>
+              <SelectItem value="30">30 minutes</SelectItem>
+              <SelectItem value="45">45 minutes</SelectItem>
+              <SelectItem value="60">1 hour</SelectItem>
+              <SelectItem value="90">1.5 hours</SelectItem>
+              <SelectItem value="120">2 hours</SelectItem>
+              <SelectItem value="180">3 hours</SelectItem>
+              <SelectItem value="240">4 hours</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Event Input */}
         <div className="flex gap-2">
           <Input
@@ -367,7 +399,7 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Press Enter to create instantly • Default duration: 1 hour • Uses smart defaults for missing details
+          Press Enter to create instantly • Adjust duration above if needed • Uses smart defaults for missing details
         </p>
       </form>
 
