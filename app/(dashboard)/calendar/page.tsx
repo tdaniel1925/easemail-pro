@@ -939,6 +939,19 @@ function CalendarContent() {
                   <Sparkles className="h-4 w-4 mr-2" />
                   Quick Add
                 </Button>
+
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedEvent(null);
+                    setSelectedDate(null);
+                    setIsEventModalOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Event
+                </Button>
               </div>
             </div>
 

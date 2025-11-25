@@ -181,6 +181,23 @@ export function YourDay() {
     }
   };
 
+  const isPastEvent = (event: Event) => {
+    const now = new Date();
+    try {
+      let endTime;
+      if (event.when?.endTime) {
+        endTime = new Date(event.when.endTime * 1000);
+      } else if (event.when?.date) {
+        return false; // All-day events don't show as past
+      } else {
+        endTime = new Date(event.endTime);
+      }
+      return now > endTime;
+    } catch {
+      return false;
+    }
+  };
+
   const handleEventClick = (event: Event) => {
     // Transform the event data to match EventModal's expected format
     const transformedEvent = {
@@ -326,6 +343,7 @@ export function YourDay() {
           <div className="p-4 space-y-3">
             {events.map((event) => {
               const isCurrent = isCurrentEvent(event);
+              const isPast = isPastEvent(event);
               return (
                 <div
                   key={event.id}
@@ -334,6 +352,8 @@ export function YourDay() {
                     'p-3 rounded-lg border transition-colors cursor-pointer',
                     isCurrent
                       ? 'bg-primary/10 border-primary shadow-sm'
+                      : isPast
+                      ? 'bg-muted/30 border-muted opacity-60'
                       : 'bg-card border-border hover:bg-accent'
                   )}
                 >

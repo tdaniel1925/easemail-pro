@@ -367,7 +367,7 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Press Enter to create instantly • Uses smart defaults for missing details
+          Press Enter to create instantly • Default duration: 1 hour • Uses smart defaults for missing details
         </p>
       </form>
 
