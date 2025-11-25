@@ -112,27 +112,116 @@ export default function DashboardPanel({ isOpen, onClose }: DashboardPanelProps)
     setError(null);
 
     try {
-      // Fetch today's events
-      const eventsRes = await fetch('/api/calendar/events');
-      const eventsData = await eventsRes.json();
+      // Fetch today's events - use same logic as main calendar page and YourDay for consistency
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(todayStart);
+      todayEnd.setHours(23, 59, 59, 999);
 
-      let todayEventsFiltered: any[] = [];
+      // STEP 1: Fetch local DB events (created via QuickAdd, EventModal, etc.)
+      let localEvents: any[] = [];
+      try {
+        const localResponse = await fetch(
+          `/api/calendar/events?startDate=${todayStart.toISOString()}&endDate=${todayEnd.toISOString()}`
+        );
+        if (localResponse.ok) {
+          const localData = await localResponse.json();
+          if (localData.success && localData.events) {
+            localEvents = localData.events;
+            console.log('[DashboardPanel] Fetched local DB events:', localEvents.length);
+          }
+        }
+      } catch (err) {
+        console.warn('[DashboardPanel] Failed to fetch local events:', err);
+      }
 
-      if (eventsData.success) {
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const todayEnd = new Date(todayStart);
-        todayEnd.setHours(23, 59, 59, 999);
+      // STEP 2: Fetch Nylas events (synced from Google/Microsoft Calendar)
+      let nylasEvents: any[] = [];
+      const startTimestamp = Math.floor(todayStart.getTime() / 1000);
+      const endTimestamp = Math.floor(todayEnd.getTime() / 1000);
 
-        todayEventsFiltered = eventsData.events.filter((event: any) => {
-          const eventStart = new Date(event.startTime);
+      try {
+        const apiUrl = `/api/nylas-v3/calendars/events?accountId=${selectedAccount.nylasGrantId}&start=${startTimestamp}&end=${endTimestamp}`;
+        const response = await fetch(apiUrl);
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            nylasEvents = data.events || [];
+            console.log('[DashboardPanel] Fetched Nylas events:', nylasEvents.length);
+          }
+        }
+      } catch (err) {
+        console.warn('[DashboardPanel] Failed to fetch Nylas events:', err);
+      }
+
+      // STEP 3: Merge and deduplicate events
+      const mergedEvents: any[] = [];
+      const seenEventIds = new Set<string>();
+
+      // Add Nylas events first (they're authoritative)
+      nylasEvents.forEach(event => {
+        mergedEvents.push(event);
+        seenEventIds.add(event.id);
+        if (event.googleEventId) seenEventIds.add(event.googleEventId);
+        if (event.outlookEventId) seenEventIds.add(event.outlookEventId);
+      });
+
+      // Add local events that aren't already in Nylas (recently created, not yet synced)
+      localEvents.forEach(event => {
+        const eventId = event.id;
+        const googleId = event.googleEventId;
+        const outlookId = event.outlookEventId;
+
+        if (seenEventIds.has(eventId) ||
+            (googleId && seenEventIds.has(googleId)) ||
+            (outlookId && seenEventIds.has(outlookId))) {
+          return;
+        }
+
+        mergedEvents.push(event);
+        seenEventIds.add(eventId);
+      });
+
+      console.log('[DashboardPanel] Merged events:', {
+        local: localEvents.length,
+        nylas: nylasEvents.length,
+        merged: mergedEvents.length,
+      });
+
+      // Filter and sort today's events
+      const todayEventsFiltered = mergedEvents
+        .filter((event: any) => {
+          let eventStart;
+          if (event.when?.startTime) {
+            eventStart = new Date(event.when.startTime * 1000);
+          } else if (event.when?.date) {
+            eventStart = new Date(event.when.date);
+          } else {
+            eventStart = new Date(event.startTime);
+          }
           return eventStart >= todayStart && eventStart <= todayEnd;
-        }).sort((a: any, b: any) => {
-          return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+        })
+        .sort((a: any, b: any) => {
+          let aStart, bStart;
+          if (a.when?.startTime) {
+            aStart = new Date(a.when.startTime * 1000);
+          } else if (a.when?.date) {
+            aStart = new Date(a.when.date);
+          } else {
+            aStart = new Date(a.startTime);
+          }
+          if (b.when?.startTime) {
+            bStart = new Date(b.when.startTime * 1000);
+          } else if (b.when?.date) {
+            bStart = new Date(b.when.date);
+          } else {
+            bStart = new Date(b.startTime);
+          }
+          return aStart.getTime() - bStart.getTime();
         });
 
-        setTodayEvents(todayEventsFiltered.slice(0, 3)); // Show max 3 events in panel
-      }
+      setTodayEvents(todayEventsFiltered.slice(0, 3)); // Show max 3 events in panel
 
       // Fetch email data (unread count + recent emails)
       const emailsRes = await fetch(`/api/emails?accountId=${selectedAccount.nylasGrantId}&limit=3`);

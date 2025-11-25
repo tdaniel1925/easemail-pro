@@ -69,7 +69,7 @@ export function YourDay() {
     }
   }, [isEditingName]);
 
-  // Fetch today's events
+  // Fetch today's events - uses same logic as main calendar page to ensure consistency
   useEffect(() => {
     if (!selectedAccount?.nylasGrantId) {
       setEvents([]);
@@ -85,45 +85,101 @@ export function YourDay() {
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
         const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
+        // STEP 1: Fetch local DB events (created via QuickAdd, EventModal, etc.)
+        let localEvents: any[] = [];
+        try {
+          const localResponse = await fetch(
+            `/api/calendar/events?startDate=${startOfDay.toISOString()}&endDate=${endOfDay.toISOString()}`
+          );
+          if (localResponse.ok) {
+            const localData = await localResponse.json();
+            if (localData.success && localData.events) {
+              localEvents = localData.events;
+              console.log('[YourDay] Fetched local DB events:', localEvents.length);
+            }
+          }
+        } catch (err) {
+          console.warn('[YourDay] Failed to fetch local events:', err);
+          // Continue - local events are optional
+        }
+
+        // STEP 2: Fetch Nylas events (synced from Google/Microsoft Calendar)
+        let nylasEvents: any[] = [];
         const startTimestamp = Math.floor(startOfDay.getTime() / 1000);
         const endTimestamp = Math.floor(endOfDay.getTime() / 1000);
 
         const apiUrl = `/api/nylas-v3/calendars/events?accountId=${selectedAccount.nylasGrantId}&start=${startTimestamp}&end=${endTimestamp}`;
         const response = await fetch(apiUrl);
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch events: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-
-        if (data.success) {
-          // Sort events by start time
-          const sortedEvents = (data.events || []).sort((a: Event, b: Event) => {
-            let aStart, bStart;
-            if (a.when?.startTime) {
-              aStart = new Date(a.when.startTime * 1000);
-            } else if (a.when?.date) {
-              aStart = new Date(a.when.date);
-            } else {
-              aStart = new Date(a.startTime);
-            }
-            if (b.when?.startTime) {
-              bStart = new Date(b.when.startTime * 1000);
-            } else if (b.when?.date) {
-              bStart = new Date(b.when.date);
-            } else {
-              bStart = new Date(b.startTime);
-            }
-            return aStart.getTime() - bStart.getTime();
-          });
-
-          setEvents(sortedEvents);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            nylasEvents = data.events || [];
+            console.log('[YourDay] Fetched Nylas events:', nylasEvents.length);
+          }
         } else {
-          throw new Error(data.error || 'Failed to fetch events');
+          console.warn('[YourDay] Failed to fetch Nylas events:', response.statusText);
         }
+
+        // STEP 3: Merge and deduplicate events
+        const mergedEvents: any[] = [];
+        const seenEventIds = new Set<string>();
+
+        // Add Nylas events first (they're authoritative)
+        nylasEvents.forEach(event => {
+          mergedEvents.push(event);
+          seenEventIds.add(event.id);
+          if (event.googleEventId) seenEventIds.add(event.googleEventId);
+          if (event.outlookEventId) seenEventIds.add(event.outlookEventId);
+        });
+
+        // Add local events that aren't already in Nylas (recently created, not yet synced)
+        localEvents.forEach(event => {
+          const eventId = event.id;
+          const googleId = event.googleEventId;
+          const outlookId = event.outlookEventId;
+
+          // Skip if we've already added this event from Nylas
+          if (seenEventIds.has(eventId) ||
+              (googleId && seenEventIds.has(googleId)) ||
+              (outlookId && seenEventIds.has(outlookId))) {
+            return;
+          }
+
+          mergedEvents.push(event);
+          seenEventIds.add(eventId);
+        });
+
+        console.log('[YourDay] Merged events:', {
+          local: localEvents.length,
+          nylas: nylasEvents.length,
+          merged: mergedEvents.length,
+        });
+
+        // Sort events by start time
+        const sortedEvents = mergedEvents.sort((a: Event, b: Event) => {
+          let aStart, bStart;
+          if (a.when?.startTime) {
+            aStart = new Date(a.when.startTime * 1000);
+          } else if (a.when?.date) {
+            aStart = new Date(a.when.date);
+          } else {
+            aStart = new Date(a.startTime);
+          }
+          if (b.when?.startTime) {
+            bStart = new Date(b.when.startTime * 1000);
+          } else if (b.when?.date) {
+            bStart = new Date(b.when.date);
+          } else {
+            bStart = new Date(b.startTime);
+          }
+          return aStart.getTime() - bStart.getTime();
+        });
+
+        setEvents(sortedEvents);
+        setError(null);
       } catch (err) {
-        console.error('Failed to fetch today events:', err);
+        console.error('[YourDay] Failed to fetch today events:', err);
         setError(err instanceof Error ? err.message : 'Failed to load events');
         setEvents([]);
       } finally {
