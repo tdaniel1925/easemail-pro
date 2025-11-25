@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { format } from 'date-fns';
 import EmailAutocomplete from '@/components/email/EmailAutocomplete';
 import InvitationReviewModal from './InvitationReviewModal';
+import { useAccount } from '@/contexts/AccountContext';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ const TIMEZONES = [
 ];
 
 export default function EventModal({ isOpen, onClose, event, onSuccess, defaultDate }: EventModalProps) {
+  const { selectedAccount } = useAccount();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [organizerInfo, setOrganizerInfo] = useState<{ name: string; email: string } | null>(null);
@@ -108,47 +110,41 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
               });
             }
 
-            // Fetch available calendar accounts
-            try {
-              const accountsResponse = await fetch('/api/accounts');
-              if (accountsResponse.ok) {
-                const accountsData = await accountsResponse.json();
-                const calendarAccounts = accountsData.accounts?.filter((acc: any) =>
-                  acc.nylasGrantId &&
-                  (acc.provider === 'google' || acc.provider === 'microsoft') &&
-                  acc.nylasScopes?.some((s: string) => s.toLowerCase().includes('calendar'))
-                ) || [];
+            // Fetch calendars from the selected account (from AccountContext)
+            // @ts-expect-error - selectedAccount may have these properties from AccountContext
+            if (selectedAccount?.nylasGrantId) {
+              try {
+                // @ts-expect-error - selectedAccount properties
+                setSelectedAccountId(selectedAccount.id);
 
-                if (calendarAccounts.length > 0) {
-                  const primaryAccount = calendarAccounts.find((acc: any) => acc.isPrimary) || calendarAccounts[0];
-                  setSelectedAccountId(primaryAccount.id);
+                // Fetch calendars for the selected account
+                // @ts-expect-error - selectedAccount properties
+                const calendarsResponse = await fetch(`/api/nylas-v3/calendars?accountId=${selectedAccount.nylasGrantId}`);
+                if (calendarsResponse.ok) {
+                  const calendarsData = await calendarsResponse.json();
+                  if (calendarsData.success && calendarsData.calendars) {
+                    setAvailableCalendars(calendarsData.calendars);
 
-                  // Fetch calendars for the primary account
-                  const calendarsResponse = await fetch(`/api/nylas-v3/calendars?accountId=${primaryAccount.nylasGrantId}`);
-                  if (calendarsResponse.ok) {
-                    const calendarsData = await calendarsResponse.json();
-                    if (calendarsData.success && calendarsData.calendars) {
-                      setAvailableCalendars(calendarsData.calendars);
+                    // Auto-select primary calendar or first writable calendar
+                    const primaryCal = calendarsData.calendars.find((cal: any) => cal.isPrimary && !cal.readOnly);
+                    const firstWritable = calendarsData.calendars.find((cal: any) => !cal.readOnly);
+                    const defaultCal = primaryCal || firstWritable || calendarsData.calendars[0];
 
-                      // Auto-select primary calendar or first writable calendar
-                      const primaryCal = calendarsData.calendars.find((cal: any) => cal.isPrimary && !cal.readOnly);
-                      const firstWritable = calendarsData.calendars.find((cal: any) => !cal.readOnly);
-                      const defaultCal = primaryCal || firstWritable || calendarsData.calendars[0];
-
-                      if (defaultCal) {
-                        setSelectedCalendarId(defaultCal.id);
-                      }
-                      setSyncStatus('will-sync');
+                    if (defaultCal) {
+                      setSelectedCalendarId(defaultCal.id);
                     }
+                    setSyncStatus('will-sync');
                   }
                 } else {
-                  setSyncStatus('no-account');
-                  setError('No calendar account connected. Event will be created locally only. Connect a calendar account in Settings to sync events.');
+                  setSyncStatus('local-only');
                 }
+              } catch (err) {
+                console.error('Failed to fetch calendars:', err);
+                setSyncStatus('local-only');
               }
-            } catch (err) {
-              console.error('Failed to fetch calendars:', err);
-              setSyncStatus('local-only');
+            } else {
+              setSyncStatus('no-account');
+              setError('No calendar account connected. Event will be created locally only. Connect a calendar account in Settings to sync events.');
             }
           } else {
             setOrganizerInfo({
@@ -170,11 +166,23 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
     }
   }, [isOpen, organizerInfo]);
 
+  // Helper function to strip HTML tags from text
+  const stripHtmlTags = (html: string): string => {
+    if (!html) return '';
+    // Remove HTML tags
+    const text = html.replace(/<[^>]*>/g, '');
+    // Decode HTML entities
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
+  };
+
   // Initialize form with event data or defaults
   useEffect(() => {
     if (event) {
       setTitle(event.title || '');
-      setDescription(event.description || '');
+      // Strip HTML tags from description (Nylas events often include HTML)
+      setDescription(stripHtmlTags(event.description || ''));
       setLocation(event.location || '');
       
       const start = new Date(event.startTime);
