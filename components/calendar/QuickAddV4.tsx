@@ -15,13 +15,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Send, Sparkles, Check, AlertCircle, Loader2, Calendar, Clock } from 'lucide-react';
+import { Send, Sparkles, Check, AlertCircle, Loader2, Calendar, Clock, ChevronDown, ChevronUp, MapPin, Users, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import EmailAutocomplete from '@/components/email/EmailAutocomplete';
 
 interface QuickAddV4Props {
   isOpen: boolean;
@@ -62,6 +64,12 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
   const [loadingCalendars, setLoadingCalendars] = useState(false);
   const [customDuration, setCustomDuration] = useState<number>(60); // Default 60 minutes
 
+  // More Options state
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [additionalAttendees, setAdditionalAttendees] = useState<string[]>([]);
+  const [additionalLocation, setAdditionalLocation] = useState('');
+  const [additionalNotes, setAdditionalNotes] = useState('');
+
   // Fetch writable calendars when dialog opens
   useEffect(() => {
     if (isOpen) {
@@ -70,6 +78,10 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
       setShowSuccess(false);
       setLastCreatedEvent(null);
       setCustomDuration(60); // Reset to default 1 hour
+      setShowMoreOptions(false);
+      setAdditionalAttendees([]);
+      setAdditionalLocation('');
+      setAdditionalNotes('');
       fetchWritableCalendars();
     }
   }, [isOpen]);
@@ -193,17 +205,27 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
       const startTime = new Date(event.startTime);
       const endTime = new Date(startTime.getTime() + customDuration * 60 * 1000);
 
+      // Combine AI-parsed attendees with additional attendees from More Options
+      const allAttendees = [
+        ...event.attendees,
+        ...additionalAttendees
+      ].filter((email, index, self) => self.indexOf(email) === index); // Remove duplicates
+
+      // Use additional location/notes if provided, otherwise use AI-parsed values
+      const finalLocation = additionalLocation.trim() || event.location;
+      const finalDescription = additionalNotes.trim() || event.description;
+
       // Step 2: Create the event immediately (no confirmation) with selected calendar AND account
       const eventPayload = {
         title: event.title,
         startTime: event.startTime,
         endTime: endTime.toISOString(), // Use custom duration
-        location: event.location,
-        description: event.description,
+        location: finalLocation,
+        description: finalDescription,
         calendarId: selectedCalendarId, // ✅ Nylas calendar ID for sync
         accountId: selectedCalendar.accountId, // ✅ Database account ID for proper account resolution
         nylasGrantId: selectedCalendar.nylasGrantId, // ✅ Nylas grant ID to ensure correct account is used
-        attendees: event.attendees.map((email: string) => ({
+        attendees: allAttendees.map((email: string) => ({
           email,
           status: 'pending',
         })),
@@ -396,6 +418,70 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
               <Send className="h-4 w-4" />
             )}
           </Button>
+        </div>
+
+        {/* More Options Toggle */}
+        <div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowMoreOptions(!showMoreOptions)}
+            className="w-full justify-between text-muted-foreground hover:text-foreground"
+          >
+            <span className="text-xs font-medium">More Options (attendees, notes, location)</span>
+            {showMoreOptions ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+
+          {/* Expandable More Options Section */}
+          {showMoreOptions && (
+            <div className="space-y-3 mt-3 pt-3 border-t border-border">
+              {/* Attendees */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Add Attendees
+                </label>
+                <EmailAutocomplete
+                  selectedEmails={additionalAttendees}
+                  onEmailsChange={setAdditionalAttendees}
+                  placeholder="Add attendees (comma separated or select from contacts)"
+                />
+              </div>
+
+              {/* Location */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Location
+                </label>
+                <Input
+                  value={additionalLocation}
+                  onChange={(e) => setAdditionalLocation(e.target.value)}
+                  placeholder="Add location or meeting link"
+                />
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Notes
+                </label>
+                <Textarea
+                  value={additionalNotes}
+                  onChange={(e) => setAdditionalNotes(e.target.value)}
+                  placeholder="Add notes or agenda"
+                  rows={3}
+                  className="resize-none"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <p className="text-xs text-muted-foreground">
