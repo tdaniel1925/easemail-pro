@@ -15,7 +15,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Send, Sparkles, Check, AlertCircle, Loader2, Calendar } from 'lucide-react';
+import { Send, Sparkles, Check, AlertCircle, Loader2, Calendar, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
