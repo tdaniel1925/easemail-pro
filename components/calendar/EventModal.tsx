@@ -111,15 +111,12 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
             }
 
             // Fetch calendars from the selected account (from AccountContext)
-            // @ts-expect-error - selectedAccount may have these properties from AccountContext
             if (selectedAccount?.nylasGrantId) {
               try {
-                // @ts-expect-error - selectedAccount properties
-                setSelectedAccountId(selectedAccount.id);
+                setSelectedAccountId((selectedAccount as any).id);
 
                 // Fetch calendars for the selected account
-                // @ts-expect-error - selectedAccount properties
-                const calendarsResponse = await fetch(`/api/nylas-v3/calendars?accountId=${selectedAccount.nylasGrantId}`);
+                const calendarsResponse = await fetch(`/api/nylas-v3/calendars?accountId=${(selectedAccount as any).nylasGrantId}`);
                 if (calendarsResponse.ok) {
                   const calendarsData = await calendarsResponse.json();
                   if (calendarsData.success && calendarsData.calendars) {
