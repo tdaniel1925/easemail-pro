@@ -22,10 +22,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const format = searchParams.get('format') || 'csv';
 
-    // Get all user contacts
+    // Get all user contacts (limit to 10,000 to prevent OOM)
+    const MAX_EXPORT = 10000;
     const allContacts = await db.query.contacts.findMany({
       where: eq(contacts.userId, user.id),
       orderBy: (contacts, { desc }) => [desc(contacts.createdAt)],
+      limit: MAX_EXPORT,
     });
 
     console.log(`📤 Exporting ${allContacts.length} contacts as ${format}`);

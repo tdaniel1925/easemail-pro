@@ -141,10 +141,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get all contacts
+    // Get all contacts (limit to prevent OOM with very large contact lists)
+    const MAX_CONTACTS = 10000;
     const allContacts = await db.query.contacts.findMany({
       where: whereClause,
       orderBy: (contacts, { desc }) => [desc(contacts.lastEmailAt), desc(contacts.createdAt)],
+      limit: MAX_CONTACTS,
     });
 
     return NextResponse.json({

@@ -48,11 +48,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch only IDs
+    // Fetch only IDs (limit to prevent OOM with very large contact lists)
+    const MAX_CONTACTS = 10000;
     const contactIds = await db
       .select({ id: contactsV4.id })
       .from(contactsV4)
-      .where(and(...conditions));
+      .where(and(...conditions))
+      .limit(MAX_CONTACTS);
 
     console.log(`✅ Found ${contactIds.length} contact IDs`);
 
