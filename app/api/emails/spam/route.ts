@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
+import { db } from '@/lib/db/drizzle';
+import { emailAccounts } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -18,12 +22,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get Nylas access token from database
+    const [account] = await db
+      .select()
+      .from(emailAccounts)
+      .where(eq(emailAccounts.userId, user.id))
+      .limit(1);
+
+    if (!account?.nylasAccessToken) {
+      return NextResponse.json(
+        { error: 'No Nylas access token found' },
+        { status: 401 }
+      );
+    }
+
     // Mark email as spam via Nylas API
     // For now, we'll just move it to spam folder
     const response = await fetch(`https://api.us.nylas.com/v3/grants/${nylasAccountId}/messages/${emailId}`, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${process.env.NYLAS_API_KEY}`,
+        'Authorization': `Bearer ${account.nylasAccessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -56,8 +74,10 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -72,11 +92,25 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Get Nylas access token from database
+    const [account] = await db
+      .select()
+      .from(emailAccounts)
+      .where(eq(emailAccounts.userId, user.id))
+      .limit(1);
+
+    if (!account?.nylasAccessToken) {
+      return NextResponse.json(
+        { error: 'No Nylas access token found' },
+        { status: 401 }
+      );
+    }
+
     // Move back to inbox
     const response = await fetch(`https://api.us.nylas.com/v3/grants/${nylasAccountId}/messages/${emailId}`, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${process.env.NYLAS_API_KEY}`,
+        'Authorization': `Bearer ${account.nylasAccessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

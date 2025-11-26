@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
+import { db } from '@/lib/db/drizzle';
+import { emailAccounts } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -18,14 +22,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get Nylas access token from session
-    const accessToken = session.accessToken;
-    if (!accessToken) {
+    // Get Nylas access token from database
+    const [account] = await db
+      .select()
+      .from(emailAccounts)
+      .where(eq(emailAccounts.userId, user.id))
+      .limit(1);
+
+    if (!account?.nylasAccessToken) {
       return NextResponse.json(
         { error: 'No Nylas access token found' },
         { status: 401 }
       );
     }
+
+    const accessToken = account.nylasAccessToken;
 
     // Mark as unread and move to a "snoozed" folder or use Nylas metadata
     // Since Nylas doesn't have native snooze, we'll use metadata to track snooze time
@@ -68,8 +79,10 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -82,14 +95,21 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Get Nylas access token from session
-    const accessToken = session.accessToken;
-    if (!accessToken) {
+    // Get Nylas access token from database
+    const [account] = await db
+      .select()
+      .from(emailAccounts)
+      .where(eq(emailAccounts.userId, user.id))
+      .limit(1);
+
+    if (!account?.nylasAccessToken) {
       return NextResponse.json(
         { error: 'No Nylas access token found' },
         { status: 401 }
       );
     }
+
+    const accessToken = account.nylasAccessToken;
 
     // Remove snooze metadata
     const response = await fetch(
