@@ -1514,7 +1514,7 @@ function CalendarContent() {
       <QuickAddV4
         isOpen={isQuickAddOpen}
         onClose={() => setIsQuickAddOpen(false)}
-        onEventCreated={fetchEvents}
+        onEventCreated={() => fetchEvents(true)}
       />
     </div>
   );
