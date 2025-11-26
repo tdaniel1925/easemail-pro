@@ -40,6 +40,7 @@ import ListView from '@/components/calendar/ListView';
 import QuickAddV4 from '@/components/calendar/QuickAddV4';
 import EventSearch from '@/components/calendar/EventSearch';
 import CalendarSelector from '@/components/calendar/CalendarSelector';
+import WeatherDropdown from '@/components/weather/WeatherDropdown';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth } from 'date-fns';
 import { transformNylasEvent } from '@/lib/calendar/event-utils';
 import { notificationService } from '@/lib/services/notification-service';
@@ -921,6 +922,8 @@ function CalendarContent() {
 
               {/* Right: Actions */}
               <div className="flex items-center gap-2">
+                <WeatherDropdown />
+
                 <Button
                   variant="outline"
                   size="sm"
