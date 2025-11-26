@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, Suspense, lazy, useCallback } from 'react';
+import { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
 import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code, Clock, Eye, MousePointerClick } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,7 @@ import { localDraftStorage } from '@/lib/localDraftStorage';
 import { draftSyncService } from '@/lib/draftSyncService';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/use-toast';
+import { UndoSendToast } from '@/components/email/UndoSendToast';
 
 // Lazy load the AI toolbar to prevent SSR issues
 const UnifiedAIToolbar = lazy(() =>
@@ -87,6 +88,11 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
   const [showSignaturePrompt, setShowSignaturePrompt] = useState(false);
   const [hideSignaturePromptPreference, setHideSignaturePromptPreference] = useState(false);
   const [skipSignatureCheck, setSkipSignatureCheck] = useState(false);
+
+  // Undo send state
+  const [showUndoToast, setShowUndoToast] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<any>(null);
+  const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load user preferences on mount
   useEffect(() => {
@@ -334,63 +340,85 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       }
     }
 
+    // Upload attachments first
+    const uploadedAttachments = [];
+    if (attachments.length > 0) {
+      setIsSending(true);
+      console.log(`[EmailComposeV3] Uploading ${attachments.length} attachment(s)...`);
+
+      for (const file of attachments) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const uploadResponse = await fetch('/api/attachments/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          uploadedAttachments.push({
+            filename: file.name,
+            url: uploadData.attachment.storageUrl,
+            contentType: file.type,
+            size: file.size,
+          });
+        } else {
+          console.error('Failed to upload attachment:', file.name);
+        }
+      }
+      setIsSending(false);
+    }
+
+    // Store email payload for delayed send
+    const emailPayload = {
+      accountId,
+      to: to.map(r => ({ email: r.email, name: r.name })),
+      cc: cc.length > 0 ? cc.map(r => ({ email: r.email, name: r.name })) : undefined,
+      bcc: bcc.length > 0 ? bcc.map(r => ({ email: r.email, name: r.name })) : undefined,
+      subject,
+      body,
+      attachments: uploadedAttachments,
+      replyToMessageId: replyTo?.messageId,
+      trackOpens,
+      trackClicks,
+    };
+
+    setPendingEmail(emailPayload);
+    setShowUndoToast(true);
+
+    // Schedule actual send after 5 seconds
+    undoTimeoutRef.current = setTimeout(() => {
+      sendEmailNow(emailPayload);
+    }, 5000);
+  };
+
+  // Function to actually send the email
+  const sendEmailNow = async (emailPayload: any) => {
     setIsSending(true);
+    setShowUndoToast(false);
 
     try {
       console.log('[EmailComposeV3] Sending email via Nylas v3...');
 
-      // Upload attachments first if any
-      const uploadedAttachments = [];
-      if (attachments.length > 0) {
-        console.log(`[EmailComposeV3] Uploading ${attachments.length} attachment(s)...`);
-
-        for (const file of attachments) {
-          const formData = new FormData();
-          formData.append('file', file);
-
-          const uploadResponse = await fetch('/api/attachments/upload', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (uploadResponse.ok) {
-            const uploadData = await uploadResponse.json();
-            uploadedAttachments.push({
-              filename: file.name,
-              url: uploadData.attachment.storageUrl,
-              contentType: file.type,
-              size: file.size,
-            });
-          } else {
-            console.error('Failed to upload attachment:', file.name);
-          }
-        }
-      }
-
-      // Send via Nylas v3 API
       const response = await fetch('/api/nylas-v3/messages/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          accountId,
-          to: to.map(r => ({ email: r.email, name: r.name })),
-          cc: cc.length > 0 ? cc.map(r => ({ email: r.email, name: r.name })) : undefined,
-          bcc: bcc.length > 0 ? bcc.map(r => ({ email: r.email, name: r.name })) : undefined,
-          subject,
-          body,
-          attachments: uploadedAttachments,
-          replyToMessageId: replyTo?.messageId,
-          trackOpens,
-          trackClicks,
-        }),
+        body: JSON.stringify(emailPayload),
       });
 
       const data = await response.json();
 
       if (data.success) {
         console.log('[EmailComposeV3] Email sent successfully');
+
+        // Show success toast
+        toast({
+          title: 'Email sent',
+          description: 'Your email has been sent successfully.',
+        });
 
         resetForm();
         onClose();
@@ -406,7 +434,24 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       setValidationError('Failed to send email. Please check your connection and try again.');
     } finally {
       setIsSending(false);
+      setPendingEmail(null);
     }
+  };
+
+  // Function to cancel send
+  const handleUndoSend = () => {
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+    setShowUndoToast(false);
+    setPendingEmail(null);
+    setIsSending(false);
+
+    toast({
+      title: 'Send cancelled',
+      description: 'Your email was not sent.',
+    });
   };
 
   const handleScheduleSend = async (scheduledTime: Date) => {
@@ -1264,6 +1309,15 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
       onClose={() => setShowScheduleSendDialog(false)}
       onSchedule={handleScheduleSend}
     />
+
+    {/* Undo Send Toast */}
+    {showUndoToast && (
+      <UndoSendToast
+        onUndo={handleUndoSend}
+        onComplete={() => setShowUndoToast(false)}
+        duration={5000}
+      />
+    )}
 
     {/* Confirm Dialog */}
     <Dialog />

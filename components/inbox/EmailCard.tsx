@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -10,8 +10,11 @@ import {
   ArchiveX,
   Trash2,
   MessageSquare,
+  ShieldAlert,
+  Clock,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { SnoozeDialog } from '@/components/email/SnoozeDialog';
 
 interface EmailCardProps {
   email: {
@@ -45,6 +48,8 @@ function EmailCard({
   onThreadClick,
   threadCount = 0,
 }: EmailCardProps) {
+  const [showSnoozeDialog, setShowSnoozeDialog] = useState(false);
+
   const getInitial = (name: string | null, email: string | null) => {
     if (name) return name.charAt(0).toUpperCase();
     if (email) return email.charAt(0).toUpperCase();
@@ -78,6 +83,28 @@ function EmailCard({
     }
 
     return displayName;
+  };
+
+  const handleSnooze = async (snoozeUntil: Date) => {
+    try {
+      const response = await fetch('/api/emails/snooze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailId: email.id,
+          nylasAccountId: 'default', // You may need to pass the actual account ID
+          snoozeUntil: snoozeUntil.toISOString(),
+        }),
+      });
+
+      if (response.ok) {
+        console.log('Email snoozed until', snoozeUntil);
+        // Refresh the email list
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Failed to snooze email:', error);
+    }
   };
 
   return (
@@ -213,6 +240,16 @@ function EmailCard({
             className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
             onClick={(e) => {
               e.stopPropagation();
+              setShowSnoozeDialog(true);
+            }}
+            title="Snooze"
+          >
+            <Clock className="h-4 w-4 text-gray-500 hover:text-blue-500" />
+          </button>
+          <button
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+            onClick={(e) => {
+              e.stopPropagation();
               // Handle archive
             }}
             title="Archive"
@@ -229,8 +266,42 @@ function EmailCard({
           >
             <Trash2 className="h-4 w-4 text-gray-500" />
           </button>
+          <button
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+            onClick={async (e) => {
+              e.stopPropagation();
+              try {
+                const response = await fetch('/api/emails/spam', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    emailId: email.id,
+                    nylasAccountId: 'default' // You may need to pass the actual account ID
+                  }),
+                });
+                if (response.ok) {
+                  console.log('Email marked as spam');
+                  // Refresh the email list
+                  window.location.reload();
+                }
+              } catch (error) {
+                console.error('Failed to mark as spam:', error);
+              }
+            }}
+            title="Mark as spam"
+          >
+            <ShieldAlert className="h-4 w-4 text-gray-500 hover:text-red-500" />
+          </button>
         </div>
       </div>
+
+      {/* Snooze Dialog */}
+      <SnoozeDialog
+        open={showSnoozeDialog}
+        onOpenChange={setShowSnoozeDialog}
+        onSnooze={handleSnooze}
+        emailSubject={email.subject || undefined}
+      />
     </div>
   );
 }

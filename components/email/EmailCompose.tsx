@@ -11,7 +11,6 @@ import { SignatureService } from '@/lib/signatures/signature-service';
 import EmailAutocomplete from '@/components/email/EmailAutocomplete';
 import { URLInputDialog } from '@/components/ui/url-input-dialog';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
-import { GrammarCheck } from '@/components/editor/GrammarCheck';
 import { SignaturePromptModal } from '@/components/email/SignaturePromptModal';
 import { formatDistanceToNow } from 'date-fns';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -1655,15 +1654,6 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                     </span>
                   </Button>
                 </label>
-
-                {/* Grammar Check Button */}
-                <GrammarCheck
-                  text={body.replace(/<[^>]*>/g, '')} // Strip HTML for checking
-                  onApplySuggestion={(original, suggestion) => {
-                    // Replace the original text with the suggestion in the body
-                    setBody(body.replace(original, suggestion));
-                  }}
-                />
               </div>
               <div className="flex items-center gap-2">
                 <Button 
