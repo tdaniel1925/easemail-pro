@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -95,6 +96,9 @@ export default function InboxV4({
   const [threadModalOpen, setThreadModalOpen] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
 
+  // Virtual scrolling ref
+  const parentRef = useRef<HTMLDivElement>(null);
+
   // Reset folder to inbox when account changes or on page refresh
   useEffect(() => {
     setCurrentFolder('inbox');
@@ -147,6 +151,14 @@ export default function InboxV4({
       threadCount: thread.length,
     }));
   }, [emailsByThread]);
+
+  // Virtual scrolling for performance
+  const rowVirtualizer = useVirtualizer({
+    count: displayEmails.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 100, // Estimated height of each email card
+    overscan: 5, // Render 5 extra items above and below viewport
+  });
 
   // Fetch emails for current folder
   const fetchEmails = useCallback(async (folder: string, loadMore = false) => {
@@ -472,7 +484,7 @@ export default function InboxV4({
         />
 
         {/* Email List */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={parentRef} className="flex-1 overflow-y-auto">
           {error && (
             <div className="m-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-red-700 dark:text-red-400">
               <AlertCircle className="h-5 w-5" />
@@ -494,18 +506,40 @@ export default function InboxV4({
             </div>
           ) : (
             <>
-              {displayEmails.map(email => (
-                <EmailCard
-                  key={email.id}
-                  email={email}
-                  isSelected={selectedIds.has(email.id)}
-                  isActive={selectedEmail?.id === email.id}
-                  onSelect={toggleSelection}
-                  onClick={handleEmailClick}
-                  onThreadClick={handleThreadClick}
-                  threadCount={(email as any).threadCount || 0}
-                />
-              ))}
+              <div
+                style={{
+                  height: `${rowVirtualizer.getTotalSize()}px`,
+                  width: '100%',
+                  position: 'relative',
+                }}
+              >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const email = displayEmails[virtualRow.index];
+                  return (
+                    <div
+                      key={email.id}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: `${virtualRow.size}px`,
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      <EmailCard
+                        email={email}
+                        isSelected={selectedIds.has(email.id)}
+                        isActive={selectedEmail?.id === email.id}
+                        onSelect={toggleSelection}
+                        onClick={handleEmailClick}
+                        onThreadClick={handleThreadClick}
+                        threadCount={(email as any).threadCount || 0}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
 
               {/* Load More */}
               {hasMore && (
