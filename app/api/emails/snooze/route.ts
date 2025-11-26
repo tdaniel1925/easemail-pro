@@ -29,14 +29,14 @@ export async function POST(request: NextRequest) {
       .where(eq(emailAccounts.userId, user.id))
       .limit(1);
 
-    if (!account?.nylasAccessToken) {
+    if (!account?.accessToken) {
       return NextResponse.json(
         { error: 'No Nylas access token found' },
         { status: 401 }
       );
     }
 
-    const accessToken = account.nylasAccessToken;
+    const accessToken = account.accessToken;
 
     // Mark as unread and move to a "snoozed" folder or use Nylas metadata
     // Since Nylas doesn't have native snooze, we'll use metadata to track snooze time
@@ -102,14 +102,14 @@ export async function DELETE(request: NextRequest) {
       .where(eq(emailAccounts.userId, user.id))
       .limit(1);
 
-    if (!account?.nylasAccessToken) {
+    if (!account?.accessToken) {
       return NextResponse.json(
         { error: 'No Nylas access token found' },
         { status: 401 }
       );
     }
 
-    const accessToken = account.nylasAccessToken;
+    const accessToken = account.accessToken;
 
     // Remove snooze metadata
     const response = await fetch(

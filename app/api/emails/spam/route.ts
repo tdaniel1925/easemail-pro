@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       .where(eq(emailAccounts.userId, user.id))
       .limit(1);
 
-    if (!account?.nylasAccessToken) {
+    if (!account?.accessToken) {
       return NextResponse.json(
         { error: 'No Nylas access token found' },
         { status: 401 }
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(`https://api.us.nylas.com/v3/grants/${nylasAccountId}/messages/${emailId}`, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${account.nylasAccessToken}`,
+        'Authorization': `Bearer ${account.accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -99,7 +99,7 @@ export async function DELETE(request: NextRequest) {
       .where(eq(emailAccounts.userId, user.id))
       .limit(1);
 
-    if (!account?.nylasAccessToken) {
+    if (!account?.accessToken) {
       return NextResponse.json(
         { error: 'No Nylas access token found' },
         { status: 401 }
@@ -110,7 +110,7 @@ export async function DELETE(request: NextRequest) {
     const response = await fetch(`https://api.us.nylas.com/v3/grants/${nylasAccountId}/messages/${emailId}`, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${account.nylasAccessToken}`,
+        'Authorization': `Bearer ${account.accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
