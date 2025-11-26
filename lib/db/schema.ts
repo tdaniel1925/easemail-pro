@@ -262,7 +262,27 @@ export const emails = pgTable('emails', {
   sentAt: timestamp('sent_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  // Performance indexes for common query patterns
+  // Composite indexes for most common queries (account + date sorting)
+  accountIdReceivedAtIdx: index('emails_account_received_idx').on(table.accountId, table.receivedAt),
+  accountIdSentAtIdx: index('emails_account_sent_idx').on(table.accountId, table.sentAt),
+
+  // Folder filtering (used in every folder view)
+  accountIdFolderIdx: index('emails_account_folder_idx').on(table.accountId, table.folder),
+
+  // Thread grouping
+  threadIdIdx: index('emails_thread_id_idx').on(table.threadId),
+
+  // Search optimization
+  fromEmailIdx: index('emails_from_email_idx').on(table.fromEmail),
+  subjectIdx: index('emails_subject_idx').on(table.subject),
+
+  // Boolean filters for common views
+  isStarredIdx: index('emails_starred_idx').on(table.accountId, table.isStarred),
+  isTrashedIdx: index('emails_trashed_idx').on(table.accountId, table.isTrashed),
+  isReadIdx: index('emails_read_idx').on(table.accountId, table.isRead),
+}));
 
 // Attachments (extracted from emails)
 export const attachments = pgTable('attachments', {
