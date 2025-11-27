@@ -5,6 +5,9 @@
 
 'use client';
 
+// Prevent static generation - this page requires authentication and dynamic data
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Pencil, MessageSquare, Users, Calendar, Paperclip, Loader2 } from 'lucide-react';

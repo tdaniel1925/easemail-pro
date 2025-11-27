@@ -59,7 +59,9 @@ export function isValidTimezone(timezone: string): boolean {
   try {
     Intl.DateTimeFormat(undefined, { timeZone: timezone });
     return true;
-  } catch {
+  } catch (error) {
+    // Invalid timezone identifier - this is expected for invalid input
+    console.debug(`[Timezone] Invalid timezone identifier: ${timezone}`);
     return false;
   }
 }
@@ -73,7 +75,8 @@ export function getTimezoneOffset(timezone: string): number {
     const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
     const tzDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
     return (tzDate.getTime() - utcDate.getTime()) / (1000 * 60 * 60);
-  } catch {
+  } catch (error) {
+    console.error(`[Timezone] Failed to calculate offset for ${timezone}:`, error);
     return 0;
   }
 }

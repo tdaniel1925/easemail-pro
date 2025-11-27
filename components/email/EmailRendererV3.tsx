@@ -1,10 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Download, Paperclip, AlertCircle, Loader2, Eye, EyeOff, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatFileSize } from '@/lib/utils';
-import { SimpleEmailViewer } from '@/components/email/SimpleEmailViewer';
+
+// Dynamic import to avoid SSR issues with DOMPurify
+const SimpleEmailViewer = dynamic(
+  () => import('@/components/email/SimpleEmailViewer').then(mod => mod.SimpleEmailViewer),
+  {
+    ssr: false,
+    loading: () => <div className="p-4 text-muted-foreground">Loading email content...</div>
+  }
+);
 
 interface Attachment {
   id: string;
