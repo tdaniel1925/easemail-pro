@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Mail,
   Send,
@@ -49,13 +49,36 @@ export function FolderSidebarV3({
     new Set(['inbox'])
   );
 
+  // AbortController ref to cancel in-flight requests when account changes
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Track current accountId to prevent stale responses
+  const currentAccountIdRef = useRef<string>(accountId);
+
   useEffect(() => {
     if (accountId) {
+      // Update the ref to track current accountId
+      currentAccountIdRef.current = accountId;
+
+      // Abort any in-flight request from previous account
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+
       // Clear old folders immediately when account changes
       setFolders([]);
       setLoading(true);
+      setError(null);
       fetchFolders();
     }
+
+    // Cleanup: abort request if component unmounts or dependencies change
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [accountId]);
 
   // Listen for draft updates and refresh counts (debounced to prevent flashing)
@@ -86,15 +109,32 @@ export function FolderSidebarV3({
   }, [accountId]);
 
   const fetchFolders = async () => {
+    // Capture the accountId at the start of this request
+    const requestAccountId = accountId;
+
+    // Create a new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       setLoading(true);
       setError(null);
 
       // Fetch folders and counts in parallel
       const [foldersResponse, countsResponse] = await Promise.all([
-        fetch(`/api/nylas-v3/folders?accountId=${accountId}&hierarchy=true`),
-        fetch(`/api/nylas/folders/counts?accountId=${accountId}`)
+        fetch(`/api/nylas-v3/folders?accountId=${accountId}&hierarchy=true`, {
+          signal: abortController.signal,
+        }),
+        fetch(`/api/nylas/folders/counts?accountId=${accountId}`, {
+          signal: abortController.signal,
+        })
       ]);
+
+      // Check if request was aborted or accountId changed during fetch
+      if (abortController.signal.aborted || currentAccountIdRef.current !== requestAccountId) {
+        console.log('[FolderSidebar] Request aborted or accountId changed, discarding response');
+        return;
+      }
 
       if (!foldersResponse.ok) {
         throw new Error('Failed to fetch folders');
@@ -102,6 +142,12 @@ export function FolderSidebarV3({
 
       const foldersData = await foldersResponse.json();
       let fetchedFolders = foldersData.folders || [];
+
+      // Double-check accountId hasn't changed before processing
+      if (currentAccountIdRef.current !== requestAccountId) {
+        console.log('[FolderSidebar] AccountId changed during processing, discarding response');
+        return;
+      }
 
       // Merge in counts if available
       if (countsResponse.ok) {
@@ -132,12 +178,29 @@ export function FolderSidebarV3({
         }
       }
 
+      // Final check before updating state
+      if (currentAccountIdRef.current !== requestAccountId) {
+        return;
+      }
+
       setFolders(fetchedFolders);
     } catch (err) {
-      console.error('Error fetching folders:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load folders');
+      // Ignore abort errors - they're expected when switching accounts
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('[FolderSidebar] Request aborted');
+        return;
+      }
+
+      // Only update error state if accountId hasn't changed
+      if (currentAccountIdRef.current === requestAccountId) {
+        console.error('Error fetching folders:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load folders');
+      }
     } finally {
-      setLoading(false);
+      // Only update loading state if accountId hasn't changed
+      if (currentAccountIdRef.current === requestAccountId) {
+        setLoading(false);
+      }
     }
   };
 

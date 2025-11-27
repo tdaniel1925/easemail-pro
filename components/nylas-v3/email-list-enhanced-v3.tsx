@@ -144,6 +144,12 @@ export function EmailListEnhancedV3({
   // Intersection observer for infinite scroll
   const observerTarget = useRef<HTMLDivElement>(null);
 
+  // AbortController ref to cancel in-flight requests when account/folder changes
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Track current accountId to prevent stale responses from updating state
+  const currentAccountIdRef = useRef<string>(accountId);
+
   // Safe HTML sanitization (client-side only)
   const sanitizeHTML = (html: string) => {
     if (typeof window === 'undefined') return html; // Skip on server
@@ -233,15 +239,36 @@ export function EmailListEnhancedV3({
     return true;
   });
 
-  // Reset and load messages when folder changes
+  // Reset and load messages when account/folder changes
   useEffect(() => {
+    // Update the ref to track current accountId
+    currentAccountIdRef.current = accountId;
+
+    // Abort any in-flight request from previous account/folder
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // Reset all state for fresh load
     setMessages([]);
     setNextCursor(null);
     setHasMore(false);
+    setLoading(false); // Reset loading to allow new request
     setInitialLoading(true);
     setExpandedEmailId(null);
     setSelectedEmailId(null);
+    setLocallyRemovedEmails(new Set()); // Clear locally removed emails for new account
+
+    // Load messages for new account/folder
     loadMessages(true);
+
+    // Cleanup: abort request if component unmounts or dependencies change
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [accountId, folderId]);
 
   // Fetch SMS unread count on mount and poll every 30 seconds
@@ -373,7 +400,16 @@ export function EmailListEnhancedV3({
   }, []);
 
   const loadMessages = async (reset: boolean = false) => {
-    if (loading) return;
+    // For non-reset loads (pagination), skip if already loading
+    // For reset loads (account/folder change), allow the request
+    if (loading && !reset) return;
+
+    // Capture the accountId at the start of this request
+    const requestAccountId = accountId;
+
+    // Create a new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       setLoading(true);
@@ -392,13 +428,27 @@ export function EmailListEnhancedV3({
         params.append('cursor', nextCursor);
       }
 
-      const response = await fetch(`/api/nylas-v3/messages?${params}`);
+      const response = await fetch(`/api/nylas-v3/messages?${params}`, {
+        signal: abortController.signal,
+      });
+
+      // Check if request was aborted or accountId changed during fetch
+      if (abortController.signal.aborted || currentAccountIdRef.current !== requestAccountId) {
+        console.log('[EmailList] Request aborted or accountId changed, discarding response');
+        return;
+      }
 
       if (!response.ok) {
         throw new Error('Failed to fetch messages');
       }
 
       const data = await response.json();
+
+      // Double-check accountId hasn't changed before updating state
+      if (currentAccountIdRef.current !== requestAccountId) {
+        console.log('[EmailList] AccountId changed during fetch, discarding response');
+        return;
+      }
 
       if (reset) {
         setMessages(data.messages || []);
@@ -409,11 +459,23 @@ export function EmailListEnhancedV3({
       setNextCursor(data.nextCursor);
       setHasMore(data.hasMore);
     } catch (err) {
-      console.error('Error loading messages:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load messages');
+      // Ignore abort errors - they're expected when switching accounts
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.log('[EmailList] Request aborted');
+        return;
+      }
+
+      // Only update error state if accountId hasn't changed
+      if (currentAccountIdRef.current === requestAccountId) {
+        console.error('Error loading messages:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load messages');
+      }
     } finally {
-      setLoading(false);
-      setInitialLoading(false);
+      // Only update loading states if accountId hasn't changed
+      if (currentAccountIdRef.current === requestAccountId) {
+        setLoading(false);
+        setInitialLoading(false);
+      }
     }
   };
 
