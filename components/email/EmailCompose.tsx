@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
-import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code } from 'lucide-react';
+import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code, Sparkles, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,8 @@ import EmailAutocomplete from '@/components/email/EmailAutocomplete';
 import { URLInputDialog } from '@/components/ui/url-input-dialog';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { SignaturePromptModal } from '@/components/email/SignaturePromptModal';
+import { SignatureEditorModal, SignatureFormData } from '@/components/signatures/SignatureEditorModal';
+import { useAccount } from '@/contexts/AccountContext';
 import { formatDistanceToNow } from 'date-fns';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/use-toast';
@@ -60,6 +62,7 @@ interface EmailComposeProps {
 export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose', accountId, draft }: EmailComposeProps) {
   const { confirm, Dialog } = useConfirm();
   const { toast } = useToast();
+  const { accounts } = useAccount();
 
   // Debug: Log accountId prop
   useEffect(() => {
@@ -155,12 +158,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [isHtmlMode, setIsHtmlMode] = useState(true); // HTML vs Plain text mode
 
   // Signature state
-  const { signatures, getApplicableSignature, renderSignature } = useSignatures();
+  const { signatures, loading: signaturesLoading, getApplicableSignature, renderSignature, loadSignatures } = useSignatures();
   const [selectedSignatureId, setSelectedSignatureId] = useState<string | null>(null);
   const [useSignature, setUseSignature] = useState(true);
   const [showSignatureDropdown, setShowSignatureDropdown] = useState(false);
   const [showSignaturePrompt, setShowSignaturePrompt] = useState(false);
   const [hideSignaturePromptPreference, setHideSignaturePromptPreference] = useState(false);
+  const [showSignatureEditor, setShowSignatureEditor] = useState(false);
 
   // ✅ FIX: Reset recipients when replyTo changes (when modal reopens with new email)
   useEffect(() => {
@@ -247,8 +251,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   }, [signatures]);
 
   // Auto-insert signature when compose opens
+  // ✅ FIX: Wait for signatures to load before trying to insert
   useEffect(() => {
-    if (isOpen && useSignature && !body && !isInitialized) {
+    if (isOpen && useSignature && !body && !isInitialized && !signaturesLoading && signatures.length > 0) {
       const applicableSignature = getApplicableSignature(type, accountId);
       if (applicableSignature) {
         setSelectedSignatureId(applicableSignature.id);
@@ -261,9 +266,10 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         const blankLinesHtml = '<p><br></p><p><br></p>';
         setBody(blankLinesHtml + renderedSignature);
         setIsInitialized(true);
+        console.log('[EmailCompose] ✅ Auto-inserted signature:', applicableSignature.name);
       }
     }
-  }, [isOpen, type, accountId, useSignature, body, isInitialized, getApplicableSignature, renderSignature, to]);
+  }, [isOpen, type, accountId, useSignature, body, isInitialized, signaturesLoading, signatures, getApplicableSignature, renderSignature, to]);
 
   // Track dirty state for unsaved changes warning
   useEffect(() => {
@@ -1083,6 +1089,59 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     handleSend(true);
   };
 
+  // Handle saving a new signature from the badge
+  const handleSaveNewSignature = async (data: SignatureFormData) => {
+    try {
+      const response = await fetch('/api/signatures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          isDefault: true, // Make it default since it's their first signature
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save signature');
+      }
+
+      const result = await response.json();
+      console.log('[EmailCompose] ✅ New signature created:', result.signature?.name);
+
+      // Reload signatures
+      await loadSignatures();
+
+      // Close modal
+      setShowSignatureEditor(false);
+
+      // Insert the new signature into the body
+      if (result.signature) {
+        const renderedSignature = renderSignature(result.signature, {}, { emailAddress: to[0]?.email || '' });
+        const blankLinesHtml = '<p><br></p><p><br></p>';
+
+        // If body is empty or just blank lines, set with signature
+        const strippedBody = body.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+        if (!strippedBody) {
+          setBody(blankLinesHtml + renderedSignature);
+        } else {
+          // Append signature to existing content
+          setBody(body + blankLinesHtml + renderedSignature);
+        }
+
+        setSelectedSignatureId(result.signature.id);
+        setUseSignature(true);
+      }
+
+      toast({
+        title: 'Signature Created',
+        description: 'Your signature has been created and added to this email.',
+      });
+    } catch (error) {
+      console.error('Error saving signature:', error);
+      throw error;
+    }
+  };
+
   const handleURLSubmit = (url: string) => {
     setBody(body + ` ${url}`);
   };
@@ -1421,7 +1480,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               </label>
 
               {/* Signature Controls */}
-              {signatures.length > 0 && (
+              {signatures.length > 0 ? (
                 <>
                   <div className="w-px h-6 bg-border mx-1" />
                   <div className="relative">
@@ -1475,6 +1534,21 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                     </div>
                   )}
                 </>
+              ) : !signaturesLoading && !hideSignaturePromptPreference && (
+                <>
+                  {/* Add Signature Badge - Shows when user has no signatures */}
+                  <div className="w-px h-6 bg-border mx-1" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs gap-1.5 border-dashed border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
+                    onClick={() => setShowSignatureEditor(true)}
+                    title="Create your email signature"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Add Signature
+                  </Button>
+                </>
               )}
             </div>
 
@@ -1487,6 +1561,32 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 className="border-0 h-full"
               />
             </div>
+
+            {/* Inline Signature Badge - Shows below editor when user has no signatures */}
+            {!signaturesLoading && signatures.length === 0 && !hideSignaturePromptPreference && (
+              <div className="px-4 py-3 border-t border-dashed border-primary/30 bg-primary/5">
+                <button
+                  onClick={() => setShowSignatureEditor(true)}
+                  className="flex items-center gap-3 w-full text-left group"
+                >
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <PenTool className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                      Add your email signature
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Make your emails more professional with a custom signature
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Plus className="h-3.5 w-3.5" />
+                    Create
+                  </div>
+                </button>
+              </div>
+            )}
 
             {/* Attachments */}
             {attachments.length > 0 && (
@@ -1690,6 +1790,14 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       onClose={() => setShowSignaturePrompt(false)}
       onContinueWithoutSignature={handleContinueWithoutSignature}
       onNeverShowAgain={handleNeverShowSignaturePrompt}
+    />
+
+    {/* Signature Editor Modal - For creating new signature from badge */}
+    <SignatureEditorModal
+      isOpen={showSignatureEditor}
+      onClose={() => setShowSignatureEditor(false)}
+      onSave={handleSaveNewSignature}
+      accounts={accounts || []}
     />
 
     {/* Confirm Dialog */}
