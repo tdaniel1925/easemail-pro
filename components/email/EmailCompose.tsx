@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
-import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code, Sparkles, Plus } from 'lucide-react';
+import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code, Sparkles, Plus, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,13 +64,15 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const { toast } = useToast();
   const { accounts } = useAccount();
 
-  // Debug: Log accountId prop
+  // Debug: Log accountId prop and sync selectedAccountId
   useEffect(() => {
     if (isOpen) {
       console.log('[EmailCompose] Opened with accountId:', accountId, 'Type:', typeof accountId);
       if (!accountId) {
         console.error('[EmailCompose] ❌ No accountId provided! Draft saving will be disabled.');
       }
+      // Sync selectedAccountId with prop when composer opens
+      setSelectedAccountId(accountId);
     }
   }, [isOpen, accountId]);
 
@@ -147,6 +149,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [isFirstChange, setIsFirstChange] = useState(true); // Track first change for instant save
   const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle'); // Save status indicator
   const [skipSignatureCheck, setSkipSignatureCheck] = useState(false); // Skip signature check on retry
+  const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(accountId); // Account to send from
+  const [showFromDropdown, setShowFromDropdown] = useState(false); // From account dropdown
+  const dropdownRef = useRef<HTMLDivElement>(null); // Ref for dropdown click-away
 
   // Refs for debouncing
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -197,7 +202,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     if (type === 'reply-all' && accountId && cc.length > 0) {
       const fetchAndFilterCC = async () => {
         try {
-          const response = await fetch(`/api/accounts/${accountId}`);
+          const response = await fetch(`/api/accounts/${selectedAccountId || accountId}`);
           if (response.ok) {
             const data = await response.json();
             const currentUserEmail = data.account?.email?.toLowerCase();
@@ -221,7 +226,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
       fetchAndFilterCC();
     }
-  }, [type, accountId]); // Only run when type or accountId changes
+  }, [type, selectedAccountId, accountId]); // Only run when type or accountId changes
 
   // Load user preferences on mount
   useEffect(() => {
@@ -250,6 +255,20 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     console.log('[EmailCompose] Signatures loaded:', signatures.length, signatures);
     console.log('[EmailCompose] State check:', { isOpen, signaturesLoading, body: body.length, isInitialized, useSignature });
   }, [signatures, isOpen, signaturesLoading, body, isInitialized, useSignature]);
+
+  // Click-away listener for dropdown
+  useEffect(() => {
+    const handleClickAway = (event: MouseEvent) => {
+      if (showFromDropdown && dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowFromDropdown(false);
+      }
+    };
+
+    if (showFromDropdown) {
+      document.addEventListener('mousedown', handleClickAway);
+      return () => document.removeEventListener('mousedown', handleClickAway);
+    }
+  }, [showFromDropdown]);
 
   // Auto-insert signature when compose opens
   // ✅ FIX: Wait for signatures to load before trying to insert
@@ -333,9 +352,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         for (const attachment of replyTo.attachments) {
           try {
             // Fetch the attachment from the v3 API with query parameters
-            if (!accountId) continue; // Skip if no account ID
+            if (!selectedAccountId) continue; // Skip if no account ID
             const params = new URLSearchParams({
-              accountId: accountId,
+              accountId: selectedAccountId,
               messageId: replyTo.messageId,
               attachmentId: attachment.id,
             });
@@ -592,13 +611,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       return;
     }
 
-    if (!accountId) {
+    if (!selectedAccountId) {
       setValidationError('No email account selected. Please select an account first.');
       return;
     }
 
     // Debug: Log accountId being sent
-    console.log('[EmailCompose] Account ID:', accountId, 'Type:', typeof accountId);
+    console.log('[EmailCompose] Account ID:', selectedAccountId, 'Type:', typeof selectedAccountId);
 
     // Check for signature - show prompt if no signatures exist and user hasn't hidden it
     // Skip this check if user already clicked "Continue without signature" (skipSignature param)
@@ -701,7 +720,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          accountId,
+          accountId: selectedAccountId,
           to: to.map(r => r.email).join(', '),
           cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
           bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
@@ -751,7 +770,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   };
 
   const handleSaveDraft = useCallback(async (silent = false) => {
-    console.log('[Draft Save] Called with:', { silent, accountId, to: to.length, subject: subject.length, body: body.length });
+    console.log('[Draft Save] Called with:', { silent, accountId: selectedAccountId, to: to.length, subject: subject.length, body: body.length });
 
     // Check if send is in progress
     if (isSending) {
@@ -759,7 +778,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       return;
     }
 
-    if (!accountId) {
+    if (!selectedAccountId) {
       console.log('[Draft Save] ❌ No accountId, aborting');
       if (!silent) {
         toast({
@@ -788,12 +807,12 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     try {
       if (!silent) {
         console.log('💾 Saving draft...');
-        console.log('[Draft] Account ID being sent:', accountId, 'Type:', typeof accountId);
+        console.log('[Draft] Account ID being sent:', selectedAccountId, 'Type:', typeof selectedAccountId);
       }
 
       // Build request body
       const requestBody: any = {
-        accountId,
+        accountId: selectedAccountId,
         to: to.map(r => r.email).join(', ') || '', // Allow empty recipients
         cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
         bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
@@ -887,11 +906,11 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       setIsSavingDraft(false);
       isSavingRef.current = false; // Clear saving flag
     }
-  }, [accountId, to, cc, bcc, subject, body, replyTo, type, isSending, toast]);
+  }, [selectedAccountId, to, cc, bcc, subject, body, replyTo, type, isSending, toast]);
 
   // Debounced auto-save with instant first save
   useEffect(() => {
-    if (!isOpen || !isDirty || !accountId) return;
+    if (!isOpen || !isDirty || !selectedAccountId) return;
 
     // ✅ FIX: Skip auto-save if AI is updating the content
     if (isAIUpdatingRef.current) {
@@ -923,7 +942,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [isOpen, isDirty, accountId, to, cc, bcc, subject, body, isFirstChange, handleSaveDraft]);
+  }, [isOpen, isDirty, selectedAccountId, to, cc, bcc, subject, body, isFirstChange, handleSaveDraft]);
 
   const handleAttachment = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -960,7 +979,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       // Trigger immediate save when attachment is added (Outlook behavior)
       setIsDirty(true);
       setTimeout(() => {
-        if (accountId) {
+        if (selectedAccountId) {
           console.log('[Draft] Attachment added - saving immediately');
           handleSaveDraft(true);
         }
@@ -979,7 +998,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
   // Handle close with auto-save
   const handleClose = async () => {
-    if (isDirty && accountId) {
+    if (isDirty && selectedAccountId) {
       const confirmed = await confirm({
         title: 'Discard Draft?',
         message: 'Do you want to save this draft or discard it?',
@@ -1037,17 +1056,17 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, to, subject, body, accountId, attachments]);
+  }, [isOpen, to, subject, body, selectedAccountId, attachments]);
 
   // Save draft before browser navigation/close
   useEffect(() => {
     if (!isOpen) return;
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty && accountId) {
+      if (isDirty && selectedAccountId) {
         // Attempt to save draft using sendBeacon (works even after page unload starts)
         const draftData = {
-          accountId,
+          accountId: selectedAccountId,
           to: to.map(r => r.email).join(', '),
           cc: cc.length > 0 ? cc.map(r => r.email).join(', ') : undefined,
           bcc: bcc.length > 0 ? bcc.map(r => r.email).join(', ') : undefined,
@@ -1072,7 +1091,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isOpen, isDirty, accountId, to, cc, bcc, subject, body, replyTo, type]);
+  }, [isOpen, isDirty, selectedAccountId, to, cc, bcc, subject, body, replyTo, type]);
 
   const handleInsertLink = () => {
     setShowURLDialog(true);
@@ -1209,7 +1228,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           onClick={(e) => e.stopPropagation()}
           onBlur={(e) => {
             // Save when focus leaves the compose window
-            if (isDirty && accountId && !e.currentTarget.contains(e.relatedTarget as Node)) {
+            if (isDirty && selectedAccountId && !e.currentTarget.contains(e.relatedTarget as Node)) {
               console.log('[Draft] Focus lost - saving draft');
               handleSaveDraft(true);
             }
@@ -1303,6 +1322,48 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           <>
             {/* Recipients */}
             <div className="p-4 space-y-2 border-b border-border">
+              {/* From Field - Account Selector */}
+              {accounts && accounts.length > 1 && (
+                <div className="flex items-start gap-2">
+                  <Label className="w-12 text-sm text-muted-foreground pt-2">From</Label>
+                  <div className="flex-1 relative" ref={dropdownRef}>
+                    <button
+                      onClick={() => setShowFromDropdown(!showFromDropdown)}
+                      className="flex items-center justify-between w-full px-3 py-2 text-sm border border-input rounded-md hover:bg-accent transition-colors"
+                    >
+                      <span className="truncate">
+                        {selectedAccountId
+                          ? accounts.find(a => a.id === selectedAccountId)?.emailAddress || 'Select account'
+                          : 'Select account'}
+                      </span>
+                      <ChevronDown className="h-4 w-4 ml-2 flex-shrink-0" />
+                    </button>
+                    {showFromDropdown && (
+                      <div className="absolute top-full left-0 mt-1 w-full bg-card border border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                        {accounts.map((account) => (
+                          <button
+                            key={account.id}
+                            onClick={() => {
+                              setSelectedAccountId(account.id);
+                              setShowFromDropdown(false);
+                            }}
+                            className={cn(
+                              'w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors',
+                              account.id === selectedAccountId && 'bg-accent'
+                            )}
+                          >
+                            <div className="font-medium">{account.emailAddress}</div>
+                            {account.emailProvider && (
+                              <div className="text-xs text-muted-foreground">{account.emailProvider}</div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-start gap-2">
                 <Label className="w-12 text-sm text-muted-foreground pt-2">To</Label>
                 <div className="flex-1">
@@ -1689,7 +1750,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                       <Button
                         onClick={() => handleSend()}
                         className="gap-2 rounded-r-none"
-                        disabled={isSending || !accountId}
+                        disabled={isSending || !selectedAccountId}
                       >
                         <Send className="h-4 w-4" />
                         {isSending ? 'Sending...' : 'Send'}
@@ -1703,7 +1764,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                           }
                         }}
                         className="rounded-l-none border-l px-2"
-                        disabled={isSending || !accountId}
+                        disabled={isSending || !selectedAccountId}
                         title="More send options"
                       >
                         <span className="text-xs">▼</span>
@@ -1772,11 +1833,11 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 </label>
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleSaveDraft(false)}
-                  disabled={isSavingDraft || !accountId}
+                  disabled={isSavingDraft || !selectedAccountId}
                 >
                   {isSavingDraft ? 'Saving...' : 'Save Draft'}
                 </Button>

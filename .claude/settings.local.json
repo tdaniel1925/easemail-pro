@@ -13,7 +13,16 @@
       "Bash(cmd.exe /c \"taskkill /F /IM node.exe 2>nul & timeout /t 3 /nobreak >nul & cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && rmdir /s /q .next && rmdir /s /q node_modules\\.cache && npm run dev\")",
       "Bash(cmd.exe /c \"if exist .next rmdir /s /q .next && if exist node_modules\\.cache rmdir /s /q node_modules\\.cache && if exist .swc rmdir /s /q .swc && echo Caches cleared\")",
       "Bash(Select-String -Pattern \"Calendar Pro|404|Test\")",
-      "Bash(Select-Object -First 5)"
+      "Bash(Select-Object -First 5)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Add signature badge and fix signature auto-insertion in composer\n\n## Signature System Improvements:\n\n1. **Fixed signature auto-insertion timing issue**\n   - Added `signaturesLoading` check to wait for signatures to load\n   - Added `signatures` to dependency array to re-run when loaded\n   - Signatures now properly auto-insert when composer opens\n\n2. **Added \"Add Signature\" badge for users without signatures**\n   - Toolbar badge: Sparkle icon button in toolbar when no signatures\n   - Inline badge: Prominent banner below editor with pen icon\n   - Both badges open SignatureEditorModal for quick signature creation\n   - Badge respects user''s \"hide signature prompt\" preference\n\n3. **New signature creation flow**\n   - Creates signature as default automatically (first signature)\n   - Reloads signatures after creation\n   - Auto-inserts new signature into current email\n   - Shows success toast notification\n\nFiles modified:\n- components/email/EmailCompose.tsx\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfix: Improve signature auto-insertion with fallback and better debugging\n\n1. Fixed getDefaultSignature to fall back to first active signature\n   - Previously required isDefault=true, now falls back if no default set\n   - Users with signatures that aren''t marked as default now get them\n\n2. Added comprehensive debug logging to track signature insertion\n   - Logs all conditions being checked\n   - Logs which signature is being applied (or why none is found)\n\nFiles modified:\n- lib/hooks/useSignatures.ts\n- components/email/EmailCompose.tsx\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(Select-String -Pattern \"EmailCompose|Error|Failed\")",
+      "Bash(Select-Object -First 20)"
     ],
     "deny": [],
     "ask": []
