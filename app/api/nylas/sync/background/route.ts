@@ -133,7 +133,8 @@ export async function POST(request: NextRequest) {
         accountId,
         account.nylasGrantId!,
         account.syncCursor || undefined,
-        account.nylasProvider || undefined
+        account.nylasProvider || undefined,
+        account.emailAddress || undefined
       );
 
       return NextResponse.json({
@@ -221,9 +222,10 @@ async function performBackgroundSync(
   accountId: string,
   grantId: string,
   startingCursor: string | null = null,
-  provider?: string
+  provider?: string,
+  accountEmail?: string
 ) {
-  console.log(`📧 [${SYNC_VERSION}] Starting background email sync for account ${accountId} (Provider: ${provider})`);
+  console.log(`📧 [${SYNC_VERSION}] Starting background email sync for account ${accountId} (Email: ${accountEmail}, Provider: ${provider})`);
 
   // ✅ NEW: Validate cursor before using it
   const validatedCursor = await validateCursor(grantId, startingCursor);
@@ -243,10 +245,24 @@ async function performBackgroundSync(
   const pageSize = 200; // Nylas API max limit is 200 emails per request
   const maxPages = Infinity; // ✅ UNLIMITED: No limit on pages - sync ALL emails like Superhuman/Outlook
   let currentPage = 0;
-  
+
+  // ✅ Track folders encountered during sync for debugging
+  const foldersEncountered = new Set<string>();
+
   // ✅ SPEED OPTIMIZATION: Extended timeout for Vercel Pro (5min max, leave 30s buffer)
   const startTime = Date.now();
   const TIMEOUT_MS = 4.5 * 60 * 1000; // 4.5 minutes (more sync time per run)
+
+  // ✅ NOTE: Nylas messages.list() with pagination returns messages from ALL folders
+  // The API aggregates messages across folders and uses cursor pagination
+  // We detect sent emails by checking if from.email matches accountEmail
+  // This ensures sent items sync correctly even if Nylas doesn't tag them properly
+  //
+  // FUTURE ENHANCEMENT: For even better reliability, we could:
+  // 1. First sync folder list: GET /folders
+  // 2. Then sync each folder individually: GET /messages?in[]=folderId
+  // This would guarantee complete coverage but would be slower
+  // Current approach is optimized for speed while maintaining accuracy
 
   // ✅ NEW: Get provider-specific configuration (supports Gmail, Outlook, Yahoo, iCloud, IMAP, etc.)
   const providerConfig = getProviderConfig(provider);
@@ -486,15 +502,36 @@ async function performBackgroundSync(
 
             // Use INSERT ... ON CONFLICT DO NOTHING to handle duplicates gracefully
             // Use returning() to check if the insert actually happened (not a duplicate)
-            
-            // SAFE folder assignment - prevents the bug where everything goes to inbox
-            const assignedFolder = assignEmailFolder(message.folders);
 
-            // ✅ FIX: Skip trash and spam emails during background sync
-            // This prevents deleted emails from being re-inserted into local DB
-            if (assignedFolder === 'trash' || assignedFolder === 'spam') {
-              console.log(`⏭️ Skipping ${assignedFolder} email: ${message.id}`);
-              continue;
+            // SAFE folder assignment - prevents the bug where everything goes to inbox
+            let assignedFolder = assignEmailFolder(message.folders);
+
+            // ✅ FIX: Check if this is a sent message (from account owner)
+            // This handles emails sent from external clients that may not be in the Sent folder
+            const isFromAccountOwner = accountEmail && message.from?.[0]?.email?.toLowerCase() === accountEmail.toLowerCase();
+
+            // Override folder to 'sent' if email is from account owner and not in drafts
+            if (isFromAccountOwner && assignedFolder !== 'sent' && assignedFolder !== 'drafts') {
+              console.log(`📤 Overriding folder "${assignedFolder}" → "sent" for email from account owner (${message.from?.[0]?.email})`);
+              assignedFolder = 'sent';
+            }
+
+            // Track folders encountered during sync
+            if (message.folders) {
+              message.folders.forEach((f: string) => foldersEncountered.add(f));
+            }
+            foldersEncountered.add(assignedFolder);
+
+            // Log folder assignment for first email on each page for debugging
+            if (currentPage % 10 === 0 && messages.indexOf(message) === 0) {
+              console.log(`📁 Folder assignment sample:`, {
+                from: message.from?.[0]?.email,
+                accountEmail,
+                isFromAccountOwner,
+                rawFolders: message.folders,
+                assignedFolder,
+                subject: message.subject?.substring(0, 50),
+              });
             }
 
             // VALIDATION: Ensure folder assignment is working correctly
@@ -800,6 +837,8 @@ async function performBackgroundSync(
     console.log(`   - Time elapsed: ${elapsedMinutes} min ${elapsedSeconds % 60} sec`);
     console.log(`   - Completion reason: ${completionReason}`);
     console.log(`   - Continuations used: ${continuationCount}/${MAX_CONTINUATIONS}`);
+    console.log(`📁 Folders encountered during sync:`);
+    console.log(`   ${Array.from(foldersEncountered).sort().join(', ') || 'None'}`);
     console.log(`✅ ========================================`);
 
     // ✅ NEW: Release sync slot to allow other accounts to sync
