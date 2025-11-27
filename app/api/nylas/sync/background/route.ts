@@ -704,6 +704,26 @@ async function performBackgroundSync(
           console.log(`✅ Reached end of messages for account ${accountId} - no nextCursor`);
           console.log(`📊 Sync completion reason: Nylas pagination complete (no nextCursor)`);
           console.log(`📊 Total synced: ${syncedCount.toLocaleString()} emails across ${currentPage} pages`);
+
+          // ✅ CRITICAL INFO: Log provider type and potential limitations
+          if (provider === 'imap' || provider === 'gmail' || provider === 'yahoo') {
+            console.warn(`⚠️ IMAP LIMITATION: Nylas only stores IMAP messages for 90 days!`);
+            console.warn(`📋 Provider: ${provider} - Historical emails older than 90 days are NOT available`);
+            console.warn(`📋 If you need older emails, you must store them separately`);
+            console.warn(`📋 Reference: https://developer.nylas.com/docs/v3/email/`);
+          }
+
+          // Get actual database count for comparison
+          const finalCountResult = await db
+            .select({ count: count() })
+            .from(emails)
+            .where(eq(emails.accountId, accountId));
+          const actualDbCount = finalCountResult[0]?.count || 0;
+
+          console.log(`📊 Final Database Count: ${actualDbCount.toLocaleString()} emails`);
+          console.log(`📊 Sync Counter: ${syncedCount.toLocaleString()} (may include duplicates)`);
+          console.log(`📊 Difference: ${Math.abs(actualDbCount - syncedCount)} (duplicates skipped)`);
+
           break;
         }
 
@@ -823,6 +843,10 @@ async function performBackgroundSync(
         }
       }
     }
+
+    // ✅ TODO: Add deep per-folder sync as optional feature in future
+    // For now, global messages.list() should sync all folders
+    // Deep sync would query each folder individually using 'in' parameter
 
     // Mark sync as completed
     // ✅ FIX #5: Add completion verification and detailed logging

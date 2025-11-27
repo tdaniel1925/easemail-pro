@@ -280,6 +280,20 @@ export default function SyncDashboard({ accountId, emailAddress, provider }: Syn
         </Badge>
       </div>
 
+      {/* IMAP 90-Day Limitation Warning */}
+      {(provider === 'imap' || provider === 'gmail' || provider === 'yahoo') && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>IMAP Limitation - 90-Day Window</AlertTitle>
+          <AlertDescription>
+            Your email provider uses IMAP. <strong>Nylas only stores IMAP messages for the last 90 days.</strong>
+            {' '}Emails older than 90 days are automatically deleted and cannot be retrieved.
+            {' '}If you need access to older emails, they must be stored separately before the 90-day window expires.
+            {' '}<a href="https://developer.nylas.com/docs/v3/email/" target="_blank" rel="noopener noreferrer" className="underline">Learn more</a>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Error Alert with Resolution Guide */}
       {hasError && metrics.lastError && (
         <ErrorResolutionCard
