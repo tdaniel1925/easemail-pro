@@ -6,6 +6,32 @@ import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
+// Allowed setting keys to prevent arbitrary settings injection
+const ALLOWED_SETTING_KEYS = new Set([
+  'siteName',
+  'siteUrl',
+  'supportEmail',
+  'allowSignups',
+  'requireEmailVerification',
+  'enableSMS',
+  'enableAI',
+  'maxAttachmentSize',
+  'sessionTimeout',
+  'maintenanceMode',
+  'smtpHost',
+  'smtpPort',
+  'smtpUser',
+  'smtpSecure',
+  'twilioEnabled',
+  'stripeEnabled',
+  'openaiModel',
+  'maxEmailsPerSync',
+  'syncIntervalMinutes',
+]);
+
+// Maximum value length to prevent memory exhaustion
+const MAX_VALUE_LENGTH = 10000;
+
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
@@ -53,7 +79,8 @@ export async function GET(request: NextRequest) {
       // Try to parse JSON values
       try {
         settingsObject[setting.key] = JSON.parse(value);
-      } catch {
+      } catch (parseError) {
+        // Value is not valid JSON, use as plain string
         settingsObject[setting.key] = value;
       }
     });
@@ -90,14 +117,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { settings: settingsToSave } = body;
 
-    if (!settingsToSave) {
-      return NextResponse.json({ error: 'Settings required' }, { status: 400 });
+    if (!settingsToSave || typeof settingsToSave !== 'object') {
+      return NextResponse.json({ error: 'Settings object required' }, { status: 400 });
     }
 
-    // Save each setting to the database
+    // Validate and save each setting to the database
+    const invalidKeys: string[] = [];
+    const savedKeys: string[] = [];
+
     for (const [key, value] of Object.entries(settingsToSave)) {
+      // Validate setting key is allowed
+      if (!ALLOWED_SETTING_KEYS.has(key)) {
+        invalidKeys.push(key);
+        continue;
+      }
+
+      // Convert value to string
       const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
-      
+
+      // Validate value length to prevent memory exhaustion
+      if (stringValue.length > MAX_VALUE_LENGTH) {
+        return NextResponse.json(
+          { error: `Value for '${key}' exceeds maximum length of ${MAX_VALUE_LENGTH} characters` },
+          { status: 400 }
+        );
+      }
+
       await db
         .insert(systemSettings)
         .values({
@@ -111,9 +156,20 @@ export async function POST(request: NextRequest) {
             updatedAt: new Date(),
           },
         });
+
+      savedKeys.push(key);
     }
 
-    return NextResponse.json({ success: true });
+    // Log if there were invalid keys (but still succeed for valid ones)
+    if (invalidKeys.length > 0) {
+      console.warn(`[Admin Settings] Ignored invalid setting keys: ${invalidKeys.join(', ')}`);
+    }
+
+    return NextResponse.json({
+      success: true,
+      saved: savedKeys,
+      ...(invalidKeys.length > 0 ? { ignoredKeys: invalidKeys } : {}),
+    });
   } catch (error) {
     console.error('Failed to save system settings:', error);
     return NextResponse.json(

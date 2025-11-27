@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface SimpleEmailViewerProps {
   body: string;  // The HTML from Nylas
@@ -40,9 +41,8 @@ export function SimpleEmailViewer({ body, bodyText, attachments, accountId, mess
       attachmentCount: attachments?.length || 0
     });
 
-    // Simple: just set innerHTML with basic sanitization
-    // This is what Gmail/Outlook do under the hood
-    let sanitized = basicSanitize(content);
+    // Secure HTML sanitization using DOMPurify
+    let sanitized = sanitizeHtml(content);
 
     // Remove leading whitespace that causes blank space at start
     sanitized = removeLeadingWhitespace(sanitized);
@@ -95,22 +95,43 @@ export function SimpleEmailViewer({ body, bodyText, attachments, accountId, mess
 }
 
 /**
- * Basic sanitization - removes scripts but keeps formatting
+ * Secure HTML sanitization using DOMPurify
  *
- * This is intentionally simple. Don't over-engineer it.
+ * DOMPurify is a battle-tested XSS sanitizer that handles:
+ * - Script tags and event handlers
+ * - Data URIs with JavaScript
+ * - SVG-based XSS vectors
+ * - Encoded/obfuscated attacks
+ * - And many more edge cases
  */
-function basicSanitize(html: string): string {
+function sanitizeHtml(html: string): string {
   if (!html) return '';
 
-  return html
-    // Remove script tags
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    // Remove event handlers
-    .replace(/on\w+="[^"]*"/g, '')
-    .replace(/on\w+='[^']*'/g, '')
-    // Remove javascript: protocols
-    .replace(/href="javascript:[^"]*"/gi, 'href="#"')
-    .replace(/src="javascript:[^"]*"/gi, 'src=""');
+  // Configure DOMPurify to allow safe HTML while blocking XSS
+  return DOMPurify.sanitize(html, {
+    // Allow common HTML tags for email formatting
+    ALLOWED_TAGS: [
+      'a', 'abbr', 'address', 'article', 'aside', 'b', 'bdi', 'bdo', 'blockquote',
+      'br', 'caption', 'cite', 'code', 'col', 'colgroup', 'data', 'dd', 'del', 'dfn',
+      'div', 'dl', 'dt', 'em', 'figcaption', 'figure', 'footer', 'h1', 'h2', 'h3',
+      'h4', 'h5', 'h6', 'header', 'hr', 'i', 'img', 'ins', 'kbd', 'li', 'main',
+      'mark', 'nav', 'ol', 'p', 'picture', 'pre', 'q', 'rp', 'rt', 'ruby', 's',
+      'samp', 'section', 'small', 'source', 'span', 'strong', 'sub', 'sup', 'table',
+      'tbody', 'td', 'tfoot', 'th', 'thead', 'time', 'tr', 'u', 'ul', 'var', 'wbr',
+      'font', 'center', 'style',
+    ],
+    // Allow safe attributes
+    ALLOWED_ATTR: [
+      'href', 'src', 'alt', 'title', 'class', 'id', 'style', 'width', 'height',
+      'align', 'valign', 'border', 'cellpadding', 'cellspacing', 'bgcolor',
+      'color', 'face', 'size', 'colspan', 'rowspan', 'target', 'rel',
+    ],
+    // Allow data: URIs for images only (base64 encoded images in emails)
+    ALLOW_DATA_ATTR: false,
+    ADD_ATTR: ['target'],
+    // Block dangerous URI schemes
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|cid):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
+  });
 }
 
 /**
