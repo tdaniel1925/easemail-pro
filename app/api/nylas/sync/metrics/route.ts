@@ -72,21 +72,50 @@ export async function GET(request: NextRequest) {
     const emailsPerMinute = metadata.emailsPerMinute || 0;
     const lastBatchSize = metadata.lastBatchSize || 0;
 
-    // Calculate estimated time remaining
+    // ✅ FIX #2 & #7: Calculate estimated time remaining with smart fallback
     let estimatedTimeRemaining = null;
-    if (emailsPerMinute > 0 && account.totalEmailCount && account.totalEmailCount > 0) {
-      const remainingEmails = account.totalEmailCount - (account.syncedEmailCount || 0);
+    let estimatedTotalCount = account.totalEmailCount || 0;
+
+    // If no total from provider, estimate based on current sync rate
+    if ((!estimatedTotalCount || estimatedTotalCount === 0) && actualEmailCount > 100 && currentPage > 1) {
+      // Smart estimate: emails per page * estimated remaining pages
+      const emailsPerPage = actualEmailCount / currentPage;
+      // Most mailboxes don't exceed 100 pages for initial sync
+      const estimatedRemainingPages = Math.max(50 - currentPage, 10);
+      estimatedTotalCount = Math.round(actualEmailCount + (emailsPerPage * estimatedRemainingPages));
+    }
+
+    if (emailsPerMinute > 0 && estimatedTotalCount > 0) {
+      const remainingEmails = estimatedTotalCount - actualEmailCount;
       estimatedTimeRemaining = Math.ceil(remainingEmails / emailsPerMinute);
+    }
+
+    // ✅ FIX #1: Use ACTUAL database count as the source of truth
+    // The syncedEmailCount counter can be inaccurate due to duplicates/failures
+    // Always trust the database count over the counter
+    const trueSyncedCount = actualEmailCount; // This is the REAL count
+
+    // ✅ FIX #3: Calculate accurate progress based on actual data
+    let accurateProgress = account.syncProgress || 0;
+    const totalToUse = estimatedTotalCount || account.totalEmailCount || 0;
+
+    if (totalToUse > 0) {
+      // Use actual/estimated total for precise progress
+      accurateProgress = Math.min(Math.round((trueSyncedCount / totalToUse) * 100), 100);
+    } else if (currentPage > 0 && trueSyncedCount > 0) {
+      // Fallback: estimate based on pages (assume ~50 pages average)
+      accurateProgress = Math.min(Math.round((currentPage / 50) * 100), 99);
     }
 
     // Build comprehensive metrics object
     const metrics = {
       // Core sync status
       syncStatus: account.syncStatus || 'idle',
-      syncProgress: account.syncProgress || 0,
-      syncedEmailCount: account.syncedEmailCount || 0,
-      totalEmailCount: account.totalEmailCount || 0,
-      actualEmailCount, // Real count from database
+      syncProgress: accurateProgress, // ✅ Use calculated accurate progress
+      syncedEmailCount: trueSyncedCount, // ✅ Use actual DB count, not counter
+      totalEmailCount: estimatedTotalCount, // ✅ Use estimated if provider didn't give total
+      actualEmailCount, // Keep for comparison/debugging
+      isEstimated: !account.totalEmailCount || account.totalEmailCount === 0, // Flag if we're estimating
 
       // Timing
       lastSyncedAt: account.lastSyncedAt?.toISOString() || null,

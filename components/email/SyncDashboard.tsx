@@ -348,9 +348,9 @@ export default function SyncDashboard({ accountId, emailAddress, provider }: Syn
               <p className="text-2xl font-bold">
                 {metrics.totalEmailCount > 0
                   ? metrics.totalEmailCount.toLocaleString()
-                  : '~50,000'}
+                  : '~' + Math.round(metrics.syncedEmailCount * 1.5 / 1000) + 'k'}
               </p>
-              {metrics.totalEmailCount === 0 && (
+              {(metrics.totalEmailCount === 0 || (metrics as any).isEstimated) && (
                 <p className="text-xs text-muted-foreground">Estimated</p>
               )}
             </div>

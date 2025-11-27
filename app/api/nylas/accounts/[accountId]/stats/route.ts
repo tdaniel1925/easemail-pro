@@ -16,16 +16,35 @@ export async function GET(
       .from(emailFolders)
       .where(eq(emailFolders.accountId, accountId));
 
-    // Get email count
+    // Get total email count
     const emailResult = await db
       .select({ count: count() })
       .from(emails)
       .where(eq(emails.accountId, accountId));
 
+    // ✅ FIX #5: Get per-folder email counts
+    const folderEmailCounts = await db
+      .select({
+        folder: emails.folder,
+        count: count()
+      })
+      .from(emails)
+      .where(eq(emails.accountId, accountId))
+      .groupBy(emails.folder);
+
+    // Convert to object for easy lookup: { inbox: 1234, sent: 567, ... }
+    const folderCounts: Record<string, number> = {};
+    folderEmailCounts.forEach(item => {
+      if (item.folder) {
+        folderCounts[item.folder] = item.count;
+      }
+    });
+
     return NextResponse.json({
       success: true,
       folderCount: folderResult[0]?.count || 0,
       emailCount: emailResult[0]?.count || 0,
+      folderEmailCounts: folderCounts, // ✅ New: per-folder counts
     });
   } catch (error) {
     console.error('Stats fetch error:', error);

@@ -308,9 +308,9 @@ async function performBackgroundSync(
       const elapsed = Date.now() - startTime;
       console.log(`📄 [${Math.round(elapsed/1000)}s] Fetching page ${currentPage} for account ${accountId} | Synced: ${syncedCount} | Cursor: ${pageToken?.substring(0, 20)}...`);
 
-      // ✅ FIX #3: Check if approaching Vercel timeout
+      // ✅ FIX #6: Check if approaching Vercel timeout AND sync is not complete
       if (elapsed > TIMEOUT_MS) {
-        console.log(`⏰ Approaching Vercel timeout (${Math.round(elapsed/1000)}s elapsed) - saving progress and re-queuing`);
+        console.log(`⏰ Approaching Vercel timeout (${Math.round(elapsed/1000)}s elapsed) - checking if sync is complete...`);
 
         // ✅ CRITICAL FIX: Get actual current count from database before timeout
         // This ensures we don't lose progress if we timeout before the end-of-loop update
@@ -331,11 +331,37 @@ async function performBackgroundSync(
         // Calculate progress accurately using actual DB count
         let timeoutProgress: number;
         if (totalEmailCount > 0 && actualSyncedCount > 0) {
-          timeoutProgress = Math.min(Math.round((actualSyncedCount / totalEmailCount) * 100), 99);
+          timeoutProgress = Math.min(Math.round((actualSyncedCount / totalEmailCount) * 100), 100);
         } else if (actualSyncedCount > 0) {
           timeoutProgress = Math.min(Math.round((actualSyncedCount / 10000) * 100), 99);
         } else {
           timeoutProgress = Math.min(Math.round((currentPage / maxPages) * 100), 99);
+        }
+
+        // ✅ FIX #6: Check if sync is actually complete before triggering continuation
+        const isSyncComplete = !pageToken || timeoutProgress === 100 ||
+                               (totalEmailCount > 0 && actualSyncedCount >= totalEmailCount);
+
+        if (isSyncComplete) {
+          console.log(`✅ Sync complete at timeout - marking as completed (no continuation needed)`);
+          await db.update(emailAccounts)
+            .set({
+              syncStatus: 'completed',
+              syncProgress: 100,
+              initialSyncCompleted: true,
+              suppressWebhooks: false,
+              syncCursor: null,
+              syncedEmailCount: actualSyncedCount,
+              totalEmailCount: actualSyncedCount, // Set actual total
+              lastSyncedAt: new Date(),
+              continuationCount: 0,
+              retryCount: 0,
+              lastError: null,
+            })
+            .where(eq(emailAccounts.id, accountId));
+
+          console.log(`📊 Sync completed: ${actualSyncedCount.toLocaleString()} emails synced`);
+          return; // Exit without triggering continuation
         }
 
         // Save current state with cursor for resume

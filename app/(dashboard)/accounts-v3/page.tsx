@@ -180,11 +180,11 @@ export default function AccountsV3Page() {
       a.syncStatus === 'syncing' || a.syncStatus === 'background_syncing'
     );
 
-    // Also poll for 15 seconds after completion to show 100% state
+    // ✅ FIX #4: Poll for completed accounts too (for 2 minutes to ensure metrics are fresh)
     const hasRecentlyCompleted = accounts.some(a => {
-      if (a.syncStatus === 'completed' && a.syncProgress === 100 && a.lastSyncedAt) {
+      if (a.syncStatus === 'completed' && a.lastSyncedAt) {
         const timeSinceCompletion = Date.now() - new Date(a.lastSyncedAt).getTime();
-        return timeSinceCompletion < 15000; // Poll for 15 seconds after completion
+        return timeSinceCompletion < 120000; // Poll for 2 minutes after completion
       }
       return false;
     });
@@ -719,11 +719,9 @@ export default function AccountsV3Page() {
                   </CardHeader>
 
                   <CardContent className="space-y-4">
-                    {/* Sync Progress - Show for both syncing AND recently completed */}
-                    {((account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing') || 
-                      (account.syncStatus === 'completed' && account.syncProgress === 100 && account.lastSyncedAt && 
-                       (Date.now() - new Date(account.lastSyncedAt).getTime() < 15000))) && 
-                     syncMetrics[account.id] && (
+                    {/* ✅ FIX #4: Show sync progress for syncing OR completed (persistent, not time-limited) */}
+                    {((account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing' || account.syncStatus === 'completed') &&
+                     syncMetrics[account.id]) && (
                       <div className={`p-4 border rounded-lg space-y-3 ${
                         account.syncStatus === 'completed' 
                           ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 border-green-200 dark:border-green-800'
