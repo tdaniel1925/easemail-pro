@@ -36,7 +36,13 @@ export function useSignatures() {
   }, [loadSignatures]);
 
   const getDefaultSignature = useCallback((): EmailSignature | null => {
-    return signatures.find(sig => sig.isDefault && sig.isActive) || null;
+    // First try to find the default signature
+    const defaultSig = signatures.find(sig => sig.isDefault && sig.isActive);
+    if (defaultSig) return defaultSig;
+
+    // Fall back to first active signature if no default is set
+    const firstActive = signatures.find(sig => sig.isActive);
+    return firstActive || null;
   }, [signatures]);
 
   const getSignatureForAccount = useCallback((accountId: string): EmailSignature | null => {

@@ -248,13 +248,27 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   // Debug: Log signatures on mount/change
   useEffect(() => {
     console.log('[EmailCompose] Signatures loaded:', signatures.length, signatures);
-  }, [signatures]);
+    console.log('[EmailCompose] State check:', { isOpen, signaturesLoading, body: body.length, isInitialized, useSignature });
+  }, [signatures, isOpen, signaturesLoading, body, isInitialized, useSignature]);
 
   // Auto-insert signature when compose opens
   // ✅ FIX: Wait for signatures to load before trying to insert
   useEffect(() => {
+    // Debug all conditions
+    console.log('[EmailCompose] Signature insert check:', {
+      isOpen,
+      useSignature,
+      bodyEmpty: !body,
+      bodyLength: body.length,
+      isInitialized,
+      signaturesLoading,
+      signaturesCount: signatures.length,
+    });
+
     if (isOpen && useSignature && !body && !isInitialized && !signaturesLoading && signatures.length > 0) {
       const applicableSignature = getApplicableSignature(type, accountId);
+      console.log('[EmailCompose] Applicable signature:', applicableSignature?.name || 'NONE');
+
       if (applicableSignature) {
         setSelectedSignatureId(applicableSignature.id);
 
@@ -267,6 +281,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         setBody(blankLinesHtml + renderedSignature);
         setIsInitialized(true);
         console.log('[EmailCompose] ✅ Auto-inserted signature:', applicableSignature.name);
+      } else {
+        console.log('[EmailCompose] ❌ No applicable signature found');
       }
     }
   }, [isOpen, type, accountId, useSignature, body, isInitialized, signaturesLoading, signatures, getApplicableSignature, renderSignature, to]);
