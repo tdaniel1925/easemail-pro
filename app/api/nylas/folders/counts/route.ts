@@ -48,21 +48,24 @@ export async function GET(request: NextRequest) {
     }
 
     // Check account belongs to user
+    // Note: accountId is the Nylas grant ID, not the database ID (for consistency with /api/nylas-v3/folders)
     const account = await db.query.emailAccounts.findFirst({
-      where: eq(emailAccounts.id, accountId),
+      where: eq(emailAccounts.nylasGrantId, accountId),
     });
 
     if (!account || account.userId !== user.id) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Account not found or unauthorized' 
+      return NextResponse.json({
+        success: false,
+        error: 'Account not found or unauthorized'
       }, { status: 403 });
     }
 
-    // Get counts
+    // Get counts using the database ID (required by getFolderCount/getFolderCounts)
+    const dbAccountId = account.id;
+
     if (folder) {
       // Single folder count
-      const count = await getFolderCount(accountId, folder);
+      const count = await getFolderCount(dbAccountId, folder);
       return NextResponse.json({
         success: true,
         folder,
@@ -70,7 +73,7 @@ export async function GET(request: NextRequest) {
       });
     } else {
       // All folders
-      const result = await getFolderCounts(accountId);
+      const result = await getFolderCounts(dbAccountId);
       return NextResponse.json(result);
     }
   } catch (error) {
