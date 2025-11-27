@@ -144,7 +144,15 @@ export const emailAccounts = pgTable('email_accounts', {
   aurinkoAccountId: varchar('aurinko_account_id', { length: 255 }),
   aurinkoServiceType: varchar('aurinko_service_type', { length: 50 }),
   aurinkoUserId: varchar('aurinko_user_id', { length: 255 }),
-  
+
+  // Direct IMAP specific (for providers like Fastmail)
+  imapHost: varchar('imap_host', { length: 255 }), // e.g., imap.fastmail.com
+  imapPort: integer('imap_port').default(993), // Usually 993 for SSL/TLS
+  imapUsername: varchar('imap_username', { length: 255 }), // Usually email address
+  imapPassword: text('imap_password'), // Encrypted app-specific password
+  imapTls: boolean('imap_tls').default(true), // Use TLS/SSL
+  imapLastUid: integer('imap_last_uid').default(0), // Last synced UID for incremental sync
+
   // Sync status
   syncStatus: varchar('sync_status', { length: 50 }).default('idle'), // 'idle', 'syncing', 'completed', 'error', 'background_syncing'
   lastSyncedAt: timestamp('last_synced_at'),

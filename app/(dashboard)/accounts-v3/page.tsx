@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { getInitials, generateAvatarColor } from '@/lib/utils';
 import ProviderSelector from '@/components/email/ProviderSelector';
 import ErrorResolutionCard from '@/components/email/ErrorResolutionCard';
+import { AddIMAPAccount } from '@/components/email/AddIMAPAccount';
 import { AccountCardSkeleton, StatsCardSkeleton } from '@/components/ui/skeleton';
 
 interface EmailAccount {
@@ -76,6 +77,7 @@ export default function AccountsV3Page() {
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [isProviderSelectorOpen, setIsProviderSelectorOpen] = useState(false);
+  const [isIMAPDialogOpen, setIsIMAPDialogOpen] = useState(false);
   const [syncMetrics, setSyncMetrics] = useState<Record<string, SyncMetrics>>({});
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -555,9 +557,13 @@ export default function AccountsV3Page() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button onClick={() => setIsProviderSelectorOpen(true)} size="lg">
+          <Button onClick={() => setIsProviderSelectorOpen(true)} size="lg" variant="outline">
             <Plus className="h-4 w-4 mr-2" />
-            Add Account
+            Add Account (OAuth)
+          </Button>
+          <Button onClick={() => setIsIMAPDialogOpen(true)} size="lg">
+            <Mail className="h-4 w-4 mr-2" />
+            Add IMAP Account
           </Button>
         </div>
       </div>
@@ -1097,6 +1103,13 @@ export default function AccountsV3Page() {
         isOpen={isProviderSelectorOpen}
         onClose={() => setIsProviderSelectorOpen(false)}
       />
+
+      {/* IMAP Account Setup (Fastmail, etc.) */}
+      <Dialog open={isIMAPDialogOpen} onOpenChange={setIsIMAPDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <AddIMAPAccount />
+        </DialogContent>
+      </Dialog>
 
       {/* Account Settings Modal */}
       <Dialog open={settingsModalOpen} onOpenChange={handleCloseSettings}>

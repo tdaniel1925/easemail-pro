@@ -844,9 +844,147 @@ async function performBackgroundSync(
       }
     }
 
-    // ✅ TODO: Add deep per-folder sync as optional feature in future
-    // For now, global messages.list() should sync all folders
-    // Deep sync would query each folder individually using 'in' parameter
+    // ✅ DEEP SYNC: Query each folder individually to catch missed emails
+    console.log(`\n🔍 Starting DEEP SYNC - querying individual folders...`);
+
+    let deepSyncCount = 0;
+
+    try {
+      // Get list of all folders
+      console.log(`📁 Fetching folder list...`);
+      const foldersResponse = await nylas.folders.list({ identifier: grantId });
+      const allFolders = foldersResponse.data || [];
+
+      console.log(`📂 Found ${allFolders.length} folders to deep sync`);
+
+      // Sync each folder individually
+      for (const folder of allFolders) {
+        const folderName = folder.name || 'Unnamed';
+        console.log(`\n📥 Deep syncing folder: "${folderName}" (ID: ${folder.id})`);
+
+        let folderPageToken: string | undefined = undefined;
+        let folderPage = 0;
+        let folderEmailCount = 0;
+        const maxFolderPages = 50; // Max 50 pages per folder (10,000 emails)
+
+        while (folderPage < maxFolderPages) {
+          folderPage++;
+
+          try {
+            // Query this specific folder
+            const folderResponse = await nylas.messages.list({
+              identifier: grantId,
+              queryParams: {
+                limit: 200,
+                in: [folder.id], // ✅ Query specific folder only
+                pageToken: folderPageToken,
+              },
+            });
+
+            const folderMessages = folderResponse.data || [];
+
+            if (folderMessages.length === 0) {
+              console.log(`  ✓ "${folderName}" complete - no messages on page ${folderPage}`);
+              break;
+            }
+
+            console.log(`  📧 Page ${folderPage}: Processing ${folderMessages.length} emails from "${folderName}"`);
+
+            // Process each message
+            for (const message of folderMessages) {
+              try {
+                // Same logic as main sync - insert with ON CONFLICT DO NOTHING
+                const mappedAttachments = message.attachments?.map((att: any) => ({
+                  id: sanitizeText(att.id) || '',
+                  filename: sanitizeText(att.filename) || 'untitled',
+                  size: att.size || 0,
+                  contentType: sanitizeText(att.contentType) || 'application/octet-stream',
+                  contentId: sanitizeText(att.contentId),
+                  url: sanitizeText(att.url),
+                  providerFileId: sanitizeText(att.id),
+                })) || [];
+
+                const receivedDate = message.date ? new Date(message.date * 1000) : new Date();
+                const sentDate = message.date ? new Date(message.date * 1000) : new Date();
+
+                // Determine folder
+                let assignedFolder = assignEmailFolder(message.folders);
+
+                // Check if sent by account owner
+                const isFromAccountOwner = accountEmail && message.from?.[0]?.email?.toLowerCase() === accountEmail.toLowerCase();
+                if (isFromAccountOwner && assignedFolder !== 'sent' && assignedFolder !== 'drafts') {
+                  assignedFolder = 'sent';
+                }
+
+                // Insert email (ON CONFLICT DO NOTHING handles duplicates)
+                const result = await db.insert(emails).values({
+                  accountId: accountId,
+                  provider: 'nylas',
+                  providerMessageId: sanitizeText(message.id),
+                  messageId: message.object === 'message' ? sanitizeText(message.id) : undefined,
+                  threadId: sanitizeText(message.threadId),
+                  providerThreadId: sanitizeText(message.threadId),
+                  folder: assignedFolder,
+                  folders: message.folders || [],
+                  fromEmail: sanitizeText(message.from?.[0]?.email),
+                  fromName: sanitizeText(message.from?.[0]?.name),
+                  toEmails: sanitizeParticipants(message.to),
+                  ccEmails: sanitizeParticipants(message.cc),
+                  bccEmails: sanitizeParticipants(message.bcc),
+                  subject: sanitizeText(message.subject),
+                  snippet: sanitizeText(message.snippet),
+                  bodyText: sanitizeText(message.body),
+                  bodyHtml: sanitizeText(message.body),
+                  receivedAt: receivedDate,
+                  sentAt: sentDate,
+                  isRead: !message.unread,
+                  isStarred: message.starred || false,
+                  hasAttachments: (message.attachments?.length || 0) > 0,
+                  attachmentsCount: message.attachments?.length || 0,
+                  attachments: mappedAttachments,
+                }).onConflictDoNothing().returning();
+
+                if (result.length > 0) {
+                  folderEmailCount++;
+                  deepSyncCount++;
+                }
+
+              } catch (insertError) {
+                // Log but continue - don't fail entire folder sync for one email
+                console.error(`    ⚠️ Error inserting email ${message.id}:`, insertError);
+              }
+            }
+
+            // Check for next page
+            if (!folderResponse.nextCursor) {
+              console.log(`  ✓ "${folderName}" complete - no more pages`);
+              break;
+            }
+
+            folderPageToken = folderResponse.nextCursor;
+
+            // Small delay between folder pages
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+
+          } catch (folderPageError) {
+            console.error(`  ❌ Error on page ${folderPage} of "${folderName}":`, folderPageError);
+            break; // Move to next folder
+          }
+        }
+
+        console.log(`  ✅ "${folderName}" deep sync complete: ${folderEmailCount} new emails added`);
+
+        // Small delay between folders
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      console.log(`\n✅ DEEP SYNC COMPLETE`);
+      console.log(`📊 Deep sync added ${deepSyncCount} emails that were missed by main sync`);
+
+    } catch (deepSyncError) {
+      console.error(`❌ Deep sync failed:`, deepSyncError);
+      // Don't fail the entire sync - deep sync is a bonus
+    }
 
     // Mark sync as completed
     // ✅ FIX #5: Add completion verification and detailed logging
@@ -881,7 +1019,9 @@ async function performBackgroundSync(
     console.log(`✅ Background sync COMPLETED for account ${accountId}`);
     console.log(`✅ ========================================`);
     console.log(`📊 Final Stats:`);
-    console.log(`   - New emails synced this session: ${totalSynced.toLocaleString()}`);
+    console.log(`   - New emails synced (main): ${totalSynced.toLocaleString()}`);
+    console.log(`   - New emails synced (deep): ${deepSyncCount.toLocaleString()}`);
+    console.log(`   - Total new this session: ${(totalSynced + deepSyncCount).toLocaleString()}`);
     console.log(`   - Total emails in database: ${syncedCount.toLocaleString()}`);
     console.log(`   - Pages processed: ${currentPage}/${maxPages}`);
     console.log(`   - Time elapsed: ${elapsedMinutes} min ${elapsedSeconds % 60} sec`);
