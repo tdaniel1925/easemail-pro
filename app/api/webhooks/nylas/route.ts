@@ -6,7 +6,7 @@ import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 import { normalizeFolderToCanonical } from '@/lib/email/folder-utils';
 import { verifyWebhookSignature } from '@/lib/nylas-v3/webhooks';
 import * as Sentry from '@sentry/nextjs';
-import { broadcastToAccount, type EmailSyncEvent } from '@/app/api/sse/emails/route';
+import { broadcastToAccount, type EmailSyncEvent } from '@/lib/sync/sse-broadcaster';
 
 export async function POST(request: NextRequest) {
   // Get signature from header (case-insensitive)

@@ -22,7 +22,20 @@
       "Bash(git push)",
       "Bash(git commit -m \"$(cat <<''EOF''\nfix: Improve signature auto-insertion with fallback and better debugging\n\n1. Fixed getDefaultSignature to fall back to first active signature\n   - Previously required isDefault=true, now falls back if no default set\n   - Users with signatures that aren''t marked as default now get them\n\n2. Added comprehensive debug logging to track signature insertion\n   - Logs all conditions being checked\n   - Logs which signature is being applied (or why none is found)\n\nFiles modified:\n- lib/hooks/useSignatures.ts\n- components/email/EmailCompose.tsx\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(Select-String -Pattern \"EmailCompose|Error|Failed\")",
-      "Bash(Select-Object -First 20)"
+      "Bash(Select-Object -First 20)",
+      "Bash(git commit:*)",
+      "WebSearch",
+      "Bash(Select-String -Pattern \"Compiled|error|Error|Failed\")",
+      "Bash(Select-Object -First 30)",
+      "Bash(npm install:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(Select-String -Pattern \"error|Error|Failed|Type error\")",
+      "Bash(printf:*)",
+      "Bash(yes:*)",
+      "Bash(pgrep:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx tsx:*)",
+      "Bash(cmd.exe /c \"taskkill /F /IM node.exe 2>nul & timeout /t 3 /nobreak >nul & cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && (if exist .next rmdir /s /q .next) && (if exist node_modules\\.cache rmdir /s /q node_modules\\.cache) && npm run dev\")"
     ],
     "deny": [],
     "ask": []

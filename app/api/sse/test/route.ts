@@ -18,7 +18,7 @@ import {
   getActiveConnectionCount,
   getConnectedAccounts,
   type EmailSyncEvent,
-} from '@/app/api/sse/emails/route';
+} from '@/lib/sync/sse-broadcaster';
 
 export const dynamic = 'force-dynamic';
 
