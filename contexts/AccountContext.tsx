@@ -5,6 +5,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 export interface Account {
   id: string;
   emailAddress: string;
+  provider?: string; // 'nylas', 'aurinko', or 'imap'
   emailProvider?: string;
   nylasProvider?: string;
   nylasGrantId?: string;
