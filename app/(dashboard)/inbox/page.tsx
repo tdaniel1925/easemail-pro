@@ -27,6 +27,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import EventDetailsModal from '@/components/calendar/EventDetailsModal';
 import { useAutoSync } from '@/lib/hooks/useAutoSync';
+import { useJMAPEventSource } from '@/lib/hooks/useJMAPEventSource';
 
 function InboxV3Content() {
   const searchParams = useSearchParams();
@@ -38,21 +39,6 @@ function InboxV3Content() {
   // This ensures AccountSwitcher and inbox page stay in sync
   const { selectedAccount, accounts, isLoading: accountsLoading } = useAccount();
 
-  // 🔄 Auto-sync: Automatically fetch new emails every 5 minutes
-  const [emailListKey, setEmailListKey] = useState(0);
-  const { manualSync, isSyncing } = useAutoSync({
-    enabled: true,
-    interval: 5 * 60 * 1000, // 5 minutes
-    onSync: () => {
-      // Refresh email list when new emails are synced
-      setEmailListKey(prev => prev + 1);
-      console.log('[Inbox] Email list refreshed after auto-sync');
-    },
-    onError: (error) => {
-      console.error('[Inbox] Auto-sync error:', error);
-    },
-  });
-
   // Derive accountIds from selectedAccount (updates automatically when account changes)
   // For IMAP/JMAP accounts, use database ID since they don't have nylasGrantId
   const isIMAPAccount = selectedAccount?.provider === 'imap';
@@ -62,6 +48,25 @@ function InboxV3Content() {
     ? selectedAccount?.id // Use database ID for IMAP/JMAP accounts
     : selectedAccount?.nylasGrantId || null; // Nylas Grant ID for Nylas accounts
   const selectedDbAccountId = selectedAccount?.id || null; // Database UUID (for sending emails)
+
+  // 🔄 Auto-sync: Automatically fetch new emails
+  // JMAP accounts: Every 15 seconds (near real-time!)
+  // Other accounts: Every 2 minutes (less frequent)
+  const [emailListKey, setEmailListKey] = useState(0);
+  const syncInterval = isJMAPAccount ? 15 * 1000 : 2 * 60 * 1000;
+
+  const { manualSync, isSyncing } = useAutoSync({
+    enabled: true,
+    interval: syncInterval,
+    onSync: () => {
+      // Refresh email list when new emails are synced
+      setEmailListKey(prev => prev + 1);
+      console.log(`[Inbox] ✅ Email list refreshed (${isJMAPAccount ? '15s' : '2m'} interval)`);
+    },
+    onError: (error) => {
+      console.error('[Inbox] Auto-sync error:', error);
+    },
+  });
 
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedFolderName, setSelectedFolderName] = useState<string>('inbox');
