@@ -1,0 +1,8 @@
+-- Add IMAP columns to email_accounts table
+ALTER TABLE email_accounts
+  ADD COLUMN IF NOT EXISTS imap_host VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS imap_port INTEGER DEFAULT 993,
+  ADD COLUMN IF NOT EXISTS imap_username VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS imap_password TEXT,
+  ADD COLUMN IF NOT EXISTS imap_tls BOOLEAN DEFAULT true,
+  ADD COLUMN IF NOT EXISTS imap_last_uid INTEGER DEFAULT 0;
