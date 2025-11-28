@@ -10,7 +10,7 @@
  * This provides Gmail/Outlook-like real-time sync status visibility.
  */
 
-import { broadcastToAccount, type EmailSyncEvent } from '@/app/api/sse/emails/route';
+import { broadcastToAccount, type EmailSyncEvent } from '@/lib/sync/sse-broadcaster';
 
 /**
  * Broadcast that sync has started for an account
