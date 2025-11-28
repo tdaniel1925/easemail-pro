@@ -38,10 +38,12 @@ function InboxV3Content() {
   const { selectedAccount, accounts, isLoading: accountsLoading } = useAccount();
 
   // Derive accountIds from selectedAccount (updates automatically when account changes)
-  // For IMAP accounts, use database ID since they don't have nylasGrantId
+  // For IMAP/JMAP accounts, use database ID since they don't have nylasGrantId
   const isIMAPAccount = selectedAccount?.provider === 'imap';
-  const selectedAccountId = isIMAPAccount
-    ? selectedAccount?.id // Use database ID for IMAP accounts
+  const isJMAPAccount = selectedAccount?.provider === 'jmap';
+  const isDirectAccount = isIMAPAccount || isJMAPAccount; // IMAP or JMAP
+  const selectedAccountId = isDirectAccount
+    ? selectedAccount?.id // Use database ID for IMAP/JMAP accounts
     : selectedAccount?.nylasGrantId || null; // Nylas Grant ID for Nylas accounts
   const selectedDbAccountId = selectedAccount?.id || null; // Database UUID (for sending emails)
 

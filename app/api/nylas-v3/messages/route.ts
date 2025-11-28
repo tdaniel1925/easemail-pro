@@ -71,18 +71,20 @@ export async function GET(request: NextRequest) {
     }
 
     const isIMAPAccount = account.provider === 'imap';
+    const isJMAPAccount = account.provider === 'jmap';
+    const isDirectAccount = isIMAPAccount || isJMAPAccount;
 
     // Nylas accounts require nylasGrantId
-    if (!isIMAPAccount && !account.nylasGrantId) {
+    if (!isDirectAccount && !account.nylasGrantId) {
       return NextResponse.json(
         { error: 'Account not connected to Nylas' },
         { status: 400 }
       );
     }
 
-    // 3. Determine message source: IMAP/virtual folders use local DB, Nylas uses API
+    // 3. Determine message source: IMAP/JMAP/virtual folders use local DB, Nylas uses API
     const isVirtualFolder = folderId?.startsWith('v0:');
-    const useLocalDatabase = isIMAPAccount || isVirtualFolder;
+    const useLocalDatabase = isDirectAccount || isVirtualFolder;
     let result;
 
     if (useLocalDatabase) {

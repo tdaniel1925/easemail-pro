@@ -68,9 +68,11 @@ export async function GET(request: NextRequest) {
     }
 
     const isIMAPAccount = account.provider === 'imap';
+    const isJMAPAccount = account.provider === 'jmap';
+    const isDirectAccount = isIMAPAccount || isJMAPAccount;
 
     // Nylas accounts require nylasGrantId
-    if (!isIMAPAccount && !account.nylasGrantId) {
+    if (!isDirectAccount && !account.nylasGrantId) {
       return NextResponse.json(
         { error: 'Account not connected to Nylas' },
         { status: 400 }
@@ -80,15 +82,15 @@ export async function GET(request: NextRequest) {
     // 3. Fetch folders from appropriate source
     let folders;
 
-    if (isIMAPAccount) {
-      // Fetch from local database for IMAP accounts
-      console.log('[Folders] Fetching IMAP folders from database for account:', account.emailAddress);
+    if (isDirectAccount) {
+      // Fetch from local database for IMAP/JMAP accounts
+      console.log(`[Folders] Fetching ${account.provider?.toUpperCase()} folders from database for account:`, account.emailAddress);
 
       const dbFolders = await db.query.emailFolders.findMany({
         where: eq(emailFolders.accountId, account.id),
       });
 
-      console.log(`[Folders] Found ${dbFolders.length} IMAP folders in database`);
+      console.log(`[Folders] Found ${dbFolders.length} ${account.provider?.toUpperCase()} folders in database`);
 
       // Transform database folders to Nylas format
       folders = dbFolders.map(f => ({

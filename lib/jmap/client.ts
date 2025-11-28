@@ -61,6 +61,8 @@ export class JMAPClient {
    */
   async connect(): Promise<JMAPSession> {
     try {
+      console.log('🔐 Connecting to JMAP session URL:', this.sessionUrl);
+
       const response = await fetch(this.sessionUrl, {
         method: 'GET',
         headers: {
@@ -69,11 +71,20 @@ export class JMAPClient {
         },
       });
 
+      console.log('📡 JMAP session response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`JMAP authentication failed: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ JMAP authentication failed:', response.status, errorText);
+        throw new Error(`JMAP authentication failed: ${response.status} - ${errorText}`);
       }
 
       const session = await response.json();
+      console.log('📦 JMAP session response:', JSON.stringify(session, null, 2));
+
+      if (!session.apiUrl || !session.primaryAccounts) {
+        throw new Error('Invalid JMAP session response: missing required fields');
+      }
 
       this.session = {
         apiUrl: session.apiUrl,
@@ -91,6 +102,10 @@ export class JMAPClient {
       return this.session;
     } catch (error) {
       console.error('❌ JMAP connection failed:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       throw error;
     }
   }
