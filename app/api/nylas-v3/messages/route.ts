@@ -44,10 +44,17 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Get account and verify ownership
-    // accountId is actually the nylasGrantId, not the database id
-    const account = await db.query.emailAccounts.findFirst({
+    // accountId could be either nylasGrantId (for Nylas accounts) or database ID (for IMAP accounts)
+    let account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.nylasGrantId, accountId),
     });
+
+    // If not found by nylasGrantId, try by database ID (for IMAP accounts)
+    if (!account) {
+      account = await db.query.emailAccounts.findFirst({
+        where: eq(emailAccounts.id, accountId),
+      });
+    }
 
     if (!account) {
       return NextResponse.json(
@@ -63,60 +70,122 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!account.nylasGrantId) {
+    const isIMAPAccount = account.provider === 'imap';
+
+    // Nylas accounts require nylasGrantId
+    if (!isIMAPAccount && !account.nylasGrantId) {
       return NextResponse.json(
         { error: 'Account not connected to Nylas' },
         { status: 400 }
       );
     }
 
-    // 3. Check if this is a virtual folder (v0:accountId:folderName format)
+    // 3. Determine message source: IMAP/virtual folders use local DB, Nylas uses API
     const isVirtualFolder = folderId?.startsWith('v0:');
+    const useLocalDatabase = isIMAPAccount || isVirtualFolder;
     let result;
 
-    if (isVirtualFolder) {
-      // Parse folder name from virtual folder format: v0:accountId:folderName
-      const parts = folderId!.split(':');
-      const folderName = parts[2]?.toLowerCase() || 'inbox';
+    if (useLocalDatabase) {
+      // Determine folder name (normalized)
+      let folderName: string;
 
-      console.log('[Messages] Fetching from local database folder:', folderName, 'Account:', account.emailProvider);
+      if (isVirtualFolder) {
+        // Parse folder name from virtual folder format: v0:accountId:folderName
+        const parts = folderId!.split(':');
+        folderName = parts[2]?.toLowerCase() || 'inbox';
+      } else if (folderId) {
+        // For IMAP accounts, folderId is the database folder ID (UUID)
+        // Look up the folder to get the normalized folderType
+        const { emailFolders: emailFoldersSchema } = await import('@/lib/db/schema');
+        const folder = await db.query.emailFolders.findFirst({
+          where: eq(emailFoldersSchema.id, folderId),
+        });
 
-      // Query local database for virtual folders
-      const dbMessages = await db.query.emails.findMany({
-        where: and(
+        if (!folder) {
+          return NextResponse.json(
+            { error: 'Folder not found' },
+            { status: 404 }
+          );
+        }
+
+        // Use folderType (normalized: inbox, sent, trash, etc.)
+        folderName = folder.folderType || 'inbox';
+        console.log(`[Messages] Folder lookup: ID=${folderId} → Type=${folderName}, Display=${folder.displayName}`);
+      } else {
+        // No folder specified, default to inbox
+        folderName = 'inbox';
+      }
+
+      console.log('[Messages] Fetching from local database - Folder:', folderName, 'Account:', account.emailProvider, 'Provider:', account.provider);
+
+      // Query local database with optimized column selection
+      const dbMessages = await db.select({
+        id: emails.id,
+        providerMessageId: emails.providerMessageId,
+        accountId: emails.accountId,
+        threadId: emails.threadId,
+        subject: emails.subject,
+        fromEmail: emails.fromEmail,
+        fromName: emails.fromName,
+        toEmails: emails.toEmails,
+        ccEmails: emails.ccEmails,
+        bccEmails: emails.bccEmails,
+        sentAt: emails.sentAt,
+        receivedAt: emails.receivedAt,
+        isRead: emails.isRead,
+        isStarred: emails.isStarred,
+        snippet: emails.snippet,
+        bodyHtml: emails.bodyHtml,
+        bodyText: emails.bodyText,
+        folder: emails.folder,
+        folders: emails.folders,
+        attachments: emails.attachments,
+      })
+        .from(emails)
+        .where(and(
           eq(emails.accountId, account.id),
           eq(emails.folder, folderName)
-        ),
-        orderBy: [desc(emails.sentAt)],
-        limit,
-      });
+        ))
+        .orderBy(desc(emails.sentAt))
+        .limit(limit);
+
+      console.log(`[Messages] Found ${dbMessages.length} emails in local database for folder: ${folderName}`);
 
       // Transform database messages to Nylas format
       result = {
-        messages: dbMessages.map((msg: any) => ({
-          id: msg.providerMessageId || msg.id,
-          grant_id: account.nylasGrantId,
-          thread_id: msg.threadId,
-          subject: msg.subject,
-          from: [{ email: msg.fromEmail, name: msg.fromName }],
-          to: msg.toEmails || [],
-          cc: msg.ccEmails || [],
-          bcc: msg.bccEmails || [],
-          date: Math.floor(new Date(msg.sentAt || msg.receivedAt).getTime() / 1000),
-          unread: !msg.isRead,
-          starred: msg.isStarred,
-          snippet: msg.snippet,
-          body: msg.bodyHtml || msg.bodyText,
-          folders: msg.folders || [folderName],
-          attachments: msg.attachments || [],
-        })),
+        messages: dbMessages.map((msg: any) => {
+          // Ensure date is valid
+          const messageDate = msg.sentAt || msg.receivedAt || new Date();
+          const timestamp = Math.floor(new Date(messageDate).getTime() / 1000);
+
+          return {
+            id: msg.providerMessageId || msg.id,
+            grant_id: account.nylasGrantId || account.id,
+            thread_id: msg.threadId,
+            subject: msg.subject || '(No Subject)',
+            from: [{
+              email: msg.fromEmail || 'unknown@unknown.com',
+              name: msg.fromName || msg.fromEmail || 'Unknown'
+            }],
+            to: Array.isArray(msg.toEmails) ? msg.toEmails : [],
+            cc: Array.isArray(msg.ccEmails) ? msg.ccEmails : [],
+            bcc: Array.isArray(msg.bccEmails) ? msg.bccEmails : [],
+            date: timestamp,
+            unread: !msg.isRead,
+            starred: msg.isStarred || false,
+            snippet: msg.snippet || '',
+            body: msg.bodyHtml || msg.bodyText || '',
+            folders: Array.isArray(msg.folders) ? msg.folders : [folderName],
+            attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
+          };
+        }),
         nextCursor: null,
         hasMore: false,
       };
     } else {
-      // Fetch from Nylas for real folders
+      // Fetch from Nylas API for Nylas accounts
       result = await fetchMessages({
-        grantId: account.nylasGrantId,
+        grantId: account.nylasGrantId!,
         folderId: folderId || undefined,
         limit,
         pageToken: cursor || undefined,
@@ -124,37 +193,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 4. Enrich messages with thread email counts from our database
-    const enrichedMessages = await Promise.all(
-      result.messages.map(async (message: any) => {
-        if (message.thread_id) {
-          try {
-            // Query our email_threads table for the email count
-            const { emailThreads } = await import('@/lib/db/schema-threads');
-            const { eq } = await import('drizzle-orm');
-
-            const thread = await db.query.emailThreads.findFirst({
-              where: eq(emailThreads.id, message.thread_id),
-              columns: {
-                emailCount: true,
-              },
-            });
-
-            return {
-              ...message,
-              threadEmailCount: thread?.emailCount || 1,
-            };
-          } catch (error) {
-            console.error('Error fetching thread count for message:', error);
-            return {
-              ...message,
-              threadEmailCount: 1,
-            };
-          }
-        }
-        return message;
-      })
-    );
+    // 4. Optimize: Skip thread enrichment for now (causing N+1 queries and slowness)
+    // TODO: Batch query thread counts if needed in future
+    // For now, just return messages as-is with default threadEmailCount
+    const enrichedMessages = result.messages.map((message: any) => ({
+      ...message,
+      threadEmailCount: message.threadEmailCount || 1, // Default to 1
+    }));
 
     return NextResponse.json({
       success: true,

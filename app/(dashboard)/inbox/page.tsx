@@ -38,7 +38,11 @@ function InboxV3Content() {
   const { selectedAccount, accounts, isLoading: accountsLoading } = useAccount();
 
   // Derive accountIds from selectedAccount (updates automatically when account changes)
-  const selectedAccountId = selectedAccount?.nylasGrantId || null; // Nylas Grant ID (for API calls)
+  // For IMAP accounts, use database ID since they don't have nylasGrantId
+  const isIMAPAccount = selectedAccount?.provider === 'imap';
+  const selectedAccountId = isIMAPAccount
+    ? selectedAccount?.id // Use database ID for IMAP accounts
+    : selectedAccount?.nylasGrantId || null; // Nylas Grant ID for Nylas accounts
   const selectedDbAccountId = selectedAccount?.id || null; // Database UUID (for sending emails)
 
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);

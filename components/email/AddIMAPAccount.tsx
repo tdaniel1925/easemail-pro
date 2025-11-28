@@ -41,37 +41,37 @@ export function AddIMAPAccount() {
 
       console.log('✅ Account connected:', connectData);
 
-      // Start sync
-      const syncResponse = await fetch('/api/imap/sync', {
+      // Show success immediately after connection
+      setSuccess(true);
+      setLoading(false);
+      setEmail('');
+      setPassword('');
+
+      // Start sync in background (don't wait for it)
+      fetch('/api/imap/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           accountId: connectData.account.id,
         }),
+      }).then(syncResponse => {
+        if (syncResponse.ok) {
+          console.log('✅ Sync started in background');
+        } else {
+          console.warn('⚠️ Sync failed to start, but account is connected');
+        }
+      }).catch(err => {
+        console.warn('⚠️ Sync request failed:', err);
       });
 
-      const syncData = await syncResponse.json();
-
-      if (!syncResponse.ok) {
-        console.warn('Sync failed:', syncData);
-        throw new Error(`Account connected but sync failed: ${syncData.error}`);
-      }
-
-      console.log('✅ Sync started:', syncData);
-
-      setSuccess(true);
-      setEmail('');
-      setPassword('');
-
-      // Reload page after 2 seconds to show new account
+      // Reload page after 1 second to show new account
       setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+        window.location.href = '/accounts-v3';
+      }, 1000);
 
     } catch (err) {
       console.error('IMAP connection error:', err);
       setError(err instanceof Error ? err.message : 'Failed to connect account');
-    } finally {
       setLoading(false);
     }
   };

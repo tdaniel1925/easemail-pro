@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchFolders, sortFolders, buildFolderHierarchy } from '@/lib/nylas-v3/folders';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { emailAccounts } from '@/lib/db/schema';
+import { emailAccounts, emailFolders } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
@@ -41,10 +41,17 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Get account and verify ownership
-    // Note: accountId is the Nylas grant ID, not the database ID
-    const account = await db.query.emailAccounts.findFirst({
+    // accountId could be either nylasGrantId (for Nylas accounts) or database ID (for IMAP accounts)
+    let account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.nylasGrantId, accountId),
     });
+
+    // If not found by nylasGrantId, try by database ID (for IMAP accounts)
+    if (!account) {
+      account = await db.query.emailAccounts.findFirst({
+        where: eq(emailAccounts.id, accountId),
+      });
+    }
 
     if (!account) {
       return NextResponse.json(
@@ -60,15 +67,44 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!account.nylasGrantId) {
+    const isIMAPAccount = account.provider === 'imap';
+
+    // Nylas accounts require nylasGrantId
+    if (!isIMAPAccount && !account.nylasGrantId) {
       return NextResponse.json(
         { error: 'Account not connected to Nylas' },
         { status: 400 }
       );
     }
 
-    // 3. Fetch folders from Nylas
-    let folders = await fetchFolders(account.nylasGrantId);
+    // 3. Fetch folders from appropriate source
+    let folders;
+
+    if (isIMAPAccount) {
+      // Fetch from local database for IMAP accounts
+      console.log('[Folders] Fetching IMAP folders from database for account:', account.emailAddress);
+
+      const dbFolders = await db.query.emailFolders.findMany({
+        where: eq(emailFolders.accountId, account.id),
+      });
+
+      console.log(`[Folders] Found ${dbFolders.length} IMAP folders in database`);
+
+      // Transform database folders to Nylas format
+      folders = dbFolders.map(f => ({
+        id: f.id,
+        name: f.displayName, // Use displayName (the actual folder name)
+        folder_type: f.folderType, // normalized type for identification
+        parent_id: f.parentFolderId,
+        unread_count: f.unreadCount || 0,
+        total_count: f.totalCount || 0,
+        attributes: [], // IMAP folders don't have attributes in the same way
+      }));
+    } else {
+      // Fetch from Nylas API
+      folders = await fetchFolders(account.nylasGrantId!)
+;
+    }
 
     // 4. Sort folders (inbox, sent, etc. first)
     folders = sortFolders(folders);

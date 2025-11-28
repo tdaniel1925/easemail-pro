@@ -903,8 +903,10 @@ export default function AccountsV3Page() {
                         - Don't show for 'active' webhooks
                         - Don't show for 'pending' webhooks (being set up)
                         - Don't show for accounts in 'initializing' or 'syncing' state (new accounts still setting up)
+                        - Don't show for IMAP accounts (they don't use webhooks)
                     */}
-                    {account.webhookStatus !== 'active' &&
+                    {account.provider !== 'imap' &&
+                     account.webhookStatus !== 'active' &&
                      account.webhookStatus !== 'pending' &&
                      account.syncStatus !== 'initializing' &&
                      account.syncStatus !== 'syncing' && (

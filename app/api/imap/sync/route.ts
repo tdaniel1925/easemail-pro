@@ -106,14 +106,18 @@ export async function POST(request: NextRequest) {
       })
       .where(eq(emailAccounts.id, accountId));
 
-    // Connect to IMAP
-    const connection = await connectToIMAP({
+    // IMAP connection (will be refreshed periodically)
+    let connection = await connectToIMAP({
       host: account.imapHost,
       port: account.imapPort || 993,
       username: account.imapUsername,
       password: account.imapPassword, // FIXME: Decrypt in production
       tls: account.imapTls ?? true,
     });
+
+    // Track connection age to refresh before timeout
+    let connectionStartTime = Date.now();
+    const CONNECTION_MAX_AGE = 10 * 60 * 1000; // 10 minutes (refresh before 30min IMAP timeout)
 
     // Get list of folders
     const imapFolders = await getIMAPFolders(connection);
@@ -140,6 +144,9 @@ export async function POST(request: NextRequest) {
 
     let totalSynced = 0;
     const folderStats: Record<string, number> = {};
+    const isInitialSync = !account.initialSyncCompleted;
+
+    console.log(`\n📊 Sync type: ${isInitialSync ? 'INITIAL (fetch ALL emails)' : 'INCREMENTAL (fetch new emails only)'}`);
 
     // Sync emails from each folder
     for (const folderName of imapFolders) {
@@ -148,25 +155,108 @@ export async function POST(request: NextRequest) {
 
         const normalizedFolderName = normalizeFolderName(folderName);
 
-        // Fetch emails (use UID-based sync for incremental updates)
-        const messages = await fetchIMAPEmails(connection, folderName, {
-          uid: account.imapLastUid || 0, // Incremental sync
-          limit: 500, // Process in batches
-        });
+        // Fetch emails in smaller batches to prevent timeout
+        // IMPORTANT: Keep batch size small (50) for speed and reliability!
+        const BATCH_SIZE = 50; // Small batches = faster, more reliable
+        const MAX_BATCHES = 100; // Safety limit: max 5,000 emails per sync run
+        const RECONNECT_EVERY = 20; // Reconnect every 20 batches (~10 min)
 
-        console.log(`Found ${messages.length} emails in ${folderName}`);
-
+        let lastProcessedUid = isInitialSync ? 0 : (account.imapLastUid || 0);
+        let hasMore = true;
+        let batchNumber = 1;
         let folderSyncCount = 0;
 
-        // Process each email
-        for (const message of messages) {
-          if (!message || !message.parsed) continue;
+        while (hasMore && batchNumber <= MAX_BATCHES) {
+          // Refresh IMAP connection every N batches or if connection is old
+          const connectionAge = Date.now() - connectionStartTime;
+          if (batchNumber > 1 && (batchNumber % RECONNECT_EVERY === 0 || connectionAge > CONNECTION_MAX_AGE)) {
+            console.log(`🔄 Refreshing IMAP connection (batch ${batchNumber}, age: ${Math.round(connectionAge / 60000)}min)`);
+            try {
+              closeIMAPConnection(connection);
+              connection = await connectToIMAP({
+                host: account.imapHost,
+                port: account.imapPort || 993,
+                username: account.imapUsername,
+                password: account.imapPassword,
+                tls: account.imapTls ?? true,
+              });
+              connectionStartTime = Date.now();
+              console.log(`✅ Connection refreshed`);
+            } catch (reconnectError) {
+              console.error(`❌ Failed to refresh connection:`, reconnectError);
+              hasMore = false;
+              break;
+            }
+          }
+
+          console.log(`\n📦 Batch ${batchNumber}/${MAX_BATCHES} for ${folderName} (UID > ${lastProcessedUid})`);
+
+          let messages;
+          try {
+            messages = await fetchIMAPEmails(connection, folderName, {
+              uid: lastProcessedUid,
+              limit: BATCH_SIZE,
+            });
+          } catch (fetchError) {
+            console.error(`❌ Failed to fetch batch ${batchNumber}:`, fetchError);
+            // Try to reconnect once
+            try {
+              console.log(`🔄 Attempting reconnect after fetch failure...`);
+              closeIMAPConnection(connection);
+              connection = await connectToIMAP({
+                host: account.imapHost,
+                port: account.imapPort || 993,
+                username: account.imapUsername,
+                password: account.imapPassword,
+                tls: account.imapTls ?? true,
+              });
+              connectionStartTime = Date.now();
+              // Retry the fetch
+              messages = await fetchIMAPEmails(connection, folderName, {
+                uid: lastProcessedUid,
+                limit: BATCH_SIZE,
+              });
+              console.log(`✅ Reconnect successful, retry succeeded`);
+            } catch (retryError) {
+              console.error(`❌ Retry failed:`, retryError);
+              hasMore = false;
+              break;
+            }
+          }
+
+          console.log(`✅ Fetched ${messages.length} emails in batch ${batchNumber}`);
+
+          if (messages.length === 0) {
+            console.log(`📭 No more emails to fetch from ${folderName}`);
+            hasMore = false;
+            break;
+          }
+
+        // Process and prepare emails for batch insert
+        const emailsToInsert: any[] = [];
+        let maxUidInBatch = lastProcessedUid;
+
+        for (let i = 0; i < messages.length; i++) {
+          const message = messages[i];
+
+          if (!message || !message.parsed) {
+            console.warn(`⚠️ Skipping invalid message ${i + 1}/${messages.length}`);
+            if (message?.uid && message.uid > maxUidInBatch) {
+              maxUidInBatch = message.uid;
+            }
+            continue;
+          }
 
           const parsed = message.parsed;
 
           try {
-            // Map email to database format
-            const [inserted] = await db.insert(emails).values({
+            // Limit body sizes to prevent huge emails from slowing things down
+            const MAX_BODY_SIZE = 100000; // 100KB limit (reduced for speed)
+            const bodyText = (parsed.text || '').substring(0, MAX_BODY_SIZE);
+            const bodyHtml = (parsed.html || parsed.textAsHtml || '').substring(0, MAX_BODY_SIZE);
+
+            // Prepare email data
+            emailsToInsert.push({
               accountId: accountId,
               provider: 'imap',
               providerMessageId: `imap-${account.id}-${message.uid}`,
@@ -191,8 +281,8 @@ export async function POST(request: NextRequest) {
 
               subject: parsed.subject || '(No Subject)',
               snippet: parsed.text?.substring(0, 200) || '',
-              bodyText: parsed.text || '',
-              bodyHtml: parsed.html || parsed.textAsHtml || '',
+              bodyText,
+              bodyHtml,
 
               receivedAt: parsed.date || new Date(),
               sentAt: parsed.date || new Date(),
@@ -207,27 +297,102 @@ export async function POST(request: NextRequest) {
                 contentType: att.contentType,
                 size: att.size,
               })) || [],
-            }).onConflictDoNothing().returning();
+            });
 
-            if (inserted) {
-              folderSyncCount++;
-              totalSynced++;
+            // Track highest UID
+            if (message.uid > maxUidInBatch) {
+              maxUidInBatch = message.uid;
             }
-          } catch (emailError) {
-            console.error(`Failed to insert email ${message.uid}:`, emailError);
+          } catch (parseError) {
+            console.error(`❌ Failed to parse email UID ${message.uid}:`, parseError instanceof Error ? parseError.message : String(parseError));
+            // Track UID anyway
+            if (message.uid > maxUidInBatch) {
+              maxUidInBatch = message.uid;
+            }
           }
         }
 
-        folderStats[folderName] = folderSyncCount;
-        console.log(`✅ Synced ${folderSyncCount} new emails from ${folderName}`);
+        // Batch insert all emails at once (MUCH faster than one-by-one)
+        let batchInsertCount = 0;
+        if (emailsToInsert.length > 0) {
+          try {
+            const inserted = await db.insert(emails)
+              .values(emailsToInsert)
+              .onConflictDoNothing()
+              .returning({ id: emails.id });
 
-        // Update last UID for this folder
-        if (messages.length > 0) {
-          const lastUid = Math.max(...messages.map((m) => m.uid));
-          await db.update(emailAccounts)
-            .set({ imapLastUid: lastUid })
-            .where(eq(emailAccounts.id, accountId));
+            batchInsertCount = inserted.length;
+            folderSyncCount += batchInsertCount;
+            totalSynced += batchInsertCount;
+
+            console.log(`📝 Batch inserted ${batchInsertCount}/${emailsToInsert.length} emails (${emailsToInsert.length - batchInsertCount} duplicates skipped)`);
+          } catch (insertError) {
+            console.error(`❌ Batch insert failed:`, insertError);
+            // Fall back to individual inserts if batch fails
+            for (const emailData of emailsToInsert) {
+              try {
+                const [inserted] = await db.insert(emails)
+                  .values(emailData)
+                  .onConflictDoNothing()
+                  .returning({ id: emails.id });
+                if (inserted) {
+                  batchInsertCount++;
+                  folderSyncCount++;
+                  totalSynced++;
+                }
+              } catch (individualError) {
+                console.error(`❌ Individual insert failed for UID:`, individualError);
+              }
+            }
+          }
         }
+
+        // Update last processed UID
+        lastProcessedUid = maxUidInBatch;
+
+          // Update progress after each batch
+          console.log(`📊 Batch ${batchNumber} complete: ${folderSyncCount} emails from ${folderName}, ${totalSynced} total`);
+
+          // Save progress every 5 batches (reduce DB overhead)
+          if (batchNumber % 5 === 0 || messages.length < BATCH_SIZE) {
+            if (lastProcessedUid > 0) {
+              try {
+                await db.update(emailAccounts)
+                  .set({
+                    imapLastUid: lastProcessedUid,
+                    syncedEmailCount: totalSynced,
+                    lastActivityAt: new Date(),
+                  })
+                  .where(eq(emailAccounts.id, accountId));
+              } catch (updateError) {
+                console.error(`⚠️ Failed to update progress:`, updateError);
+              }
+            }
+          }
+
+          // Progress report every 10 batches
+          if (batchNumber % 10 === 0) {
+            const elapsed = Math.round((Date.now() - connectionStartTime) / 1000);
+            const rate = Math.round(folderSyncCount / (elapsed || 1) * 60);
+            console.log(`\n🔄 PROGRESS: ${folderSyncCount} emails from ${folderName} (${batchNumber} batches, ${rate}/min)`);
+          }
+
+          // Check if we got fewer emails than batch size (means we're done)
+          if (messages.length < BATCH_SIZE) {
+            console.log(`✅ Completed ${folderName}: received ${messages.length} < ${BATCH_SIZE} emails in batch`);
+            hasMore = false;
+          }
+
+          batchNumber++;
+
+          // Safety check: If we hit max batches, log warning
+          if (batchNumber > MAX_BATCHES) {
+            console.log(`⚠️ Hit MAX_BATCHES limit (${MAX_BATCHES}) for ${folderName}. Will resume on next sync.`);
+          }
+        } // End of batch while loop
+
+        folderStats[folderName] = folderSyncCount;
+        console.log(`✅ Completed syncing ${folderName}: ${folderSyncCount} total emails`);
 
       } catch (folderError) {
         console.error(`Error syncing folder ${folderName}:`, folderError);
