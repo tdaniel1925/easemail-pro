@@ -24,6 +24,7 @@ import { AccountCardSkeleton, StatsCardSkeleton } from '@/components/ui/skeleton
 interface EmailAccount {
   id: string;
   emailAddress: string;
+  provider?: string; // 'nylas', 'aurinko', or 'imap'
   emailProvider?: string;
   nylasProvider?: string;
   syncStatus?: string;
