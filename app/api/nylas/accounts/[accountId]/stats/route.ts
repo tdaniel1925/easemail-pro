@@ -5,10 +5,12 @@ import { eq, and, count } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { accountId: string } }
+  context: { params: Promise<{ accountId: string }> }
 ) {
   try {
-    const accountId = params.accountId;
+    const { accountId } = await context.params;
+
+    console.log(`📊 [Stats] Fetching stats for account: ${accountId}`);
 
     // Get folder count
     const folderResult = await db
@@ -40,14 +42,18 @@ export async function GET(
       }
     });
 
-    return NextResponse.json({
+    const stats = {
       success: true,
       folderCount: folderResult[0]?.count || 0,
       emailCount: emailResult[0]?.count || 0,
-      folderEmailCounts: folderCounts, // ✅ New: per-folder counts
-    });
+      folderEmailCounts: folderCounts,
+    };
+
+    console.log(`📊 [Stats] Account ${accountId}: ${stats.folderCount} folders, ${stats.emailCount} emails`);
+
+    return NextResponse.json(stats);
   } catch (error) {
-    console.error('Stats fetch error:', error);
+    console.error('❌ [Stats] Error fetching stats:', error);
     return NextResponse.json(
       { error: 'Failed to fetch stats' },
       { status: 500 }
