@@ -26,6 +26,7 @@ import AccountSwitcher from '@/components/account/AccountSwitcher';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import EventDetailsModal from '@/components/calendar/EventDetailsModal';
+import { useAutoSync } from '@/lib/hooks/useAutoSync';
 
 function InboxV3Content() {
   const searchParams = useSearchParams();
@@ -36,6 +37,21 @@ function InboxV3Content() {
   // ✅ FIX: Use AccountContext instead of local state for account selection
   // This ensures AccountSwitcher and inbox page stay in sync
   const { selectedAccount, accounts, isLoading: accountsLoading } = useAccount();
+
+  // 🔄 Auto-sync: Automatically fetch new emails every 5 minutes
+  const [emailListKey, setEmailListKey] = useState(0);
+  const { manualSync, isSyncing } = useAutoSync({
+    enabled: true,
+    interval: 5 * 60 * 1000, // 5 minutes
+    onSync: () => {
+      // Refresh email list when new emails are synced
+      setEmailListKey(prev => prev + 1);
+      console.log('[Inbox] Email list refreshed after auto-sync');
+    },
+    onError: (error) => {
+      console.error('[Inbox] Auto-sync error:', error);
+    },
+  });
 
   // Derive accountIds from selectedAccount (updates automatically when account changes)
   // For IMAP/JMAP accounts, use database ID since they don't have nylasGrantId
@@ -308,6 +324,7 @@ function InboxV3Content() {
           </>
         ) : selectedAccountId && !selectedMessageId ? (
           <EmailListEnhancedV3
+            key={emailListKey}
             accountId={selectedAccountId}
             folderId={selectedFolderId}
             folderName={selectedFolderName}
