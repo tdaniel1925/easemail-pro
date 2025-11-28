@@ -14,6 +14,7 @@ export interface FetchMessagesParams {
   pageToken?: string;
   unread?: boolean;
   includeTrash?: boolean; // Whether to include trash folder messages (default: false)
+  excludeFolders?: string[]; // Folder IDs to exclude (server-side filtering)
 }
 
 export interface FetchMessagesResponse {
@@ -33,6 +34,7 @@ export async function fetchMessages({
   pageToken,
   unread,
   includeTrash = false,
+  excludeFolders,
 }: FetchMessagesParams): Promise<FetchMessagesResponse> {
   const nylas = getNylasClient();
 
@@ -59,6 +61,13 @@ export async function fetchMessages({
       queryParams.in = [folderId];
     }
 
+    // ✅ IMPROVEMENT: Server-side folder exclusion (reduces bandwidth)
+    // Nylas v3 supports 'not_in' parameter for excluding folders
+    if (excludeFolders && excludeFolders.length > 0) {
+      queryParams.not_in = excludeFolders;
+      console.log(`🚫 Server-side excluding ${excludeFolders.length} folders`);
+    }
+
     // Filter by unread status if specified
     if (unread !== undefined) {
       queryParams.unread = unread;
@@ -71,6 +80,7 @@ export async function fetchMessages({
       hasPageToken: !!pageToken,
       unread,
       includeTrash,
+      excludeFolders: excludeFolders?.length || 0,
     });
 
     const response = await retryWithBackoff(
@@ -87,18 +97,22 @@ export async function fetchMessages({
       }
     );
 
-    // ✅ FIX: Filter out non-inbox messages client-side when no folder is specified
-    // This prevents sent/trash/spam emails from appearing in inbox
+    // ✅ IMPROVED: Client-side filtering only as fallback when server-side not used
+    // This is a backup for cases where excludeFolders wasn't provided
     let filteredMessages = response.data;
-    if (!folderId) {
+
+    // Only apply client-side filtering if:
+    // 1. No specific folder was requested (fetching "all")
+    // 2. No server-side exclusion was applied
+    if (!folderId && (!excludeFolders || excludeFolders.length === 0)) {
       // When no folder is specified, only show inbox messages
       // Filter using Nylas folder metadata (messages have a 'folders' array with folder IDs)
       filteredMessages = response.data.filter((message: any) => {
         const folders = message.folders || [];
 
         // Check each folder the message is in
-        for (const folderId of folders) {
-          const folderName = (folderId as string).toLowerCase();
+        for (const folder of folders) {
+          const folderName = (folder as string).toLowerCase();
 
           // Exclude messages in sent, trash, spam, drafts folders
           // These patterns match common IMAP folder names across providers
@@ -119,7 +133,7 @@ export async function fetchMessages({
 
       const filteredCount = response.data.length - filteredMessages.length;
       if (filteredCount > 0) {
-        console.log(`🗑️ Filtered out ${filteredCount} sent/trash/spam/draft messages`);
+        console.log(`🗑️ Client-side filtered ${filteredCount} sent/trash/spam/draft messages (consider using excludeFolders for better performance)`);
       }
     }
 

@@ -6,6 +6,7 @@ import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 import { normalizeFolderToCanonical } from '@/lib/email/folder-utils';
 import { verifyWebhookSignature } from '@/lib/nylas-v3/webhooks';
 import * as Sentry from '@sentry/nextjs';
+import { broadcastToAccount, type EmailSyncEvent } from '@/app/api/sse/emails/route';
 
 export async function POST(request: NextRequest) {
   // Get signature from header (case-insensitive)
@@ -289,6 +290,23 @@ async function handleMessageCreated(message: any) {
     }).onConflictDoNothing();
 
     console.log(`✅ Created message ${message.id} for account ${account.id} in folder ${normalizedFolder} (raw: ${rawFolder})`);
+
+    // ✅ NEW: Broadcast real-time update via SSE
+    const sseEvent: EmailSyncEvent = {
+      type: 'message.created',
+      accountId: account.id,
+      messageId: message.id,
+      folder: normalizedFolder,
+      timestamp: Date.now(),
+      data: {
+        subject: sanitizeText(message.subject),
+        fromEmail: sanitizeText(message.from?.[0]?.email),
+        fromName: sanitizeText(message.from?.[0]?.name),
+        snippet: sanitizeText(message.snippet),
+        isRead: message.unread === false,
+      },
+    };
+    broadcastToAccount(account.id, sseEvent);
   } catch (error: any) {
     console.error(`❌ Failed to create message ${message.id}:`, error.message || error);
     throw error; // Re-throw to be caught by parent handler
@@ -297,6 +315,12 @@ async function handleMessageCreated(message: any) {
 
 async function handleMessageUpdated(message: any) {
   try {
+    // Find account for SSE broadcast
+    const account = await db.query.emailAccounts.findFirst({
+      where: eq(emailAccounts.nylasGrantId, message.grant_id),
+      columns: { id: true },
+    });
+
     // Update message in database
     await db.update(emails)
       .set({
@@ -306,8 +330,23 @@ async function handleMessageUpdated(message: any) {
         updatedAt: new Date(),
       })
       .where(eq(emails.providerMessageId, message.id));
-    
+
     console.log(`✅ Updated message ${message.id}`);
+
+    // ✅ NEW: Broadcast real-time update via SSE
+    if (account) {
+      const sseEvent: EmailSyncEvent = {
+        type: 'message.updated',
+        accountId: account.id,
+        messageId: message.id,
+        timestamp: Date.now(),
+        data: {
+          isRead: message.unread === false,
+          isStarred: message.starred === true,
+        },
+      };
+      broadcastToAccount(account.id, sseEvent);
+    }
   } catch (error: any) {
     console.error(`❌ Failed to update message ${message.id}:`, error.message || error);
     throw error;
@@ -316,13 +355,30 @@ async function handleMessageUpdated(message: any) {
 
 async function handleMessageDeleted(message: any) {
   try {
+    // Find account for SSE broadcast before deleting
+    const account = await db.query.emailAccounts.findFirst({
+      where: eq(emailAccounts.nylasGrantId, message.grant_id),
+      columns: { id: true },
+    });
+
     // ✅ FIX: Actually delete the message from local DB instead of just marking as trashed
     // This prevents deleted emails from reappearing when background sync runs
     // The email is already moved to trash in the email provider (Gmail/Outlook)
-    const result = await db.delete(emails)
+    await db.delete(emails)
       .where(eq(emails.providerMessageId, message.id));
 
     console.log(`✅ Deleted message ${message.id} from local database`);
+
+    // ✅ NEW: Broadcast real-time update via SSE
+    if (account) {
+      const sseEvent: EmailSyncEvent = {
+        type: 'message.deleted',
+        accountId: account.id,
+        messageId: message.id,
+        timestamp: Date.now(),
+      };
+      broadcastToAccount(account.id, sseEvent);
+    }
   } catch (error: any) {
     console.error(`❌ Failed to delete message ${message.id}:`, error.message || error);
     throw error;

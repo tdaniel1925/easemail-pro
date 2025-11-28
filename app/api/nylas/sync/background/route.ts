@@ -11,6 +11,7 @@ import { canStartSync, completeSyncSlot } from '@/lib/sync/sync-queue';
 import { getProviderConfig } from '@/lib/sync/provider-config';
 import { canMakeRequest as circuitBreakerCheck, recordSuccess, recordRateLimitFailure } from '@/lib/sync/circuit-breaker';
 import { logQuotaUsage } from '@/lib/sync/quota-monitor';
+import { broadcastSyncStarted, broadcastSyncProgress, broadcastSyncCompleted } from '@/lib/sync/sync-events';
 
 const nylas = new Nylas({
   apiKey: process.env.NYLAS_API_KEY!,
@@ -226,6 +227,9 @@ async function performBackgroundSync(
   accountEmail?: string
 ) {
   console.log(`📧 [${SYNC_VERSION}] Starting background email sync for account ${accountId} (Email: ${accountEmail}, Provider: ${provider})`);
+
+  // ✅ NEW: Broadcast sync started event via SSE for real-time UI updates
+  broadcastSyncStarted(accountId);
 
   // ✅ NEW: Validate cursor before using it
   const validatedCursor = await validateCursor(grantId, startingCursor);
@@ -689,6 +693,9 @@ async function performBackgroundSync(
             .where(eq(emailAccounts.id, accountId));
 
           console.log(`📊 Progress: ${estimatedProgress}% | Synced: ${syncedCount.toLocaleString()} emails | Page: ${currentPage}/${maxPages} | Rate: ${emailsPerMinute}/min | Time: ${Math.round((Date.now() - startTime)/1000)}s`);
+
+          // ✅ NEW: Broadcast progress update via SSE for real-time UI
+          broadcastSyncProgress(accountId, estimatedProgress, syncedCount, totalEmailCount || undefined);
         } else {
           // ✅ NEW: Light update every page to track activity and save cursor
           await db.update(emailAccounts)
@@ -1030,6 +1037,9 @@ async function performBackgroundSync(
     console.log(`📁 Folders encountered during sync:`);
     console.log(`   ${Array.from(foldersEncountered).sort().join(', ') || 'None'}`);
     console.log(`✅ ========================================`);
+
+    // ✅ NEW: Broadcast sync completed via SSE for real-time UI update
+    broadcastSyncCompleted(accountId, syncedCount, Date.now() - startTime);
 
     // ✅ NEW: Release sync slot to allow other accounts to sync
     completeSyncSlot(accountId);
