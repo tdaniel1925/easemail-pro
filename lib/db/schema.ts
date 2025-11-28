@@ -120,7 +120,7 @@ export const emailAccounts = pgTable('email_accounts', {
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   
   // Provider info
-  provider: varchar('provider', { length: 50 }).notNull(), // 'nylas' or 'aurinko'
+  provider: varchar('provider', { length: 50 }).notNull(), // 'nylas', 'aurinko', 'imap', or 'jmap'
   providerAccountId: varchar('provider_account_id', { length: 255 }).notNull(),
   
   // Email details
