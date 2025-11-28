@@ -28,23 +28,26 @@ export async function POST(request: NextRequest) {
     console.log('[JMAP Connect] User authenticated:', user.id);
 
     const body = await request.json();
-    const { email, password } = body;
+    const { email, apiToken } = body;
 
-    console.log('[JMAP Connect] Request body received:', { email, hasPassword: !!password });
+    console.log('[JMAP Connect] Request body received:', { email, hasApiToken: !!apiToken });
 
-    if (!email || !password) {
-      console.error('[JMAP Connect] Missing email or password');
+    if (!email || !apiToken) {
+      console.error('[JMAP Connect] Missing email or API token');
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        {
+          error: 'Email and API token are required',
+          hint: 'Generate an API token at: Fastmail Settings → Privacy & Security → Integrations'
+        },
         { status: 400 }
       );
     }
 
     console.log(`🔐 Connecting Fastmail account via JMAP: ${email}`);
 
-    // Create JMAP client
-    console.log('[JMAP Connect] Creating JMAP client...');
-    const jmapClient = createFastmailJMAPClient(email, password);
+    // Create JMAP client with API token (Bearer auth)
+    console.log('[JMAP Connect] Creating JMAP client with API token...');
+    const jmapClient = createFastmailJMAPClient(apiToken);
     console.log('[JMAP Connect] JMAP client created successfully');
 
     // Test connection
@@ -54,10 +57,10 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ JMAP connection successful!');
 
-    // Encrypt password (in production, use proper encryption)
-    console.log('[JMAP Connect] Encrypting password...');
-    const encryptedPassword = Buffer.from(password).toString('base64');
-    console.log('[JMAP Connect] Password encrypted');
+    // Encrypt API token (in production, use proper encryption)
+    console.log('[JMAP Connect] Encrypting API token...');
+    const encryptedToken = Buffer.from(apiToken).toString('base64');
+    console.log('[JMAP Connect] API token encrypted');
 
     // Create account in database
     console.log('[JMAP Connect] Inserting account into database...');
@@ -68,11 +71,11 @@ export async function POST(request: NextRequest) {
       emailAddress: email,
       emailProvider: 'fastmail',
 
-      // JMAP credentials
-      imapHost: 'api.fastmail.com', // Reuse imapHost field for JMAP API URL
+      // JMAP credentials (reusing IMAP fields for now)
+      imapHost: 'api.fastmail.com', // JMAP API URL
       imapPort: 443, // HTTPS
       imapUsername: email,
-      imapPassword: encryptedPassword,
+      imapPassword: encryptedToken, // Store encrypted API token
       imapTls: true,
 
       // Initial state

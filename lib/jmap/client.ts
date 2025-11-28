@@ -42,18 +42,27 @@ export interface JMAPEmail {
 
 export class JMAPClient {
   private sessionUrl: string;
-  private username: string;
-  private password: string;
+  private authHeader: string;
   private session: JMAPSession | null = null;
 
   constructor(config: {
     sessionUrl: string;
-    username: string;
-    password: string;
+    apiToken?: string;
+    username?: string;
+    password?: string;
   }) {
     this.sessionUrl = config.sessionUrl;
-    this.username = config.username;
-    this.password = config.password;
+
+    // Support both API token (Bearer) and Basic auth
+    if (config.apiToken) {
+      // Fastmail JMAP requires Bearer token authentication
+      this.authHeader = `Bearer ${config.apiToken}`;
+    } else if (config.username && config.password) {
+      // Fallback to Basic auth (legacy, may not work for JMAP)
+      this.authHeader = `Basic ${Buffer.from(`${config.username}:${config.password}`).toString('base64')}`;
+    } else {
+      throw new Error('Either apiToken or username+password must be provided');
+    }
   }
 
   /**
@@ -66,7 +75,7 @@ export class JMAPClient {
       const response = await fetch(this.sessionUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`,
+          'Authorization': this.authHeader,
           'Accept': 'application/json',
         },
       });
@@ -121,7 +130,7 @@ export class JMAPClient {
     const response = await fetch(this.session.apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`,
+        'Authorization': this.authHeader,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -294,9 +303,22 @@ export class JMAPClient {
 }
 
 /**
- * Create a JMAP client for Fastmail
+ * Create a JMAP client for Fastmail using API token (recommended)
+ * API tokens can be generated at: Settings → Privacy & Security → Integrations
  */
-export function createFastmailJMAPClient(username: string, password: string): JMAPClient {
+export function createFastmailJMAPClient(apiToken: string): JMAPClient {
+  return new JMAPClient({
+    sessionUrl: 'https://api.fastmail.com/jmap/session',
+    apiToken,
+  });
+}
+
+/**
+ * Create a JMAP client for Fastmail using username/password (legacy)
+ * Note: Basic auth may not work for JMAP - use API tokens instead
+ * @deprecated Use createFastmailJMAPClient with API token instead
+ */
+export function createFastmailJMAPClientWithPassword(username: string, password: string): JMAPClient {
   return new JMAPClient({
     sessionUrl: 'https://api.fastmail.com/jmap/session',
     username,

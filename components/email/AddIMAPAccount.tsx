@@ -10,7 +10,7 @@ import { Loader2, Mail, Lock, CheckCircle, AlertCircle } from 'lucide-react';
 
 export function AddIMAPAccount() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [apiToken, setApiToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -28,7 +28,7 @@ export function AddIMAPAccount() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
-          password,
+          apiToken,
         }),
       });
 
@@ -44,7 +44,7 @@ export function AddIMAPAccount() {
       setSuccess(true);
       setLoading(false);
       setEmail('');
-      setPassword('');
+      setApiToken('');
 
       // Start JMAP sync in background (MUCH faster than IMAP!)
       fetch('/api/jmap/sync', {
@@ -80,7 +80,7 @@ export function AddIMAPAccount() {
       <CardHeader>
         <CardTitle>Add Fastmail Account (JMAP)</CardTitle>
         <CardDescription>
-          Connect your Fastmail account using JMAP - the modern email protocol that's 5x faster than IMAP. No 90-day limitation - syncs ALL emails.
+          Connect your Fastmail account using JMAP - the modern email protocol that's 5x faster than IMAP. No 90-day limitation - syncs ALL emails. (OAuth coming soon!)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -118,22 +118,22 @@ export function AddIMAPAccount() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">App-Specific Password</Label>
+              <Label htmlFor="apiToken">API Token</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
-                  id="password"
+                  id="apiToken"
                   type="password"
-                  placeholder="Enter app-specific password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter Fastmail API token"
+                  value={apiToken}
+                  onChange={(e) => setApiToken(e.target.value)}
                   required
                   disabled={loading}
                   className="pl-10"
                 />
               </div>
               <p className="text-sm text-gray-500">
-                Generate an app-specific password in your Fastmail settings: Settings → Password & Security → App Passwords
+                Generate an API token in your Fastmail settings: Settings → Privacy & Security → Integrations → New API token
               </p>
             </div>
 

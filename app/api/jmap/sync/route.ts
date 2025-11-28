@@ -65,11 +65,11 @@ export async function POST(request: NextRequest) {
       })
       .where(eq(emailAccounts.id, accountId));
 
-    // Decrypt password
-    const password = Buffer.from(account.imapPassword || '', 'base64').toString('utf-8');
+    // Decrypt API token
+    const apiToken = Buffer.from(account.imapPassword || '', 'base64').toString('utf-8');
 
-    // Create JMAP client
-    const jmapClient = createFastmailJMAPClient(account.imapUsername!, password);
+    // Create JMAP client with API token
+    const jmapClient = createFastmailJMAPClient(apiToken);
     await jmapClient.connect();
 
     // Get all mailboxes
