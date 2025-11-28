@@ -10,6 +10,9 @@ import { eq } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 import { createFastmailJMAPClient } from '@/lib/jmap/client';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     // Get authenticated user
