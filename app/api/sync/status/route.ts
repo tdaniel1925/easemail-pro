@@ -16,7 +16,7 @@ import { eq, and, count, sql } from 'drizzle-orm';
 import { getDeltaSyncStats } from '@/lib/sync/delta-sync';
 import { getCircuitBreakerStats } from '@/lib/sync/circuit-breaker-v2';
 import { getQuotaStats } from '@/lib/sync/quota-monitor-redis';
-import { getActiveConnectionCount } from '@/app/api/sse/emails/route';
+import { getActiveConnectionCount } from '@/lib/sync/sse-broadcaster';
 
 export const dynamic = 'force-dynamic';
 
