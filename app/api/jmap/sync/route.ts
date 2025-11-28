@@ -103,64 +103,90 @@ export async function POST(request: NextRequest) {
 
         const normalizedFolderName = mailbox.role || mailbox.name.toLowerCase();
 
-        // Get emails (JMAP is MUCH faster than IMAP!)
-        const { emails: jmapEmails, total } = await jmapClient.getEmails({
-          mailboxId: mailbox.id,
-          limit: BATCH_SIZE,
-        });
+        // Paginate through ALL emails in this mailbox
+        let position = 0;
+        let hasMore = true;
+        let folderTotalSynced = 0;
 
-        console.log(`Found ${jmapEmails.length} emails in ${mailbox.name} (${total} total)`);
+        while (hasMore) {
+          console.log(`  📄 Fetching batch at position ${position}...`);
 
-        // Prepare emails for batch insert
-        const emailsToInsert = jmapEmails.map(jmapEmail => ({
-          accountId: accountId,
-          provider: 'jmap',
-          providerMessageId: jmapEmail.id,
-          folder: normalizedFolderName,
-          folders: [mailbox.name],
+          // Get emails batch (JMAP is MUCH faster than IMAP!)
+          const { emails: jmapEmails, total } = await jmapClient.getEmails({
+            mailboxId: mailbox.id,
+            limit: BATCH_SIZE,
+            position,
+          });
 
-          // Email data
-          fromEmail: jmapEmail.from?.[0]?.email || null,
-          fromName: jmapEmail.from?.[0]?.name || null,
-          toEmails: jmapEmail.to?.map(addr => ({
-            email: addr.email,
-            name: addr.name || '',
-          })) || [],
-          ccEmails: jmapEmail.cc?.map(addr => ({
-            email: addr.email,
-            name: addr.name || '',
-          })) || [],
-          bccEmails: jmapEmail.bcc?.map(addr => ({
-            email: addr.email,
-            name: addr.name || '',
-          })) || [],
+          console.log(`  Found ${jmapEmails.length} emails (${folderTotalSynced + jmapEmails.length}/${total} total in ${mailbox.name})`);
 
-          subject: jmapEmail.subject || '(No Subject)',
-          snippet: jmapEmail.preview || '',
-          bodyText: jmapEmail.preview || '', // Will fetch full body later if needed
-          bodyHtml: '',
+          if (jmapEmails.length === 0) {
+            hasMore = false;
+            break;
+          }
 
-          receivedAt: new Date(jmapEmail.receivedAt),
-          sentAt: new Date(jmapEmail.receivedAt),
+          // Prepare emails for batch insert
+          const emailsToInsert = jmapEmails.map(jmapEmail => ({
+            accountId: accountId,
+            provider: 'jmap',
+            providerMessageId: jmapEmail.id,
+            folder: normalizedFolderName,
+            folders: [mailbox.name],
 
-          isRead: !!jmapEmail.keywords?.['$seen'],
-          isStarred: !!jmapEmail.keywords?.['$flagged'],
+            // Email data
+            fromEmail: jmapEmail.from?.[0]?.email || null,
+            fromName: jmapEmail.from?.[0]?.name || null,
+            toEmails: jmapEmail.to?.map(addr => ({
+              email: addr.email,
+              name: addr.name || '',
+            })) || [],
+            ccEmails: jmapEmail.cc?.map(addr => ({
+              email: addr.email,
+              name: addr.name || '',
+            })) || [],
+            bccEmails: jmapEmail.bcc?.map(addr => ({
+              email: addr.email,
+              name: addr.name || '',
+            })) || [],
 
-          hasAttachments: jmapEmail.hasAttachment || false,
-          attachmentsCount: 0,
-          attachments: [],
-        }));
+            subject: jmapEmail.subject || '(No Subject)',
+            snippet: jmapEmail.preview || '',
+            bodyText: jmapEmail.preview || '', // Will fetch full body later if needed
+            bodyHtml: '',
 
-        // Batch insert (MUCH faster!)
-        if (emailsToInsert.length > 0) {
-          const inserted = await db.insert(emails)
-            .values(emailsToInsert)
-            .onConflictDoNothing()
-            .returning({ id: emails.id });
+            receivedAt: new Date(jmapEmail.receivedAt),
+            sentAt: new Date(jmapEmail.receivedAt),
 
-          totalSynced += inserted.length;
-          console.log(`✅ Synced ${inserted.length}/${jmapEmails.length} emails from ${mailbox.name}`);
+            isRead: !!jmapEmail.keywords?.['$seen'],
+            isStarred: !!jmapEmail.keywords?.['$flagged'],
+
+            hasAttachments: jmapEmail.hasAttachment || false,
+            attachmentsCount: 0,
+            attachments: [],
+          }));
+
+          // Batch insert (MUCH faster!)
+          if (emailsToInsert.length > 0) {
+            const inserted = await db.insert(emails)
+              .values(emailsToInsert)
+              .onConflictDoNothing()
+              .returning({ id: emails.id });
+
+            folderTotalSynced += inserted.length;
+            totalSynced += inserted.length;
+            console.log(`  ✅ Synced ${inserted.length} emails from batch (${folderTotalSynced} total in folder)`);
+          }
+
+          // Move to next batch
+          position += BATCH_SIZE;
+
+          // Check if we've reached the end
+          if (position >= total) {
+            hasMore = false;
+          }
         }
+
+        console.log(`✅ Completed ${mailbox.name}: ${folderTotalSynced} emails synced`)
 
       } catch (folderError) {
         console.error(`Error syncing mailbox ${mailbox.name}:`, folderError);
