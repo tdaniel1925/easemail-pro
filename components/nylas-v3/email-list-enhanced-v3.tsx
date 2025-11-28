@@ -244,7 +244,7 @@ export function EmailListEnhancedV3({
     loadMessages(true);
   }, [accountId, folderId]);
 
-  // Fetch SMS unread count on mount and poll every 30 seconds
+  // Fetch SMS unread count on mount and poll every 60 seconds (consolidated - was duplicate)
   useEffect(() => {
     const fetchSMSUnreadCount = async () => {
       try {
@@ -263,8 +263,8 @@ export function EmailListEnhancedV3({
     // Initial fetch
     fetchSMSUnreadCount();
 
-    // Poll every 30 seconds
-    const interval = setInterval(fetchSMSUnreadCount, 30000);
+    // Poll every 60 seconds (reduced from 30s to minimize API calls)
+    const interval = setInterval(fetchSMSUnreadCount, 60000);
 
     return () => clearInterval(interval);
   }, []);
@@ -294,27 +294,6 @@ export function EmailListEnhancedV3({
       unsubscribe();
     };
   }, [accountId]);
-
-  // Fetch SMS unread count on mount and periodically
-  useEffect(() => {
-    const fetchSMSCount = async () => {
-      try {
-        const response = await fetch('/api/sms/inbox');
-        if (response.ok) {
-          const data = await response.json();
-          const unreadCount = data.messages?.filter((msg: any) => !msg.isRead).length || 0;
-          setSmsUnreadCount(unreadCount);
-        }
-      } catch (error) {
-        console.error('Failed to fetch SMS count:', error);
-      }
-    };
-
-    fetchSMSCount();
-    const interval = setInterval(fetchSMSCount, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Set up intersection observer for infinite scroll
   useEffect(() => {

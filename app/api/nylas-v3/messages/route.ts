@@ -118,7 +118,8 @@ export async function GET(request: NextRequest) {
 
       console.log('[Messages] Fetching from local database - Folder:', folderName, 'Account:', account.emailProvider, 'Provider:', account.provider);
 
-      // Query local database with optimized column selection
+      // Query local database - OPTIMIZED: Don't fetch body for list view (save bandwidth)
+      // Body is fetched separately when user opens an email
       const dbMessages = await db.select({
         id: emails.id,
         providerMessageId: emails.providerMessageId,
@@ -135,8 +136,7 @@ export async function GET(request: NextRequest) {
         isRead: emails.isRead,
         isStarred: emails.isStarred,
         snippet: emails.snippet,
-        bodyHtml: emails.bodyHtml,
-        bodyText: emails.bodyText,
+        // NOTE: bodyHtml and bodyText excluded for performance - fetch via /messages/[id] when needed
         folder: emails.folder,
         folders: emails.folders,
         attachments: emails.attachments,
@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
             unread: !msg.isRead,
             starred: msg.isStarred || false,
             snippet: msg.snippet || '',
-            body: msg.bodyHtml || msg.bodyText || '',
+            // body excluded from list view for performance - fetch via /messages/[id]
             folders: Array.isArray(msg.folders) ? msg.folders : [folderName],
             attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
           };
@@ -201,11 +201,17 @@ export async function GET(request: NextRequest) {
       threadEmailCount: message.threadEmailCount || 1, // Default to 1
     }));
 
+    // Return with cache headers for instant subsequent loads
     return NextResponse.json({
       success: true,
       messages: enrichedMessages,
       nextCursor: result.nextCursor,
       hasMore: result.hasMore,
+    }, {
+      headers: {
+        // Cache for 30 seconds, serve stale while revalidating for 60 seconds
+        'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+      }
     });
   } catch (error) {
     console.error('❌ Messages API error:', error);
