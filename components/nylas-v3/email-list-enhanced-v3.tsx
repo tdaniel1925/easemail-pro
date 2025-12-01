@@ -1,13 +1,12 @@
 /**
  * Email List Enhanced v3
- * Complete email list with dropdowns, AI summaries, bulk actions, and all v1 features
+ * Complete email list with dropdowns, bulk actions, and all v1 features
  */
 
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useInView } from 'react-intersection-observer';
 import {
   Loader2,
   Mail as MailIcon,
@@ -21,7 +20,6 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
-  Sparkles,
   Trash2,
   Archive,
   MailOpen,
@@ -42,8 +40,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { EmailRendererV3 } from '@/components/email/EmailRendererV3';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { useEmailSummary } from '@/lib/hooks/useEmailSummary';
 import { ThreadSummaryPanelV3 } from './thread-summary-panel-v3';
 import SMSNotificationBell from '@/components/sms/SMSNotificationBell';
 import {
@@ -115,7 +111,6 @@ export function EmailListEnhancedV3({
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
-  const [showAISummaries, setShowAISummaries] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [locallyRemovedEmails, setLocallyRemovedEmails] = useState<Set<string>>(new Set());
   const [smsUnreadCount, setSmsUnreadCount] = useState(0);
@@ -335,21 +330,6 @@ export function EmailListEnhancedV3({
     }
   }, [undoStack]);
 
-  // Load AI Summary preference
-  useEffect(() => {
-    const loadPreference = async () => {
-      try {
-        const response = await fetch('/api/user/preferences');
-        const data = await response.json();
-        if (data.success && data.preferences) {
-          setShowAISummaries(data.preferences.showAISummaries ?? true);
-        }
-      } catch (error) {
-        console.error('Failed to load AI summary preference:', error);
-      }
-    };
-    loadPreference();
-  }, []);
 
   const loadMessages = async (reset: boolean = false) => {
     if (loading) return;
@@ -402,20 +382,6 @@ export function EmailListEnhancedV3({
     setNextCursor(null);
     setLocallyRemovedEmails(new Set());
     loadMessages(true);
-  };
-
-  const handleAISummaryToggle = async (checked: boolean) => {
-    setShowAISummaries(checked);
-
-    try {
-      await fetch('/api/user/preferences', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ showAISummaries: checked }),
-      });
-    } catch (error) {
-      console.error('Failed to save preference:', error);
-    }
   };
 
   const handleSelectAll = () => {
@@ -607,15 +573,6 @@ export function EmailListEnhancedV3({
               <h2 className="text-xs md:text-sm font-medium capitalize">{folderName}</h2>
             </div>
 
-            {/* AI Summary Toggle - Hidden on mobile */}
-            <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
-              <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                <Switch checked={showAISummaries} onCheckedChange={handleAISummaryToggle} />
-                <Sparkles className="h-4 w-4" />
-                <span className="text-xs">AI</span>
-              </label>
-            </div>
-
             {/* Search Bar with Advanced Search */}
             <div className="flex-1 relative min-w-0 flex items-center gap-1">
               <div className="flex-1 relative">
@@ -694,7 +651,6 @@ export function EmailListEnhancedV3({
                   isSelected={selectedEmailId === message.id}
                   isChecked={selectedEmails.has(message.id)}
                   selectMode={selectMode}
-                  showAISummaries={showAISummaries}
                   onSelect={(e) => handleSelectEmail(message.id, e)}
                   onClick={() => {
                     setExpandedEmailId(expandedEmailId === message.id ? null : message.id);
@@ -963,7 +919,6 @@ interface EmailCardProps {
   isSelected: boolean;
   isChecked: boolean;
   selectMode: boolean;
-  showAISummaries: boolean;
   onSelect: (e: React.MouseEvent) => void;
   onClick: () => void;
   onCompose?: (type: 'reply' | 'reply-all' | 'forward', email: EmailMessage) => void;
@@ -976,7 +931,6 @@ function EmailCard({
   isExpanded,
   isSelected,
   isChecked,
-  showAISummaries,
   onSelect,
   onClick,
   onCompose,
@@ -987,19 +941,15 @@ function EmailCard({
   const [fullEmail, setFullEmail] = useState<EmailMessage | null>(null);
   const [loadingFullEmail, setLoadingFullEmail] = useState(false);
   const [showThread, setShowThread] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const [showThreadPreview, setShowThreadPreview] = useState(false);
   const [threadPreviewData, setThreadPreviewData] = useState<any>(null);
   const [loadingThreadPreview, setLoadingThreadPreview] = useState(false);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [loadingAiSummary, setLoadingAiSummary] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Viewport detection for previews
-  const { ref, inView } = useInView({
-    threshold: 0.5,
-    triggerOnce: true,
-  });
+  // Mount detection for portal (SSR safety)
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Smart preview extraction - get first 2-3 lines from snippet/body
   const extractSmartPreview = (text: string, maxLines: number = 3): string => {
@@ -1080,78 +1030,6 @@ function EmailCard({
 
   const smartPreview = extractSmartPreview(message.snippet || message.body || '');
 
-  // Handle hover for popup (only when not expanded)
-  const handleMouseEnter = () => {
-    if (showAISummaries && !isExpanded) {
-      setShowPopup(true);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    setShowPopup(false);
-  };
-
-  // Mount detection for portal (SSR safety)
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Fetch AI summary when AI summaries are enabled and email is in view
-  useEffect(() => {
-    if (showAISummaries && inView && !aiSummary && !loadingAiSummary) {
-      const fetchAiSummary = async () => {
-        setLoadingAiSummary(true);
-        try {
-          // First, try to fetch existing summary
-          const getResponse = await fetch(
-            `/api/email-summaries?messageIds=${message.id}&accountId=${accountId}`
-          );
-          const getData = await getResponse.json();
-
-          if (getData.success && getData.summaries[message.id]) {
-            setAiSummary(getData.summaries[message.id]);
-            setLoadingAiSummary(false);
-            return;
-          }
-
-          // If no cached summary, generate a new one
-          // First fetch the full email content
-          const emailResponse = await fetch(
-            `/api/nylas-v3/messages/${message.id}?accountId=${accountId}`
-          );
-          const emailData = await emailResponse.json();
-
-          if (emailData.success && emailData.message) {
-            const emailContent = emailData.message.body || emailData.message.snippet;
-
-            // Generate AI summary
-            const summaryResponse = await fetch('/api/email-summaries', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                messageId: message.id,
-                accountId,
-                emailContent,
-                subject: message.subject,
-              }),
-            });
-
-            const summaryData = await summaryResponse.json();
-            if (summaryData.success) {
-              setAiSummary(summaryData.summary);
-            }
-          }
-        } catch (error) {
-          console.error('Failed to fetch AI summary:', error);
-        } finally {
-          setLoadingAiSummary(false);
-        }
-      };
-
-      fetchAiSummary();
-    }
-  }, [showAISummaries, inView, message.id, accountId, aiSummary, loadingAiSummary]);
-
   // Fetch full email body when expanded
   useEffect(() => {
     if (isExpanded && !fullEmail && !message.body) {
@@ -1174,9 +1052,8 @@ function EmailCard({
   }, [isExpanded, message.id, message.body, fullEmail, accountId]);
 
   const displayEmail = fullEmail || message;
-  // Use AI summary if available, otherwise fall back to smart preview or snippet
-  const displayText = showAISummaries && aiSummary ? aiSummary : (smartPreview || message.snippet);
-  const showSmartPreview = showAISummaries && (!!aiSummary || loadingAiSummary);
+  // Use snippet for display
+  const displayText = smartPreview || message.snippet;
 
   // Fetch thread preview data
   const fetchThreadPreview = async () => {
@@ -1264,7 +1141,6 @@ function EmailCard({
 
   return (
     <div
-      ref={ref}
       className={cn(
         'border border-border/50 rounded-lg transition-all bg-card overflow-hidden cursor-pointer relative',
         'hover:shadow-md hover:-translate-y-0.5',
@@ -1272,197 +1148,7 @@ function EmailCard({
         message.unread && 'bg-accent/30',
         isSelected && 'ring-2 ring-primary ring-offset-1'
       )}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
     >
-      {/* AI Summary Popup - Rendered via Portal */}
-      {showPopup && isMounted && createPortal(
-        <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] w-[480px] bg-popover border-2 border-primary rounded-xl shadow-2xl overflow-hidden">
-          {/* Header with Sender Info */}
-          <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-4 border-b border-border">
-            <div className="flex items-start gap-3">
-              {/* Sender Avatar */}
-              <div
-                className="h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold text-white flex-shrink-0"
-                style={{
-                  backgroundColor: generateAvatarColor(
-                    message.from[0]?.email || message.from[0]?.name || 'Unknown'
-                  ),
-                }}
-              >
-                {getInitials(message.from[0]?.name || message.from[0]?.email || 'U')}
-              </div>
-
-              {/* Sender Details */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-semibold truncate">
-                    {message.from[0]?.name || message.from[0]?.email}
-                  </h4>
-                  {/* Priority Badge */}
-                  {message.unread && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-700 dark:text-orange-300 text-[10px] font-medium">
-                      <Bell className="h-2.5 w-2.5" />
-                      Priority
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground truncate">
-                  {message.from[0]?.email}
-                </p>
-                {message.hasAttachments && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Paperclip className="h-3 w-3" />
-                      {message.attachments?.length || 1} attachment{(message.attachments?.length ?? 0) > 1 ? 's' : ''}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Category Tags */}
-            <div className="flex items-center gap-2 mt-3 flex-wrap">
-              {/* Auto-detect categories based on email content */}
-              {message.from[0]?.email?.includes('noreply') || message.from[0]?.email?.includes('newsletter') ? (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300 text-[10px] font-medium">
-                  <Tag className="h-2.5 w-2.5" />
-                  Newsletter
-                </span>
-              ) : message.subject?.toLowerCase().includes('invoice') || message.subject?.toLowerCase().includes('receipt') ? (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/20 text-green-700 dark:text-green-300 text-[10px] font-medium">
-                  <Tag className="h-2.5 w-2.5" />
-                  Finance
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-purple-500/20 text-purple-700 dark:text-purple-300 text-[10px] font-medium">
-                  <Tag className="h-2.5 w-2.5" />
-                  Work
-                </span>
-              )}
-
-            </div>
-          </div>
-
-          {/* Smart Preview Section */}
-          <div className="p-4 border-b border-border">
-            <div className="flex items-start gap-2 mb-2">
-              <MailIcon className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-              <h4 className="text-sm font-semibold">Email Preview</h4>
-            </div>
-            {smartPreview ? (
-              <p className="text-sm text-foreground leading-relaxed">
-                {highlightText(smartPreview)}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No preview available
-              </p>
-            )}
-            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
-                Dates
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
-                Times
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-purple-500"></span>
-                Links
-              </span>
-            </div>
-          </div>
-
-          {/* Attachment Previews */}
-          {message.hasAttachments && message.attachments && message.attachments.length > 0 && (
-            <div className="p-4 border-b border-border">
-              <h4 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-                <Paperclip className="h-3 w-3" />
-                Attachments ({message.attachments.length})
-              </h4>
-              <div className="flex gap-2 flex-wrap">
-                {message.attachments.slice(0, 3).map((attachment: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-2 px-2 py-1.5 bg-accent rounded-md text-xs max-w-[140px]"
-                  >
-                    <Paperclip className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    <span className="truncate">{attachment.filename || `Attachment ${idx + 1}`}</span>
-                  </div>
-                ))}
-                {message.attachments.length > 3 && (
-                  <span className="text-xs text-muted-foreground px-2 py-1.5">
-                    +{message.attachments.length - 3} more
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Quick Actions */}
-          <div className="p-4 bg-accent/30">
-            <h4 className="text-xs font-semibold text-muted-foreground mb-3">Quick Actions</h4>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start text-xs h-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPopup(false);
-                  onCompose?.('reply', message);
-                }}
-              >
-                <Reply className="h-3 w-3 mr-1.5" />
-                Reply
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start text-xs h-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPopup(false);
-                  onCompose?.('forward', message);
-                }}
-              >
-                <Forward className="h-3 w-3 mr-1.5" />
-                Forward
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start text-xs h-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPopup(false);
-                  handleAction(e, 'markRead');
-                }}
-              >
-                <MailOpen className="h-3 w-3 mr-1.5" />
-                Mark Read
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="w-full justify-start text-xs h-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPopup(false);
-                  handleAction(e, 'delete');
-                }}
-              >
-                <Trash2 className="h-3 w-3 mr-1.5" />
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
       {/* Email Preview - Always Visible */}
       <div
         className={cn('p-4 transition-colors', isExpanded && 'bg-accent/50')}
@@ -1594,19 +1280,6 @@ function EmailCard({
                               </div>
                             )}
 
-                            {/* AI Summary */}
-                            {threadPreviewData.aiSummary && (
-                              <div>
-                                <div className="flex items-center gap-1.5 mb-1.5">
-                                  <Sparkles className="h-3.5 w-3.5 text-primary" />
-                                  <p className="text-xs font-medium text-muted-foreground">AI Summary</p>
-                                </div>
-                                <p className="text-xs text-foreground leading-relaxed line-clamp-3">
-                                  {threadPreviewData.aiSummary}
-                                </p>
-                              </div>
-                            )}
-
                             {/* Latest Email */}
                             {threadPreviewData.emails && threadPreviewData.emails.length > 0 && (
                               <div>
@@ -1632,8 +1305,8 @@ function EmailCard({
                                   setShowThread(true);
                                 }}
                               >
-                                <Sparkles className="h-3 w-3" />
-                                View Full Thread Summary
+                                <MessageSquare className="h-3 w-3" />
+                                View Full Thread
                               </button>
                             </div>
                           </div>
@@ -1652,32 +1325,15 @@ function EmailCard({
 
             {!isExpanded && (
               <>
-                {/* AI Summary or Email Snippet */}
+                {/* Email Snippet */}
                 <div className="flex items-start gap-2 pr-2 mb-3">
-                  {showAISummaries && aiSummary && (
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <Sparkles className="h-3 w-3 text-purple-500 mt-1" />
-                    </div>
-                  )}
-                  {loadingAiSummary && showAISummaries && (
-                    <Loader2 className="h-3 w-3 text-muted-foreground mt-1 flex-shrink-0 animate-spin" />
-                  )}
-                  {!showAISummaries && showSmartPreview && (
-                    <MailIcon className="h-3 w-3 text-primary mt-1 flex-shrink-0" />
-                  )}
                   <p
                     className={cn(
-                      'text-sm line-clamp-3 flex-1 leading-relaxed',
-                      showAISummaries && aiSummary ? 'text-foreground font-medium' :
-                      showSmartPreview ? 'text-foreground' : 'text-muted-foreground',
+                      'text-sm line-clamp-3 flex-1 leading-relaxed text-muted-foreground',
                       message.unread && 'font-medium'
                     )}
                   >
-                    {loadingAiSummary && showAISummaries ? (
-                      <span className="text-muted-foreground italic">Generating AI summary...</span>
-                    ) : (
-                      displayText
-                    )}
+                    {displayText}
                   </p>
                 </div>
 
@@ -1711,7 +1367,7 @@ function EmailCard({
                     <Forward className="h-4 w-4" />
                   </Button>
                   <div className="flex-1" />
-                  {/* AI Thread Summary Button - only show if thread has 2+ emails */}
+                  {/* Thread Summary Button - only show if thread has 2+ emails */}
                   {message.threadId && message.threadEmailCount && message.threadEmailCount >= 2 && (
                     <Button
                       variant="ghost"
@@ -1724,9 +1380,9 @@ function EmailCard({
                         e.stopPropagation();
                         setShowThread(!showThread);
                       }}
-                      title="View AI Thread Summary"
+                      title="View Thread"
                     >
-                      <Sparkles className="h-4 w-4" />
+                      <MessageSquare className="h-4 w-4" />
                     </Button>
                   )}
                   <Button
