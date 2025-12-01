@@ -1,14 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useInView } from 'react-intersection-observer';
 import { formatDate, getInitials, generateAvatarColor, formatFileSize } from '@/lib/utils';
-import { Star, Paperclip, Reply, ReplyAll, Forward, Download, ChevronDown, ChevronUp, Search, Sparkles, Loader2, Trash2, Archive, Mail, MailOpen, FolderInput, CheckSquare, Square, MessageSquare, Tag, Clock, Ban, Bell } from 'lucide-react';
+import { Star, Paperclip, Reply, ReplyAll, Forward, Download, ChevronDown, ChevronUp, Search, Loader2, Trash2, Archive, Mail, MailOpen, FolderInput, CheckSquare, Square, MessageSquare, Tag, Clock, Ban, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
-import { useEmailSummary } from '@/lib/hooks/useEmailSummary';
 import { ToastContainer, useToast } from '@/components/ui/toast';
 import { ThreadSummaryPanel } from '@/components/email/ThreadSummaryPanel';
 import { LabelManager } from '@/components/email/LabelManager';
@@ -63,7 +60,6 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
   const { useEmailRendererV3 } = useFeatureFlags();
 
   // User Preferences
-  const [showAISummaries, setShowAISummaries] = useState(true);
   const [showImages, setShowImages] = useState(true); // Default to showing images automatically
 
   // SMS Notifications
@@ -101,14 +97,13 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
     }
   }, [undoStack]);
   
-  // Load user preferences (AI summaries and image loading)
+  // Load user preferences (image loading)
   useEffect(() => {
     const loadPreferences = async () => {
       try {
         const response = await fetch('/api/user/preferences');
         const data = await response.json();
         if (data.success && data.preferences) {
-          setShowAISummaries(data.preferences.showAISummaries ?? true);
           setShowImages(data.preferences.showImages ?? false);
         }
       } catch (error) {
@@ -137,21 +132,6 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
     const interval = setInterval(fetchSMSCount, 30000);
     return () => clearInterval(interval);
   }, []);
-  
-  // Handle AI Summary toggle change
-  const handleAISummaryToggle = async (checked: boolean) => {
-    setShowAISummaries(checked);
-    
-    try {
-      await fetch('/api/user/preferences', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ showAISummaries: checked }),
-      });
-    } catch (error) {
-      console.error('Failed to save preference:', error);
-    }
-  };
   
   // ✅ Undo handler
   const handleUndo = () => {
@@ -506,18 +486,6 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
               <h2 className="text-sm font-medium">{currentFolder || 'Inbox'}</h2>
             </div>
 
-            {/* AI Summary Toggle */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                <Switch 
-                  checked={showAISummaries}
-                  onCheckedChange={handleAISummaryToggle}
-                />
-                <Sparkles className="h-4 w-4" />
-                <span className="text-xs">AI</span>
-              </label>
-            </div>
-
             {/* Search bar - takes remaining space */}
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -576,7 +544,6 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
             isSelected={selectedEmailId === email.id}
             isChecked={selectedEmails.has(email.id)}
             selectMode={selectMode}
-            showAISummaries={showAISummaries}
             showImages={showImages}
             useEmailRendererV3={useEmailRendererV3}
             onSelect={(e) => handleSelectEmail(email.id, e)}
@@ -652,8 +619,7 @@ interface EmailCardProps {
   isSelected: boolean;
   isChecked: boolean;
   selectMode: boolean;
-  showAISummaries: boolean;
-  showImages: boolean; // NEW: Control external image loading
+  showImages: boolean; // Control external image loading
   useEmailRendererV3: boolean; // V3 renderer feature flag
   onSelect: (e: React.MouseEvent) => void;
   onClick: () => void;
@@ -662,22 +628,12 @@ interface EmailCardProps {
   onShowImagesToggle: () => void; // Toggle image loading
 }
 
-function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showAISummaries, showImages, useEmailRendererV3, onSelect, onClick, showToast, onRemove, onShowImagesToggle }: EmailCardProps) {
+function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showImages, useEmailRendererV3, onSelect, onClick, showToast, onRemove, onShowImagesToggle }: EmailCardProps) {
   const avatarColor = generateAvatarColor(email.fromEmail || 'unknown@example.com');
   const [mounted, setMounted] = useState(false);
   const [fullEmail, setFullEmail] = useState<Email | null>(null);
   const [loadingFullEmail, setLoadingFullEmail] = useState(false);
   const [showThread, setShowThread] = useState(false);
-  
-  // Viewport detection
-  const { ref, inView } = useInView({
-    threshold: 0.5, // Trigger when 50% visible
-    triggerOnce: true, // Only trigger once
-  });
-  
-  // Fetch AI summary when in viewport (all folders) AND showAISummaries is enabled
-  const shouldFetchSummary = inView && showAISummaries;
-  const { data: summaryData, isLoading: isSummaryLoading } = useEmailSummary(email, shouldFetchSummary);
 
   useEffect(() => {
     setMounted(true);
@@ -706,10 +662,6 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
   
   // Use full email data if available
   const displayEmail = fullEmail || email;
-  
-  // Use AI summary if available, otherwise use snippet
-  const displayText = (showAISummaries && summaryData?.summary) || email.snippet;
-  const hasAISummary = showAISummaries && !!(summaryData && summaryData.summary);
   
   // Action handlers
   const handleReply = (e: React.MouseEvent) => {
@@ -866,7 +818,6 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
 
   return (
     <div
-      ref={ref}
       className={cn(
         'border border-border/50 rounded-lg transition-all bg-card overflow-hidden cursor-pointer',
         'hover:shadow-md hover:-translate-y-0.5',
@@ -962,20 +913,13 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showA
 
             {!isExpanded && (
               <>
-                {/* AI Summary (3 lines, no subject) */}
+                {/* Email snippet (3 lines, no subject) */}
                 <div className="flex items-start gap-2 pr-2 mb-3">
-                  {isSummaryLoading && (
-                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground mt-1 flex-shrink-0" />
-                  )}
-                  {hasAISummary && !isSummaryLoading && (
-                    <Sparkles className="h-3 w-3 text-primary mt-1 flex-shrink-0" />
-                  )}
                   <p className={cn(
-                    'text-sm line-clamp-3 flex-1 leading-relaxed',
-                    hasAISummary ? 'text-foreground' : 'text-muted-foreground',
+                    'text-sm line-clamp-3 flex-1 leading-relaxed text-muted-foreground',
                     !email.isRead && 'font-medium'
                   )}>
-                    {displayText}
+                    {email.snippet}
                   </p>
                 </div>
 
