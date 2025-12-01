@@ -49,19 +49,17 @@ function InboxV3Content() {
     : selectedAccount?.nylasGrantId || null; // Nylas Grant ID for Nylas accounts
   const selectedDbAccountId = selectedAccount?.id || null; // Database UUID (for sending emails)
 
-  // 🔄 Auto-sync: Automatically fetch new emails
-  // JMAP accounts: Every 15 seconds (near real-time!)
-  // Other accounts: Every 2 minutes (less frequent)
-  const [emailListKey, setEmailListKey] = useState(0);
+  // 🔄 Auto-sync: Automatically fetch new emails in the background
+  // The EmailListEnhancedV3 component handles its own refresh via real-time events
+  // This hook just triggers the backend sync without forcing a component remount
   const syncInterval = isJMAPAccount ? 15 * 1000 : 2 * 60 * 1000;
 
   const { manualSync, isSyncing } = useAutoSync({
     enabled: true,
     interval: syncInterval,
     onSync: () => {
-      // Refresh email list when new emails are synced
-      setEmailListKey(prev => prev + 1);
-      console.log(`[Inbox] ✅ Email list refreshed (${isJMAPAccount ? '15s' : '2m'} interval)`);
+      // Backend sync completed - EmailListEnhancedV3 will receive real-time events
+      console.log(`[Inbox] ✅ Background sync completed (${isJMAPAccount ? '15s' : '2m'} interval)`);
     },
     onError: (error) => {
       console.error('[Inbox] Auto-sync error:', error);
@@ -329,7 +327,6 @@ function InboxV3Content() {
           </>
         ) : selectedAccountId && !selectedMessageId ? (
           <EmailListEnhancedV3
-            key={emailListKey}
             accountId={selectedAccountId}
             folderId={selectedFolderId}
             folderName={selectedFolderName}
