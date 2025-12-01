@@ -361,11 +361,26 @@ export function EmailListEnhancedV3({
       }
 
       const data = await response.json();
+      const newMessages = data.messages || [];
 
       if (reset) {
-        setMessages(data.messages || []);
+        // For background refresh, do a smart merge to avoid unnecessary re-renders
+        if (!showLoading) {
+          setMessages((prevMessages) => {
+            // If arrays are identical (same IDs in same order), don't update
+            if (prevMessages.length === newMessages.length) {
+              const isSame = prevMessages.every((msg, idx) => msg.id === newMessages[idx]?.id);
+              if (isSame) {
+                return prevMessages; // Return same reference to prevent re-render
+              }
+            }
+            return newMessages;
+          });
+        } else {
+          setMessages(newMessages);
+        }
       } else {
-        setMessages((prev) => [...prev, ...(data.messages || [])]);
+        setMessages((prev) => [...prev, ...newMessages]);
       }
 
       setNextCursor(data.nextCursor);
