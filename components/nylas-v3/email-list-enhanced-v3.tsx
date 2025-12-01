@@ -273,10 +273,10 @@ export function EmailListEnhancedV3({
     const unsubscribe = subscribeToEmailSync(accountId, (event: any) => {
       console.log('[EmailList] Real-time event:', event.type);
 
-      // Refresh the current folder when messages change
+      // Refresh the current folder when messages change (silent background refresh)
       if (event.type === 'message.created' || event.type === 'message.deleted') {
-        // Reload messages to show new/removed messages
-        loadMessages(true);
+        // Reload messages silently without showing loading indicator
+        loadMessages(true, false);
       }
 
       if (event.type === 'message.updated') {
@@ -331,11 +331,14 @@ export function EmailListEnhancedV3({
   }, [undoStack]);
 
 
-  const loadMessages = async (reset: boolean = false) => {
+  const loadMessages = async (reset: boolean = false, showLoading: boolean = true) => {
     if (loading) return;
 
     try {
-      setLoading(true);
+      // Only show loading indicator for pagination, not background refreshes
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
 
       const params = new URLSearchParams({
@@ -378,7 +381,7 @@ export function EmailListEnhancedV3({
 
 
   const handleRefresh = () => {
-    setMessages([]);
+    // Don't clear messages here - let loadMessages replace them smoothly
     setNextCursor(null);
     setLocallyRemovedEmails(new Set());
     loadMessages(true);
