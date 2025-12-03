@@ -644,11 +644,28 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
   // We need to fetch the full body when the email is expanded
   useEffect(() => {
     // Skip if already fetched or not expanded
-    if (!isExpanded || fullEmail) return;
+    if (!isExpanded || fullEmail) {
+      console.log('[EmailList] Skip fetch:', { isExpanded, hasFullEmail: !!fullEmail, emailId: email.id });
+      return;
+    }
 
-    // Always fetch if no HTML body (JMAP sync stores empty bodyHtml)
-    // Or if bodyText is just a short snippet (less than 500 chars likely means it's just preview)
-    const needsFullBody = !email.bodyHtml || (email.bodyText && email.bodyText.length < 500 && !email.bodyHtml);
+    // Determine if we need to fetch the full body
+    // - No HTML body (JMAP/IMAP sync stores empty or no bodyHtml)
+    // - OR bodyText is very short (likely just a preview/snippet)
+    // - OR explicitly has accountId (JMAP/IMAP account) and no substantial HTML
+    const hasSubstantialHtml = email.bodyHtml && email.bodyHtml.length > 100;
+    const hasSubstantialText = email.bodyText && email.bodyText.length > 500;
+    const needsFullBody = !hasSubstantialHtml || (email.accountId && !hasSubstantialText);
+
+    console.log('[EmailList] Checking needsFullBody:', {
+      emailId: email.id,
+      accountId: email.accountId,
+      bodyHtmlLength: email.bodyHtml?.length || 0,
+      bodyTextLength: email.bodyText?.length || 0,
+      hasSubstantialHtml,
+      hasSubstantialText,
+      needsFullBody,
+    });
 
     if (needsFullBody) {
       const fetchFullEmail = async () => {
@@ -661,12 +678,20 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
           console.log('[EmailList] Fetching full email body:', { id: email.id, accountId: email.accountId, url });
           const response = await fetch(url);
           const data = await response.json();
-          console.log('[EmailList] Fetch response:', { success: data.success, hasMessage: !!data.message, hasBodyHtml: !!data.message?.bodyHtml });
+          console.log('[EmailList] Fetch response:', {
+            success: data.success,
+            hasMessage: !!data.message,
+            hasBodyHtml: !!data.message?.bodyHtml,
+            bodyHtmlLength: data.message?.bodyHtml?.length || 0,
+            attachmentCount: data.message?.attachments?.length || 0
+          });
           if (data.success && data.message) {
             setFullEmail(data.message);
+          } else {
+            console.error('[EmailList] Failed to get message:', data.error);
           }
         } catch (error) {
-          console.error('Failed to fetch full email:', error);
+          console.error('[EmailList] Failed to fetch full email:', error);
         } finally {
           setLoadingFullEmail(false);
         }
@@ -1111,11 +1136,11 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
                 ) : true ? ( // FORCE V3 renderer - always use it
                   <EmailRendererV3
                     emailId={email.id}
-                    messageId={email.id}
+                    messageId={fullEmail?.id || email.id}
                     accountId={email.accountId || ''}
                     bodyHtml={displayEmail.bodyHtml}
                     bodyText={displayEmail.bodyText}
-                    attachments={email.attachments}
+                    attachments={displayEmail.attachments || email.attachments}
                     showImages={showImages}
                     onShowImagesToggle={onShowImagesToggle}
                   />
