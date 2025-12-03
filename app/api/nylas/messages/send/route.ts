@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendNylasEmail } from '@/lib/email/nylas-client';
 import { sendAurinkoEmail } from '@/lib/email/aurinko-client';
+import { createFastmailJMAPClient } from '@/lib/jmap/client';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -196,6 +197,31 @@ export async function POST(request: NextRequest) {
         attachments: processedAttachments,
       });
       providerMessageId = sentMessage.data?.id;
+    } else if (account.provider === 'jmap' && account.imapPassword) {
+      // JMAP Account (Fastmail, etc.)
+      console.log('📤 Sending via JMAP for account:', account.emailAddress);
+
+      // Decrypt API token (stored base64 encoded)
+      const apiToken = Buffer.from(account.imapPassword, 'base64').toString('utf-8');
+
+      // Create JMAP client and connect
+      const jmapClient = createFastmailJMAPClient(apiToken);
+      await jmapClient.connect();
+
+      // Send the email
+      const jmapResult = await jmapClient.sendEmail({
+        from: { email: account.emailAddress, name: account.emailAddress },
+        to: parsedTo,
+        cc: parsedCc.length > 0 ? parsedCc : undefined,
+        bcc: parsedBcc.length > 0 ? parsedBcc : undefined,
+        subject: subject || '(No Subject)',
+        body: finalEmailBody || '',
+        bodyType: 'html',
+      });
+
+      sentMessage = jmapResult;
+      providerMessageId = jmapResult.emailId;
+      console.log('✅ JMAP email sent:', jmapResult);
     } else if (account.emailProvider === 'aurinko' && account.accessToken) {
       console.log('📤 Sending via Aurinko with accessToken');
       sentMessage = await sendAurinkoEmail(account.id, account.accessToken, {
@@ -209,10 +235,12 @@ export async function POST(request: NextRequest) {
       providerMessageId = sentMessage.id;
     } else {
       console.error('❌ Provider not configured:', {
-        provider: account.emailProvider,
+        provider: account.provider,
+        emailProvider: account.emailProvider,
         nylasProvider: account.nylasProvider,
         hasNylasGrantId: !!account.nylasGrantId,
         hasAccessToken: !!account.accessToken,
+        hasImapPassword: !!account.imapPassword,
       });
       return NextResponse.json(
         { error: 'Email provider not configured. Please reconnect your email account in Settings.' },

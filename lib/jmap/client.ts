@@ -137,6 +137,7 @@ export class JMAPClient {
         using: [
           'urn:ietf:params:jmap:core',
           'urn:ietf:params:jmap:mail',
+          'urn:ietf:params:jmap:submission',
         ],
         methodCalls,
       }),
@@ -320,6 +321,203 @@ export class JMAPClient {
     }
 
     return response.arrayBuffer();
+  }
+
+  /**
+   * Get the primary identity for sending emails
+   */
+  async getPrimaryIdentity(): Promise<string> {
+    if (!this.session) {
+      throw new Error('Not connected. Call connect() first.');
+    }
+
+    const responses = await this.request([
+      [
+        'Identity/get',
+        {
+          accountId: this.session.accountId,
+        },
+        'identities',
+      ],
+    ]);
+
+    const identityResponse = responses[0];
+    if (identityResponse[0] !== 'Identity/get') {
+      throw new Error('Unexpected response type for Identity/get');
+    }
+
+    const identities = identityResponse[1].list;
+    if (!identities || identities.length === 0) {
+      throw new Error('No identities found for this account');
+    }
+
+    // Return the first identity (usually the primary one)
+    return identities[0].id;
+  }
+
+  /**
+   * Send an email via JMAP EmailSubmission
+   */
+  async sendEmail(options: {
+    from: { email: string; name?: string };
+    to: Array<{ email: string; name?: string }>;
+    cc?: Array<{ email: string; name?: string }>;
+    bcc?: Array<{ email: string; name?: string }>;
+    subject: string;
+    body: string;
+    bodyType?: 'text' | 'html';
+    inReplyTo?: string;
+    references?: string;
+  }): Promise<{ emailId: string; submissionId: string }> {
+    if (!this.session) {
+      throw new Error('Not connected. Call connect() first.');
+    }
+
+    const { from, to, cc, bcc, subject, body, bodyType = 'html', inReplyTo, references } = options;
+
+    // Get mailboxes to find Drafts folder
+    const mailboxes = await this.getMailboxes();
+    const draftsMailbox = mailboxes.find(m => m.role === 'drafts');
+
+    if (!draftsMailbox) {
+      throw new Error('Could not find Drafts mailbox');
+    }
+
+    // Get the identity ID for sending
+    const identityId = await this.getPrimaryIdentity();
+    console.log('[JMAP] Using identity:', identityId);
+
+    // Generate unique IDs for the email and submission
+    const emailCreateId = `email-${Date.now()}`;
+    const submissionCreateId = `submission-${Date.now()}`;
+
+    // Build email addresses in JMAP format
+    const formatAddresses = (addrs?: Array<{ email: string; name?: string }>) => {
+      if (!addrs || addrs.length === 0) return null;
+      return addrs.map(a => ({ email: a.email, name: a.name || null }));
+    };
+
+    // Build the email object according to JMAP spec
+    // The body part must specify the content type and charset
+    const emailObject: any = {
+      mailboxIds: { [draftsMailbox.id]: true }, // Put in drafts first
+      from: [{ email: from.email, name: from.name || null }],
+      to: formatAddresses(to),
+      subject: subject || '(No Subject)',
+      bodyValues: {
+        'body': {
+          value: body,
+          isEncodingProblem: false,
+          isTruncated: false,
+        },
+      },
+      keywords: { '$draft': true }, // Mark as draft initially
+    };
+
+    // Add CC if present
+    if (cc && cc.length > 0) {
+      emailObject.cc = formatAddresses(cc);
+    }
+
+    // Add BCC if present
+    if (bcc && bcc.length > 0) {
+      emailObject.bcc = formatAddresses(bcc);
+    }
+
+    // Set body type - JMAP requires textBody OR htmlBody, not both
+    if (bodyType === 'html') {
+      emailObject.htmlBody = [{ partId: 'body', type: 'text/html' }];
+    } else {
+      emailObject.textBody = [{ partId: 'body', type: 'text/plain' }];
+    }
+
+    // Add reply headers if present
+    if (inReplyTo) {
+      emailObject.inReplyTo = [inReplyTo];
+    }
+    if (references) {
+      emailObject.references = references.split(' ').filter(Boolean);
+    }
+
+    console.log('[JMAP] Creating email with object:', JSON.stringify(emailObject, null, 2));
+
+    // Create the email and submit it in one request
+    const responses = await this.request([
+      // First, create the email
+      [
+        'Email/set',
+        {
+          accountId: this.session.accountId,
+          create: {
+            [emailCreateId]: emailObject,
+          },
+        },
+        'createEmail',
+      ],
+      // Then, submit the email for sending
+      [
+        'EmailSubmission/set',
+        {
+          accountId: this.session.accountId,
+          create: {
+            [submissionCreateId]: {
+              emailId: `#${emailCreateId}`,
+              identityId: identityId,
+            },
+          },
+          onSuccessUpdateEmail: {
+            [`#${submissionCreateId}`]: {
+              // Remove draft flag and move out of drafts on success
+              'keywords/$draft': null,
+              [`mailboxIds/${draftsMailbox.id}`]: null,
+            },
+          },
+        },
+        'submitEmail',
+      ],
+    ]);
+
+    console.log('[JMAP] Send email response:', JSON.stringify(responses, null, 2));
+
+    // Check for errors
+    const emailResponse = responses[0];
+    const submissionResponse = responses[1];
+
+    if (emailResponse[0] === 'Email/set') {
+      const emailResult = emailResponse[1];
+      if (emailResult.notCreated && emailResult.notCreated[emailCreateId]) {
+        const error = emailResult.notCreated[emailCreateId];
+        console.error('[JMAP] Email creation error:', JSON.stringify(error, null, 2));
+        throw new Error(`Failed to create email: ${error.type} - ${error.description || JSON.stringify(error.properties) || 'Unknown error'}`);
+      }
+    }
+
+    if (submissionResponse[0] === 'EmailSubmission/set') {
+      const submissionResult = submissionResponse[1];
+      if (submissionResult.notCreated && submissionResult.notCreated[submissionCreateId]) {
+        const error = submissionResult.notCreated[submissionCreateId];
+        console.error('[JMAP] Submission error:', JSON.stringify(error, null, 2));
+        throw new Error(`Failed to send email: ${error.type} - ${error.description || 'Unknown error'}`);
+      }
+    }
+
+    // Extract the created email ID and submission ID
+    const createdEmailId = emailResponse[1]?.created?.[emailCreateId]?.id;
+    const createdSubmissionId = submissionResponse[1]?.created?.[submissionCreateId]?.id;
+
+    if (!createdEmailId) {
+      throw new Error('Email was not created - no ID returned');
+    }
+
+    console.log('[JMAP] ✅ Email sent successfully:', {
+      emailId: createdEmailId,
+      submissionId: createdSubmissionId,
+    });
+
+    return {
+      emailId: createdEmailId,
+      submissionId: createdSubmissionId || 'submitted',
+    };
   }
 
   /**

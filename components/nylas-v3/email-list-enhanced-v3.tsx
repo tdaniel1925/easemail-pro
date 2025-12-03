@@ -87,6 +87,8 @@ interface EmailMessage {
   threadId?: string | null;
   threadEmailCount?: number; // Number of emails in this thread
   body?: string;
+  bodyHtml?: string; // Full HTML body (from detail API)
+  bodyText?: string; // Plain text body (from detail API)
 }
 
 interface EmailListEnhancedV3Props {
