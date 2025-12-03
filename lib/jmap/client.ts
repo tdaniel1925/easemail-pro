@@ -23,6 +23,17 @@ export interface JMAPMailbox {
   parentId?: string;
 }
 
+export interface JMAPAttachment {
+  partId?: string;
+  blobId: string;
+  size: number;
+  name?: string;
+  type: string;
+  charset?: string;
+  disposition?: 'attachment' | 'inline';
+  cid?: string; // Content-ID for inline images (cid:xxx references)
+}
+
 export interface JMAPEmail {
   id: string;
   mailboxIds: Record<string, boolean>;
@@ -38,6 +49,7 @@ export interface JMAPEmail {
   hasAttachment: boolean;
   keywords: Record<string, boolean>; // $seen, $flagged, etc.
   bodyValues?: Record<string, { value: string; isEncodingProblem: boolean }>;
+  attachments?: JMAPAttachment[]; // Attachments with cid for inline images
 }
 
 export class JMAPClient {
@@ -202,7 +214,7 @@ export class JMAPClient {
         },
         'query',
       ],
-      // 2. Get email details
+      // 2. Get email details (including attachments for inline images)
       [
         'Email/get',
         {
@@ -226,7 +238,10 @@ export class JMAPClient {
             'preview',
             'hasAttachment',
             'keywords',
+            'attachments', // Include attachments for inline image cid resolution
           ],
+          // Specify which attachment properties we need (including cid for inline images)
+          bodyProperties: ['partId', 'blobId', 'size', 'type', 'name', 'disposition', 'cid'],
         },
         'emails',
       ],
@@ -274,7 +289,8 @@ export class JMAPClient {
             'htmlBody',
             'attachments',
           ],
-          bodyProperties: ['partId', 'blobId', 'size', 'type', 'charset', 'name'],
+          // Include cid for inline image resolution (cid:xxx references in HTML)
+          bodyProperties: ['partId', 'blobId', 'size', 'type', 'charset', 'name', 'disposition', 'cid'],
           fetchAllBodyValues: true,
         },
         'email',

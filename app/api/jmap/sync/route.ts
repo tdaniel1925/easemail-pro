@@ -9,6 +9,7 @@ import { emailAccounts, emailFolders, emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 import { createFastmailJMAPClient } from '@/lib/jmap/client';
+import { extractAndSaveJMAPAttachments } from '@/lib/attachments/extract-from-jmap';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -126,44 +127,56 @@ export async function POST(request: NextRequest) {
           }
 
           // Prepare emails for batch insert
-          const emailsToInsert = jmapEmails.map(jmapEmail => ({
-            accountId: accountId,
-            provider: 'jmap',
-            providerMessageId: jmapEmail.id,
-            folder: normalizedFolderName,
-            folders: [mailbox.name],
+          const emailsToInsert = jmapEmails.map(jmapEmail => {
+            // Map JMAP attachments to our schema format (including contentId for inline images)
+            const mappedAttachments = (jmapEmail.attachments || []).map(att => ({
+              id: att.blobId, // Use blobId as the attachment ID
+              filename: att.name || 'attachment',
+              size: att.size || 0,
+              contentType: att.type || 'application/octet-stream',
+              contentId: att.cid || undefined, // cid for inline image resolution (cid:xxx)
+              providerFileId: att.blobId, // Store blobId for download
+            }));
 
-            // Email data
-            fromEmail: jmapEmail.from?.[0]?.email || null,
-            fromName: jmapEmail.from?.[0]?.name || null,
-            toEmails: jmapEmail.to?.map(addr => ({
-              email: addr.email,
-              name: addr.name || '',
-            })) || [],
-            ccEmails: jmapEmail.cc?.map(addr => ({
-              email: addr.email,
-              name: addr.name || '',
-            })) || [],
-            bccEmails: jmapEmail.bcc?.map(addr => ({
-              email: addr.email,
-              name: addr.name || '',
-            })) || [],
+            return {
+              accountId: accountId,
+              provider: 'jmap',
+              providerMessageId: jmapEmail.id,
+              folder: normalizedFolderName,
+              folders: [mailbox.name],
 
-            subject: jmapEmail.subject || '(No Subject)',
-            snippet: jmapEmail.preview || '',
-            bodyText: jmapEmail.preview || '', // Will fetch full body later if needed
-            bodyHtml: '',
+              // Email data
+              fromEmail: jmapEmail.from?.[0]?.email || null,
+              fromName: jmapEmail.from?.[0]?.name || null,
+              toEmails: jmapEmail.to?.map(addr => ({
+                email: addr.email,
+                name: addr.name || '',
+              })) || [],
+              ccEmails: jmapEmail.cc?.map(addr => ({
+                email: addr.email,
+                name: addr.name || '',
+              })) || [],
+              bccEmails: jmapEmail.bcc?.map(addr => ({
+                email: addr.email,
+                name: addr.name || '',
+              })) || [],
 
-            receivedAt: new Date(jmapEmail.receivedAt),
-            sentAt: new Date(jmapEmail.receivedAt),
+              subject: jmapEmail.subject || '(No Subject)',
+              snippet: jmapEmail.preview || '',
+              bodyText: jmapEmail.preview || '', // Will fetch full body later if needed
+              bodyHtml: '',
 
-            isRead: !!jmapEmail.keywords?.['$seen'],
-            isStarred: !!jmapEmail.keywords?.['$flagged'],
+              receivedAt: new Date(jmapEmail.receivedAt),
+              sentAt: new Date(jmapEmail.receivedAt),
 
-            hasAttachments: jmapEmail.hasAttachment || false,
-            attachmentsCount: 0,
-            attachments: [],
-          }));
+              isRead: !!jmapEmail.keywords?.['$seen'],
+              isStarred: !!jmapEmail.keywords?.['$flagged'],
+
+              hasAttachments: jmapEmail.hasAttachment || false,
+              attachmentsCount: mappedAttachments.length,
+              attachments: mappedAttachments,
+            };
+          });
 
           // Batch insert (MUCH faster!)
           if (emailsToInsert.length > 0) {
@@ -175,6 +188,37 @@ export async function POST(request: NextRequest) {
             folderTotalSynced += inserted.length;
             totalSynced += inserted.length;
             console.log(`  ✅ Synced ${inserted.length} emails from batch (${folderTotalSynced} total in folder)`);
+
+            // Extract attachments for newly inserted emails (save to attachments table)
+            for (let i = 0; i < inserted.length; i++) {
+              const insertedEmail = inserted[i];
+              const originalEmail = emailsToInsert[i];
+
+              // Only process emails with attachments
+              if (originalEmail.attachments && originalEmail.attachments.length > 0) {
+                try {
+                  await extractAndSaveJMAPAttachments({
+                    emailId: insertedEmail.id,
+                    providerMessageId: originalEmail.providerMessageId,
+                    accountId: accountId,
+                    userId: user.id,
+                    attachments: originalEmail.attachments.map(att => ({
+                      blobId: att.id,
+                      name: att.filename,
+                      size: att.size,
+                      type: att.contentType,
+                      cid: att.contentId,
+                    })),
+                    emailSubject: originalEmail.subject,
+                    senderEmail: originalEmail.fromEmail || undefined,
+                    senderName: originalEmail.fromName || undefined,
+                    emailDate: originalEmail.receivedAt,
+                  });
+                } catch (attachmentError) {
+                  console.error(`Failed to extract attachments for email ${insertedEmail.id}:`, attachmentError);
+                }
+              }
+            }
           }
 
           // Move to next batch

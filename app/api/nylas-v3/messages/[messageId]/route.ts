@@ -146,12 +146,13 @@ export async function GET(
         }
       }
 
-      // Format attachments from JMAP format
+      // Format attachments from JMAP format (including content_id for inline images)
       const attachments = ((jmapEmail as any).attachments || []).map((att: any) => ({
         id: att.blobId,
         filename: att.name || 'attachment',
         size: att.size || 0,
         content_type: att.type || 'application/octet-stream',
+        content_id: att.cid || undefined, // Content-ID for inline image resolution (cid:xxx)
         blobId: att.blobId, // Keep blobId for JMAP download
       }));
 
