@@ -555,7 +555,7 @@ export function EmailListEnhancedV3({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header - Fixed */}
-      <div className="flex-shrink-0 min-h-[2rem] px-2 md:px-3 py-1 border-b border-border flex items-center">
+      <div className="flex-shrink-0 h-14 px-2 md:px-3 border-b border-border flex items-center">
         {selectMode ? (
           // Bulk Action Toolbar
           <div className="flex items-center gap-1.5 w-full overflow-x-auto">

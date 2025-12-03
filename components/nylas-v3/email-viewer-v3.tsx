@@ -323,8 +323,8 @@ export function EmailViewerV3({
     <>
       <Dialog />
       <div className="flex flex-col h-full bg-card overflow-hidden">
-      {/* Header - Fixed */}
-      <div className="flex-shrink-0 px-2 py-1.5 border-b border-border">
+      {/* Header - Fixed - Note: Uses min-h-14 with flexible height for email metadata */}
+      <div className="flex-shrink-0 min-h-14 px-2 py-1.5 border-b border-border">
         <div className="flex items-center justify-between gap-1.5">
           <h2 className="text-[11px] font-semibold flex-1 truncate">{message.subject || '(No Subject)'}</h2>
           <div className="flex items-center gap-0 flex-shrink-0">
