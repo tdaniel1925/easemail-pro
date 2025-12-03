@@ -24,6 +24,8 @@ interface EmailMessage {
   to: Array<{ email: string; name?: string }>;
   date: number;
   body?: string;
+  bodyHtml?: string;
+  bodyText?: string;
   snippet?: string;
 }
 
@@ -188,14 +190,15 @@ function ContactInfoTab({ email, avatarColor }: { email: EmailMessage; avatarCol
   };
 
   // Convert v3 email to v1 format for ContactModal
+  // Use bodyHtml/bodyText if available (from detail API), fallback to body/snippet
   const emailForModal = {
     id: email.id,
     fromEmail: senderEmail,
     fromName: senderName,
     subject: email.subject,
     receivedAt: new Date(email.date * 1000),
-    bodyText: email.body || email.snippet,
-    bodyHtml: email.body,
+    bodyText: email.bodyText || email.body || email.snippet,
+    bodyHtml: email.bodyHtml || email.body,
   };
 
   return (

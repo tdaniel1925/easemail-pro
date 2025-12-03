@@ -66,16 +66,19 @@ export default function ContactModal({ isOpen, onClose, email, contact, onContac
         const nameParts = (email.fromName || '').split(' ');
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
-        
+
         setFormData(prev => ({
           ...prev,
           email: email.fromEmail || '',
           firstName,
           lastName,
         }));
-        
-        // Show info that enrichment will happen in background
-        console.log('ℹ️ Contact will be enriched in background after saving');
+
+        // Immediately extract contact info from email signature using AI
+        if (email.bodyText || email.bodyHtml) {
+          console.log('[Contact] 🔍 Extracting contact info from email signature...');
+          enrichContactWithAI(email);
+        }
       } else {
         // New empty contact
         setFormData({
@@ -236,8 +239,8 @@ export default function ContactModal({ isOpen, onClose, email, contact, onContac
             </DialogTitle>
             {!contact && email && (
               <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
-                <Sparkles className="h-4 w-4" />
-                Enrichment will run in background
+                <Sparkles className={`h-4 w-4 ${aiEnriching ? 'animate-pulse' : ''}`} />
+                {aiEnriching ? 'AI extracting from signature...' : 'AI extracted contact info'}
               </div>
             )}
           </div>

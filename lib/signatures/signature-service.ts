@@ -37,10 +37,10 @@ export class SignatureService {
   ): string {
     const { type, quotedContent } = options;
 
-    // Shared spacing for signature insertion to guarantee blank lines
-    const signatureSpacingHtml = '<div><br/></div><div><br/></div>';
+    // Shared spacing for signature insertion (1 blank line)
+    const signatureSpacingHtml = '<div><br/></div>';
 
-    // For new emails, append signature after two blank lines so users can type above it
+    // For new emails, append signature after 1 blank line so users can type above it
     if (type === 'compose') {
       return `${body || ''}${signatureSpacingHtml}${signature}`;
     }

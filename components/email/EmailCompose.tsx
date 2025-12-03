@@ -294,9 +294,10 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         // Render signature with template variables
         const renderedSignature = renderSignature(applicableSignature, {}, { emailAddress: to[0]?.email || '' });
 
-        // Add 2 blank paragraphs with <br> at the top for typing space, then signature
-        // Using <p><br></p> ensures they render as visible blank lines
-        const blankLinesHtml = '<p><br></p><p><br></p>';
+        // Add 1 blank paragraph with <br> at the top for typing space, then signature
+        // Using <p><br></p> ensures it renders as a visible blank line
+        // Note: Combined with signature div margin, this gives ~2 visual lines of spacing
+        const blankLinesHtml = '<p><br></p>';
         setBody(blankLinesHtml + renderedSignature);
         setIsInitialized(true);
         console.log('[EmailCompose] ✅ Auto-inserted signature:', applicableSignature.name);
@@ -397,11 +398,11 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   // Initialize body with quoted content for reply/forward
   useEffect(() => {
     if (isOpen && !isInitialized && replyTo && type !== 'compose') {
-      // Start with 2 blank lines for typing space
-      let quotedBody = '<div><br/></div><div><br/></div>';
+      // Start with 1 blank line for typing space (matches compose behavior)
+      let quotedBody = '<div><br/></div>';
 
       if (type === 'reply' || type === 'reply-all') {
-        // Add signature on the 3rd line (after 2 blank lines)
+        // Add signature after 1 blank line
         if (useSignature) {
           const applicableSignature = getApplicableSignature(type, accountId);
           if (applicableSignature) {
@@ -425,7 +426,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
         quotedBody += '</blockquote>';
       } else if (type === 'forward') {
-        // Add signature on the 3rd line (after 2 blank lines)
+        // Add signature after 1 blank line
         if (useSignature) {
           const applicableSignature = getApplicableSignature(type, accountId);
           if (applicableSignature) {
