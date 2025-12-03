@@ -161,8 +161,12 @@ export async function GET(request: NextRequest) {
           const timestamp = Math.floor(new Date(messageDate).getTime() / 1000);
 
           return {
-            id: msg.providerMessageId || msg.id,
+            // IMPORTANT: Use database ID consistently for JMAP/IMAP messages
+            // The detail API (/messages/[messageId]) looks up by database ID first
+            id: msg.id,
+            providerMessageId: msg.providerMessageId, // Keep for reference
             grant_id: account.nylasGrantId || account.id,
+            accountId: msg.accountId, // Include accountId for client-side full body fetch
             thread_id: msg.threadId,
             subject: msg.subject || '(No Subject)',
             from: [{

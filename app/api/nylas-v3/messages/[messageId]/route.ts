@@ -66,7 +66,10 @@ export async function GET(
 
     if (isJMAPAccount) {
       // JMAP Account: Fetch from JMAP API with full body
-      console.log('[Message] Fetching JMAP message:', messageId);
+      console.log('[Message] =====================================');
+      console.log('[Message] Fetching JMAP message');
+      console.log('[Message] Request messageId:', messageId);
+      console.log('[Message] Account ID:', account.id);
 
       // First, try to find the email in database to get the providerMessageId
       // EmailList passes database ID, but JMAP API needs the JMAP message ID
@@ -81,15 +84,28 @@ export async function GET(
       if (dbEmail) {
         // Found by database ID - use providerMessageId for JMAP API
         jmapMessageId = dbEmail.providerMessageId || messageId;
-        console.log('[Message] Resolved JMAP message ID from database:', jmapMessageId);
+        console.log('[Message] ✅ Found by database ID');
+        console.log('[Message] Database ID:', dbEmail.id);
+        console.log('[Message] Provider Message ID:', dbEmail.providerMessageId);
+        console.log('[Message] Using JMAP ID:', jmapMessageId);
       } else {
         // Try looking up by providerMessageId
+        console.log('[Message] ❌ Not found by database ID, trying providerMessageId...');
         dbEmail = await db.query.emails.findFirst({
           where: and(
             eq(emails.accountId, account.id),
             eq(emails.providerMessageId, messageId)
           ),
         });
+
+        if (dbEmail) {
+          jmapMessageId = dbEmail.providerMessageId || messageId;
+          console.log('[Message] ✅ Found by providerMessageId');
+          console.log('[Message] Database ID:', dbEmail.id);
+          console.log('[Message] Provider Message ID:', dbEmail.providerMessageId);
+        } else {
+          console.log('[Message] ❌ Email not found in database at all!');
+        }
         console.log('[Message] Using messageId as JMAP ID:', jmapMessageId);
       }
 

@@ -1762,15 +1762,16 @@ function EmailCard({
             ) : (
               <EmailRendererV3
                 emailId={message.id}
-                messageId={message.id}
+                messageId={displayEmail.id || message.id}
                 accountId={accountId}
-                bodyHtml={displayEmail.body}
-                bodyText={displayEmail.snippet}
-                attachments={message.attachments?.map(att => ({
-                  id: att.id,
-                  filename: att.filename,
+                bodyHtml={displayEmail.body || displayEmail.bodyHtml}
+                bodyText={displayEmail.bodyText || displayEmail.snippet || message.snippet}
+                attachments={(displayEmail.attachments || message.attachments)?.map((att: any) => ({
+                  id: att.id || att.blobId,
+                  filename: att.filename || att.name,
                   size: att.size,
-                  contentType: att.content_type
+                  contentType: att.content_type || att.contentType || att.type,
+                  blobId: att.blobId, // Keep blobId for JMAP downloads
                 })) || null}
               />
             )}

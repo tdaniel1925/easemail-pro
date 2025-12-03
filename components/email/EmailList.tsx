@@ -635,15 +635,35 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
   const [loadingFullEmail, setLoadingFullEmail] = useState(false);
   const [showThread, setShowThread] = useState(false);
 
+  // DEBUG: Log email data on every render when expanded
+  useEffect(() => {
+    if (isExpanded) {
+      console.log('[EmailCard] EXPANDED email:', {
+        id: email.id,
+        subject: email.subject?.substring(0, 30),
+        accountId: email.accountId,
+        hasAccountId: !!email.accountId,
+        bodyHtmlLength: email.bodyHtml?.length || 0,
+        bodyTextLength: email.bodyText?.length || 0,
+        hasFullEmail: !!fullEmail,
+      });
+    }
+  }, [isExpanded, email, fullEmail]);
+
   useEffect(() => {
     setMounted(true);
   }, []);
-  
+
   // Fetch full email body when expanded
   // ALWAYS fetch for emails with accountId (JMAP/IMAP) because database only has preview
   useEffect(() => {
     // Skip if already fetched or not expanded
-    if (!isExpanded || fullEmail) return;
+    if (!isExpanded || fullEmail) {
+      console.log('[EmailCard] Skip fetch:', { isExpanded, hasFullEmail: !!fullEmail });
+      return;
+    }
+
+    console.log('[EmailCard] Checking if should fetch:', { hasAccountId: !!email.accountId, accountId: email.accountId });
 
     // ALWAYS fetch full body when email is expanded and has accountId
     // JMAP/IMAP sync only stores preview text, not full HTML body
@@ -653,7 +673,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
         setLoadingFullEmail(true);
         try {
           const url = `/api/nylas-v3/messages/${email.id}?accountId=${email.accountId}`;
-          console.log('[EmailList] Fetching JMAP/IMAP full email:', { id: email.id, accountId: email.accountId });
+          console.log('[EmailCard] Fetching full email:', url);
           const response = await fetch(url);
           const data = await response.json();
           console.log('[EmailList] Fetch response:', {
