@@ -165,7 +165,7 @@ export async function GET(
         to: email.toEmails || [],
         cc: email.ccEmails || [],
         bcc: email.bccEmails || [],
-        date: Math.floor(email.receivedAt.getTime() / 1000),
+        date: Math.floor((email.receivedAt?.getTime() || Date.now()) / 1000),
         body: email.bodyHtml || email.bodyText || '',
         snippet: email.snippet || '',
         unread: !email.isRead,
