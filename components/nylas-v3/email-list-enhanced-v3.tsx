@@ -555,40 +555,36 @@ export function EmailListEnhancedV3({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header - Fixed */}
-      <div className="flex-shrink-0 min-h-[3.5rem] px-3 md:px-4 border-b border-border flex items-center">
+      <div className="flex-shrink-0 min-h-[2rem] px-2 md:px-3 py-1 border-b border-border flex items-center">
         {selectMode ? (
           // Bulk Action Toolbar
-          <div className="flex items-center gap-2 w-full overflow-x-auto">
+          <div className="flex items-center gap-1.5 w-full overflow-x-auto">
             <button
               onClick={handleSelectAll}
               className={cn(
-                'h-5 w-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0',
+                'h-4 w-4 rounded border flex items-center justify-center transition-all flex-shrink-0',
                 selectedEmails.size === visibleMessages.length
                   ? 'bg-primary border-primary text-primary-foreground'
                   : 'border-border hover:border-primary/50 bg-background'
               )}
             >
-              {selectedEmails.size === visibleMessages.length && <CheckSquare className="h-4 w-4" />}
+              {selectedEmails.size === visibleMessages.length && <CheckSquare className="h-3 w-3" />}
             </button>
 
-            <span className="text-xs md:text-sm font-medium whitespace-nowrap">{selectedEmails.size} selected</span>
+            <span className="text-[10px] md:text-xs font-medium whitespace-nowrap">{selectedEmails.size}</span>
 
-            <div className="flex gap-1 overflow-x-auto scrollbar-hide">
-              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('delete')} className="h-8 text-xs md:text-sm">
-                <Trash2 className="h-4 w-4 mr-1 md:mr-2" />
-                <span className="hidden sm:inline">Delete</span>
+            <div className="flex gap-0.5 overflow-x-auto scrollbar-hide">
+              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('delete')} className="h-6 px-1.5 text-[10px]">
+                <Trash2 className="h-3 w-3" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('archive')} className="h-8 text-xs md:text-sm">
-                <Archive className="h-4 w-4 mr-1 md:mr-2" />
-                <span className="hidden sm:inline">Archive</span>
+              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('archive')} className="h-6 px-1.5 text-[10px]">
+                <Archive className="h-3 w-3" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('markRead')} className="h-8 text-xs md:text-sm">
-                <MailOpen className="h-4 w-4 mr-1 md:mr-2" />
-                <span className="hidden sm:inline">Read</span>
+              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('markRead')} className="h-6 px-1.5 text-[10px]">
+                <MailOpen className="h-3 w-3" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('markUnread')} className="h-8 text-xs md:text-sm">
-                <Mail className="h-4 w-4 mr-1 md:mr-2" />
-                <span className="hidden sm:inline">Unread</span>
+              <Button variant="ghost" size="sm" onClick={() => handleBulkAction('markUnread')} className="h-6 px-1.5 text-[10px]">
+                <Mail className="h-3 w-3" />
               </Button>
             </div>
 
@@ -601,35 +597,35 @@ export function EmailListEnhancedV3({
                 setSelectedEmails(new Set());
                 setSelectMode(false);
               }}
-              className="h-8 text-xs md:text-sm flex-shrink-0"
+              className="h-6 text-[10px] flex-shrink-0"
             >
               Cancel
             </Button>
           </div>
         ) : (
           // Normal Toolbar
-          <div className="flex items-center gap-2 md:gap-4 w-full">
+          <div className="flex items-center gap-1.5 md:gap-2 w-full">
             <div className="flex-shrink-0">
-              <h2 className="text-xs md:text-sm font-medium capitalize">{folderName}</h2>
+              <h2 className="text-[10px] md:text-xs font-medium capitalize">{folderName}</h2>
             </div>
 
             {/* Search Bar with Advanced Search */}
-            <div className="flex-1 relative min-w-0 flex items-center gap-1">
+            <div className="flex-1 relative min-w-0 flex items-center gap-0.5">
               <div className="flex-1 relative">
-                <Search className="absolute left-2 md:left-3 top-1/2 -translate-y-1/2 h-3.5 md:h-4 w-3.5 md:w-4 text-muted-foreground z-10" />
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground z-10" />
                 <Input
                   type="search"
-                  placeholder="Search emails..."
-                  className="w-full pl-8 md:pl-10 pr-8 h-8 md:h-9 bg-background border-border text-xs md:text-sm"
+                  placeholder="Search..."
+                  className="w-full pl-7 pr-6 h-6 bg-background border-border text-[10px]"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
-                    <X className="h-3 w-3 md:h-4 md:w-4" />
+                    <X className="h-3 w-3" />
                   </button>
                 )}
               </div>
@@ -638,17 +634,17 @@ export function EmailListEnhancedV3({
                 size="sm"
                 onClick={() => setShowAdvancedSearch(true)}
                 className={cn(
-                  "h-8 px-2 flex-shrink-0 relative",
+                  "h-6 w-6 p-0 flex-shrink-0 relative",
                   (advancedFilters.from || advancedFilters.to || advancedFilters.subject || advancedFilters.anywhere ||
                    advancedFilters.dateOption !== 'any' || advancedFilters.isUnread || advancedFilters.isStarred) &&
                   "text-blue-600 dark:text-blue-400"
                 )}
                 title="Advanced search"
               >
-                <SlidersHorizontal className="h-3.5 md:h-4 w-3.5 md:w-4" />
+                <SlidersHorizontal className="h-3 w-3" />
                 {(advancedFilters.from || advancedFilters.to || advancedFilters.subject || advancedFilters.anywhere ||
                   advancedFilters.dateOption !== 'any' || advancedFilters.isUnread || advancedFilters.isStarred) && (
-                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-blue-600" />
+                  <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-blue-600" />
                 )}
               </Button>
             </div>
@@ -662,10 +658,10 @@ export function EmailListEnhancedV3({
             <button
               onClick={handleRefresh}
               disabled={loading}
-              className="p-1.5 md:p-2 hover:bg-accent rounded-lg transition-colors flex-shrink-0"
+              className="p-1 hover:bg-accent rounded transition-colors flex-shrink-0"
               title="Refresh"
             >
-              <RefreshCw className={cn('h-3.5 md:h-4 w-3.5 md:w-4', loading && 'animate-spin')} />
+              <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
             </button>
           </div>
         )}
@@ -673,15 +669,15 @@ export function EmailListEnhancedV3({
 
 
       {/* Email List - Scrollable */}
-      <div className="flex-1 overflow-y-auto min-h-0 px-3 py-2">
+      <div className="flex-1 overflow-y-auto min-h-0 px-2 py-1">
         {visibleMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <MailIcon className="h-16 w-16 mb-4 opacity-20" />
-            <p>No messages in this folder</p>
+            <MailIcon className="h-12 w-12 mb-2 opacity-20" />
+            <p className="text-sm">No messages in this folder</p>
           </div>
         ) : (
           <>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {visibleMessages.map((message) => (
                 <EmailContextMenu
                   key={message.id}
@@ -1373,10 +1369,10 @@ function EmailCard({
     >
       {/* Email Preview - Always Visible */}
       <div
-        className={cn('p-4 transition-colors', isExpanded && 'bg-accent/50')}
+        className={cn('px-3 py-2 transition-colors', isExpanded && 'bg-accent/50')}
         onClick={onClick}
       >
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           {/* Checkbox */}
           <div
             className="flex items-start pt-0.5"
@@ -1387,19 +1383,19 @@ function EmailCard({
           >
             <button
               className={cn(
-                'h-5 w-5 rounded border-2 flex items-center justify-center transition-all',
+                'h-4 w-4 rounded border flex items-center justify-center transition-all',
                 isChecked
                   ? 'bg-primary border-primary text-primary-foreground'
                   : 'border-border hover:border-primary/50 bg-background'
               )}
             >
-              {isChecked && <CheckSquare className="h-4 w-4" />}
+              {isChecked && <CheckSquare className="h-3 w-3" />}
             </button>
           </div>
 
           {/* Avatar */}
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium text-white flex-shrink-0"
+            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium text-white flex-shrink-0"
             style={{ backgroundColor: avatarColor }}
           >
             {getInitials(sender.name || sender.email)}
@@ -1407,37 +1403,35 @@ function EmailCard({
 
           {/* Email Preview Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2 mb-1">
-              <div className="flex-1 min-w-0">
-                <p className={cn('text-sm', message.unread && 'font-semibold')}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <p className={cn('text-xs truncate', message.unread && 'font-semibold')}>
                   {sender.name || sender.email}
                 </p>
-                {/* Show To: recipient if available */}
                 {message.to && message.to.length > 0 && (
-                  <p className="text-xs text-muted-foreground truncate">
-                    To: {message.to[0].name || message.to[0].email}
-                    {message.to.length > 1 && ` +${message.to.length - 1} more`}
-                  </p>
+                  <span className="text-[10px] text-muted-foreground truncate hidden sm:inline">
+                    → {message.to[0].name || message.to[0].email}
+                  </span>
                 )}
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                   {formatDistanceToNow(new Date(message.date * 1000), { addSuffix: true })}
                 </span>
-                {message.starred && <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />}
+                {message.starred && <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />}
                 {isExpanded ? (
-                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  <ChevronUp className="h-3 w-3 text-muted-foreground" />
                 ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
                 )}
               </div>
             </div>
 
             {/* Subject Line with Thread Badge */}
             {!isExpanded && (
-              <div className="flex items-center gap-2 mb-1.5">
+              <div className="flex items-center gap-1.5 mt-0.5">
                 <p className={cn(
-                  'text-sm truncate flex-1',
+                  'text-xs truncate flex-1',
                   message.unread ? 'font-semibold text-foreground' : 'font-medium text-foreground/90'
                 )}>
                   {message.subject || '(no subject)'}
@@ -1445,7 +1439,7 @@ function EmailCard({
                 {/* Thread Indicator Badge - Only show if thread has multiple emails */}
                 {message.threadId && message.threadId.trim() !== '' && (message.threadEmailCount ?? 1) > 1 && (
                   <div
-                    className="relative flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs flex-shrink-0 shadow-sm hover:bg-blue-700 transition-colors cursor-pointer"
+                    className="relative flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-600 text-white text-[10px] flex-shrink-0 shadow-sm hover:bg-blue-700 transition-colors cursor-pointer"
                     onMouseEnter={handleThreadBadgeMouseEnter}
                     onMouseLeave={handleThreadBadgeMouseLeave}
                   >
@@ -1548,45 +1542,43 @@ function EmailCard({
             {!isExpanded && (
               <>
                 {/* Email Snippet */}
-                <div className="flex items-start gap-2 pr-2 mb-3">
-                  <p
-                    className={cn(
-                      'text-sm line-clamp-3 flex-1 leading-relaxed text-muted-foreground',
-                      message.unread && 'font-medium'
-                    )}
-                  >
-                    {displayText}
-                  </p>
-                </div>
+                <p
+                  className={cn(
+                    'text-[11px] line-clamp-1 text-muted-foreground mt-0.5',
+                    message.unread && 'font-medium'
+                  )}
+                >
+                  {displayText}
+                </p>
 
                 {/* Quick Action Buttons */}
-                <div className="flex items-center gap-1 pt-2 border-t border-border">
+                <div className="flex items-center gap-0.5 mt-1.5 pt-1.5 border-t border-border/50">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                     onClick={(e) => handleAction(e, 'reply')}
                     title="Reply"
                   >
-                    <Reply className="h-4 w-4" />
+                    <Reply className="h-3 w-3" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                     onClick={(e) => handleAction(e, 'reply-all')}
                     title="Reply All"
                   >
-                    <ReplyAll className="h-4 w-4" />
+                    <ReplyAll className="h-3 w-3" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                     onClick={(e) => handleAction(e, 'forward')}
                     title="Forward"
                   >
-                    <Forward className="h-4 w-4" />
+                    <Forward className="h-3 w-3" />
                   </Button>
                   <div className="flex-1" />
                   {/* Thread Summary Button - only show if thread has 2+ emails */}
@@ -1595,7 +1587,7 @@ function EmailCard({
                       variant="ghost"
                       size="sm"
                       className={cn(
-                        "h-8 px-2",
+                        "h-6 w-6 p-0",
                         showThread ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary"
                       )}
                       onClick={(e) => {
@@ -1604,64 +1596,62 @@ function EmailCard({
                       }}
                       title="View Thread"
                     >
-                      <MessageSquare className="h-4 w-4" />
+                      <MessageSquare className="h-3 w-3" />
                     </Button>
                   )}
                   <Button
                     variant="ghost"
                     size="sm"
                     className={cn(
-                      "h-8 px-2",
+                      "h-6 w-6 p-0",
                       message.starred ? "text-yellow-500 hover:text-yellow-600" : "text-muted-foreground hover:text-yellow-500"
                     )}
                     onClick={(e) => handleAction(e, message.starred ? 'unstar' : 'star')}
                     title={message.starred ? "Unstar" : "Star"}
                   >
-                    <Star className={cn("h-4 w-4", message.starred && "fill-current")} />
+                    <Star className={cn("h-3 w-3", message.starred && "fill-current")} />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                     onClick={(e) => handleAction(e, message.unread ? 'markRead' : 'markUnread')}
                     title={message.unread ? "Mark as read" : "Mark as unread"}
                   >
-                    {message.unread ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
+                    {message.unread ? <MailOpen className="h-3 w-3" /> : <Mail className="h-3 w-3" />}
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 px-2 text-muted-foreground hover:text-destructive"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
                     onClick={(e) => handleAction(e, 'delete')}
                     title="Delete"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
 
                 {message.hasAttachments && message.attachments && message.attachments.length > 0 && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
-                    <Paperclip className="h-3.5 w-3.5" />
-                    <span>
-                      {message.attachments.length} attachment{message.attachments.length > 1 ? 's' : ''}
-                    </span>
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
+                    <Paperclip className="h-3 w-3" />
+                    <span>{message.attachments.length}</span>
                   </div>
                 )}
 
                 {/* Labels */}
                 {message.labels && message.labels.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {message.labels.slice(0, 3).map((label, idx) => (
+                  <div className="flex flex-wrap gap-0.5 mt-1">
+                    {message.labels.slice(0, 2).map((label, idx) => (
                       <span
                         key={idx}
-                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                        className="inline-flex items-center px-1.5 py-0 rounded text-[10px] font-medium bg-primary/10 text-primary"
                       >
                         {label}
                       </span>
                     ))}
-                    {message.labels.length > 3 && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs text-muted-foreground">
-                        +{message.labels.length - 3} more
+                    {message.labels.length > 2 && (
+                      <span className="inline-flex items-center text-[10px] text-muted-foreground">
+                        +{message.labels.length - 2}
                       </span>
                     )}
                   </div>

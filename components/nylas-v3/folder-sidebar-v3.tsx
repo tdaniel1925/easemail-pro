@@ -180,11 +180,11 @@ export function FolderSidebarV3({
         <button
           onClick={() => onFolderSelect(folder.id, folder.name)}
           className={cn(
-            'w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors',
+            'w-full flex items-center gap-1.5 px-2 py-1 text-xs transition-colors',
             'hover:bg-accent',
             isSelected && 'bg-primary text-primary-foreground font-medium'
           )}
-          style={{ paddingLeft: `${12 + level * 16}px` }}
+          style={{ paddingLeft: `${8 + level * 12}px` }}
         >
           {hasChildren && (
             <button
@@ -192,14 +192,14 @@ export function FolderSidebarV3({
               className="p-0.5 hover:bg-accent rounded"
             >
               {isExpanded ? (
-                <ChevronDown className="h-3 w-3" />
+                <ChevronDown className="h-2.5 w-2.5" />
               ) : (
-                <ChevronRight className="h-3 w-3" />
+                <ChevronRight className="h-2.5 w-2.5" />
               )}
             </button>
           )}
 
-          <Icon className="h-4 w-4 flex-shrink-0" />
+          <Icon className="h-3.5 w-3.5 flex-shrink-0" />
 
           <span className="flex-1 text-left truncate">{folder.name}</span>
 
@@ -210,7 +210,7 @@ export function FolderSidebarV3({
             // Show red dot for drafts folder if there are any drafts
             if (isDrafts && folder.totalCount && folder.totalCount > 0) {
               return (
-                <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
               );
             }
 
@@ -221,7 +221,7 @@ export function FolderSidebarV3({
               return (
                 <span
                   className={cn(
-                    'text-xs font-semibold px-2 py-0.5 rounded-full',
+                    'text-[10px] font-semibold px-1.5 py-0 rounded-full',
                     isSelected
                       ? 'bg-primary-foreground/20 text-primary-foreground'
                       : 'bg-primary/10 text-primary'
@@ -246,19 +246,19 @@ export function FolderSidebarV3({
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex-1 flex items-center justify-center p-2">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 text-sm text-red-600">
+      <div className="p-2 text-xs text-red-600">
         <p>Failed to load folders</p>
         <button
           onClick={fetchFolders}
-          className="mt-2 text-xs text-primary hover:underline"
+          className="mt-1 text-[10px] text-primary hover:underline"
         >
           Retry
         </button>
@@ -268,14 +268,14 @@ export function FolderSidebarV3({
 
   if (folders.length === 0) {
     return (
-      <div className="p-4 text-sm text-muted-foreground text-center">
+      <div className="p-2 text-xs text-muted-foreground text-center">
         No folders found
       </div>
     );
   }
 
   return (
-    <div className="py-2">
+    <div className="py-1">
       {folders.map((folder) => renderFolder(folder))}
     </div>
   );
