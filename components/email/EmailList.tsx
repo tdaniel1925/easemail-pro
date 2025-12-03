@@ -640,8 +640,17 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
   }, []);
   
   // Fetch full email body when expanded
+  // For JMAP/IMAP accounts, bodyHtml is often empty during sync (only preview is stored)
+  // We need to fetch the full body when the email is expanded
   useEffect(() => {
-    if (isExpanded && !fullEmail && !email.bodyHtml && !email.bodyText) {
+    // Skip if already fetched or not expanded
+    if (!isExpanded || fullEmail) return;
+
+    // Always fetch if no HTML body (JMAP sync stores empty bodyHtml)
+    // Or if bodyText is just a short snippet (less than 500 chars likely means it's just preview)
+    const needsFullBody = !email.bodyHtml || (email.bodyText && email.bodyText.length < 500 && !email.bodyHtml);
+
+    if (needsFullBody) {
       const fetchFullEmail = async () => {
         setLoadingFullEmail(true);
         try {
@@ -649,8 +658,10 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
           const url = email.accountId
             ? `/api/nylas-v3/messages/${email.id}?accountId=${email.accountId}`
             : `/api/nylas/messages/${email.id}`;
+          console.log('[EmailList] Fetching full email body:', { id: email.id, accountId: email.accountId, url });
           const response = await fetch(url);
           const data = await response.json();
+          console.log('[EmailList] Fetch response:', { success: data.success, hasMessage: !!data.message, hasBodyHtml: !!data.message?.bodyHtml });
           if (data.success && data.message) {
             setFullEmail(data.message);
           }
