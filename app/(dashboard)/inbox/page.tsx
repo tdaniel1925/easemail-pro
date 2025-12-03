@@ -268,26 +268,26 @@ function InboxV3Content() {
 
         {/* Quick Links - Fixed at bottom */}
         <div className="flex-shrink-0 border-t border-border">
-          <div className="p-2 space-y-1">
+          <div className="p-1.5 space-y-0.5">
             <a
               href="/contacts-v4"
-              className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"
             >
-              <Users className="h-4 w-4" />
+              <Users className="h-3 w-3" />
               Contacts
             </a>
             <a
               href="/calendar"
-              className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"
             >
-              <Calendar className="h-4 w-4" />
+              <Calendar className="h-3 w-3" />
               Calendar
             </a>
             <a
               href="/attachments"
-              className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"
             >
-              <Paperclip className="h-4 w-4" />
+              <Paperclip className="h-3 w-3" />
               Attachments
             </a>
 

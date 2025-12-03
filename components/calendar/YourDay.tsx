@@ -327,10 +327,10 @@ export function YourDay() {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="p-4 border-b border-border bg-muted/30">
-        <div className="flex items-center gap-2 mb-1">
-          <TimeIcon className={cn('h-5 w-5', timeOfDay.color)} />
-          <h2 className="text-lg font-semibold flex items-center">
+      <div className="p-2 border-b border-border bg-muted/30">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <TimeIcon className={cn('h-3.5 w-3.5', timeOfDay.color)} />
+          <h2 className="text-xs font-semibold flex items-center">
             <span>{timeOfDay.text}</span>
             <span>,&nbsp;</span>
             {isEditingName ? (
@@ -360,21 +360,21 @@ export function YourDay() {
                     setDisplayName(localStorage.getItem('userDisplayName') || 'Friend');
                   }
                 }}
-                className="bg-transparent border-b border-primary outline-none px-1 min-w-[80px] w-auto"
-                style={{ width: `${Math.max(80, displayName.length * 9 + 20)}px` }}
+                className="bg-transparent border-b border-primary outline-none px-0.5 min-w-[60px] w-auto text-xs"
+                style={{ width: `${Math.max(60, displayName.length * 7 + 16)}px` }}
               />
             ) : (
               <button
                 onClick={() => setIsEditingName(true)}
-                className="hover:text-primary transition-colors group inline-flex items-center gap-1"
+                className="hover:text-primary transition-colors group inline-flex items-center gap-0.5"
               >
                 <span>{displayName || 'Friend'}</span>
-                <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
             )}
           </h2>
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-[10px] text-muted-foreground">
           {format(new Date(), 'EEEE, MMMM d, yyyy')}
         </p>
       </div>
@@ -382,21 +382,21 @@ export function YourDay() {
       {/* Events List */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="flex items-center justify-center h-24">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
           </div>
         ) : error ? (
-          <div className="p-4 text-center">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="p-2 text-center">
+            <p className="text-xs text-red-600">{error}</p>
           </div>
         ) : events.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-            <Calendar className="h-12 w-12 text-muted-foreground/50 mb-4" />
-            <p className="text-sm font-medium text-foreground mb-1">No events today</p>
-            <p className="text-xs text-muted-foreground">Your schedule is clear!</p>
+          <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+            <Calendar className="h-8 w-8 text-muted-foreground/50 mb-2" />
+            <p className="text-xs font-medium text-foreground mb-0.5">No events today</p>
+            <p className="text-[10px] text-muted-foreground">Your schedule is clear!</p>
           </div>
         ) : (
-          <div className="p-4 space-y-3">
+          <div className="p-2 space-y-1.5">
             {events.map((event) => {
               const isCurrent = isCurrentEvent(event);
               const isPast = isPastEvent(event);
@@ -405,7 +405,7 @@ export function YourDay() {
                   key={event.id}
                   onClick={() => handleEventClick(event)}
                   className={cn(
-                    'p-3 rounded-lg border transition-colors cursor-pointer',
+                    'p-2 rounded-md border transition-colors cursor-pointer',
                     isCurrent
                       ? 'bg-primary/10 border-primary shadow-sm'
                       : isPast
@@ -413,47 +413,47 @@ export function YourDay() {
                       : 'bg-card border-border hover:bg-accent'
                   )}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-2">
                     {/* Color indicator */}
                     <div
-                      className="w-1 h-full rounded-full mt-1 flex-shrink-0 min-h-[60px]"
+                      className="w-0.5 h-full rounded-full mt-0.5 flex-shrink-0 min-h-[40px]"
                       style={{ backgroundColor: event.hexColor || event.color || '#3b82f6' }}
                     />
 
                     {/* Event details */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="flex items-start justify-between gap-1 mb-0.5">
                         <h3 className={cn(
-                          'text-sm font-semibold truncate',
+                          'text-xs font-semibold truncate',
                           isCurrent && 'text-primary'
                         )}>
                           {event.title}
                         </h3>
                         {isCurrent && (
-                          <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-medium flex-shrink-0">
+                          <span className="text-[9px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
                             Now
                           </span>
                         )}
                       </div>
 
                       {/* Time */}
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                        <Clock className="h-3 w-3" />
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5">
+                        <Clock className="h-2.5 w-2.5" />
                         <span>{formatEventTime(event)}</span>
                       </div>
 
                       {/* Location */}
                       {event.location && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                          <MapPin className="h-3 w-3" />
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5">
+                          <MapPin className="h-2.5 w-2.5" />
                           <span className="truncate">{event.location}</span>
                         </div>
                       )}
 
                       {/* Attendees count */}
                       {event.attendees && event.attendees.length > 0 && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Users className="h-3 w-3" />
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <Users className="h-2.5 w-2.5" />
                           <span>{event.attendees.length} attendee{event.attendees.length !== 1 ? 's' : ''}</span>
                         </div>
                       )}
@@ -467,10 +467,10 @@ export function YourDay() {
       </div>
 
       {/* Footer with quick action */}
-      <div className="p-3 border-t border-border">
+      <div className="p-2 border-t border-border">
         <a
           href="/calendar"
-          className="block text-center text-xs text-muted-foreground hover:text-primary transition-colors"
+          className="block text-center text-[10px] text-muted-foreground hover:text-primary transition-colors"
         >
           View full calendar →
         </a>

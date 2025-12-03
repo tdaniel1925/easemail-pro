@@ -69,42 +69,42 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
   return (
     <div className="flex flex-col h-full bg-card overflow-hidden">
       {/* Tabs Header - Fixed */}
-      <div className="flex-shrink-0 h-14 border-b border-border flex items-center px-4">
-        <div className="flex gap-2">
+      <div className="flex-shrink-0 h-14 border-b border-border flex items-center px-2">
+        <div className="flex gap-0.5">
           <button
             className={cn(
-              'px-3 py-2 text-sm rounded-sm transition-colors',
+              'px-2 py-1.5 text-xs rounded-sm transition-colors',
               activeTab === 'agenda'
-                ? 'text-primary font-bold'
+                ? 'text-primary font-semibold'
                 : 'text-muted-foreground font-medium hover:text-foreground'
             )}
             onClick={() => handleTabChange('agenda')}
           >
-            <Sun className="h-4 w-4 inline mr-2" />
+            <Sun className="h-3 w-3 inline mr-1" />
             Agenda
           </button>
           <button
             className={cn(
-              'px-3 py-2 text-sm rounded-sm transition-colors',
+              'px-2 py-1.5 text-xs rounded-sm transition-colors',
               activeTab === 'contact'
-                ? 'text-primary font-bold'
+                ? 'text-primary font-semibold'
                 : 'text-muted-foreground font-medium hover:text-foreground'
             )}
             onClick={() => handleTabChange('contact')}
           >
-            <User className="h-4 w-4 inline mr-2" />
+            <User className="h-3 w-3 inline mr-1" />
             Contact
           </button>
           <button
             className={cn(
-              'px-3 py-2 text-sm rounded-sm transition-colors',
+              'px-2 py-1.5 text-xs rounded-sm transition-colors',
               activeTab === 'calendar'
-                ? 'text-primary font-bold'
+                ? 'text-primary font-semibold'
                 : 'text-muted-foreground font-medium hover:text-foreground'
             )}
             onClick={() => handleTabChange('calendar')}
           >
-            <CalendarIcon className="h-4 w-4 inline mr-2" />
+            <CalendarIcon className="h-3 w-3 inline mr-1" />
             Calendar
           </button>
         </div>
@@ -118,9 +118,9 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
           email ? (
             <ContactInfoTab email={email} avatarColor={avatarColor} />
           ) : (
-            <div className="flex flex-col h-full items-center justify-center px-4">
-              <User className="h-12 w-12 text-muted-foreground/50 mb-4" />
-              <p className="text-sm text-muted-foreground text-center">
+            <div className="flex flex-col h-full items-center justify-center px-3">
+              <User className="h-8 w-8 text-muted-foreground/50 mb-2" />
+              <p className="text-xs text-muted-foreground text-center">
                 Select an email<br />to view contact information
               </p>
             </div>
@@ -202,62 +202,65 @@ function ContactInfoTab({ email, avatarColor }: { email: EmailMessage; avatarCol
     <>
       <div className="flex flex-col h-full">
         {/* Contact Header - Fixed */}
-        <div className="flex-shrink-0 p-4 space-y-4 border-b border-border">
+        <div className="flex-shrink-0 p-2 space-y-2 border-b border-border">
           <div className="text-center">
             <div
-              className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-medium text-white mx-auto mb-3"
+              className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-medium text-white mx-auto mb-1.5"
               style={{ backgroundColor: avatarColor }}
             >
               {getInitials(senderName)}
             </div>
-            <h3 className="font-semibold text-lg break-words px-2">{senderName}</h3>
-            <p className="text-sm text-muted-foreground break-all px-2">{senderEmail}</p>
+            <h3 className="font-semibold text-xs break-words px-1">{senderName}</h3>
+            <p className="text-[10px] text-muted-foreground break-all px-1">{senderEmail}</p>
             {savedContact && (
-              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+              <p className="text-[10px] text-green-600 dark:text-green-400 mt-0.5">
                 ✓ Saved Contact
               </p>
             )}
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             {!savedContact ? (
               <Button
                 variant="outline"
-                className="flex-1"
+                size="sm"
+                className="flex-1 h-6 text-xs"
                 onClick={() => setIsContactModalOpen(true)}
               >
-                <UserPlus className="h-4 w-4 mr-2" />
+                <UserPlus className="h-3 w-3 mr-1" />
                 Add Contact
               </Button>
             ) : (
               <Button
                 variant="outline"
-                className="flex-1"
+                size="sm"
+                className="flex-1 h-6 text-xs"
                 onClick={() => setIsContactModalOpen(true)}
               >
-                <User className="h-4 w-4 mr-2" />
+                <User className="h-3 w-3 mr-1" />
                 Edit
               </Button>
             )}
             <Button
               variant="outline"
-              className="flex-1"
+              size="sm"
+              className="flex-1 h-6 text-xs"
               onClick={handleSMSClick}
               disabled={!savedContact || !savedContact.phone}
             >
-              <MessageSquare className="h-4 w-4 mr-2" />
+              <MessageSquare className="h-3 w-3 mr-1" />
               SMS
             </Button>
           </div>
 
           {/* Sub-tabs for Contact Info */}
           {savedContact && (
-            <div className="flex gap-1 p-1 bg-muted rounded-lg">
+            <div className="flex gap-0.5 p-0.5 bg-muted rounded-md">
               <button
                 onClick={() => setInfoTab('details')}
                 className={cn(
-                  'flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors',
+                  'flex-1 px-1.5 py-1 text-[10px] font-medium rounded transition-colors',
                   infoTab === 'details'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -268,7 +271,7 @@ function ContactInfoTab({ email, avatarColor }: { email: EmailMessage; avatarCol
               <button
                 onClick={() => setInfoTab('timeline')}
                 className={cn(
-                  'flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors',
+                  'flex-1 px-1.5 py-1 text-[10px] font-medium rounded transition-colors',
                   infoTab === 'timeline'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -279,7 +282,7 @@ function ContactInfoTab({ email, avatarColor }: { email: EmailMessage; avatarCol
               <button
                 onClick={() => setInfoTab('notes')}
                 className={cn(
-                  'flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors',
+                  'flex-1 px-1.5 py-1 text-[10px] font-medium rounded transition-colors',
                   infoTab === 'notes'
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -292,20 +295,20 @@ function ContactInfoTab({ email, avatarColor }: { email: EmailMessage; avatarCol
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6 min-h-0">
+        <div className="flex-1 overflow-y-auto p-2 space-y-3 min-h-0">
           {infoTab === 'details' && (
             <>
               {/* Contact Details */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-muted-foreground uppercase">Contact Information</h4>
+              <div className="space-y-1.5">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase">Contact Information</h4>
 
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                  <Mail className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-2 p-2 rounded-md bg-muted/50">
+                  <Mail className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground mb-1">Email</p>
+                    <p className="text-[10px] text-muted-foreground mb-0.5">Email</p>
                     <a
                       href={`mailto:${senderEmail}`}
-                      className="text-sm hover:underline break-all"
+                      className="text-xs hover:underline break-all"
                     >
                       {senderEmail}
                     </a>
@@ -313,13 +316,13 @@ function ContactInfoTab({ email, avatarColor }: { email: EmailMessage; avatarCol
                 </div>
 
                 {savedContact?.phone && (
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                    <Phone className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div className="flex items-start gap-2 p-2 rounded-md bg-muted/50">
+                    <Phone className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground mb-1">Phone</p>
+                      <p className="text-[10px] text-muted-foreground mb-0.5">Phone</p>
                       <a
                         href={`tel:${savedContact.phone}`}
-                        className="text-sm hover:underline"
+                        className="text-xs hover:underline"
                       >
                         {savedContact.phone}
                       </a>
@@ -329,15 +332,15 @@ function ContactInfoTab({ email, avatarColor }: { email: EmailMessage; avatarCol
               </div>
 
               {/* Recent Activity */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-muted-foreground uppercase">Recent Activity</h4>
+              <div className="space-y-1.5">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase">Recent Activity</h4>
 
-                <div className="p-3 rounded-lg border border-border">
-                  <div className="flex items-start gap-2 mb-1">
-                    <Mail className="h-3 w-3 text-muted-foreground mt-1" />
+                <div className="p-2 rounded-md border border-border">
+                  <div className="flex items-start gap-1.5 mb-0.5">
+                    <Mail className="h-2.5 w-2.5 text-muted-foreground mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium">Email Received</p>
-                      <p className="text-xs text-muted-foreground line-clamp-1">{email.subject}</p>
+                      <p className="text-xs font-medium">Email Received</p>
+                      <p className="text-[10px] text-muted-foreground line-clamp-1">{email.subject}</p>
                     </div>
                   </div>
                 </div>

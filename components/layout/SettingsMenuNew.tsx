@@ -70,24 +70,24 @@ export default function SettingsMenuNew({ onLogout, onNavigate }: SettingsMenuNe
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-64 bg-popover border border-border rounded-lg shadow-xl z-50">
-          <div className="py-2 max-h-[80vh] overflow-y-auto">
+        <div className="absolute bottom-full left-0 mb-1 w-48 bg-popover border border-border rounded-md shadow-xl z-50">
+          <div className="py-1 max-h-[80vh] overflow-y-auto">
 
             {/* Email Accounts */}
             <button
               onClick={() => handleMenuClick('/accounts-v3')}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent transition-colors text-left"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-accent transition-colors text-left"
             >
-              <Mail className="h-4 w-4 text-muted-foreground" />
+              <Mail className="h-3 w-3 text-muted-foreground" />
               <span>Email Accounts</span>
             </button>
 
             {/* Rules */}
             <button
               onClick={() => handleMenuClick('/rules')}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent transition-colors text-left"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-accent transition-colors text-left"
             >
-              <Zap className="h-4 w-4 text-muted-foreground" />
+              <Zap className="h-3 w-3 text-muted-foreground" />
               <span>Rules</span>
             </button>
 
@@ -95,51 +95,51 @@ export default function SettingsMenuNew({ onLogout, onNavigate }: SettingsMenuNe
             {(userRole === 'org_admin' || userRole === 'org_user') && (
               <button
                 onClick={() => handleMenuClick('/team')}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent transition-colors text-left"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-accent transition-colors text-left"
               >
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <Users className="h-3 w-3 text-muted-foreground" />
                 <span>Team</span>
               </button>
             )}
 
-            <div className="border-t border-border my-2"></div>
+            <div className="border-t border-border my-1"></div>
 
             {/* Admin Dashboard - Only for platform_admin */}
             {userRole === 'platform_admin' && (
               <>
-                <div className="px-4 py-2">
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <div className="px-2.5 py-1">
+                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
                     Admin
                   </div>
                 </div>
                 <button
                   onClick={() => handleMenuClick('/admin')}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent transition-colors text-left bg-primary/5"
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-accent transition-colors text-left bg-primary/5"
                 >
-                  <Shield className="h-4 w-4 text-primary" />
+                  <Shield className="h-3 w-3 text-primary" />
                   <span className="font-medium text-primary">Admin Dashboard</span>
                 </button>
-                <div className="border-t border-border my-2"></div>
+                <div className="border-t border-border my-1"></div>
               </>
             )}
 
             {/* Settings */}
             <button
               onClick={() => handleMenuClick('/settings')}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent transition-colors text-left"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-accent transition-colors text-left"
             >
-              <Settings className="h-4 w-4 text-muted-foreground" />
+              <Settings className="h-3 w-3 text-muted-foreground" />
               <span>Settings</span>
             </button>
 
-            <div className="border-t border-border my-2"></div>
+            <div className="border-t border-border my-1"></div>
 
             {/* Logout */}
             <button
               onClick={handleLogoutClick}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent hover:text-red-600 transition-colors text-left"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-accent hover:text-red-600 transition-colors text-left"
             >
-              <LogOut className="h-4 w-4 text-muted-foreground" />
+              <LogOut className="h-3 w-3 text-muted-foreground" />
               <span className="font-medium">Logout</span>
             </button>
           </div>
@@ -150,19 +150,19 @@ export default function SettingsMenuNew({ onLogout, onNavigate }: SettingsMenuNe
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all",
+          "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-all",
           isOpen ? "bg-accent" : "hover:bg-accent"
         )}
       >
-        <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-sm">
+        <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-[9px]">
           {getInitials()}
         </div>
         <div className="flex-1 text-left min-w-0">
-          <div className="text-xs text-muted-foreground">Logged in as</div>
-          <div className="font-medium text-sm truncate">{userFullName || userEmail || 'User'}</div>
+          <div className="text-[10px] text-muted-foreground">Logged in as</div>
+          <div className="font-medium text-xs truncate">{userFullName || userEmail || 'User'}</div>
         </div>
         <ChevronUp className={cn(
-          "h-4 w-4 transition-transform flex-shrink-0",
+          "h-3 w-3 transition-transform flex-shrink-0",
           isOpen && "rotate-180"
         )} />
       </button>
