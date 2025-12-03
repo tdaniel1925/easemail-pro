@@ -35,7 +35,10 @@
       "Bash(pgrep:*)",
       "Bash(npm run dev:*)",
       "Bash(npx tsx:*)",
-      "Bash(cmd.exe /c \"taskkill /F /IM node.exe 2>nul & timeout /t 3 /nobreak >nul & cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && (if exist .next rmdir /s /q .next) && (if exist node_modules\\.cache rmdir /s /q node_modules\\.cache) && npm run dev\")"
+      "Bash(cmd.exe /c \"taskkill /F /IM node.exe 2>nul & timeout /t 3 /nobreak >nul & cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && (if exist .next rmdir /s /q .next) && (if exist node_modules\\.cache rmdir /s /q node_modules\\.cache) && npm run dev\")",
+      "Bash(find:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(Select-String -Pattern \"error TS\")"
     ],
     "deny": [],
     "ask": []

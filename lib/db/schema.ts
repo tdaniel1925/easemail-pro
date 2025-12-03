@@ -2299,6 +2299,36 @@ export const billingNotices = pgTable('billing_notices', {
   typeIdx: index('idx_notices_type').on(table.noticeType),
 }));
 
+// Blocked Senders Table
+export const blockedSenders = pgTable('blocked_senders', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  accountId: uuid('account_id').references(() => emailAccounts.id, { onDelete: 'cascade' }),
+  senderEmail: varchar('sender_email', { length: 255 }).notNull(),
+  senderName: varchar('sender_name', { length: 255 }),
+  blockedAt: timestamp('blocked_at').defaultNow().notNull(),
+  reason: text('reason'),
+}, (table) => ({
+  userIdx: index('idx_blocked_senders_user').on(table.userId),
+  emailIdx: index('idx_blocked_senders_email').on(table.senderEmail),
+  uniqueBlock: unique('blocked_senders_unique').on(table.userId, table.senderEmail),
+}));
+
+// Muted Conversations Table
+export const mutedConversations = pgTable('muted_conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  accountId: uuid('account_id').references(() => emailAccounts.id, { onDelete: 'cascade' }),
+  threadId: varchar('thread_id', { length: 255 }).notNull(),
+  mutedAt: timestamp('muted_at').defaultNow().notNull(),
+  mutedUntil: timestamp('muted_until'), // null = forever
+}, (table) => ({
+  userIdx: index('idx_muted_conv_user').on(table.userId),
+  threadIdx: index('idx_muted_conv_thread').on(table.threadId),
+  uniqueMute: unique('muted_conv_unique').on(table.userId, table.threadId),
+}));
+
+
 // Aliases for snake_case compatibility
 export const sms_usage = smsUsage;
 export const ai_usage = aiUsage;
@@ -2309,6 +2339,9 @@ export const revenue_schedule = revenueSchedule;
 export const credit_notes = creditNotes;
 export const account_status_history = accountStatusHistory;
 export const billing_notices = billingNotices;
+export const blocked_senders = blockedSenders;
+export const muted_conversations = mutedConversations;
+export const user_email_templates = userEmailTemplates;
 
 // Contacts V4 exports
 export * from './schema-contacts-v4';

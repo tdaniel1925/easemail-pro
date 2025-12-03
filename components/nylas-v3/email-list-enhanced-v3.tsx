@@ -58,6 +58,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { EmailContextMenu } from '@/components/email/EmailContextMenu';
+import { BlockSenderDialog } from '@/components/email/BlockSenderDialog';
+import { UnsubscribeHelper } from '@/components/email/UnsubscribeHelper';
+import { MuteConversationDialog } from '@/components/email/MuteConversationDialog';
+import { printEmail } from '@/components/email/PrintEmail';
+import { downloadEml } from '@/lib/utils/downloadEml';
+import { HoverQuickActions } from '@/components/email/HoverQuickActions';
 
 interface EmailMessage {
   id: string;
@@ -119,6 +126,21 @@ export function EmailListEnhancedV3({
     emailIds: string[];
     timestamp: number;
   } | null>(null);
+
+  // Dialog states for new features
+  const [blockSenderDialog, setBlockSenderDialog] = useState<{
+    isOpen: boolean;
+    email: EmailMessage | null;
+  }>({ isOpen: false, email: null });
+  const [unsubscribeDialog, setUnsubscribeDialog] = useState<{
+    isOpen: boolean;
+    email: EmailMessage | null;
+  }>({ isOpen: false, email: null });
+  const [muteDialog, setMuteDialog] = useState<{
+    isOpen: boolean;
+    email: EmailMessage | null;
+  }>({ isOpen: false, email: null });
+  const [hoveredEmailId, setHoveredEmailId] = useState<string | null>(null);
 
   // Advanced search state
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
@@ -661,34 +683,171 @@ export function EmailListEnhancedV3({
           <>
             <div className="space-y-2">
               {visibleMessages.map((message) => (
-                <EmailCard
+                <EmailContextMenu
                   key={message.id}
-                  message={message}
+                  email={{
+                    id: message.id,
+                    subject: message.subject,
+                    fromEmail: message.from[0]?.email || '',
+                    fromName: message.from[0]?.name,
+                    threadId: message.threadId || undefined,
+                    isRead: !message.unread,
+                    isStarred: message.starred,
+                  }}
                   accountId={accountId}
-                  isExpanded={expandedEmailId === message.id}
-                  isSelected={selectedEmailId === message.id}
-                  isChecked={selectedEmails.has(message.id)}
-                  selectMode={selectMode}
-                  onSelect={(e) => handleSelectEmail(message.id, e)}
-                  onClick={() => {
-                    setExpandedEmailId(expandedEmailId === message.id ? null : message.id);
-                    setSelectedEmailId(message.id);
-                    onEmailSelect?.(message); // Notify parent about selected email
-                  }}
-                  onCompose={onCompose}
-                  onRemove={(emailId, action) => {
-                    setLocallyRemovedEmails((prev) => {
-                      const next = new Set(prev);
-                      next.add(emailId);
-                      return next;
-                    });
-                    setUndoStack({
-                      action,
-                      emailIds: [emailId],
-                      timestamp: Date.now(),
+                  onReply={() => onCompose?.('reply', message)}
+                  onReplyAll={() => onCompose?.('reply-all', message)}
+                  onForward={() => onCompose?.('forward', message)}
+                  onArchive={async () => {
+                    setLocallyRemovedEmails((prev) => new Set(prev).add(message.id));
+                    setUndoStack({ action: 'archive', emailIds: [message.id], timestamp: Date.now() });
+                    await fetch('/api/nylas-v3/messages/bulk', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ accountId, messageIds: [message.id], action: 'archive' }),
                     });
                   }}
-                />
+                  onDelete={async () => {
+                    setLocallyRemovedEmails((prev) => new Set(prev).add(message.id));
+                    setUndoStack({ action: 'delete', emailIds: [message.id], timestamp: Date.now() });
+                    await fetch('/api/nylas-v3/messages/bulk', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ accountId, messageIds: [message.id], action: 'delete' }),
+                    });
+                  }}
+                  onMarkRead={async () => {
+                    await fetch('/api/nylas-v3/messages/bulk', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ accountId, messageIds: [message.id], action: 'markRead' }),
+                    });
+                    message.unread = false;
+                  }}
+                  onMarkUnread={async () => {
+                    await fetch('/api/nylas-v3/messages/bulk', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ accountId, messageIds: [message.id], action: 'markUnread' }),
+                    });
+                    message.unread = true;
+                  }}
+                  onStar={async () => {
+                    await fetch('/api/nylas-v3/messages/bulk', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ accountId, messageIds: [message.id], action: 'star' }),
+                    });
+                    message.starred = true;
+                  }}
+                  onUnstar={async () => {
+                    await fetch('/api/nylas-v3/messages/bulk', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ accountId, messageIds: [message.id], action: 'unstar' }),
+                    });
+                    message.starred = false;
+                  }}
+                  onSnooze={() => {
+                    // Snooze functionality would open a snooze dialog
+                    console.log('Snooze email:', message.id);
+                  }}
+                  onMoveToFolder={() => {
+                    // Move to folder functionality
+                    console.log('Move to folder:', message.id);
+                  }}
+                  onAddLabel={() => {
+                    // Add label functionality
+                    console.log('Add label:', message.id);
+                  }}
+                  onBlockSender={() => setBlockSenderDialog({ isOpen: true, email: message })}
+                  onUnsubscribe={() => setUnsubscribeDialog({ isOpen: true, email: message })}
+                  onMuteThread={() => setMuteDialog({ isOpen: true, email: message })}
+                  onPrint={() => printEmail({
+                    id: message.id,
+                    subject: message.subject,
+                    fromName: message.from[0]?.name,
+                    fromEmail: message.from[0]?.email || '',
+                    to: message.to,
+                    cc: message.cc,
+                    date: message.date,
+                    bodyHtml: message.body,
+                    bodyText: message.snippet,
+                    attachments: message.attachments?.map(a => ({ filename: a.filename, size: a.size })),
+                  })}
+                  onDownloadEml={() => downloadEml(accountId, message.id, message.subject)}
+                >
+                  <div
+                    onMouseEnter={() => setHoveredEmailId(message.id)}
+                    onMouseLeave={() => setHoveredEmailId(null)}
+                    className="relative"
+                  >
+                    <EmailCard
+                      message={message}
+                      accountId={accountId}
+                      isExpanded={expandedEmailId === message.id}
+                      isSelected={selectedEmailId === message.id}
+                      isChecked={selectedEmails.has(message.id)}
+                      selectMode={selectMode}
+                      onSelect={(e) => handleSelectEmail(message.id, e)}
+                      onClick={() => {
+                        setExpandedEmailId(expandedEmailId === message.id ? null : message.id);
+                        setSelectedEmailId(message.id);
+                        onEmailSelect?.(message);
+                      }}
+                      onCompose={onCompose}
+                      onRemove={(emailId, action) => {
+                        setLocallyRemovedEmails((prev) => new Set(prev).add(emailId));
+                        setUndoStack({ action, emailIds: [emailId], timestamp: Date.now() });
+                      }}
+                    />
+                    <HoverQuickActions
+                      isVisible={hoveredEmailId === message.id && !expandedEmailId}
+                      isRead={!message.unread}
+                      isStarred={message.starred}
+                      onArchive={async () => {
+                        setLocallyRemovedEmails((prev) => new Set(prev).add(message.id));
+                        setUndoStack({ action: 'archive', emailIds: [message.id], timestamp: Date.now() });
+                        await fetch('/api/nylas-v3/messages/bulk', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ accountId, messageIds: [message.id], action: 'archive' }),
+                        });
+                      }}
+                      onDelete={async () => {
+                        setLocallyRemovedEmails((prev) => new Set(prev).add(message.id));
+                        setUndoStack({ action: 'delete', emailIds: [message.id], timestamp: Date.now() });
+                        await fetch('/api/nylas-v3/messages/bulk', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ accountId, messageIds: [message.id], action: 'delete' }),
+                        });
+                      }}
+                      onSnooze={() => console.log('Snooze:', message.id)}
+                      onToggleRead={async () => {
+                        const action = message.unread ? 'markRead' : 'markUnread';
+                        await fetch('/api/nylas-v3/messages/bulk', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ accountId, messageIds: [message.id], action }),
+                        });
+                        message.unread = !message.unread;
+                      }}
+                      onToggleStar={async () => {
+                        const action = message.starred ? 'unstar' : 'star';
+                        await fetch('/api/nylas-v3/messages/bulk', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ accountId, messageIds: [message.id], action }),
+                        });
+                        message.starred = !message.starred;
+                      }}
+                      onMoreOptions={() => {
+                        // Context menu will handle this via right-click
+                      }}
+                    />
+                  </div>
+                </EmailContextMenu>
               ))}
             </div>
 
@@ -926,6 +1085,51 @@ export function EmailListEnhancedV3({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Block Sender Dialog */}
+      {blockSenderDialog.email && (
+        <BlockSenderDialog
+          isOpen={blockSenderDialog.isOpen}
+          onClose={() => setBlockSenderDialog({ isOpen: false, email: null })}
+          senderEmail={blockSenderDialog.email.from[0]?.email || ''}
+          senderName={blockSenderDialog.email.from[0]?.name}
+          accountId={accountId}
+          onSuccess={() => {
+            // Optionally refresh or show a toast
+            handleRefresh();
+          }}
+        />
+      )}
+
+      {/* Unsubscribe Helper Dialog */}
+      {unsubscribeDialog.email && (
+        <UnsubscribeHelper
+          isOpen={unsubscribeDialog.isOpen}
+          onClose={() => setUnsubscribeDialog({ isOpen: false, email: null })}
+          accountId={accountId}
+          email={{
+            id: unsubscribeDialog.email.id,
+            fromEmail: unsubscribeDialog.email.from[0]?.email,
+            subject: unsubscribeDialog.email.subject,
+            bodyHtml: unsubscribeDialog.email.body,
+            bodyText: unsubscribeDialog.email.snippet,
+          }}
+        />
+      )}
+
+      {/* Mute Conversation Dialog */}
+      {muteDialog.email && (
+        <MuteConversationDialog
+          isOpen={muteDialog.isOpen}
+          onClose={() => setMuteDialog({ isOpen: false, email: null })}
+          threadId={muteDialog.email.threadId || muteDialog.email.id}
+          subject={muteDialog.email.subject}
+          accountId={accountId}
+          onSuccess={() => {
+            // Optionally refresh or show a toast
+          }}
+        />
+      )}
     </div>
   );
 }
