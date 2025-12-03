@@ -324,68 +324,70 @@ export function EmailViewerV3({
       <Dialog />
       <div className="flex flex-col h-full bg-card overflow-hidden">
       {/* Header - Fixed */}
-      <div className="flex-shrink-0 p-2 md:p-3 border-b border-border">
-        <div className="flex items-start md:items-center justify-between mb-2 gap-2">
-          <h2 className="text-xs md:text-sm font-semibold flex-1 line-clamp-2">{message.subject || '(No Subject)'}</h2>
-          <div className="flex items-center gap-0.5 flex-shrink-0">
+      <div className="flex-shrink-0 px-2 py-1.5 border-b border-border">
+        <div className="flex items-center justify-between gap-1.5">
+          <h2 className="text-[11px] font-semibold flex-1 truncate">{message.subject || '(No Subject)'}</h2>
+          <div className="flex items-center gap-0 flex-shrink-0">
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleStar}
-              className={cn('h-6 w-6', isStarred && 'text-yellow-500')}
+              className={cn('h-5 w-5', isStarred && 'text-yellow-500')}
             >
               <Star className={cn('h-3 w-3', isStarred && 'fill-yellow-500')} />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handlePrint} title="Print email" className="hidden sm:flex h-6 w-6">
+            <Button variant="ghost" size="icon" onClick={handlePrint} title="Print email" className="hidden sm:flex h-5 w-5">
               <Printer className="h-3 w-3" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleArchive} className="hidden sm:flex h-6 w-6">
+            <Button variant="ghost" size="icon" onClick={handleArchive} className="hidden sm:flex h-5 w-5">
               <Archive className="h-3 w-3" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleDelete} className="h-6 w-6">
+            <Button variant="ghost" size="icon" onClick={handleDelete} className="h-5 w-5">
               <Trash2 className="h-3 w-3" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-6 w-6">
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-5 w-5">
               <X className="h-3 w-3" />
             </Button>
           </div>
         </div>
 
         {/* Sender Info */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-1.5 mt-1">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
             <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium text-white flex-shrink-0"
+              className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-medium text-white flex-shrink-0"
               style={{ backgroundColor: avatarColor }}
             >
               {getInitials(senderName)}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium truncate">{senderName}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{sender.email}</p>
-              <p className="text-[10px] text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-medium truncate">{senderName}</span>
+                <span className="text-[9px] text-muted-foreground truncate hidden sm:inline">{sender.email}</span>
+              </div>
+              <p className="text-[9px] text-muted-foreground">
                 {formatDate(new Date(message.date * 1000))}
               </p>
             </div>
           </div>
 
           {/* Desktop Action Buttons */}
-          <div className="hidden md:flex gap-1 flex-shrink-0">
-            <Button variant="outline" size="sm" onClick={handleReply} className="h-6 px-2 text-[10px]">
-              <Reply className="h-3 w-3 mr-1" />
+          <div className="hidden md:flex gap-0.5 flex-shrink-0">
+            <Button variant="outline" size="sm" onClick={handleReply} className="h-5 px-1.5 text-[9px]">
+              <Reply className="h-2.5 w-2.5 mr-0.5" />
               Reply
             </Button>
-            <Button variant="outline" size="sm" onClick={handleReplyAll} className="h-6 px-2 text-[10px]">
-              <ReplyAll className="h-3 w-3 mr-1" />
+            <Button variant="outline" size="sm" onClick={handleReplyAll} className="h-5 px-1.5 text-[9px]">
+              <ReplyAll className="h-2.5 w-2.5 mr-0.5" />
               All
             </Button>
-            <Button variant="outline" size="sm" onClick={handleForward} className="h-6 px-2 text-[10px]">
-              <Forward className="h-3 w-3 mr-1" />
+            <Button variant="outline" size="sm" onClick={handleForward} className="h-5 px-1.5 text-[9px]">
+              <Forward className="h-2.5 w-2.5 mr-0.5" />
               Fwd
             </Button>
             {calendars.length > 0 && selectedCalendar && (
-              <Button variant="outline" size="sm" onClick={() => setShowEventDialog(true)} className="h-6 px-2 text-[10px]">
-                <Calendar className="h-3 w-3 mr-1" />
+              <Button variant="outline" size="sm" onClick={() => setShowEventDialog(true)} className="h-5 px-1.5 text-[9px]">
+                <Calendar className="h-2.5 w-2.5 mr-0.5" />
                 Event
               </Button>
             )}
@@ -394,7 +396,7 @@ export function EmailViewerV3({
 
         {/* Recipients */}
         {message.to && message.to.length > 0 && (
-          <div className="mt-2 text-[10px] text-muted-foreground">
+          <div className="mt-1 text-[9px] text-muted-foreground truncate">
             <span className="font-medium">To: </span>
             {message.to.map((r, i) => (
               <span key={i}>
@@ -406,7 +408,7 @@ export function EmailViewerV3({
         )}
 
         {message.cc && message.cc.length > 0 && (
-          <div className="mt-0.5 text-[10px] text-muted-foreground">
+          <div className="text-[9px] text-muted-foreground truncate">
             <span className="font-medium">Cc: </span>
             {message.cc.map((r, i) => (
               <span key={i}>
@@ -419,7 +421,7 @@ export function EmailViewerV3({
       </div>
 
       {/* Email Body - Scrollable */}
-      <div className="flex-1 overflow-y-auto p-3 min-h-0">
+      <div className="flex-1 overflow-y-auto p-2 min-h-0">
         <EmailRendererV3
           emailId={messageId}
           messageId={messageId}
@@ -526,18 +528,18 @@ export function EmailViewerV3({
       </div>
 
       {/* Reply Footer - Fixed - Visible on mobile, hidden on desktop (desktop has top buttons) */}
-      <div className="flex-shrink-0 p-2 md:hidden border-t border-border">
-        <div className="flex gap-1">
-          <Button className="flex-1 h-7 text-xs" onClick={handleReply}>
-            <Reply className="h-3 w-3 mr-1" />
+      <div className="flex-shrink-0 px-2 py-1 md:hidden border-t border-border">
+        <div className="flex gap-0.5">
+          <Button className="flex-1 h-6 text-[10px]" onClick={handleReply}>
+            <Reply className="h-2.5 w-2.5 mr-0.5" />
             Reply
           </Button>
-          <Button variant="outline" className="flex-1 h-7 text-xs" onClick={handleReplyAll}>
-            <ReplyAll className="h-3 w-3 mr-1" />
+          <Button variant="outline" className="flex-1 h-6 text-[10px]" onClick={handleReplyAll}>
+            <ReplyAll className="h-2.5 w-2.5 mr-0.5" />
             All
           </Button>
-          <Button variant="outline" className="flex-1 h-7 text-xs" onClick={handleForward}>
-            <Forward className="h-3 w-3 mr-1" />
+          <Button variant="outline" className="flex-1 h-6 text-[10px]" onClick={handleForward}>
+            <Forward className="h-2.5 w-2.5 mr-0.5" />
             Fwd
           </Button>
         </div>

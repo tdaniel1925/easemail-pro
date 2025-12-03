@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Download, Paperclip, AlertCircle, Loader2, Eye, EyeOff, Code } from 'lucide-react';
+import { Download, Paperclip, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatFileSize } from '@/lib/utils';
 
@@ -57,7 +57,6 @@ export function EmailRendererV3({
 }: EmailRendererV3Props) {
   const [downloadingAttachments, setDownloadingAttachments] = useState<Set<string>>(new Set());
   const [attachmentErrors, setAttachmentErrors] = useState<Map<string, string>>(new Map());
-  const [showHtmlSource, setShowHtmlSource] = useState(false);
 
   // Debug logging to track what we're receiving
   console.log('📧 EmailRendererV3 received:', {
@@ -180,95 +179,26 @@ export function EmailRendererV3({
       className={`email-renderer-v3 relative ${className}`}
       data-renderer="v3-simple"
     >
-      {/* Control Bar - Image Toggle & HTML View */}
-      <div className="mb-3 flex items-center justify-between gap-2 p-2 bg-secondary/30 border border-border/50 rounded-lg">
-        <div className="flex items-center gap-2 text-sm">
-          {showImages ? (
-            <Eye className="h-4 w-4 text-primary" />
-          ) : (
-            <EyeOff className="h-4 w-4 text-muted-foreground" />
-          )}
-          <span className="text-muted-foreground">
-            {showImages
-              ? 'External images are showing'
-              : 'External images are blocked'}
-          </span>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowHtmlSource(!showHtmlSource)}
-            className="h-8"
-            title={showHtmlSource ? 'Hide HTML Source' : 'View HTML Source'}
-          >
-            <Code className="h-4 w-4 mr-2" />
-            {showHtmlSource ? 'Hide HTML' : 'View HTML'}
-          </Button>
-          {onShowImagesToggle && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onShowImagesToggle}
-              className="h-8"
-            >
-              {showImages ? (
-                <>
-                  <EyeOff className="h-4 w-4 mr-2" />
-                  Block Images
-                </>
-              ) : (
-                <>
-                  <Eye className="h-4 w-4 mr-2" />
-                  Show Images
-                </>
-              )}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Email Body or HTML Source */}
-      {showHtmlSource ? (
-        <div className="border border-border rounded-lg overflow-hidden">
-          <div className="bg-muted px-3 py-2 border-b border-border flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">HTML Source Code</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 text-xs"
-              onClick={() => {
-                navigator.clipboard.writeText(bodyHtml || bodyText || '');
-              }}
-            >
-              Copy
-            </Button>
-          </div>
-          <pre className="p-4 overflow-auto max-h-[600px] text-xs font-mono bg-card">
-            <code>{bodyHtml || bodyText || 'No content'}</code>
-          </pre>
-        </div>
-      ) : (
-        <SimpleEmailViewer
-          body={bodyHtml || ''}
-          bodyText={bodyText}
-          attachments={attachments || undefined}
-          accountId={accountId}
-          messageId={messageId || emailId}
-        />
-      )}
+      {/* Email Body */}
+      <SimpleEmailViewer
+        body={bodyHtml || ''}
+        bodyText={bodyText}
+        attachments={attachments || undefined}
+        accountId={accountId}
+        messageId={messageId || emailId}
+      />
 
       {/* Attachments */}
       {hasAttachments && (
-        <div className="mt-4 border-t border-border/50 pt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Paperclip className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-muted-foreground">
+        <div className="mt-3 border-t border-border/50 pt-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Paperclip className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">
               {attachments.length} {attachments.length === 1 ? 'Attachment' : 'Attachments'}
             </span>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1">
             {attachments.map((attachment) => {
               const isDownloading = downloadingAttachments.has(attachment.id);
               const error = attachmentErrors.get(attachment.id);
@@ -276,20 +206,20 @@ export function EmailRendererV3({
               return (
                 <div
                   key={attachment.id}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 border border-border/50"
+                  className="flex items-center gap-2 p-1.5 rounded bg-secondary/30 border border-border/50"
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Paperclip className="h-5 w-5 text-primary" />
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Paperclip className="h-3 w-3 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{attachment.filename}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs font-medium truncate">{attachment.filename}</p>
+                      <p className="text-[10px] text-muted-foreground">
                         {formatFileSize(attachment.size)}
                       </p>
                       {error && (
-                        <div className="flex items-center gap-1 mt-1 text-xs text-destructive">
-                          <AlertCircle className="h-3 w-3" />
+                        <div className="flex items-center gap-1 text-[10px] text-destructive">
+                          <AlertCircle className="h-2.5 w-2.5" />
                           <span>{error}</span>
                         </div>
                       )}
@@ -299,14 +229,14 @@ export function EmailRendererV3({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0"
+                    className="h-6 w-6 p-0"
                     onClick={() => handleDownloadAttachment(attachment)}
                     disabled={isDownloading}
                   >
                     {isDownloading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-3 w-3 animate-spin" />
                     ) : (
-                      <Download className="h-4 w-4" />
+                      <Download className="h-3 w-3" />
                     )}
                   </Button>
                 </div>
