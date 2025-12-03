@@ -1637,6 +1637,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 onChange={setBody}
                 placeholder="Write your message..."
                 className="border-0 h-full"
+                focusOnMount={isOpen}
               />
             </div>
 

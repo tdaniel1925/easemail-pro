@@ -13,6 +13,7 @@ import SearchBar from './SearchBar';
 import BulkActions from './BulkActions';
 import { ThreadSummaryModal } from './ThreadSummaryModal';
 import { ActiveFilters } from './ActiveFilters';
+import { TrainAIButton } from './TrainAIButton';
 import type { SearchFilters } from './AdvancedSearchPanel';
 import {
   Mail,
@@ -451,6 +452,7 @@ export default function InboxV4({
           {/* Search and Sync */}
           <div className="flex items-center gap-2">
             <SearchBar onSearch={handleSearch} />
+            <TrainAIButton accountId={selectedAccount} />
             <Button
               variant="outline"
               size="icon"

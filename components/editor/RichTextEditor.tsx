@@ -54,6 +54,7 @@ interface RichTextEditorProps {
   onChange: (html: string) => void;
   placeholder?: string;
   className?: string;
+  focusOnMount?: boolean;
 }
 
 const FONT_FAMILIES = [
@@ -78,16 +79,16 @@ const HIGHLIGHT_COLORS = [
   '#88ff00', '#0088ff', '#ff0088', '#ffc0cb', '#add8e6',
 ];
 
-export function RichTextEditor({ 
-  content, 
-  onChange, 
+export function RichTextEditor({
+  content,
+  onChange,
   placeholder = 'Write your message...',
-  className 
+  className,
+  focusOnMount = false,
 }: RichTextEditorProps) {
   const [showTextColorPicker, setShowTextColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   const [showFontMenu, setShowFontMenu] = useState(false);
-  const [showSizeMenu, setShowSizeMenu] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -186,21 +187,37 @@ export function RichTextEditor({
     }
   }, [content, editor]);
 
+  // Focus editor and position cursor at start when focusOnMount is true
+  useEffect(() => {
+    if (editor && focusOnMount) {
+      // Small delay to ensure content is rendered
+      setTimeout(() => {
+        editor.chain().focus().setTextSelection(0).run();
+      }, 100);
+    }
+  }, [editor, focusOnMount]);
+
   if (!editor) {
     return null;
   }
 
   return (
     <div className={cn('border border-border rounded-lg', className)}>
-      {/* Custom CSS to preserve signature formatting and enable paragraph spacing */}
+      {/* Custom CSS to preserve signature formatting and reduce paragraph spacing */}
       <style jsx global>{`
         .ProseMirror p {
-          line-height: 1.5 !important;
-          margin-bottom: 0.75em !important;
+          line-height: 1.4 !important;
+          margin-bottom: 0.25em !important;
+          margin-top: 0 !important;
         }
         /* Remove bottom margin from the last paragraph to prevent extra space */
         .ProseMirror p:last-child {
           margin-bottom: 0 !important;
+        }
+        /* Reduce spacing for empty paragraphs (blank lines) */
+        .ProseMirror p:empty,
+        .ProseMirror p > br:only-child {
+          margin-bottom: 0.5em !important;
         }
         .ProseMirror br {
           content: "";

@@ -65,6 +65,7 @@ import { MuteConversationDialog } from '@/components/email/MuteConversationDialo
 import { printEmail } from '@/components/email/PrintEmail';
 import { downloadEml } from '@/lib/utils/downloadEml';
 import { HoverQuickActions } from '@/components/email/HoverQuickActions';
+import { TrainAIButton } from '@/components/inbox/TrainAIButton';
 
 interface EmailMessage {
   id: string;
@@ -649,6 +650,7 @@ export function EmailListEnhancedV3({
                   <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-blue-600" />
                 )}
               </Button>
+              <TrainAIButton accountId={accountId} compact />
             </div>
 
             {/* SMS Notification Bell */}
