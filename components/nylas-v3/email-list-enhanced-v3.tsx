@@ -10,7 +10,6 @@ import { createPortal } from 'react-dom';
 import {
   Loader2,
   Mail as MailIcon,
-  RefreshCw,
   Star,
   Paperclip,
   Reply,
@@ -658,15 +657,6 @@ export function EmailListEnhancedV3({
               unreadCount={smsUnreadCount}
               onCountUpdate={(count) => setSmsUnreadCount(count)}
             />
-
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
-              className="p-1 hover:bg-accent rounded transition-colors flex-shrink-0"
-              title="Refresh"
-            >
-              <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
-            </button>
           </div>
         )}
       </div>

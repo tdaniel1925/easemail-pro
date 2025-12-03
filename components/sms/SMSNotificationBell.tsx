@@ -112,15 +112,16 @@ export default function SMSNotificationBell({
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
-          size="icon"
-          className="relative h-9 w-9"
+          size="sm"
+          className="relative h-7 px-2 gap-1 text-xs font-medium"
           aria-label="SMS Notifications"
         >
-          <MessageSquare className="h-5 w-5" />
+          <MessageSquare className="h-3.5 w-3.5" />
+          <span>SMS</span>
           {unreadCount > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+              className="h-4 min-w-[16px] flex items-center justify-center px-1 text-[10px] ml-0.5"
             >
               {unreadCount > 99 ? '99+' : unreadCount}
             </Badge>
