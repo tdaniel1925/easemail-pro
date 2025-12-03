@@ -68,12 +68,37 @@ export async function GET(
       // JMAP Account: Fetch from JMAP API with full body
       console.log('[Message] Fetching JMAP message:', messageId);
 
+      // First, try to find the email in database to get the providerMessageId
+      // EmailList passes database ID, but JMAP API needs the JMAP message ID
+      let jmapMessageId = messageId;
+      let dbEmail = await db.query.emails.findFirst({
+        where: and(
+          eq(emails.accountId, account.id),
+          eq(emails.id, messageId)
+        ),
+      });
+
+      if (dbEmail) {
+        // Found by database ID - use providerMessageId for JMAP API
+        jmapMessageId = dbEmail.providerMessageId || messageId;
+        console.log('[Message] Resolved JMAP message ID from database:', jmapMessageId);
+      } else {
+        // Try looking up by providerMessageId
+        dbEmail = await db.query.emails.findFirst({
+          where: and(
+            eq(emails.accountId, account.id),
+            eq(emails.providerMessageId, messageId)
+          ),
+        });
+        console.log('[Message] Using messageId as JMAP ID:', jmapMessageId);
+      }
+
       const apiToken = Buffer.from(account.imapPassword || '', 'base64').toString('utf-8');
       const jmapClient = createFastmailJMAPClient(apiToken);
       await jmapClient.connect();
 
-      // Fetch full email with body
-      const jmapEmail = await jmapClient.getEmailBody(messageId);
+      // Fetch full email with body using the JMAP message ID
+      const jmapEmail = await jmapClient.getEmailBody(jmapMessageId);
 
       if (!jmapEmail) {
         return NextResponse.json({ error: 'Message not found' }, { status: 404 });
@@ -122,7 +147,7 @@ export async function GET(
         attachmentCount: attachments.length,
       });
 
-      // Format response to match Nylas format
+      // Format response to match Nylas format AND EmailList component expectations
       const formattedMessage = {
         id: jmapEmail.id,
         subject: jmapEmail.subject || '(No Subject)',
@@ -132,6 +157,8 @@ export async function GET(
         bcc: jmapEmail.bcc || [],
         date: Math.floor(new Date(jmapEmail.receivedAt).getTime() / 1000),
         body: bodyHtml || bodyText || jmapEmail.preview || '',
+        bodyHtml: bodyHtml || '', // For EmailList component
+        bodyText: bodyText || '', // For EmailList component
         snippet: jmapEmail.preview || '',
         unread: !jmapEmail.keywords?.['$seen'],
         starred: !!jmapEmail.keywords?.['$flagged'],
@@ -146,18 +173,29 @@ export async function GET(
       // IMAP Account: Fetch from local database
       console.log('[Message] Fetching IMAP message from database:', messageId);
 
-      const email = await db.query.emails.findFirst({
+      // Try to find by database ID first (EmailList uses database ID), then by providerMessageId
+      let email = await db.query.emails.findFirst({
         where: and(
           eq(emails.accountId, account.id),
-          eq(emails.providerMessageId, messageId)
+          eq(emails.id, messageId)
         ),
       });
+
+      if (!email) {
+        // Fallback to providerMessageId
+        email = await db.query.emails.findFirst({
+          where: and(
+            eq(emails.accountId, account.id),
+            eq(emails.providerMessageId, messageId)
+          ),
+        });
+      }
 
       if (!email) {
         return NextResponse.json({ error: 'Message not found' }, { status: 404 });
       }
 
-      // Format response to match Nylas format
+      // Format response to match Nylas format AND EmailList component expectations
       const formattedMessage = {
         id: email.providerMessageId,
         subject: email.subject || '(No Subject)',
@@ -167,6 +205,8 @@ export async function GET(
         bcc: email.bccEmails || [],
         date: Math.floor((email.receivedAt?.getTime() || Date.now()) / 1000),
         body: email.bodyHtml || email.bodyText || '',
+        bodyHtml: email.bodyHtml || '', // For EmailList component
+        bodyText: email.bodyText || '', // For EmailList component
         snippet: email.snippet || '',
         unread: !email.isRead,
         starred: email.isStarred || false,

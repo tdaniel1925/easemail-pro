@@ -645,7 +645,11 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
       const fetchFullEmail = async () => {
         setLoadingFullEmail(true);
         try {
-          const response = await fetch(`/api/nylas/messages/${email.id}`);
+          // Use v3 API with accountId to support JMAP/IMAP accounts
+          const url = email.accountId
+            ? `/api/nylas-v3/messages/${email.id}?accountId=${email.accountId}`
+            : `/api/nylas/messages/${email.id}`;
+          const response = await fetch(url);
           const data = await response.json();
           if (data.success && data.message) {
             setFullEmail(data.message);
@@ -658,7 +662,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
       };
       fetchFullEmail();
     }
-  }, [isExpanded, email.id, email.bodyHtml, email.bodyText, fullEmail]);
+  }, [isExpanded, email.id, email.accountId, email.bodyHtml, email.bodyText, fullEmail]);
   
   // Use full email data if available
   const displayEmail = fullEmail || email;
