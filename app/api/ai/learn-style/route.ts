@@ -58,12 +58,18 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[learn-style] ✅ Found account:', account.email_address);
+    console.log('[learn-style] Account details:', JSON.stringify({
+      id: account.id,
+      provider: account.provider,
+      hasNylasGrantId: !!account.nylas_grant_id,
+      hasImapPassword: !!account.imap_password,
+    }));
 
     // 2. Fetch last 50 sent emails (support both Nylas and JMAP accounts)
     let sentMessages: any[] = [];
     const isJMAPAccount = account.provider === 'jmap';
 
-    console.log('[learn-style] 📧 Fetching sent emails for:', account.email_address, 'Provider:', isJMAPAccount ? 'JMAP' : 'Nylas');
+    console.log('[learn-style] 📧 Fetching sent emails for:', account.email_address, 'Provider:', account.provider, 'isJMAP:', isJMAPAccount);
 
     if (isJMAPAccount) {
       // JMAP Account (Fastmail, etc.)
