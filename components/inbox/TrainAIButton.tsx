@@ -140,7 +140,11 @@ export function TrainAIButton({ accountId, compact = false }: TrainAIButtonProps
         )}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        setIsOpen(open);
+        // Clear error when dialog opens
+        if (open) setError(null);
+      }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

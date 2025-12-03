@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createFastmailJMAPClient } from '@/lib/jmap/client';
 import OpenAI from 'openai';
 
 export const dynamic = 'force-dynamic';
@@ -58,43 +59,101 @@ export async function POST(request: NextRequest) {
 
     console.log('[learn-style] ✅ Found account:', account.email_address);
 
-    // 2. Fetch last 50 sent emails from Nylas
-    const nylasGrantId = account.nylas_grant_id;
+    // 2. Fetch last 50 sent emails (support both Nylas and JMAP accounts)
+    let sentMessages: any[] = [];
+    const isJMAPAccount = account.provider === 'jmap';
 
-    if (!nylasGrantId) {
-      console.error('[learn-style] ❌ No Nylas grant ID for account');
-      return NextResponse.json({ 
-        error: 'Email account not properly connected',
-        details: 'Missing Nylas grant ID',
-        success: false
-      }, { status: 500 });
+    console.log('[learn-style] 📧 Fetching sent emails for:', account.email_address, 'Provider:', isJMAPAccount ? 'JMAP' : 'Nylas');
+
+    if (isJMAPAccount) {
+      // JMAP Account (Fastmail, etc.)
+      if (!account.imap_password) {
+        console.error('[learn-style] ❌ No JMAP credentials for account');
+        return NextResponse.json({
+          error: 'JMAP account not properly connected',
+          details: 'Missing JMAP credentials',
+          success: false
+        }, { status: 500 });
+      }
+
+      try {
+        const apiToken = Buffer.from(account.imap_password, 'base64').toString('utf-8');
+        const jmapClient = createFastmailJMAPClient(apiToken);
+        await jmapClient.connect();
+
+        // Get mailboxes to find Sent folder
+        const mailboxes = await jmapClient.getMailboxes();
+        const sentMailbox = mailboxes.find(m =>
+          m.role === 'sent' ||
+          m.name.toLowerCase() === 'sent' ||
+          m.name.toLowerCase() === 'sent mail' ||
+          m.name.toLowerCase() === 'sent items'
+        );
+
+        if (!sentMailbox) {
+          console.error('[learn-style] ❌ No Sent mailbox found');
+          return NextResponse.json({
+            error: 'Could not find Sent mailbox',
+            details: 'Unable to locate your Sent folder',
+            success: false
+          }, { status: 400 });
+        }
+
+        console.log('[learn-style] ✅ Found Sent mailbox:', sentMailbox.name, sentMailbox.id);
+
+        // Fetch sent emails from JMAP
+        const jmapResult = await jmapClient.getEmails({ mailboxId: sentMailbox.id, limit: 50 });
+        sentMessages = jmapResult.emails.map((email: any) => ({
+          body: email.htmlBody || email.textBody || email.preview || '',
+        }));
+
+        console.log('[learn-style] ✅ Fetched', sentMessages.length, 'emails from JMAP');
+      } catch (jmapError: any) {
+        console.error('[learn-style] ❌ JMAP error:', jmapError);
+        return NextResponse.json({
+          error: 'Failed to fetch sent emails from JMAP',
+          details: `JMAP error: ${jmapError.message || jmapError.toString()}`,
+          success: false
+        }, { status: 500 });
+      }
+    } else {
+      // Nylas Account
+      const nylasGrantId = account.nylas_grant_id;
+
+      if (!nylasGrantId) {
+        console.error('[learn-style] ❌ No Nylas grant ID for account');
+        return NextResponse.json({
+          error: 'Email account not properly connected',
+          details: 'Missing Nylas grant ID. Please reconnect your email account.',
+          success: false
+        }, { status: 500 });
+      }
+
+      const nylasApiUri = process.env.NYLAS_API_URI || 'https://api.us.nylas.com';
+      const nylasApiUrl = `${nylasApiUri}/v3/grants/${nylasGrantId}/messages?limit=50&search_query_native=in:sent`;
+      console.log('[learn-style] Nylas API URL:', nylasApiUrl);
+
+      const sentResponse = await fetch(nylasApiUrl, {
+        headers: {
+          'Authorization': `Bearer ${process.env.NYLAS_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!sentResponse.ok) {
+        const errorText = await sentResponse.text();
+        console.error('[learn-style] ❌ Failed to fetch sent emails. Status:', sentResponse.status);
+        console.error('[learn-style] Error details:', errorText);
+        return NextResponse.json({
+          error: 'Failed to fetch sent emails from email provider',
+          details: `Nylas API error: ${sentResponse.status} - ${errorText.substring(0, 200)}`,
+          success: false
+        }, { status: 500 });
+      }
+
+      const nylasData = await sentResponse.json();
+      sentMessages = nylasData.data || [];
     }
-
-    console.log('[learn-style] 📧 Fetching sent emails for:', account.email_address);
-
-    const nylasApiUri = process.env.NYLAS_API_URI || 'https://api.us.nylas.com';
-    const nylasApiUrl = `${nylasApiUri}/v3/grants/${nylasGrantId}/messages?limit=50&search_query_native=in:sent`;
-    console.log('[learn-style] Nylas API URL:', nylasApiUrl);
-
-    const sentResponse = await fetch(nylasApiUrl, {
-      headers: {
-        'Authorization': `Bearer ${process.env.NYLAS_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!sentResponse.ok) {
-      const errorText = await sentResponse.text();
-      console.error('[learn-style] ❌ Failed to fetch sent emails. Status:', sentResponse.status);
-      console.error('[learn-style] Error details:', errorText);
-      return NextResponse.json({ 
-        error: 'Failed to fetch sent emails from email provider',
-        details: `Nylas API error: ${sentResponse.status} - ${errorText.substring(0, 200)}`,
-        success: false
-      }, { status: 500 });
-    }
-
-    const { data: sentMessages } = await sentResponse.json();
 
     if (!sentMessages || sentMessages.length === 0) {
       console.error('[learn-style] ❌ No sent emails found');
@@ -113,7 +172,7 @@ export async function POST(request: NextRequest) {
       .map((msg: any) => {
         // Get plain text or strip HTML
         const body = msg.body;
-        // Simple HTML stripping (you might want to use a library for this)
+        // Simple HTML stripping
         const plainText = body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         return plainText;
       })
