@@ -2,11 +2,16 @@
  * Nylas v3 Attachment Download API (PRD Implementation)
  * GET /api/nylas-v3/attachments/download
  * Downloads an attachment from an email using Nylas v3 API
+ * Also supports JMAP/IMAP accounts
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getNylasClient } from '@/lib/nylas-v3/config';
 import { createClient } from '@/lib/supabase/server';
+import { db } from '@/lib/db';
+import { emailAccounts } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import { createFastmailJMAPClient } from '@/lib/jmap/client';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -14,6 +19,7 @@ export async function GET(request: NextRequest) {
   const attachmentId = searchParams.get('attachmentId');
   const messageId = searchParams.get('messageId');
   const filename = searchParams.get('filename') || 'attachment';
+  const contentType = searchParams.get('contentType') || getContentType(filename);
 
   console.log('[API] =================================');
   console.log('[API] Attachment Download Request');
@@ -62,41 +68,79 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log('[API] Calling Nylas API...');
-    console.log('[API] Endpoint: /v3/grants/' + grantId + '/attachments/' + attachmentId + '/download');
-
-    // Get Nylas client
-    const nylas = getNylasClient();
-
-    // Download attachment from Nylas v3
-    // NOTE: The SDK v6 download() method returns a ReadableStream, not an object with .data
-    const attachmentStream = await nylas.attachments.download({
-      identifier: grantId,
-      attachmentId: attachmentId,
-      queryParams: {
-        messageId: messageId,
-      },
+    // Check if this is a JMAP/IMAP account by looking up by database ID first
+    let account = await db.query.emailAccounts.findFirst({
+      where: eq(emailAccounts.id, grantId),
     });
 
-    console.log('[API] ✅ Successfully received attachment stream');
-    console.log('[API] Stream type:', typeof attachmentStream);
-    console.log('[API] Is ReadableStream:', attachmentStream instanceof ReadableStream);
+    // If not found by database ID, try Nylas grant ID
+    if (!account) {
+      account = await db.query.emailAccounts.findFirst({
+        where: eq(emailAccounts.nylasGrantId, grantId),
+      });
+    }
 
-    // Determine content type from filename extension
-    const contentType = getContentType(filename);
+    if (!account) {
+      return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+    }
 
-    console.log('[API] Content-Type:', contentType);
+    if (account.userId !== user.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
 
-    // Return the stream directly with appropriate headers
-    // NextResponse can handle ReadableStream natively
-    return new NextResponse(attachmentStream as any, {
-      status: 200,
-      headers: {
-        'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${filename}"`,
-        'Cache-Control': 'private, max-age=3600',
-      },
-    });
+    const isJMAPAccount = account.provider === 'jmap';
+
+    if (isJMAPAccount) {
+      // JMAP Account: Download using JMAP blob download
+      console.log('[API] Downloading JMAP attachment...');
+
+      const apiToken = Buffer.from(account.imapPassword || '', 'base64').toString('utf-8');
+      const jmapClient = createFastmailJMAPClient(apiToken);
+      await jmapClient.connect();
+
+      // attachmentId is the blobId for JMAP
+      const attachmentData = await jmapClient.downloadAttachment(
+        attachmentId,
+        filename,
+        contentType
+      );
+
+      console.log('[API] ✅ Successfully downloaded JMAP attachment');
+
+      return new NextResponse(attachmentData, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Cache-Control': 'private, max-age=3600',
+        },
+      });
+    } else {
+      // Nylas Account: Use Nylas API
+      console.log('[API] Calling Nylas API...');
+      console.log('[API] Endpoint: /v3/grants/' + (account.nylasGrantId || grantId) + '/attachments/' + attachmentId + '/download');
+
+      const nylas = getNylasClient();
+
+      const attachmentStream = await nylas.attachments.download({
+        identifier: account.nylasGrantId || grantId,
+        attachmentId: attachmentId,
+        queryParams: {
+          messageId: messageId,
+        },
+      });
+
+      console.log('[API] ✅ Successfully received attachment stream');
+
+      return new NextResponse(attachmentStream as any, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Cache-Control': 'private, max-age=3600',
+        },
+      });
+    }
   } catch (error: any) {
     console.error('[API] ❌ Download failed');
     console.error('[API] Error message:', error.message);

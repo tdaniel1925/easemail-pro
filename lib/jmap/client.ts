@@ -245,9 +245,9 @@ export class JMAPClient {
   }
 
   /**
-   * Get full email with body
+   * Get full email with body and attachments
    */
-  async getEmailBody(emailId: string): Promise<JMAPEmail> {
+  async getEmailBody(emailId: string): Promise<JMAPEmail & { attachments?: any[] }> {
     const responses = await this.request([
       [
         'Email/get',
@@ -271,8 +271,9 @@ export class JMAPClient {
             'bodyValues',
             'textBody',
             'htmlBody',
+            'attachments',
           ],
-          bodyProperties: ['partId', 'blobId', 'size', 'type', 'charset'],
+          bodyProperties: ['partId', 'blobId', 'size', 'type', 'charset', 'name'],
           fetchAllBodyValues: true,
         },
         'email',
@@ -285,6 +286,40 @@ export class JMAPClient {
     }
 
     return getResponse[1].list[0];
+  }
+
+  /**
+   * Get download URL for an attachment blob
+   */
+  getDownloadUrl(blobId: string, name: string, type: string): string {
+    if (!this.session) {
+      throw new Error('Not connected. Call connect() first.');
+    }
+
+    // JMAP download URL format: {downloadUrl}?blobId={blobId}&name={name}&type={type}
+    // For Fastmail, it's: https://api.fastmail.com/jmap/download/{accountId}/{blobId}/{name}?accept={type}
+    const baseUrl = this.session.apiUrl.replace('/jmap/api', '/jmap/download');
+    return `${baseUrl}/${this.session.accountId}/${blobId}/${encodeURIComponent(name)}?accept=${encodeURIComponent(type)}`;
+  }
+
+  /**
+   * Download an attachment blob
+   */
+  async downloadAttachment(blobId: string, name: string, type: string): Promise<ArrayBuffer> {
+    const url = this.getDownloadUrl(blobId, name, type);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': this.authHeader,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download attachment: ${response.status}`);
+    }
+
+    return response.arrayBuffer();
   }
 
   /**
