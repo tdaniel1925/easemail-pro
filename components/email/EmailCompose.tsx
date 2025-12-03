@@ -1235,9 +1235,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
           }}
         >
         {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-border bg-muted/30">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-sm">
+        <div className="flex items-center justify-between p-2 border-b border-border bg-muted/30">
+          <div className="flex items-center gap-1.5">
+            <h3 className="font-semibold text-xs">
               {type === 'reply' && replyTo && `Re: ${replyTo.subject}`}
               {type === 'reply-all' && replyTo && `Re: ${replyTo.subject}`}
               {type === 'forward' && replyTo && `Fwd: ${replyTo.subject}`}
@@ -1271,26 +1271,26 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             {!isMinimized && (
               <>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-6 w-6"
                   onClick={() => setIsMinimized(true)}
                   title="Minimize"
                 >
-                  <Minimize2 className="h-4 w-4" />
+                  <Minimize2 className="h-3 w-3" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-6 w-6"
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
                 >
-                  <Maximize2 className="h-4 w-4" />
+                  <Maximize2 className="h-3 w-3" />
                 </Button>
               </>
             )}
@@ -1298,21 +1298,21 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-6 w-6"
                 onClick={() => setIsMinimized(false)}
                 title="Restore"
               >
-                <Maximize2 className="h-4 w-4" />
+                <Maximize2 className="h-3 w-3" />
               </Button>
             )}
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-6 w-6"
               onClick={handleClose}
               title="Close"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3 w-3" />
             </Button>
           </div>
         </div>
@@ -1321,25 +1321,25 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         {!isMinimized && (
           <>
             {/* Recipients */}
-            <div className="p-4 space-y-2 border-b border-border">
+            <div className="p-2 space-y-1.5 border-b border-border">
               {/* From Field - Account Selector */}
               {accounts && accounts.length > 1 && (
-                <div className="flex items-start gap-2">
-                  <Label className="w-12 text-sm text-muted-foreground pt-2">From</Label>
+                <div className="flex items-start gap-1.5">
+                  <Label className="w-10 text-xs text-muted-foreground pt-1.5">From</Label>
                   <div className="flex-1 relative" ref={dropdownRef}>
                     <button
                       onClick={() => setShowFromDropdown(!showFromDropdown)}
-                      className="flex items-center justify-between w-full px-3 py-2 text-sm border border-input rounded-md hover:bg-accent transition-colors"
+                      className="flex items-center justify-between w-full px-2 py-1.5 text-xs border border-input rounded-md hover:bg-accent transition-colors"
                     >
                       <span className="truncate">
                         {selectedAccountId
                           ? accounts.find(a => a.id === selectedAccountId)?.emailAddress || 'Select account'
                           : 'Select account'}
                       </span>
-                      <ChevronDown className="h-4 w-4 ml-2 flex-shrink-0" />
+                      <ChevronDown className="h-3 w-3 ml-1 flex-shrink-0" />
                     </button>
                     {showFromDropdown && (
-                      <div className="absolute top-full left-0 mt-1 w-full bg-card border border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                      <div className="absolute top-full left-0 mt-1 w-full bg-card border border-border rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                         {accounts.map((account) => (
                           <button
                             key={account.id}
@@ -1348,13 +1348,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                               setShowFromDropdown(false);
                             }}
                             className={cn(
-                              'w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors',
+                              'w-full text-left px-2 py-1.5 text-xs hover:bg-accent transition-colors',
                               account.id === selectedAccountId && 'bg-accent'
                             )}
                           >
                             <div className="font-medium">{account.emailAddress}</div>
                             {account.emailProvider && (
-                              <div className="text-xs text-muted-foreground">{account.emailProvider}</div>
+                              <div className="text-[10px] text-muted-foreground">{account.emailProvider}</div>
                             )}
                           </button>
                         ))}
@@ -1364,8 +1364,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 </div>
               )}
 
-              <div className="flex items-start gap-2">
-                <Label className="w-12 text-sm text-muted-foreground pt-2">To</Label>
+              <div className="flex items-start gap-1.5">
+                <Label className="w-10 text-xs text-muted-foreground pt-1.5">To</Label>
                 <div className="flex-1">
                   <EmailAutocomplete
                     value={to}
@@ -1373,11 +1373,11 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                     placeholder="Recipients"
                   />
                 </div>
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-1.5 pt-1.5">
                   {!showCc && (
                     <button
                       onClick={() => setShowCc(true)}
-                      className="text-xs text-muted-foreground hover:text-foreground"
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
                     >
                       Cc
                     </button>
@@ -1385,7 +1385,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                   {!showBcc && (
                     <button
                       onClick={() => setShowBcc(true)}
-                      className="text-xs text-muted-foreground hover:text-foreground"
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
                     >
                       Bcc
                     </button>
@@ -1394,8 +1394,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               </div>
 
               {showCc && (
-                <div className="flex items-start gap-2">
-                  <Label className="w-12 text-sm text-muted-foreground pt-2">Cc</Label>
+                <div className="flex items-start gap-1.5">
+                  <Label className="w-10 text-xs text-muted-foreground pt-1.5">Cc</Label>
                   <div className="flex-1">
                     <EmailAutocomplete
                       value={cc}
@@ -1406,20 +1406,20 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 mt-2"
+                    className="h-5 w-5 mt-1.5"
                     onClick={() => {
                       setShowCc(false);
                       setCc([]);
                     }}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-2.5 w-2.5" />
                   </Button>
                 </div>
               )}
 
               {showBcc && (
-                <div className="flex items-start gap-2">
-                  <Label className="w-12 text-sm text-muted-foreground pt-2">Bcc</Label>
+                <div className="flex items-start gap-1.5">
+                  <Label className="w-10 text-xs text-muted-foreground pt-1.5">Bcc</Label>
                   <div className="flex-1">
                     <EmailAutocomplete
                       value={bcc}
@@ -1430,112 +1430,112 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 mt-2"
+                    className="h-5 w-5 mt-1.5"
                     onClick={() => {
                       setShowBcc(false);
                       setBcc([]);
                     }}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-2.5 w-2.5" />
                   </Button>
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
-                <Label className="w-12 text-sm text-muted-foreground">Subject</Label>
+              <div className="flex items-center gap-1.5">
+                <Label className="w-10 text-xs text-muted-foreground">Subject</Label>
                 <Input
                   type="text"
                   placeholder="Subject"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="flex-1 h-7 text-xs border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
               </div>
             </div>
 
             {/* Toolbar */}
-            <div className="flex items-center gap-1 p-2 border-b border-border bg-muted/30 overflow-x-auto">
+            <div className="flex items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 overflow-x-auto">
               {/* HTML/Plain Toggle */}
               <Button
                 variant={isHtmlMode ? 'default' : 'outline'}
                 size="sm"
-                className="h-7 text-xs px-2"
+                className="h-6 text-[10px] px-1.5"
                 onClick={() => setIsHtmlMode(!isHtmlMode)}
                 title="Toggle HTML/Plain Text"
               >
                 {isHtmlMode ? 'HTML' : 'Plain'}
               </Button>
-              <div className="w-px h-6 bg-border mx-1" />
+              <div className="w-px h-5 bg-border mx-0.5" />
 
               {/* Removed: Bold/Italic/Underline buttons (don't actually work without rich text editor) */}
 
               {/* Headings */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
                 title="Heading 1"
                 onClick={() => handleInsertHeading(1)}
                 disabled={!isHtmlMode}
               >
-                <Heading1 className="h-4 w-4" />
+                <Heading1 className="h-3 w-3" />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
                 title="Heading 2"
                 onClick={() => handleInsertHeading(2)}
                 disabled={!isHtmlMode}
               >
-                <Heading2 className="h-4 w-4" />
+                <Heading2 className="h-3 w-3" />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
                 title="Heading 3"
                 onClick={() => handleInsertHeading(3)}
                 disabled={!isHtmlMode}
               >
-                <Heading3 className="h-4 w-4" />
+                <Heading3 className="h-3 w-3" />
               </Button>
 
-              <div className="w-px h-6 bg-border mx-1" />
+              <div className="w-px h-5 bg-border mx-0.5" />
 
               {/* List & Code */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
                 title="Bullet list"
                 onClick={() => setBody(body + '\n• ')}
                 disabled={!isHtmlMode}
               >
-                <List className="h-4 w-4" />
+                <List className="h-3 w-3" />
               </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
                 title="Code block"
                 onClick={handleInsertCodeBlock}
                 disabled={!isHtmlMode}
               >
-                <Code className="h-4 w-4" />
+                <Code className="h-3 w-3" />
               </Button>
 
-              <div className="w-px h-6 bg-border mx-1" />
+              <div className="w-px h-5 bg-border mx-0.5" />
 
               {/* Link & Image */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
                 title="Insert link"
                 onClick={handleInsertLink}
               >
-                <Link2 className="h-4 w-4" />
+                <Link2 className="h-3 w-3" />
               </Button>
               <label title="Insert image">
                 <input
@@ -1544,14 +1544,14 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                   onChange={handleAttachment}
                   className="hidden"
                 />
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 cursor-pointer" 
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 cursor-pointer"
                   asChild
                 >
                   <span>
-                    <Image className="h-4 w-4" />
+                    <Image className="h-3 w-3" />
                   </span>
                 </Button>
               </label>
@@ -1559,18 +1559,18 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               {/* Signature Controls */}
               {signatures.length > 0 ? (
                 <>
-                  <div className="w-px h-6 bg-border mx-1" />
+                  <div className="w-px h-5 bg-border mx-0.5" />
                   <div className="relative">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className={cn('h-8 w-8', useSignature && 'bg-accent')}
+                      className={cn('h-6 w-6', useSignature && 'bg-accent')}
                       onClick={handleSignatureToggle}
                       title={useSignature ? 'Remove signature' : 'Add signature'}
                     >
-                      <PenTool className="h-4 w-4" />
+                      <PenTool className="h-3 w-3" />
                       {useSignature && (
-                        <Check className="h-2 w-2 absolute top-1 right-1 text-primary" />
+                        <Check className="h-2 w-2 absolute top-0.5 right-0.5 text-primary" />
                       )}
                     </Button>
                   </div>
@@ -1579,7 +1579,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 px-2 text-xs"
+                        className="h-6 px-1.5 text-[10px]"
                         onClick={() => setShowSignatureDropdown(!showSignatureDropdown)}
                         title="Choose signature"
                       >
@@ -1722,13 +1722,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
             <div className="flex flex-col border-t border-border">
               {/* Validation Error */}
               {validationError && (
-                <div className="px-3 pt-3">
-                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2">
-                    <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="px-2 pt-2">
+                  <div className="p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded flex items-start gap-1.5">
+                    <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div className="flex-1">
-                      <p className="text-sm text-red-800 dark:text-red-300 font-medium">
+                      <p className="text-xs text-red-800 dark:text-red-300 font-medium">
                         {validationError}
                       </p>
                     </div>
@@ -1736,23 +1736,23 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                       onClick={() => setValidationError(null)}
                       className="text-red-500 hover:text-red-700 flex-shrink-0"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3 w-3" />
                     </button>
                   </div>
                 </div>
               )}
 
-              <div className="flex items-center justify-between p-3">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between p-2">
+                <div className="flex items-center gap-1.5">
                   {/* Send Button with Dropdown */}
                   <div className="relative">
                     <div className="flex">
                       <Button
                         onClick={() => handleSend()}
-                        className="gap-2 rounded-r-none"
+                        className="gap-1.5 rounded-r-none h-7 px-2 text-xs"
                         disabled={isSending || !selectedAccountId}
                       >
-                        <Send className="h-4 w-4" />
+                        <Send className="h-3 w-3" />
                         {isSending ? 'Sending...' : 'Send'}
                       </Button>
                       <Button
@@ -1763,16 +1763,16 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                             dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
                           }
                         }}
-                        className="rounded-l-none border-l px-2"
+                        className="rounded-l-none border-l px-1.5 h-7"
                         disabled={isSending || !selectedAccountId}
                         title="More send options"
                       >
-                        <span className="text-xs">▼</span>
+                        <span className="text-[10px]">▼</span>
                       </Button>
                     </div>
                     <div
                       id="send-dropdown"
-                      className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[200px]"
+                      className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[160px]"
                       style={{ display: 'none' }}
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -1791,7 +1791,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                           }
                           document.getElementById('send-dropdown')!.style.display = 'none';
                         }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                        className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent transition-colors"
                         disabled={isSending}
                       >
                         Send & Archive
@@ -1811,7 +1811,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                           }
                           document.getElementById('send-dropdown')!.style.display = 'none';
                         }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors border-t"
+                        className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent transition-colors border-t"
                         disabled={isSending}
                       >
                         Send & Delete
@@ -1825,23 +1825,24 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                     onChange={handleAttachment}
                     className="hidden"
                   />
-                  <Button variant="ghost" size="icon" className="cursor-pointer" asChild>
+                  <Button variant="ghost" size="icon" className="cursor-pointer h-6 w-6" asChild>
                     <span>
-                      <Paperclip className="h-4 w-4" />
+                      <Paperclip className="h-3 w-3" />
                     </span>
                   </Button>
                 </label>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handleSaveDraft(false)}
                   disabled={isSavingDraft || !selectedAccountId}
+                  className="h-6 px-2 text-xs"
                 >
                   {isSavingDraft ? 'Saving...' : 'Save Draft'}
                 </Button>
-                <Button variant="ghost" size="sm" onClick={handleClose}>
+                <Button variant="ghost" size="sm" onClick={handleClose} className="h-6 px-2 text-xs">
                   Discard
                 </Button>
               </div>

@@ -182,29 +182,30 @@ export default function CalendarProLayout() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Top Toolbar */}
       <div className="flex-shrink-0 border-b border-border bg-background">
-        <div className="h-14 px-4 flex items-center justify-between gap-4">
+        <div className="h-10 px-2 md:px-3 flex items-center justify-between gap-2">
           {/* Left: Navigation */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Link href="/inbox">
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-2"
+                className="gap-1 h-7 px-2 text-xs"
               >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Inbox
+                <ArrowLeft className="h-3 w-3" />
+                <span className="hidden sm:inline">Back</span>
               </Button>
             </Link>
 
-            <div className="h-6 w-px bg-border mx-2" />
+            <div className="h-4 w-px bg-border mx-1" />
 
             <Button
               variant="ghost"
               size="icon"
               onClick={goToPrevious}
               title="Previous"
+              className="h-6 w-6"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
 
             <Button
@@ -212,8 +213,9 @@ export default function CalendarProLayout() {
               size="icon"
               onClick={goToNext}
               title="Next"
+              className="h-6 w-6"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-3.5 w-3.5" />
             </Button>
 
             <Popover open={todayPopoverOpen} onOpenChange={setTodayPopoverOpen}>
@@ -221,23 +223,23 @@ export default function CalendarProLayout() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="ml-2"
+                  className="ml-1 h-6 px-2 text-xs"
                 >
                   Today
                   {todaysEvents.length > 0 && (
-                    <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                    <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
                       {todaysEvents.length}
                     </span>
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-80" align="start">
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">Today's Events</h4>
+              <PopoverContent className="w-72" align="start">
+                <div className="space-y-1.5">
+                  <h4 className="font-semibold text-xs">Today's Events</h4>
                   {todaysEvents.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No events today</p>
+                    <p className="text-xs text-muted-foreground">No events today</p>
                   ) : (
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                    <div className="space-y-1.5 max-h-72 overflow-y-auto">
                       {todaysEvents.map((event) => (
                         <button
                           key={event.id}
@@ -245,16 +247,16 @@ export default function CalendarProLayout() {
                             setSelectedEvent(event);
                             setTodayPopoverOpen(false);
                           }}
-                          className="w-full text-left p-2 rounded-md hover:bg-muted transition-colors"
+                          className="w-full text-left p-1.5 rounded-md hover:bg-muted transition-colors"
                         >
-                          <div className="flex items-start gap-2">
+                          <div className="flex items-start gap-1.5">
                             <div
                               className="w-1 h-full rounded-full"
                               style={{ backgroundColor: event.hexColor || event.color || '#6366f1' }}
                             />
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">{event.title}</p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="font-medium text-xs truncate">{event.title}</p>
+                              <p className="text-[10px] text-muted-foreground">
                                 {(() => {
                                   if (!event.start_time || !event.end_time) return 'Time TBD';
                                   const startTime: number = typeof event.start_time === 'string' ? parseInt(event.start_time) : event.start_time;
@@ -271,7 +273,7 @@ export default function CalendarProLayout() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full mt-2"
+                    className="w-full mt-1 h-6 text-xs"
                     onClick={() => {
                       goToToday();
                       setViewMode('day');
@@ -284,17 +286,18 @@ export default function CalendarProLayout() {
               </PopoverContent>
             </Popover>
 
-            <div className="ml-4 text-lg font-semibold">
+            <div className="ml-2 text-xs md:text-sm font-semibold truncate">
               {getDateRangeText()}
             </div>
           </div>
 
           {/* Center: View switcher */}
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+          <div className="hidden sm:flex items-center gap-0.5 bg-muted rounded-md p-0.5">
             <Button
               variant={viewMode === 'day' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('day')}
+              className="h-6 px-2 text-xs"
             >
               Day
             </Button>
@@ -302,6 +305,7 @@ export default function CalendarProLayout() {
               variant={viewMode === 'week' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('week')}
+              className="h-6 px-2 text-xs"
             >
               Week
             </Button>
@@ -309,30 +313,34 @@ export default function CalendarProLayout() {
               variant={viewMode === 'month' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('month')}
+              className="h-6 px-2 text-xs"
             >
               Month
             </Button>
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="icon"
               onClick={refreshEvents}
               disabled={isLoadingEvents}
               title="Refresh"
+              className="h-6 w-6"
             >
-              <RefreshCw className={cn('h-5 w-5', isLoadingEvents && 'animate-spin')} />
+              <RefreshCw className={cn('h-3.5 w-3.5', isLoadingEvents && 'animate-spin')} />
             </Button>
 
             <Button
               variant="default"
               size="sm"
               onClick={() => setQuickAddOpen(true)}
+              className="h-6 px-2 text-xs"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              New Event
+              <Plus className="h-3 w-3 mr-1" />
+              <span className="hidden sm:inline">New Event</span>
+              <span className="sm:hidden">New</span>
             </Button>
 
             <AccountSwitcher />
@@ -344,59 +352,59 @@ export default function CalendarProLayout() {
       <div className="flex-1 flex overflow-hidden">
         {/* Mini Calendar Sidebar (Optional) */}
         {showMiniCalendar && (
-          <div className="w-64 border-r border-border bg-background overflow-y-auto">
-            <div className="p-4">
-              <h3 className="text-sm font-semibold mb-3">Calendars</h3>
-              <div className="space-y-2">
+          <div className="w-52 border-r border-border bg-background overflow-y-auto">
+            <div className="p-2">
+              <h3 className="text-xs font-semibold mb-2">Calendars</h3>
+              <div className="space-y-0.5">
                 {calendars.map((calendar) => (
                   <label
                     key={calendar.id}
-                    className="flex items-center gap-2 cursor-pointer hover:bg-accent/50 rounded p-2 transition-colors"
+                    className="flex items-center gap-1.5 cursor-pointer hover:bg-accent/50 rounded px-1.5 py-1 transition-colors"
                   >
                     <input
                       type="checkbox"
                       checked={selectedCalendarIds.includes(calendar.id)}
                       onChange={() => toggleCalendar(calendar.id)}
-                      className="rounded"
+                      className="rounded h-3 w-3"
                     />
                     <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                       style={{ backgroundColor: calendar.hexColor || '#3b82f6' }}
                     />
-                    <span className="text-sm flex-1 truncate">{calendar.name}</span>
+                    <span className="text-xs flex-1 truncate">{calendar.name}</span>
                   </label>
                 ))}
               </div>
 
               {/* Keyboard shortcuts help */}
-              <div className="mt-6 pt-4 border-t border-border">
-                <h4 className="text-xs font-semibold text-muted-foreground mb-2">
+              <div className="mt-4 pt-3 border-t border-border">
+                <h4 className="text-[10px] font-semibold text-muted-foreground mb-1.5">
                   Keyboard Shortcuts
                 </h4>
-                <div className="space-y-1 text-xs text-muted-foreground">
+                <div className="space-y-0.5 text-[10px] text-muted-foreground">
                   <div className="flex justify-between">
                     <span>New event</span>
-                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">N</kbd>
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-[9px]">N</kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>Today</span>
-                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">T</kbd>
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-[9px]">T</kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>Day view</span>
-                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">D</kbd>
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-[9px]">D</kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>Week view</span>
-                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">W</kbd>
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-[9px]">W</kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>Month view</span>
-                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">M</kbd>
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-[9px]">M</kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>Command palette</span>
-                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">⌘K</kbd>
+                    <kbd className="px-1 py-0.5 bg-muted rounded text-[9px]">⌘K</kbd>
                   </div>
                 </div>
               </div>

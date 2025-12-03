@@ -34,9 +34,9 @@ export default function AccountSwitcher() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 border rounded-lg bg-muted/50">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span className="text-sm text-muted-foreground">Loading...</span>
+      <div className="flex items-center gap-1.5 px-2 py-1 border rounded bg-muted/50">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        <span className="text-xs text-muted-foreground">Loading...</span>
       </div>
     );
   }
@@ -46,9 +46,9 @@ export default function AccountSwitcher() {
       <Button
         variant="outline"
         onClick={() => router.push('/accounts-v3')}
-        className="w-full justify-center gap-2"
+        className="w-full justify-center gap-1 h-7 text-xs px-2"
       >
-        <Plus className="h-4 w-4" />
+        <Plus className="h-3 w-3" />
         Add Account
       </Button>
     );
@@ -68,28 +68,28 @@ export default function AccountSwitcher() {
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-start gap-2 px-3 py-2 h-auto pr-2"
+          className="w-full justify-start gap-1.5 px-2 py-1 h-auto pr-1.5"
         >
-          <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+          <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
             {/* Avatar */}
             <div
-              className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
+              className="h-6 w-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0"
               style={{ backgroundColor: bgColor }}
             >
               {initials}
             </div>
 
             {/* Account Info */}
-            <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden pr-1">
-              <span className="text-sm font-medium truncate w-full">
+            <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden pr-0.5">
+              <span className="text-xs font-medium truncate w-full">
                 {selectedAccount.emailAddress}
               </span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground truncate">
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground truncate">
                   {formatProviderName(selectedAccount.emailProvider || selectedAccount.nylasProvider)}
                 </span>
                 {selectedAccount.syncStatus === 'syncing' && (
-                  <Badge variant="secondary" className="h-4 px-1 text-[10px] flex-shrink-0">
+                  <Badge variant="secondary" className="h-3 px-0.5 text-[8px] flex-shrink-0">
                     Syncing
                   </Badge>
                 )}
@@ -97,27 +97,27 @@ export default function AccountSwitcher() {
             </div>
           </div>
 
-          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-auto" />
+          <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50 ml-auto" />
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-[320px] p-0" align="start">
+      <PopoverContent className="w-[280px] p-0" align="start">
         <div className="flex flex-col">
           {/* Search */}
-          <div className="flex items-center border-b px-3 py-2">
-            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+          <div className="flex items-center border-b px-2 py-1.5">
+            <Search className="mr-1.5 h-3 w-3 shrink-0 opacity-50" />
             <Input
               placeholder="Search accounts..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-9"
+              className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-7 text-xs"
             />
           </div>
 
           {/* Account List */}
-          <ScrollArea className="max-h-[300px]">
+          <ScrollArea className="max-h-[240px]">
             {filteredAccounts.length === 0 ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
+              <div className="py-4 text-center text-xs text-muted-foreground">
                 No accounts found.
               </div>
             ) : (
@@ -134,11 +134,11 @@ export default function AccountSwitcher() {
                       setSelectedAccount(account);
                       setOpen(false);
                     }}
-                    className="flex items-center gap-3 py-3 px-2 cursor-pointer rounded-md hover:bg-accent transition-colors"
+                    className="flex items-center gap-2 py-2 px-1.5 cursor-pointer rounded hover:bg-accent transition-colors"
                   >
                     {/* Avatar */}
                     <div
-                      className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
+                      className="h-6 w-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0"
                       style={{ backgroundColor: accountBgColor }}
                     >
                       {accountInitials}
@@ -146,22 +146,22 @@ export default function AccountSwitcher() {
 
                     {/* Account Details */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium truncate">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium truncate">
                           {account.emailAddress}
                         </span>
                         {account.isDefault && (
-                          <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                          <Badge variant="secondary" className="h-3 px-0.5 text-[8px]">
                             Default
                           </Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground">
                           {formatProviderName(account.emailProvider || account.nylasProvider)}
                         </span>
                         {account.syncStatus === 'syncing' && (
-                          <span className="text-xs text-blue-600">• Syncing</span>
+                          <span className="text-[10px] text-blue-600">• Syncing</span>
                         )}
                       </div>
                     </div>
@@ -169,7 +169,7 @@ export default function AccountSwitcher() {
                     {/* Check Icon */}
                     <Check
                       className={cn(
-                        'h-4 w-4 flex-shrink-0',
+                        'h-3 w-3 flex-shrink-0',
                         isSelected ? 'opacity-100' : 'opacity-0'
                       )}
                     />
@@ -189,12 +189,12 @@ export default function AccountSwitcher() {
                 setOpen(false);
                 router.push('/accounts-v3');
               }}
-              className="flex items-center gap-3 py-3 px-2 cursor-pointer rounded-md hover:bg-accent transition-colors"
+              className="flex items-center gap-2 py-2 px-1.5 cursor-pointer rounded hover:bg-accent transition-colors"
             >
-              <div className="h-8 w-8 rounded-full flex items-center justify-center bg-primary/10 flex-shrink-0">
-                <Plus className="h-4 w-4 text-primary" />
+              <div className="h-6 w-6 rounded-full flex items-center justify-center bg-primary/10 flex-shrink-0">
+                <Plus className="h-3 w-3 text-primary" />
               </div>
-              <span className="text-sm font-medium">Add Account</span>
+              <span className="text-xs font-medium">Add Account</span>
             </div>
           </div>
         </div>

@@ -53,14 +53,14 @@ export default function SettingsContent() {
     <div className="flex flex-col md:flex-row w-full h-screen">
       {/* Mobile Header - Only visible on mobile */}
       <div className="md:hidden flex-shrink-0 border-b border-border bg-background">
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xl font-bold text-foreground">Settings</h2>
+        <div className="p-2">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-bold text-foreground">Settings</h2>
             <a
               href="/inbox"
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m12 19-7-7 7-7"/>
                 <path d="M19 12H5"/>
               </svg>
@@ -69,27 +69,27 @@ export default function SettingsContent() {
           </div>
 
           {/* Search Input */}
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative mb-2">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Search settings..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-9"
+              className="pl-7 pr-7 h-7 text-xs"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground hover:text-foreground"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3 w-3" />
               </button>
             )}
           </div>
 
           {/* Mobile Tabs - Horizontal scroll */}
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <div className="flex gap-1 overflow-x-auto pb-1 -mx-2 px-2 scrollbar-hide">
             {filteredSections.map((section) => {
               const Icon = section.icon;
               return (
@@ -97,13 +97,13 @@ export default function SettingsContent() {
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
                   className={cn(
-                    'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0',
+                    'flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium whitespace-nowrap transition-colors flex-shrink-0',
                     activeSection === section.id
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
                   )}
                 >
-                  <Icon className="h-3.5 w-3.5" />
+                  <Icon className="h-3 w-3" />
                   <span>{section.name}</span>
                 </button>
               );
@@ -113,14 +113,14 @@ export default function SettingsContent() {
       </div>
 
       {/* Sidebar - Hidden on mobile, shown as sidebar on desktop */}
-      <aside className="hidden md:block md:w-64 border-r border-border bg-background p-4 overflow-y-auto flex-shrink-0">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold mb-3 text-foreground">Settings</h2>
+      <aside className="hidden md:block md:w-52 border-r border-border bg-background p-2 overflow-y-auto flex-shrink-0">
+        <div className="mb-3">
+          <h2 className="text-sm font-bold mb-2 text-foreground">Settings</h2>
           <a
             href="/inbox"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m12 19-7-7 7-7"/>
               <path d="M19 12H5"/>
             </svg>
@@ -129,27 +129,27 @@ export default function SettingsContent() {
 
           {/* Search Input */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Search settings..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-9"
+              className="pl-7 pr-7 h-7 text-xs"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground hover:text-foreground"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3 w-3" />
               </button>
             )}
           </div>
         </div>
-        <nav className="space-y-1">
+        <nav className="space-y-0.5">
           {filteredSections.length === 0 ? (
-            <div className="text-sm text-muted-foreground text-center py-4">
+            <div className="text-xs text-muted-foreground text-center py-3">
               No settings found
             </div>
           ) : (
@@ -160,13 +160,13 @@ export default function SettingsContent() {
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                    'w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors',
                     activeSection === section.id
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-3.5 w-3.5" />
                   <span>{section.name}</span>
                 </button>
               );
@@ -278,21 +278,21 @@ function SyncStatusSettings() {
   return (
     <>
       {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 md:px-6 py-3 md:py-4">
-        <div className="flex items-center justify-between gap-3">
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-3 py-2">
+        <div className="flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl md:text-2xl font-bold">Email Sync Status</h1>
-            <p className="text-xs md:text-sm text-muted-foreground mt-1">Monitor your email synchronization progress</p>
+            <h1 className="text-sm md:text-base font-bold">Email Sync Status</h1>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Monitor your email synchronization progress</p>
           </div>
-          <Button onClick={handleManualRefresh} disabled={refreshing} size="sm" className="flex-shrink-0">
-            <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+          <Button onClick={handleManualRefresh} disabled={refreshing} size="sm" className="flex-shrink-0 h-7 px-2 text-xs">
+            <RefreshCw className={cn("h-3 w-3 mr-1", refreshing && "animate-spin")} />
             <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4 md:p-6">
+      <div className="p-3">
         <div className="w-full space-y-6">
           {/* Overview Card */}
           <Card>
@@ -626,14 +626,14 @@ function SignaturesSettings() {
   return (
     <>
       {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 md:px-6 py-3 md:py-4">
-        <div className="flex items-center justify-between gap-3">
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-3 py-2">
+        <div className="flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl md:text-2xl font-bold">Email Signatures</h1>
-            <p className="text-xs md:text-sm text-muted-foreground mt-1">Create and manage email signatures</p>
+            <h1 className="text-sm md:text-base font-bold">Email Signatures</h1>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Create and manage email signatures</p>
           </div>
-          <Button onClick={handleCreateNew} className="flex-shrink-0">
-            <PenTool className="h-4 w-4 mr-2" />
+          <Button onClick={handleCreateNew} className="flex-shrink-0 h-7 px-2 text-xs">
+            <PenTool className="h-3 w-3 mr-1" />
             <span className="hidden sm:inline">New Signature</span>
             <span className="sm:hidden">New</span>
           </Button>
@@ -641,7 +641,7 @@ function SignaturesSettings() {
       </div>
 
       {/* Content */}
-      <div className="p-4 md:p-6">
+      <div className="p-3">
         <div className="w-full space-y-6">
           {loading ? (
             <Card>
@@ -723,17 +723,17 @@ function PreferencesSettings() {
   return (
     <>
       {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 md:px-6 py-3 md:py-4">
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-3 py-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold">Email Preferences</h1>
-            <p className="text-xs md:text-sm text-muted-foreground mt-1">Customize your email experience</p>
+            <h1 className="text-sm md:text-base font-bold">Email Preferences</h1>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Customize your email experience</p>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4 md:p-6">
+      <div className="p-3">
         <div className="w-full space-y-6">
           <Card>
             <CardHeader>
@@ -925,17 +925,17 @@ function NotificationsSettings() {
   return (
     <>
       {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 md:px-6 py-3 md:py-4">
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-3 py-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold">Notifications</h1>
-            <p className="text-xs md:text-sm text-muted-foreground mt-1">Manage how you receive notifications</p>
+            <h1 className="text-sm md:text-base font-bold">Notifications</h1>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Manage how you receive notifications</p>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4 md:p-6">
+      <div className="p-3">
         <div className="w-full space-y-6">
           {!permission.granted && (
             <Card className="border-primary/20 bg-primary/5">
@@ -1110,17 +1110,17 @@ function PrivacySettings() {
   return (
     <>
       {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 md:px-6 py-3 md:py-4">
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-3 py-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold">Privacy & Security</h1>
-            <p className="text-xs md:text-sm text-muted-foreground mt-1">Control your privacy and security settings</p>
+            <h1 className="text-sm md:text-base font-bold">Privacy & Security</h1>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Control your privacy and security settings</p>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4 md:p-6">
+      <div className="p-3">
         <div className="w-full space-y-6">
           <Card>
             <CardHeader>
@@ -1210,17 +1210,17 @@ function IntegrationsSettings() {
   return (
     <>
       {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 md:px-6 py-3 md:py-4">
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-3 py-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold">Integrations</h1>
-            <p className="text-xs md:text-sm text-muted-foreground mt-1">Connect third-party services</p>
+            <h1 className="text-sm md:text-base font-bold">Integrations</h1>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Connect third-party services</p>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4 md:p-6">
+      <div className="p-3">
         <div className="w-full space-y-6">
           {/* Available Integration: Cal.com */}
           <Card className="border-primary/20 bg-primary/5">
@@ -1303,17 +1303,17 @@ function HelpSupportSettings() {
   return (
     <>
       {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 md:px-6 py-3 md:py-4">
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-3 py-2">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold">Help & Support</h1>
-            <p className="text-xs md:text-sm text-muted-foreground mt-1">Get help and learn about EaseMail features</p>
+            <h1 className="text-sm md:text-base font-bold">Help & Support</h1>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Get help and learn about EaseMail features</p>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4 md:p-6">
+      <div className="p-3">
         <div className="w-full space-y-6">
           <Card>
             <CardHeader>
