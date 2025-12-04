@@ -2346,3 +2346,6 @@ export const user_email_templates = userEmailTemplates;
 // Contacts V4 exports
 export * from './schema-contacts-v4';
 
+// MS Teams Integration exports
+export * from './schema-ms-teams';
+

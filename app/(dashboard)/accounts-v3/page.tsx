@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus, Trash2, CheckCircle, XCircle, Loader2, Mail, StopCircle, AlertCircle,
   TrendingUp, Database, Zap, Clock, Pause, Play, Activity, BarChart3,
-  RefreshCw, Shield, Wifi, WifiOff, Settings, Eye, Calendar, ArrowLeft
+  RefreshCw, Shield, Wifi, WifiOff, Settings, Eye, Calendar, ArrowLeft,
+  MessageSquare, Video, Users, ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -70,6 +71,18 @@ interface AccountStats {
   avgSyncProgress: number;
 }
 
+interface MSTeamsAccount {
+  id: string;
+  email: string;
+  displayName?: string;
+  userPrincipalName?: string;
+  isConnected: boolean;
+  lastSyncedAt?: string;
+  lastError?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export default function AccountsV3Page() {
   // State
   const [accounts, setAccounts] = useState<EmailAccount[]>([]);
@@ -91,6 +104,11 @@ export default function AccountsV3Page() {
     isDefault: boolean;
   } | null>(null);
 
+  // MS Teams accounts state
+  const [teamsAccounts, setTeamsAccounts] = useState<MSTeamsAccount[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+  const [confirmingTeamsDelete, setConfirmingTeamsDelete] = useState<string | null>(null);
+
   // Refs for stable polling
   const accountsRef = useRef<EmailAccount[]>([]);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -103,6 +121,7 @@ export default function AccountsV3Page() {
   // Initial load
   useEffect(() => {
     fetchAccounts();
+    fetchTeamsAccounts();
   }, []);
 
   // Background polling for auto-sync accounts (check every 5 minutes)
@@ -242,6 +261,49 @@ export default function AccountsV3Page() {
     } finally {
       console.log('Setting loading to false');
       setLoading(false);
+    }
+  };
+
+  const fetchTeamsAccounts = async () => {
+    setTeamsLoading(true);
+    try {
+      const response = await fetch('/api/ms-graph/accounts');
+      const data = await response.json();
+
+      if (data.success) {
+        setTeamsAccounts(data.accounts || []);
+      } else {
+        setTeamsAccounts([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch MS Teams accounts:', error);
+      setTeamsAccounts([]);
+    } finally {
+      setTeamsLoading(false);
+    }
+  };
+
+  const handleConnectTeams = () => {
+    window.location.href = '/api/ms-graph/auth';
+  };
+
+  const handleDisconnectTeams = async (accountId: string) => {
+    try {
+      const response = await fetch(`/api/ms-graph/accounts?accountId=${accountId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'MS Teams account disconnected' });
+        setTeamsAccounts(prev => prev.filter(a => a.id !== accountId));
+      } else {
+        throw new Error('Failed to disconnect');
+      }
+    } catch (error) {
+      console.error('Failed to disconnect MS Teams:', error);
+      setMessage({ type: 'error', text: 'Failed to disconnect MS Teams account' });
+    } finally {
+      setConfirmingTeamsDelete(null);
     }
   };
 
@@ -1101,6 +1163,172 @@ export default function AccountsV3Page() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* MS Teams Integration Section */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <div className="w-8 h-8 rounded flex items-center justify-center" style={{ backgroundColor: '#464EB8' }}>
+                <Users className="h-4 w-4 text-white" />
+              </div>
+              Microsoft Teams
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Connect MS Teams for chat, meetings, and presence sync
+            </p>
+          </div>
+          <Button onClick={handleConnectTeams} variant="outline">
+            <Plus className="h-4 w-4 mr-2" />
+            Connect Teams Account
+          </Button>
+        </div>
+
+        {teamsLoading ? (
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </CardContent>
+          </Card>
+        ) : teamsAccounts.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="w-16 h-16 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: '#464EB8' }}>
+                <MessageSquare className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">No MS Teams account connected</h3>
+              <p className="text-muted-foreground text-center mb-4 max-w-md">
+                Connect your Microsoft Teams account to access chats, channels, meetings, and presence status within EaseMail
+              </p>
+              <Button onClick={handleConnectTeams}>
+                <Plus className="h-4 w-4 mr-2" />
+                Connect MS Teams
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {teamsAccounts.map(account => (
+              <Card key={account.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: '#464EB8' }}
+                      >
+                        <Users className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">{account.displayName || account.email}</CardTitle>
+                        <CardDescription className="flex items-center gap-2 mt-1">
+                          <span>{account.email}</span>
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Badge variant={account.isConnected ? 'default' : 'destructive'}>
+                      {account.isConnected ? (
+                        <>
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Connected
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Disconnected
+                        </>
+                      )}
+                    </Badge>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  {/* Quick Actions */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <a
+                      href="/teams"
+                      className="flex flex-col items-center gap-1 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                    >
+                      <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Chats</span>
+                    </a>
+                    <a
+                      href="/teams"
+                      className="flex flex-col items-center gap-1 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                    >
+                      <Users className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Teams</span>
+                    </a>
+                    <a
+                      href="/teams"
+                      className="flex flex-col items-center gap-1 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                    >
+                      <Video className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Meetings</span>
+                    </a>
+                  </div>
+
+                  {/* Account Stats */}
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-muted-foreground text-xs mb-1">Last Synced</div>
+                      <div className="font-medium flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {account.lastSyncedAt ? formatDate(account.lastSyncedAt) : 'Never'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground text-xs mb-1">Connected</div>
+                      <div className="font-medium flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {account.createdAt ? new Date(account.createdAt).toLocaleDateString() : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Error Alert */}
+                  {account.lastError && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Connection Error</AlertTitle>
+                      <AlertDescription className="text-sm">{account.lastError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      asChild
+                      className="flex-1"
+                      style={{ backgroundColor: '#464EB8' }}
+                    >
+                      <a href="/teams">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Open Teams
+                      </a>
+                    </Button>
+
+                    {confirmingTeamsDelete === account.id ? (
+                      <>
+                        <Button size="icon" variant="destructive" onClick={() => handleDisconnectTeams(account.id)}>
+                          <CheckCircle className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="outline" onClick={() => setConfirmingTeamsDelete(null)}>
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <Button size="icon" variant="ghost" onClick={() => setConfirmingTeamsDelete(account.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       <ProviderSelector
         isOpen={isProviderSelectorOpen}
