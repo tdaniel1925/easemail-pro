@@ -6,6 +6,7 @@
 
 export interface JMAPSession {
   apiUrl: string;
+  uploadUrl: string;
   accountId: string;
   username: string;
   capabilities: {
@@ -109,6 +110,7 @@ export class JMAPClient {
 
       this.session = {
         apiUrl: session.apiUrl,
+        uploadUrl: session.uploadUrl,
         accountId: session.primaryAccounts['urn:ietf:params:jmap:mail'],
         username: session.username,
         capabilities: session.capabilities,
@@ -475,7 +477,7 @@ export class JMAPClient {
           const uploadResponse = await fetch(uploadUrl, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${this.apiToken}`,
+              'Authorization': this.authHeader,
               'Content-Type': attachment.contentType,
             },
             body: binaryData,
