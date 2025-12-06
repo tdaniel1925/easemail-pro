@@ -45,7 +45,8 @@
       "Bash(cmd.exe /c \"taskkill /F /IM node.exe 2>nul & timeout /t 2 /nobreak >nul\")",
       "Bash(cmd.exe /c \"cd /d \"c:devEaseMail - The Future\" && rmdir /s /q .next 2>nul & rmdir /s /q node_modules\\.cache 2>nul & echo Caches cleared\")",
       "Bash(cmd.exe /c \"cd /d \"\"c:\\dev\\EaseMail - The Future\"\" && if exist .next rmdir /s /q .next && npm run dev\")",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

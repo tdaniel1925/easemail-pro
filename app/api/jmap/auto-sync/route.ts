@@ -9,6 +9,7 @@ import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emails } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createFastmailJMAPClient } from '@/lib/jmap/client';
+import { createClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -142,6 +143,29 @@ export async function POST(request: NextRequest) {
             lastActivityAt: new Date(),
           })
           .where(eq(emailAccounts.id, account.id));
+
+        // Broadcast real-time event if new emails were found
+        if (accountNewEmails > 0) {
+          try {
+            const supabase = await createClient();
+            const channel = supabase.channel(`email-sync:${account.id}`);
+
+            await channel.send({
+              type: 'broadcast',
+              event: 'email-sync',
+              payload: {
+                type: 'message.created',
+                accountId: account.id,
+                timestamp: Date.now(),
+                newCount: accountNewEmails,
+              },
+            });
+
+            console.log(`📡 Broadcasted sync event for ${account.emailAddress}`);
+          } catch (broadcastError) {
+            console.error('Failed to broadcast sync event:', broadcastError);
+          }
+        }
 
         console.log(`✅ ${account.emailAddress}: ${accountNewEmails} new emails synced`);
 
