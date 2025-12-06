@@ -384,12 +384,13 @@ export class JMAPClient {
     bodyType?: 'text' | 'html';
     inReplyTo?: string;
     references?: string;
+    attachments?: Array<{ filename: string; content: string; contentType: string }>;
   }): Promise<{ emailId: string; submissionId: string }> {
     if (!this.session) {
       throw new Error('Not connected. Call connect() first.');
     }
 
-    const { from, to, cc, bcc, subject, body, bodyType = 'html', inReplyTo, references } = options;
+    const { from, to, cc, bcc, subject, body, bodyType = 'html', inReplyTo, references, attachments } = options;
 
     // Get mailboxes to find Drafts folder
     const mailboxes = await this.getMailboxes();
@@ -453,6 +454,65 @@ export class JMAPClient {
     }
     if (references) {
       emailObject.references = references.split(' ').filter(Boolean);
+    }
+
+    // Handle attachments - upload blobs first, then add to email
+    if (attachments && attachments.length > 0) {
+      console.log(`[JMAP] Processing ${attachments.length} attachment(s)...`);
+
+      const uploadedAttachments: Array<{ blobId: string; type: string; name: string; size: number }> = [];
+
+      for (const attachment of attachments) {
+        try {
+          // Decode base64 content to binary
+          const binaryData = Buffer.from(attachment.content, 'base64');
+
+          // Upload blob to JMAP server
+          const uploadUrl = this.session.uploadUrl.replace('{accountId}', this.session.accountId);
+
+          console.log(`[JMAP] Uploading attachment: ${attachment.filename} (${binaryData.length} bytes)`);
+
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${this.apiToken}`,
+              'Content-Type': attachment.contentType,
+            },
+            body: binaryData,
+          });
+
+          if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text();
+            throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
+          }
+
+          const uploadResult = await uploadResponse.json();
+          console.log(`[JMAP] Uploaded attachment:`, uploadResult);
+
+          uploadedAttachments.push({
+            blobId: uploadResult.blobId,
+            type: attachment.contentType,
+            name: attachment.filename,
+            size: uploadResult.size || binaryData.length,
+          });
+        } catch (error) {
+          console.error(`[JMAP] Failed to upload attachment: ${attachment.filename}`, error);
+          throw error;
+        }
+      }
+
+      // Add attachments to email object
+      if (uploadedAttachments.length > 0) {
+        emailObject.attachments = uploadedAttachments.map(att => ({
+          blobId: att.blobId,
+          type: att.type,
+          name: att.name,
+          size: att.size,
+          disposition: 'attachment',
+        }));
+
+        console.log(`[JMAP] Added ${uploadedAttachments.length} attachment(s) to email`);
+      }
     }
 
     console.log('[JMAP] Creating email with object:', JSON.stringify(emailObject, null, 2));

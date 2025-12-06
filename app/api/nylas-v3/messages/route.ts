@@ -118,10 +118,14 @@ export async function GET(request: NextRequest) {
         folderName = 'inbox';
       }
 
-      console.log('[Messages] Fetching from local database - Folder:', folderName, 'Account:', account.emailProvider, 'Provider:', account.provider);
+      // Parse cursor for offset-based pagination (cursor is the offset number as string)
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+
+      console.log('[Messages] Fetching from local database - Folder:', folderName, 'Account:', account.emailProvider, 'Provider:', account.provider, 'Offset:', offset, 'Limit:', limit);
 
       // Query local database - OPTIMIZED: Don't fetch body for list view (save bandwidth)
       // Body is fetched separately when user opens an email
+      // Fetch limit + 1 to check if there are more emails
       const dbMessages = await db.select({
         id: emails.id,
         providerMessageId: emails.providerMessageId,
@@ -149,13 +153,19 @@ export async function GET(request: NextRequest) {
           eq(emails.folder, folderName)
         ))
         .orderBy(desc(emails.sentAt))
-        .limit(limit);
+        .limit(limit + 1) // Fetch one extra to check if there are more
+        .offset(offset);
 
-      console.log(`[Messages] Found ${dbMessages.length} emails in local database for folder: ${folderName}`);
+      // Check if there are more emails
+      const hasMore = dbMessages.length > limit;
+      const messagesToReturn = hasMore ? dbMessages.slice(0, limit) : dbMessages;
+      const nextOffset = hasMore ? offset + limit : null;
+
+      console.log(`[Messages] Found ${messagesToReturn.length} emails in local database for folder: ${folderName}, hasMore: ${hasMore}`);
 
       // Transform database messages to Nylas format
       result = {
-        messages: dbMessages.map((msg: any) => {
+        messages: messagesToReturn.map((msg: any) => {
           // Ensure date is valid
           const messageDate = msg.sentAt || msg.receivedAt || new Date();
           const timestamp = Math.floor(new Date(messageDate).getTime() / 1000);
@@ -185,8 +195,8 @@ export async function GET(request: NextRequest) {
             attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
           };
         }),
-        nextCursor: null,
-        hasMore: false,
+        nextCursor: nextOffset !== null ? String(nextOffset) : null,
+        hasMore: hasMore,
       };
     } else {
       // Fetch from Nylas API for Nylas accounts

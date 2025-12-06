@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
       const jmapClient = createFastmailJMAPClient(apiToken);
       await jmapClient.connect();
 
-      // Send the email
+      // Send the email with attachments
       const jmapResult = await jmapClient.sendEmail({
         from: { email: account.emailAddress, name: account.emailAddress },
         to: parsedTo,
@@ -217,6 +217,7 @@ export async function POST(request: NextRequest) {
         subject: subject || '(No Subject)',
         body: finalEmailBody || '',
         bodyType: 'html',
+        attachments: processedAttachments.length > 0 ? processedAttachments : undefined,
       });
 
       sentMessage = jmapResult;
