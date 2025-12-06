@@ -470,9 +470,13 @@ export class JMAPClient {
           const binaryData = Buffer.from(attachment.content, 'base64');
 
           // Upload blob to JMAP server
-          const uploadUrl = this.session.uploadUrl.replace('{accountId}', this.session.accountId);
+          // Fastmail uploadUrl requires trailing slash
+          let uploadUrl = this.session.uploadUrl.replace('{accountId}', this.session.accountId);
+          if (!uploadUrl.endsWith('/')) {
+            uploadUrl += '/';
+          }
 
-          console.log(`[JMAP] Uploading attachment: ${attachment.filename} (${binaryData.length} bytes)`);
+          console.log(`[JMAP] Uploading attachment: ${attachment.filename} (${binaryData.length} bytes) to ${uploadUrl}`);
 
           const uploadResponse = await fetch(uploadUrl, {
             method: 'POST',
@@ -503,17 +507,15 @@ export class JMAPClient {
         }
       }
 
-      // Add attachments to email object
+      // Add attachments to email object - JMAP only needs blobId, type, and name
       if (uploadedAttachments.length > 0) {
         emailObject.attachments = uploadedAttachments.map(att => ({
           blobId: att.blobId,
           type: att.type,
           name: att.name,
-          size: att.size,
-          disposition: 'attachment',
         }));
 
-        console.log(`[JMAP] Added ${uploadedAttachments.length} attachment(s) to email`);
+        console.log(`[JMAP] Added ${uploadedAttachments.length} attachment(s) to email:`, emailObject.attachments);
       }
     }
 
