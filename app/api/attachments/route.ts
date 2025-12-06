@@ -5,9 +5,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { attachments } from '@/lib/db/schema';
+import { attachments, emails } from '@/lib/db/schema';
 import { eq, and, desc, asc, gte, lte, inArray, sql, or, like, notInArray } from 'drizzle-orm';
-import { createClient } from '@/lib/supabase/server'; // ✅ ADD THIS
+import { createClient } from '@/lib/supabase/server';
 
 // Excluded file extensions (should match attachment-filter.ts)
 const EXCLUDED_EXTENSIONS = ['ics', 'vcf', 'p7s', 'asc', 'sig', 'eml', 'winmail.dat'];
@@ -46,11 +46,17 @@ export async function GET(request: NextRequest) {
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
 
+    // Parse direction filter (sent/received)
+    const direction = searchParams.get('direction') as 'sent' | 'received' | null;
+
     // Build where conditions
     const conditions = [
       eq(attachments.userId, userId),
       // Exclude .ics, .vcf, and other non-document/media files
-      notInArray(attachments.fileExtension, EXCLUDED_EXTENSIONS)
+      notInArray(attachments.fileExtension, EXCLUDED_EXTENSIONS),
+      // Exclude inline images (embedded in email body via cid: references)
+      sql`(${attachments.isInline} IS NULL OR ${attachments.isInline} = false)`,
+      sql`${attachments.contentId} IS NULL`,
     ];
 
     // Search filter (filename, sender, subject)
@@ -88,12 +94,20 @@ export async function GET(request: NextRequest) {
       conditions.push(lte(attachments.emailDate, new Date(dateTo)));
     }
 
-    // Get total count
+    // Direction filter - filter by email folder (sent = 'sent' folder, received = not 'sent')
+    if (direction === 'sent') {
+      conditions.push(eq(emails.folder, 'sent'));
+    } else if (direction === 'received') {
+      conditions.push(sql`(${emails.folder} IS NULL OR ${emails.folder} != 'sent')`);
+    }
+
+    // Get total count with LEFT JOIN to emails for direction filtering
     const countResult = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(attachments)
+      .leftJoin(emails, eq(attachments.emailId, emails.id))
       .where(and(...conditions));
-    
+
     const total = countResult[0]?.count || 0;
 
     // Build order by
@@ -107,15 +121,25 @@ export async function GET(request: NextRequest) {
 
     const orderDirection = sortOrder === 'asc' ? asc : desc;
 
-    // Fetch paginated data
+    // Fetch paginated data with email folder for direction badge
     const offset = (page - 1) * limit;
-    const data = await db
-      .select()
+    const rawData = await db
+      .select({
+        attachment: attachments,
+        emailFolder: emails.folder,
+      })
       .from(attachments)
+      .leftJoin(emails, eq(attachments.emailId, emails.id))
       .where(and(...conditions))
       .orderBy(orderDirection(orderByColumn))
       .limit(limit)
       .offset(offset);
+
+    // Transform data to include direction field
+    const data = rawData.map(row => ({
+      ...row.attachment,
+      direction: row.emailFolder === 'sent' ? 'sent' : 'received' as 'sent' | 'received',
+    }));
 
     const totalPages = Math.ceil(total / limit);
 
@@ -133,6 +157,7 @@ export async function GET(request: NextRequest) {
         fileTypes,
         documentTypes,
         senders,
+        direction,
         dateRange: dateFrom && dateTo ? { from: new Date(dateFrom), to: new Date(dateTo) } : undefined,
       },
     });

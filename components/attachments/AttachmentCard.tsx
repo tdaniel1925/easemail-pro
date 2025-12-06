@@ -11,6 +11,8 @@ import {
   Download as ArrowDownTrayIcon,
   Share2 as ShareIcon,
   Eye as EyeIcon,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import type { Attachment } from '@/lib/attachments/types';
 import { formatFileSize, getFileTypeColor, truncateFilename } from '@/lib/attachments/utils';
@@ -54,6 +56,25 @@ export function AttachmentCard({
             onChange={onSelect}
             className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
+        </div>
+      )}
+
+      {/* Direction Badge (Sent/Received) */}
+      {attachment.direction && (
+        <div
+          className={`absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+            attachment.direction === 'sent'
+              ? 'bg-green-100 text-green-700'
+              : 'bg-blue-100 text-blue-700'
+          }`}
+          title={attachment.direction === 'sent' ? 'Sent attachment' : 'Received attachment'}
+        >
+          {attachment.direction === 'sent' ? (
+            <ArrowUp className="h-3 w-3" />
+          ) : (
+            <ArrowDown className="h-3 w-3" />
+          )}
+          {attachment.direction === 'sent' ? 'Sent' : 'Received'}
         </div>
       )}
 

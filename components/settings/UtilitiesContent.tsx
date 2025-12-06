@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, Loader2, Wrench, Paperclip, Mail } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2, Wrench, Paperclip, Mail, Image, Trash2, Eye } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface FixResult {
@@ -15,11 +15,34 @@ interface FixResult {
   message?: string;
 }
 
+interface InlineCleanupResult {
+  success: boolean;
+  deleted?: {
+    inlineFlag: number;
+    contentId: number;
+    filenamePattern: number;
+    smallImages: number;
+    total: number;
+  };
+  preview?: {
+    inlineFlag: number;
+    contentId: number;
+    filenamePattern: number;
+    smallImages: number;
+    total: number;
+  };
+  message?: string;
+  error?: string;
+}
+
 export function UtilitiesContent() {
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [sentEmailsLoading, setSentEmailsLoading] = useState(false);
+  const [inlineCleanupLoading, setInlineCleanupLoading] = useState(false);
+  const [inlinePreviewLoading, setInlinePreviewLoading] = useState(false);
   const [attachmentsResult, setAttachmentsResult] = useState<FixResult | null>(null);
   const [sentEmailsResult, setSentEmailsResult] = useState<FixResult | null>(null);
+  const [inlineCleanupResult, setInlineCleanupResult] = useState<InlineCleanupResult | null>(null);
 
   const fixAttachments = async () => {
     setAttachmentsLoading(true);
@@ -80,6 +103,44 @@ export function UtilitiesContent() {
       });
     } finally {
       setSentEmailsLoading(false);
+    }
+  };
+
+  const previewInlineCleanup = async () => {
+    setInlinePreviewLoading(true);
+    setInlineCleanupResult(null);
+
+    try {
+      const response = await fetch('/api/cleanup-inline-attachments');
+      const data = await response.json();
+      setInlineCleanupResult(data);
+    } catch (error) {
+      setInlineCleanupResult({
+        success: false,
+        error: (error as Error).message || 'Network error',
+      });
+    } finally {
+      setInlinePreviewLoading(false);
+    }
+  };
+
+  const cleanupInlineAttachments = async () => {
+    setInlineCleanupLoading(true);
+    setInlineCleanupResult(null);
+
+    try {
+      const response = await fetch('/api/cleanup-inline-attachments', {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      setInlineCleanupResult(data);
+    } catch (error) {
+      setInlineCleanupResult({
+        success: false,
+        error: (error as Error).message || 'Network error',
+      });
+    } finally {
+      setInlineCleanupLoading(false);
     }
   };
 
@@ -144,6 +205,91 @@ export function UtilitiesContent() {
                     </div>
                   ) : (
                     <p>{attachmentsResult.message}</p>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Cleanup Inline Attachments */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Image className="h-5 w-5 text-primary" />
+              <CardTitle>Remove Inline Images from Attachments</CardTitle>
+            </div>
+            <CardDescription>
+              Remove embedded/inline images from your Attachments page. This includes pasted images,
+              email signatures, tracking pixels, and small icons that were mistakenly indexed as attachments.
+              Only actual file attachments will remain.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                onClick={previewInlineCleanup}
+                disabled={inlinePreviewLoading || inlineCleanupLoading}
+                variant="outline"
+                className="sm:w-auto"
+              >
+                {inlinePreviewLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Scanning...
+                  </>
+                ) : (
+                  <>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Preview
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={cleanupInlineAttachments}
+                disabled={inlineCleanupLoading || inlinePreviewLoading}
+                variant="destructive"
+                className="sm:w-auto"
+              >
+                {inlineCleanupLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remove Inline Images
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {inlineCleanupResult && (
+              <Alert variant={inlineCleanupResult.success ? 'default' : 'destructive'}>
+                {inlineCleanupResult.success ? (
+                  <CheckCircle className="h-4 w-4" />
+                ) : (
+                  <AlertCircle className="h-4 w-4" />
+                )}
+                <AlertDescription>
+                  {inlineCleanupResult.success ? (
+                    <div className="space-y-2">
+                      <p className="font-medium">{inlineCleanupResult.message}</p>
+                      {(inlineCleanupResult.preview || inlineCleanupResult.deleted) && (
+                        <div className="text-sm space-y-1">
+                          <p>Breakdown:</p>
+                          <ul className="list-disc list-inside ml-2 text-muted-foreground">
+                            <li>Marked as inline: {(inlineCleanupResult.preview || inlineCleanupResult.deleted)?.inlineFlag || 0}</li>
+                            <li>With content ID (CID): {(inlineCleanupResult.preview || inlineCleanupResult.deleted)?.contentId || 0}</li>
+                            <li>Inline filename patterns: {(inlineCleanupResult.preview || inlineCleanupResult.deleted)?.filenamePattern || 0}</li>
+                            <li>Small images (&lt;10KB): {(inlineCleanupResult.preview || inlineCleanupResult.deleted)?.smallImages || 0}</li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p>{inlineCleanupResult.error || 'An error occurred'}</p>
                   )}
                 </AlertDescription>
               </Alert>
@@ -219,11 +365,16 @@ export function UtilitiesContent() {
               but no attachments showing when you open them.
             </p>
             <p>
+              <strong>Remove Inline Images:</strong> Use this if you see pasted images, email signatures,
+              or small icons appearing in your Attachments page. These are inline/embedded images that
+              shouldn't be listed as attachments.
+            </p>
+            <p>
               <strong>Fix Sent Emails:</strong> Use this if you see emails you sent from other email clients
               appearing in your Inbox instead of your Sent folder.
             </p>
             <p className="pt-2 text-xs">
-              These utilities are safe to run multiple times. They only update emails that need fixing.
+              These utilities are safe to run multiple times. They only update data that needs fixing.
             </p>
           </CardContent>
         </Card>

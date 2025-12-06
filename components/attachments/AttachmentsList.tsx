@@ -10,6 +10,8 @@ import {
   Download as ArrowDownTrayIcon,
   Eye as EyeIcon,
   Share2 as ShareIcon,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import type { Attachment } from '@/lib/attachments/types';
 import { formatFileSize, getFileTypeColor } from '@/lib/attachments/utils';
@@ -79,6 +81,9 @@ export function AttachmentsList({
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
               Date
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              Direction
             </th>
             <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
               Actions
@@ -164,6 +169,28 @@ export function AttachmentsList({
                   {attachment.emailDate
                     ? format(new Date(attachment.emailDate), 'MMM dd, yyyy')
                     : '-'}
+                </td>
+
+                {/* Direction */}
+                <td className="px-6 py-4">
+                  {attachment.direction ? (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                        attachment.direction === 'sent'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}
+                    >
+                      {attachment.direction === 'sent' ? (
+                        <ArrowUp className="h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3" />
+                      )}
+                      {attachment.direction === 'sent' ? 'Sent' : 'Received'}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-400">-</span>
+                  )}
                 </td>
 
                 {/* Actions */}

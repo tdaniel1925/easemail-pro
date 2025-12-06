@@ -18,13 +18,15 @@ export type DocumentType =
   | 'spreadsheet'
   | 'other';
 
-export type FileCategory = 
-  | 'document' 
-  | 'image' 
-  | 'spreadsheet' 
-  | 'presentation' 
-  | 'archive' 
+export type FileCategory =
+  | 'document'
+  | 'image'
+  | 'spreadsheet'
+  | 'presentation'
+  | 'archive'
   | 'other';
+
+export type AttachmentDirection = 'sent' | 'received';
 
 export type ProcessingStatus = 
   | 'pending' 
@@ -75,6 +77,9 @@ export interface Attachment {
   processingError?: string | null;
   processedAt?: Date | null;
   
+  // Direction (sent or received)
+  direction?: AttachmentDirection;
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -169,10 +174,10 @@ export interface GetAttachmentsParams {
   // Pagination
   page?: number;
   limit?: number;
-  
+
   // Search
   search?: string;
-  
+
   // Filters
   fileTypes?: string[];
   fileCategories?: FileCategory[];
@@ -180,13 +185,14 @@ export interface GetAttachmentsParams {
   dateFrom?: string | Date;
   dateTo?: string | Date;
   senders?: string[];
+  direction?: AttachmentDirection;
   minSize?: number;
   maxSize?: number;
-  
+
   // AI-powered filters
   aiProcessedOnly?: boolean;
   hasMetadata?: boolean;
-  
+
   // Sorting
   sortBy?: 'date' | 'name' | 'size' | 'sender' | 'type';
   sortOrder?: 'asc' | 'desc';
@@ -213,6 +219,7 @@ export interface AppliedFilters {
     to: Date;
   };
   senders: string[];
+  direction?: AttachmentDirection;
   sizeRange?: {
     min: number;
     max: number;

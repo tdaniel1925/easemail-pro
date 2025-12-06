@@ -328,7 +328,11 @@ export const attachments = pgTable('attachments', {
   classificationConfidence: integer('classification_confidence'), // 0-100
   extractedMetadata: jsonb('extracted_metadata').$type<Record<string, any>>(), // AI-extracted data
   keyTerms: jsonb('key_terms').$type<string[]>(),
-  
+
+  // Inline image flag (embedded in email body via cid: references)
+  isInline: boolean('is_inline').default(false),
+  contentId: varchar('content_id', { length: 255 }), // CID for inline images
+
   // Processing status
   aiProcessed: boolean('ai_processed').default(false),
   processingStatus: varchar('processing_status', { length: 50 }).default('pending'), // 'pending', 'processing', 'completed', 'failed'

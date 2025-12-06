@@ -59,6 +59,7 @@ function AttachmentsContent() {
     fileTypes: filters.fileTypes,
     documentTypes: filters.documentTypes,
     senders: filters.senders,
+    direction: filters.direction,
     dateFrom: filters.dateRange?.from.toISOString(),
     dateTo: filters.dateRange?.to.toISOString(),
     sortBy,

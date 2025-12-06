@@ -5,8 +5,8 @@
  * Filters for file type, date range, document type
  */
 
-import { Filter as FunnelIcon, X as XMarkIcon } from 'lucide-react';
-import type { AppliedFilters, DocumentType } from '@/lib/attachments/types';
+import { Filter as FunnelIcon, X as XMarkIcon, ArrowUp, ArrowDown } from 'lucide-react';
+import type { AppliedFilters, DocumentType, AttachmentDirection } from '@/lib/attachments/types';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -40,11 +40,18 @@ export function FilterBar({
     { value: 'image', label: 'Image' },
   ];
 
+  const directionOptions: { value: AttachmentDirection | undefined; label: string }[] = [
+    { value: undefined, label: 'All' },
+    { value: 'received', label: 'Received' },
+    { value: 'sent', label: 'Sent' },
+  ];
+
   const activeFilterCount =
     filters.fileTypes.length +
     filters.documentTypes.length +
     filters.senders.length +
-    (filters.dateRange ? 1 : 0);
+    (filters.dateRange ? 1 : 0) +
+    (filters.direction ? 1 : 0);
 
   return (
     <div className="border-b bg-card px-6 py-3">
@@ -96,6 +103,13 @@ export function FilterBar({
               />
             ))}
           </div>
+        )}
+
+        {filters.direction && (
+          <FilterChip
+            label={filters.direction === 'sent' ? 'Sent' : 'Received'}
+            onRemove={() => onFiltersChange({ direction: undefined })}
+          />
         )}
 
         {activeFilterCount > 0 && (
@@ -159,6 +173,28 @@ export function FilterBar({
                   }}
                   className="capitalize"
                 >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Direction Filter */}
+          <div>
+            <label className="mb-2 block text-sm font-medium">
+              Direction
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {directionOptions.map((option) => (
+                <Button
+                  key={option.value || 'all'}
+                  variant={filters.direction === option.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => onFiltersChange({ direction: option.value })}
+                  className="gap-1"
+                >
+                  {option.value === 'sent' && <ArrowUp className="h-3 w-3" />}
+                  {option.value === 'received' && <ArrowDown className="h-3 w-3" />}
                   {option.label}
                 </Button>
               ))}
