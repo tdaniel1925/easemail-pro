@@ -30,12 +30,11 @@ export async function GET() {
           SELECT COUNT(*)::int as count FROM emails WHERE account_id = ${account.id}
         `);
 
-        // Extract count from result (handle both array and object with rows)
+        // Extract count from result (drizzle returns array-like RowList)
         let actualEmailCount = 0;
-        if (Array.isArray(emailCountResult) && emailCountResult.length > 0) {
-          actualEmailCount = Number(emailCountResult[0].count) || 0;
-        } else if (emailCountResult?.rows && emailCountResult.rows.length > 0) {
-          actualEmailCount = Number(emailCountResult.rows[0].count) || 0;
+        const resultArray = emailCountResult as unknown as Array<{ count: number }>;
+        if (resultArray && resultArray.length > 0) {
+          actualEmailCount = Number(resultArray[0].count) || 0;
         }
 
         // Debug: log the count for this account
