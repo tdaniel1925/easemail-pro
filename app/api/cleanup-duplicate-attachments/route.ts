@@ -26,95 +26,113 @@ interface DuplicateGroup {
   ids: string[];
 }
 
+// Helper to extract rows from db.execute result
+function getRows(result: any): any[] {
+  // Drizzle may return rows in different formats
+  if (Array.isArray(result)) return result;
+  if (result?.rows && Array.isArray(result.rows)) return result.rows;
+  return [];
+}
+
 async function findAllDuplicates(userId: string): Promise<DuplicateGroup[]> {
   const allDuplicates: DuplicateGroup[] = [];
   const seenIds = new Set<string>();
 
-  // Method 1: Find duplicates by nylas_attachment_id (exact Nylas duplicates)
-  const nylasIdDuplicates = await db.execute(sql`
-    SELECT
-      nylas_attachment_id as group_key,
-      MIN(filename) as filename,
-      COUNT(*) as count,
-      array_agg(id ORDER BY created_at ASC) as ids
-    FROM attachments
-    WHERE user_id = ${userId}
-      AND nylas_attachment_id IS NOT NULL
-    GROUP BY nylas_attachment_id
-    HAVING COUNT(*) > 1
-  `);
+  try {
+    // Method 1: Find duplicates by nylas_attachment_id (exact Nylas duplicates)
+    const nylasIdDuplicates = await db.execute(sql`
+      SELECT
+        nylas_attachment_id as group_key,
+        MIN(filename) as filename,
+        COUNT(*)::int as count,
+        array_agg(id ORDER BY created_at ASC) as ids
+      FROM attachments
+      WHERE user_id = ${userId}
+        AND nylas_attachment_id IS NOT NULL
+      GROUP BY nylas_attachment_id
+      HAVING COUNT(*) > 1
+    `);
 
-  const nylasRows = nylasIdDuplicates as unknown as any[];
-  for (const row of nylasRows) {
-    const ids = row.ids as string[];
-    // Only include IDs we haven't seen
-    const newIds = ids.filter((id: string) => !seenIds.has(id));
-    if (newIds.length > 1) {
-      allDuplicates.push({
-        groupKey: `nylas:${row.group_key}`,
-        filename: row.filename,
-        count: newIds.length,
-        ids: newIds,
-      });
-      newIds.forEach((id: string) => seenIds.add(id));
+    const nylasRows = getRows(nylasIdDuplicates);
+    for (const row of nylasRows) {
+      const ids = row.ids as string[];
+      if (!ids || !Array.isArray(ids)) continue;
+      // Only include IDs we haven't seen
+      const newIds = ids.filter((id: string) => !seenIds.has(id));
+      if (newIds.length > 1) {
+        allDuplicates.push({
+          groupKey: `nylas:${row.group_key}`,
+          filename: row.filename || 'Unknown',
+          count: newIds.length,
+          ids: newIds,
+        });
+        newIds.forEach((id: string) => seenIds.add(id));
+      }
     }
-  }
 
-  // Method 2: Find duplicates by email_id + filename + file_size (logical duplicates within same email)
-  const emailFileDuplicates = await db.execute(sql`
-    SELECT
-      CONCAT(email_id, ':', filename, ':', COALESCE(file_size_bytes::text, 'null')) as group_key,
-      filename,
-      COUNT(*) as count,
-      array_agg(id ORDER BY created_at ASC) as ids
-    FROM attachments
-    WHERE user_id = ${userId}
-      AND email_id IS NOT NULL
-    GROUP BY email_id, filename, file_size_bytes
-    HAVING COUNT(*) > 1
-  `);
+    // Method 2: Find duplicates by email_id + filename + file_size (logical duplicates within same email)
+    const emailFileDuplicates = await db.execute(sql`
+      SELECT
+        email_id || ':' || filename || ':' || COALESCE(file_size_bytes::text, 'null') as group_key,
+        filename,
+        COUNT(*)::int as count,
+        array_agg(id ORDER BY created_at ASC) as ids
+      FROM attachments
+      WHERE user_id = ${userId}
+        AND email_id IS NOT NULL
+      GROUP BY email_id, filename, file_size_bytes
+      HAVING COUNT(*) > 1
+    `);
 
-  const emailRows = emailFileDuplicates as unknown as any[];
-  for (const row of emailRows) {
-    const ids = (row.ids as string[]).filter((id: string) => !seenIds.has(id));
-    if (ids.length > 1) {
-      allDuplicates.push({
-        groupKey: `email:${row.group_key}`,
-        filename: row.filename,
-        count: ids.length,
-        ids: ids,
-      });
-      ids.forEach((id: string) => seenIds.add(id));
+    const emailRows = getRows(emailFileDuplicates);
+    for (const row of emailRows) {
+      const ids = row.ids as string[];
+      if (!ids || !Array.isArray(ids)) continue;
+      const filteredIds = ids.filter((id: string) => !seenIds.has(id));
+      if (filteredIds.length > 1) {
+        allDuplicates.push({
+          groupKey: `email:${row.group_key}`,
+          filename: row.filename || 'Unknown',
+          count: filteredIds.length,
+          ids: filteredIds,
+        });
+        filteredIds.forEach((id: string) => seenIds.add(id));
+      }
     }
-  }
 
-  // Method 3: Find duplicates by filename + file_size + mime_type (same file potentially attached to different emails)
-  const fileDuplicates = await db.execute(sql`
-    SELECT
-      CONCAT(filename, ':', COALESCE(file_size_bytes::text, 'null'), ':', COALESCE(mime_type, 'unknown')) as group_key,
-      filename,
-      COUNT(*) as count,
-      array_agg(id ORDER BY created_at ASC) as ids
-    FROM attachments
-    WHERE user_id = ${userId}
-      AND filename IS NOT NULL
-      AND file_size_bytes IS NOT NULL
-    GROUP BY filename, file_size_bytes, mime_type
-    HAVING COUNT(*) > 1
-  `);
+    // Method 3: Find duplicates by filename + file_size + mime_type (same file potentially attached to different emails)
+    const fileDuplicates = await db.execute(sql`
+      SELECT
+        filename || ':' || COALESCE(file_size_bytes::text, 'null') || ':' || COALESCE(mime_type, 'unknown') as group_key,
+        filename,
+        COUNT(*)::int as count,
+        array_agg(id ORDER BY created_at ASC) as ids
+      FROM attachments
+      WHERE user_id = ${userId}
+        AND filename IS NOT NULL
+        AND file_size_bytes IS NOT NULL
+      GROUP BY filename, file_size_bytes, mime_type
+      HAVING COUNT(*) > 1
+    `);
 
-  const fileRows = fileDuplicates as unknown as any[];
-  for (const row of fileRows) {
-    const ids = (row.ids as string[]).filter((id: string) => !seenIds.has(id));
-    if (ids.length > 1) {
-      allDuplicates.push({
-        groupKey: `file:${row.group_key}`,
-        filename: row.filename,
-        count: ids.length,
-        ids: ids,
-      });
-      ids.forEach((id: string) => seenIds.add(id));
+    const fileRows = getRows(fileDuplicates);
+    for (const row of fileRows) {
+      const ids = row.ids as string[];
+      if (!ids || !Array.isArray(ids)) continue;
+      const filteredIds = ids.filter((id: string) => !seenIds.has(id));
+      if (filteredIds.length > 1) {
+        allDuplicates.push({
+          groupKey: `file:${row.group_key}`,
+          filename: row.filename || 'Unknown',
+          count: filteredIds.length,
+          ids: filteredIds,
+        });
+        filteredIds.forEach((id: string) => seenIds.add(id));
+      }
     }
+  } catch (error) {
+    console.error('Error in findAllDuplicates:', error);
+    throw error;
   }
 
   return allDuplicates;
