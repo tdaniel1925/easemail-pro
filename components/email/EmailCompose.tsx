@@ -1153,7 +1153,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       // Insert the new signature into the body
       if (result.signature) {
         const renderedSignature = renderSignature(result.signature, {}, { emailAddress: to[0]?.email || '' });
-        const blankLinesHtml = '<p><br></p><p><br></p>';
+        const blankLinesHtml = '<p><br></p>';
 
         // If body is empty or just blank lines, set with signature
         const strippedBody = body.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();

@@ -86,7 +86,7 @@ export function UnifiedAIToolbar({
 
   /**
    * Smart insertion - place text at the top with proper formatting
-   * Preserves paragraph structure and ensures 2 blank lines before signature
+   * Preserves paragraph structure and ensures 1 blank line before signature
    */
   const insertAtTop = (textToInsert: string): string => {
     const currentBody = body.trim();
@@ -97,9 +97,9 @@ export function UnifiedAIToolbar({
     }
 
     // Text coming from AI is already formatted with <p> tags
-    // Add 2 empty paragraphs with <br> to ensure they render as visible blank lines
-    // This creates professional spacing before signature
-    const spacing = '<p><br></p><p><br></p>';
+    // Add 1 empty paragraph with <br> to ensure it renders as a visible blank line
+    // This creates consistent spacing before signature (matches composer initial state)
+    const spacing = '<p><br></p>';
 
     return textToInsert + spacing + currentBody;
   };
