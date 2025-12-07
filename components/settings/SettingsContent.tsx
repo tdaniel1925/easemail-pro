@@ -252,9 +252,14 @@ function SyncStatusSettings() {
       case 'completed':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'syncing':
+      case 'background_syncing':
         return <RefreshCw className="h-5 w-5 text-blue-500 animate-spin" />;
       case 'error':
         return <AlertCircle className="h-5 w-5 text-red-500" />;
+      case 'idle':
+        return <Clock className="h-5 w-5 text-blue-400" />;
+      case 'pending':
+        return <Clock className="h-5 w-5 text-yellow-500" />;
       default:
         return <Clock className="h-5 w-5 text-gray-400" />;
     }
@@ -265,14 +270,34 @@ function SyncStatusSettings() {
       case 'completed':
         return 'Sync Complete';
       case 'syncing':
+      case 'background_syncing':
         return 'Syncing...';
       case 'error':
         return 'Sync Error';
       case 'pending':
         return 'Pending';
+      case 'idle':
+        return 'Ready';
       default:
         return 'Unknown';
     }
+  };
+
+  // Get display provider name (emailProvider like Gmail, Outlook)
+  const getProviderDisplayName = (account: any) => {
+    // Prefer the emailProvider field (gmail, outlook, etc)
+    if (account.emailProvider) {
+      return account.emailProvider.charAt(0).toUpperCase() + account.emailProvider.slice(1);
+    }
+    // Fall back to nylasProvider
+    if (account.nylasProvider) {
+      return account.nylasProvider.charAt(0).toUpperCase() + account.nylasProvider.slice(1);
+    }
+    // Fall back to provider (nylas, jmap, etc)
+    if (account.provider) {
+      return account.provider.charAt(0).toUpperCase() + account.provider.slice(1);
+    }
+    return 'Unknown';
   };
 
   return (
@@ -449,7 +474,7 @@ function SyncStatusSettings() {
                         </div>
                         <div>
                           <span className="text-muted-foreground">Provider:</span>
-                          <span className="ml-2 font-medium capitalize">{account.provider || 'Unknown'}</span>
+                          <span className="ml-2 font-medium">{getProviderDisplayName(account)}</span>
                         </div>
                         {account.syncStatus === 'syncing' && estimatedMinutes > 0 && (
                           <div className="md:col-span-2">
