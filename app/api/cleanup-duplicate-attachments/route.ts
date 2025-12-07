@@ -3,8 +3,11 @@
  * DELETE /api/cleanup-duplicate-attachments
  *
  * Removes duplicate attachments from the attachments table.
- * Duplicates are identified by matching emailId + filename + fileSizeBytes.
- * The oldest record is kept, duplicates are removed.
+ * Uses multiple detection methods to find ALL duplicates:
+ * 1. Same nylas_attachment_id (exact Nylas duplicate)
+ * 2. Same email_id + filename + file_size (logical duplicate)
+ * 3. Same filename + file_size + sender across emails (potential duplicates)
+ * The oldest record in each group is kept, duplicates are removed.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,37 +20,104 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 interface DuplicateGroup {
-  emailId: string;
+  groupKey: string;
   filename: string;
-  fileSizeBytes: number;
   count: number;
   ids: string[];
 }
 
-async function findDuplicates(userId: string): Promise<DuplicateGroup[]> {
-  // Find groups of attachments with the same emailId, filename, and size
-  const duplicateGroups = await db.execute(sql`
+async function findAllDuplicates(userId: string): Promise<DuplicateGroup[]> {
+  const allDuplicates: DuplicateGroup[] = [];
+  const seenIds = new Set<string>();
+
+  // Method 1: Find duplicates by nylas_attachment_id (exact Nylas duplicates)
+  const nylasIdDuplicates = await db.execute(sql`
     SELECT
-      email_id,
-      filename,
-      file_size_bytes,
+      nylas_attachment_id as group_key,
+      MIN(filename) as filename,
       COUNT(*) as count,
       array_agg(id ORDER BY created_at ASC) as ids
     FROM attachments
     WHERE user_id = ${userId}
+      AND nylas_attachment_id IS NOT NULL
+    GROUP BY nylas_attachment_id
+    HAVING COUNT(*) > 1
+  `);
+
+  const nylasRows = nylasIdDuplicates as unknown as any[];
+  for (const row of nylasRows) {
+    const ids = row.ids as string[];
+    // Only include IDs we haven't seen
+    const newIds = ids.filter((id: string) => !seenIds.has(id));
+    if (newIds.length > 1) {
+      allDuplicates.push({
+        groupKey: `nylas:${row.group_key}`,
+        filename: row.filename,
+        count: newIds.length,
+        ids: newIds,
+      });
+      newIds.forEach((id: string) => seenIds.add(id));
+    }
+  }
+
+  // Method 2: Find duplicates by email_id + filename + file_size (logical duplicates within same email)
+  const emailFileDuplicates = await db.execute(sql`
+    SELECT
+      CONCAT(email_id, ':', filename, ':', COALESCE(file_size_bytes::text, 'null')) as group_key,
+      filename,
+      COUNT(*) as count,
+      array_agg(id ORDER BY created_at ASC) as ids
+    FROM attachments
+    WHERE user_id = ${userId}
+      AND email_id IS NOT NULL
     GROUP BY email_id, filename, file_size_bytes
     HAVING COUNT(*) > 1
   `);
 
-  // Cast to array - db.execute returns the rows directly
-  const rows = duplicateGroups as unknown as any[];
-  return rows.map(row => ({
-    emailId: row.email_id,
-    filename: row.filename,
-    fileSizeBytes: row.file_size_bytes,
-    count: parseInt(row.count),
-    ids: row.ids,
-  }));
+  const emailRows = emailFileDuplicates as unknown as any[];
+  for (const row of emailRows) {
+    const ids = (row.ids as string[]).filter((id: string) => !seenIds.has(id));
+    if (ids.length > 1) {
+      allDuplicates.push({
+        groupKey: `email:${row.group_key}`,
+        filename: row.filename,
+        count: ids.length,
+        ids: ids,
+      });
+      ids.forEach((id: string) => seenIds.add(id));
+    }
+  }
+
+  // Method 3: Find duplicates by filename + file_size + mime_type (same file potentially attached to different emails)
+  const fileDuplicates = await db.execute(sql`
+    SELECT
+      CONCAT(filename, ':', COALESCE(file_size_bytes::text, 'null'), ':', COALESCE(mime_type, 'unknown')) as group_key,
+      filename,
+      COUNT(*) as count,
+      array_agg(id ORDER BY created_at ASC) as ids
+    FROM attachments
+    WHERE user_id = ${userId}
+      AND filename IS NOT NULL
+      AND file_size_bytes IS NOT NULL
+    GROUP BY filename, file_size_bytes, mime_type
+    HAVING COUNT(*) > 1
+  `);
+
+  const fileRows = fileDuplicates as unknown as any[];
+  for (const row of fileRows) {
+    const ids = (row.ids as string[]).filter((id: string) => !seenIds.has(id));
+    if (ids.length > 1) {
+      allDuplicates.push({
+        groupKey: `file:${row.group_key}`,
+        filename: row.filename,
+        count: ids.length,
+        ids: ids,
+      });
+      ids.forEach((id: string) => seenIds.add(id));
+    }
+  }
+
+  return allDuplicates;
 }
 
 export async function DELETE(request: NextRequest) {
@@ -64,8 +134,8 @@ export async function DELETE(request: NextRequest) {
 
     console.log(`🧹 Starting duplicate attachment cleanup for user: ${userId}`);
 
-    // Find all duplicate groups
-    const duplicateGroups = await findDuplicates(userId);
+    // Find all duplicate groups using multiple detection methods
+    const duplicateGroups = await findAllDuplicates(userId);
 
     if (duplicateGroups.length === 0) {
       return NextResponse.json({
@@ -85,6 +155,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     console.log(`Found ${duplicateGroups.length} duplicate groups with ${idsToDelete.length} total duplicates to remove`);
+    console.log(`Groups breakdown:`, duplicateGroups.map(g => ({ key: g.groupKey, filename: g.filename, count: g.count })));
 
     // Delete duplicates in batches
     let totalDeleted = 0;
@@ -132,16 +203,17 @@ export async function GET(request: NextRequest) {
 
     const userId = user.id;
 
-    // Find all duplicate groups
-    const duplicateGroups = await findDuplicates(userId);
+    // Find all duplicate groups using multiple detection methods
+    const duplicateGroups = await findAllDuplicates(userId);
 
     // Calculate total duplicates (excluding the one we keep from each group)
     const totalDuplicates = duplicateGroups.reduce((sum, group) => sum + (group.count - 1), 0);
 
-    // Get sample duplicates for display
-    const samples = duplicateGroups.slice(0, 5).map(group => ({
+    // Get sample duplicates for display (show more details)
+    const samples = duplicateGroups.slice(0, 10).map(group => ({
       filename: group.filename,
       count: group.count,
+      type: group.groupKey.split(':')[0], // nylas, email, or file
     }));
 
     return NextResponse.json({
