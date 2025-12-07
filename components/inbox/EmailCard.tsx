@@ -30,6 +30,7 @@ interface EmailCardProps {
     hasAttachments: boolean | null;
     attachmentsCount: number | null;
     threadId?: string | null;
+    folder?: string | null;
   };
   isSelected: boolean;
   isActive: boolean;
@@ -37,6 +38,7 @@ interface EmailCardProps {
   onClick: (email: any) => void;
   onThreadClick?: (threadId: string) => void;
   threadCount?: number;
+  currentFolder?: string | null;
 }
 
 function EmailCard({
@@ -47,6 +49,7 @@ function EmailCard({
   onClick,
   onThreadClick,
   threadCount = 0,
+  currentFolder = null,
 }: EmailCardProps) {
   const [showSnoozeDialog, setShowSnoozeDialog] = useState(false);
 
@@ -75,15 +78,31 @@ function EmailCard({
 
     // Show first recipient
     const first = recipients[0];
-    const displayName = first.name || first.email;
+    const recipientName = first.name || first.email;
 
     // If more than one, add count
     if (recipients.length > 1) {
-      return `${displayName} +${recipients.length - 1}`;
+      return `${recipientName} +${recipients.length - 1}`;
     }
 
-    return displayName;
+    return recipientName;
   };
+
+  // Check if we're in the sent folder to show recipients instead of sender
+  const isSentFolder = currentFolder === 'sent' || email.folder === 'sent';
+
+  // Display name: show recipient in sent folder, sender otherwise
+  const displayName = isSentFolder
+    ? formatRecipients(email.toEmails) || 'Unknown Recipient'
+    : email.fromName || email.fromEmail || 'Unknown Sender';
+
+  // Avatar initials: use recipient info for sent, sender for inbox
+  const avatarInitialName = isSentFolder
+    ? (email.toEmails?.[0]?.name || null)
+    : email.fromName;
+  const avatarInitialEmail = isSentFolder
+    ? (email.toEmails?.[0]?.email || null)
+    : email.fromEmail;
 
   const handleSnooze = async (snoozeUntil: Date) => {
     try {
@@ -137,7 +156,7 @@ function EmailCard({
               : 'bg-blue-500 dark:bg-blue-600'
           )}
         >
-          {getInitial(email.fromName, email.fromEmail)}
+          {getInitial(avatarInitialName, avatarInitialEmail)}
         </div>
 
         {/* Content */}
@@ -153,10 +172,16 @@ function EmailCard({
                     : 'text-gray-900 dark:text-gray-100 font-semibold'
                 )}
               >
-                {email.fromName || email.fromEmail || 'Unknown Sender'}
+                {isSentFolder ? `To: ${displayName}` : displayName}
               </p>
-              {/* To: field */}
-              {email.toEmails && email.toEmails.length > 0 && (
+              {/* Show From: in sent folder for context */}
+              {isSentFolder && (email.fromName || email.fromEmail) && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  From: {email.fromName || email.fromEmail}
+                </p>
+              )}
+              {/* Show To: field in inbox/other folders */}
+              {!isSentFolder && email.toEmails && email.toEmails.length > 0 && (
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                   To: {formatRecipients(email.toEmails)}
                 </p>

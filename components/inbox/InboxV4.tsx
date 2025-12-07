@@ -537,6 +537,7 @@ export default function InboxV4({
                         onClick={handleEmailClick}
                         onThreadClick={handleThreadClick}
                         threadCount={(email as any).threadCount || 0}
+                        currentFolder={currentFolder}
                       />
                     </div>
                   );

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, Loader2, Wrench, Paperclip, Mail, Image, Trash2, Eye } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2, Wrench, Paperclip, Mail, Image, Trash2, Eye, Copy } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface FixResult {
@@ -35,14 +35,30 @@ interface InlineCleanupResult {
   error?: string;
 }
 
+interface DuplicateCleanupResult {
+  success: boolean;
+  deleted?: number;
+  duplicateGroups?: number;
+  preview?: {
+    duplicateGroups: number;
+    totalDuplicates: number;
+    samples: { filename: string; count: number }[];
+  };
+  message?: string;
+  error?: string;
+}
+
 export function UtilitiesContent() {
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [sentEmailsLoading, setSentEmailsLoading] = useState(false);
   const [inlineCleanupLoading, setInlineCleanupLoading] = useState(false);
   const [inlinePreviewLoading, setInlinePreviewLoading] = useState(false);
+  const [duplicateCleanupLoading, setDuplicateCleanupLoading] = useState(false);
+  const [duplicatePreviewLoading, setDuplicatePreviewLoading] = useState(false);
   const [attachmentsResult, setAttachmentsResult] = useState<FixResult | null>(null);
   const [sentEmailsResult, setSentEmailsResult] = useState<FixResult | null>(null);
   const [inlineCleanupResult, setInlineCleanupResult] = useState<InlineCleanupResult | null>(null);
+  const [duplicateCleanupResult, setDuplicateCleanupResult] = useState<DuplicateCleanupResult | null>(null);
 
   const fixAttachments = async () => {
     setAttachmentsLoading(true);
@@ -141,6 +157,44 @@ export function UtilitiesContent() {
       });
     } finally {
       setInlineCleanupLoading(false);
+    }
+  };
+
+  const previewDuplicateCleanup = async () => {
+    setDuplicatePreviewLoading(true);
+    setDuplicateCleanupResult(null);
+
+    try {
+      const response = await fetch('/api/cleanup-duplicate-attachments');
+      const data = await response.json();
+      setDuplicateCleanupResult(data);
+    } catch (error) {
+      setDuplicateCleanupResult({
+        success: false,
+        error: (error as Error).message || 'Network error',
+      });
+    } finally {
+      setDuplicatePreviewLoading(false);
+    }
+  };
+
+  const cleanupDuplicateAttachments = async () => {
+    setDuplicateCleanupLoading(true);
+    setDuplicateCleanupResult(null);
+
+    try {
+      const response = await fetch('/api/cleanup-duplicate-attachments', {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      setDuplicateCleanupResult(data);
+    } catch (error) {
+      setDuplicateCleanupResult({
+        success: false,
+        error: (error as Error).message || 'Network error',
+      });
+    } finally {
+      setDuplicateCleanupLoading(false);
     }
   };
 
@@ -297,6 +351,89 @@ export function UtilitiesContent() {
           </CardContent>
         </Card>
 
+        {/* Remove Duplicate Attachments */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Copy className="h-5 w-5 text-primary" />
+              <CardTitle>Remove Duplicate Attachments</CardTitle>
+            </div>
+            <CardDescription>
+              Find and remove duplicate attachments that may have been indexed multiple times.
+              Duplicates are identified by matching email, filename, and file size. The oldest record is kept.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                onClick={previewDuplicateCleanup}
+                disabled={duplicatePreviewLoading || duplicateCleanupLoading}
+                variant="outline"
+                className="sm:w-auto"
+              >
+                {duplicatePreviewLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Scanning...
+                  </>
+                ) : (
+                  <>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Preview
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={cleanupDuplicateAttachments}
+                disabled={duplicateCleanupLoading || duplicatePreviewLoading}
+                variant="destructive"
+                className="sm:w-auto"
+              >
+                {duplicateCleanupLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remove Duplicates
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {duplicateCleanupResult && (
+              <Alert variant={duplicateCleanupResult.success ? 'default' : 'destructive'}>
+                {duplicateCleanupResult.success ? (
+                  <CheckCircle className="h-4 w-4" />
+                ) : (
+                  <AlertCircle className="h-4 w-4" />
+                )}
+                <AlertDescription>
+                  {duplicateCleanupResult.success ? (
+                    <div className="space-y-2">
+                      <p className="font-medium">{duplicateCleanupResult.message}</p>
+                      {duplicateCleanupResult.preview?.samples && duplicateCleanupResult.preview.samples.length > 0 && (
+                        <div className="text-sm space-y-1">
+                          <p>Sample duplicates:</p>
+                          <ul className="list-disc list-inside ml-2 text-muted-foreground">
+                            {duplicateCleanupResult.preview.samples.map((sample, i) => (
+                              <li key={i}>{sample.filename} ({sample.count} copies)</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p>{duplicateCleanupResult.error || 'An error occurred'}</p>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Fix Sent Emails */}
         <Card>
           <CardHeader>
@@ -368,6 +505,10 @@ export function UtilitiesContent() {
               <strong>Remove Inline Images:</strong> Use this if you see pasted images, email signatures,
               or small icons appearing in your Attachments page. These are inline/embedded images that
               shouldn't be listed as attachments.
+            </p>
+            <p>
+              <strong>Remove Duplicates:</strong> Use this if you see the same attachment appearing multiple
+              times on the Attachments page. This can happen if emails are synced multiple times.
             </p>
             <p>
               <strong>Fix Sent Emails:</strong> Use this if you see emails you sent from other email clients

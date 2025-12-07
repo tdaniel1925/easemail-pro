@@ -19,6 +19,7 @@ interface Email {
   id: string;
   fromEmail?: string;
   fromName?: string;
+  toEmails?: Array<{ email: string; name?: string }> | null;
   subject: string;
   snippet: string;
   body?: string;
@@ -546,6 +547,7 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
             selectMode={selectMode}
             showImages={showImages}
             useEmailRendererV3={useEmailRendererV3}
+            currentFolder={currentFolder}
             onSelect={(e) => handleSelectEmail(email.id, e)}
             onClick={() => onEmailClick(email.id)}
             showToast={(type, message) => {
@@ -621,6 +623,7 @@ interface EmailCardProps {
   selectMode: boolean;
   showImages: boolean; // Control external image loading
   useEmailRendererV3: boolean; // V3 renderer feature flag
+  currentFolder?: string | null; // Current folder for display logic
   onSelect: (e: React.MouseEvent) => void;
   onClick: () => void;
   showToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
@@ -628,8 +631,31 @@ interface EmailCardProps {
   onShowImagesToggle: () => void; // Toggle image loading
 }
 
-function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showImages, useEmailRendererV3, onSelect, onClick, showToast, onRemove, onShowImagesToggle }: EmailCardProps) {
-  const avatarColor = generateAvatarColor(email.fromEmail || 'unknown@example.com');
+function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showImages, useEmailRendererV3, currentFolder = null, onSelect, onClick, showToast, onRemove, onShowImagesToggle }: EmailCardProps) {
+  // Determine if we're in sent folder to show recipients instead of sender
+  const isSentFolder = currentFolder === 'sent' || email.folder === 'sent';
+
+  // Format recipients for display
+  const formatRecipients = (recipients: Array<{ email: string; name?: string }> | null | undefined) => {
+    if (!recipients || recipients.length === 0) return 'Unknown Recipient';
+    const first = recipients[0];
+    const displayName = first.name || first.email;
+    if (recipients.length > 1) {
+      return `${displayName} +${recipients.length - 1}`;
+    }
+    return displayName;
+  };
+
+  // Get display info based on folder
+  const displayPerson = isSentFolder
+    ? formatRecipients(email.toEmails)
+    : (email.fromName || email.fromEmail || 'Unknown');
+
+  const avatarPerson = isSentFolder
+    ? (email.toEmails?.[0]?.name || email.toEmails?.[0]?.email || 'unknown@example.com')
+    : (email.fromEmail || 'unknown@example.com');
+
+  const avatarColor = generateAvatarColor(avatarPerson);
   const [mounted, setMounted] = useState(false);
   const [fullEmail, setFullEmail] = useState<Email | null>(null);
   const [loadingFullEmail, setLoadingFullEmail] = useState(false);
@@ -893,7 +919,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
             className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium text-white flex-shrink-0"
             style={{ backgroundColor: avatarColor }}
           >
-            {getInitials(email.fromName || email.fromEmail || 'Unknown')}
+            {getInitials(avatarPerson)}
           </div>
 
           {/* Email Preview Content */}
@@ -901,7 +927,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
             <div className="flex items-start justify-between gap-2 mb-1.5">
               <div className="flex-1 min-w-0">
                 <p className={cn('text-sm', !email.isRead && 'font-semibold')}>
-                  {email.fromName || email.fromEmail || 'Unknown'}
+                  {isSentFolder ? `To: ${displayPerson}` : displayPerson}
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">

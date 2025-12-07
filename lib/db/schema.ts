@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, boolean, integer, bigint, jsonb, index, serial, decimal, unique } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, boolean, integer, bigint, jsonb, index, uniqueIndex, serial, decimal, unique } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // System Settings Table (for API keys and configuration)
@@ -347,6 +347,8 @@ export const attachments = pgTable('attachments', {
   fileExtensionIdx: index('attachments_file_extension_idx').on(table.fileExtension),
   documentTypeIdx: index('attachments_document_type_idx').on(table.documentType),
   emailDateIdx: index('attachments_email_date_idx').on(table.emailDate),
+  // Unique constraint to prevent duplicate attachments
+  uniqueEmailAttachment: uniqueIndex('attachments_email_attachment_unique').on(table.emailId, table.nylasAttachmentId),
 }));
 
 // Contacts
