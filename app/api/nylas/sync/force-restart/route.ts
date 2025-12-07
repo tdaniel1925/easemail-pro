@@ -12,13 +12,13 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { accountId } = await request.json();
+    const { accountId, fullResync } = await request.json();
 
     if (!accountId) {
       return NextResponse.json({ error: 'Account ID required' }, { status: 400 });
     }
 
-    console.log(`🔥 FORCE RESTART requested for account ${accountId}`);
+    console.log(`🔥 FORCE RESTART requested for account ${accountId} (fullResync: ${fullResync})`);
 
     // Get account details
     const account = await db.query.emailAccounts.findFirst({
@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     console.log(`📊 Continuation count: ${account.continuationCount}`);
 
     // Force reset to idle state (allows restart)
+    // If fullResync is true, also reset cursor to start from scratch
     await db.update(emailAccounts)
       .set({
         syncStatus: 'idle',
@@ -42,7 +43,15 @@ export async function POST(request: NextRequest) {
         syncStopped: false,
         retryCount: 0,
         lastRetryAt: null,
-        // Keep cursor, syncedEmailCount, and continuationCount to resume from where it left off
+        // For full resync: reset cursor, counts, and progress to start fresh
+        ...(fullResync ? {
+          syncCursor: null,
+          syncedEmailCount: 0,
+          totalEmailCount: 0,
+          syncProgress: 0,
+          continuationCount: 0,
+          initialSyncCompleted: false,
+        } : {}),
       })
       .where(eq(emailAccounts.id, accountId));
 

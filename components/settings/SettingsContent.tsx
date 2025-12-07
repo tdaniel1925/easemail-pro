@@ -198,9 +198,11 @@ export default function SettingsContent() {
 }
 
 function SyncStatusSettings() {
+  const { toast } = useToast();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [resyncingAccount, setResyncingAccount] = useState<string | null>(null);
 
   useEffect(() => {
     loadAccounts();
@@ -229,6 +231,44 @@ function SyncStatusSettings() {
   const handleManualRefresh = () => {
     setRefreshing(true);
     loadAccounts();
+  };
+
+  const handleForceResync = async (accountId: string) => {
+    setResyncingAccount(accountId);
+    try {
+      // Use fullResync: true to reset cursor and start from scratch
+      const response = await fetch('/api/nylas/sync/force-restart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, fullResync: true }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: 'Full Resync Started',
+          description: 'Sync has been restarted from scratch. All emails will be re-downloaded.',
+        });
+        // Refresh accounts to show new status
+        loadAccounts();
+      } else {
+        toast({
+          title: 'Resync Failed',
+          description: data.error || 'Failed to restart sync',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Force resync error:', error);
+      toast({
+        title: 'Resync Failed',
+        description: 'An error occurred while restarting sync',
+        variant: 'destructive',
+      });
+    } finally {
+      setResyncingAccount(null);
+    }
   };
 
   const formatNumber = (num: number) => {
@@ -490,6 +530,23 @@ function SyncStatusSettings() {
                             <span className="ml-2">{account.lastError}</span>
                           </div>
                         )}
+                      </div>
+
+                      {/* Force Resync Button */}
+                      <div className="pt-4 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleForceResync(account.id)}
+                          disabled={resyncingAccount === account.id || account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing'}
+                          className="w-full sm:w-auto"
+                        >
+                          <RefreshCw className={cn("h-4 w-4 mr-2", resyncingAccount === account.id && "animate-spin")} />
+                          {resyncingAccount === account.id ? 'Restarting Sync...' : 'Force Resync'}
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Use this to re-download all emails from the server if sync seems incomplete.
+                        </p>
                       </div>
 
                       {/* Status Messages */}

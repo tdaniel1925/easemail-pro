@@ -24,13 +24,22 @@ export async function GET() {
     // For each account, get actual email count from database
     const accountsWithRealCounts = await Promise.all(
       accounts.map(async (account) => {
-        // Count actual emails in database for this account
-        const [emailCountResult] = await db
-          .select({ count: count() })
-          .from(emails)
-          .where(eq(emails.accountId, account.id));
+        // Count ALL emails in database for this account (including archived, trashed, etc.)
+        // This should match the total that was synced
+        const emailCountResult = await db.execute(sql`
+          SELECT COUNT(*)::int as count FROM emails WHERE account_id = ${account.id}
+        `);
 
-        const actualEmailCount = emailCountResult?.count || 0;
+        // Extract count from result (handle both array and object with rows)
+        let actualEmailCount = 0;
+        if (Array.isArray(emailCountResult) && emailCountResult.length > 0) {
+          actualEmailCount = Number(emailCountResult[0].count) || 0;
+        } else if (emailCountResult?.rows && emailCountResult.rows.length > 0) {
+          actualEmailCount = Number(emailCountResult.rows[0].count) || 0;
+        }
+
+        // Debug: log the count for this account
+        console.log(`📊 Account ${account.emailAddress} (ID: ${account.id}): ${actualEmailCount} emails in DB, syncedEmailCount: ${account.syncedEmailCount}`);
 
         // Use the actual count if syncedEmailCount is 0 or missing
         const syncedEmailCount = account.syncedEmailCount || actualEmailCount;
