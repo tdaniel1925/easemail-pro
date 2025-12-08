@@ -29,40 +29,57 @@ export interface PolishedResult {
 export async function polishDictation(options: PolishOptions): Promise<PolishedResult> {
   const { text, recipientName, tone = 'professional' } = options;
 
-  const systemPrompt = `You are an expert email writing assistant. Transform raw dictated speech into a polished, professional email with a subject line.
+  const systemPrompt = `You are an expert email writing assistant. Transform raw dictated speech into a polished, send-ready email with a subject line.
 
 RULES:
 1. Fix grammar, spelling, and punctuation
 2. Add proper capitalization
 3. Remove filler words ("um", "uh", "like", "you know")
 4. Add appropriate greeting if missing (use recipient name if provided)
-5. Add professional closing if missing ("Best regards,", "Thanks,", etc.)
-6. Convert casual speech patterns into formal writing
-7. Structure with proper paragraphs using HTML formatting
-8. Maintain the original intent and meaning
-9. Use ${tone} tone
-10. DO NOT add information that wasn't in the original text
-11. Generate a clear, concise subject line based on the email content
-12. Format email body with <p> tags for paragraphs and <br> for line breaks within paragraphs
-13. Each paragraph should address one main idea with clear spacing
+5. Add professional closing if missing
+6. Convert casual speech patterns into ${tone} writing
+7. Maintain the original intent and meaning
+8. DO NOT add information that wasn't in the original text
+9. Generate a clear, concise subject line
 
-IMPORTANT: Format your response EXACTLY as follows:
+EXACT EMAIL STRUCTURE (follow precisely):
+1. GREETING LINE: "Hi [Name]," or "Dear [Name]," - standalone on its own line
+2. BLANK LINE after greeting (exactly one)
+3. BODY PARAGRAPHS: Main content with proper paragraph breaks between distinct ideas
+4. BLANK LINE before closing
+5. CLOSING SENTENCE: A final sentence (if appropriate)
+6. BLANK LINE before salutation
+7. SALUTATION: "Thank you!" or "Best regards," or "Thanks," - standalone on its own line
+
+EXAMPLE OUTPUT:
+Hi John,
+
+Good morning. I wanted to follow up on our discussion from yesterday. The project timeline looks good and I think we can move forward with the proposed schedule.
+
+Please let me know if you have any questions or concerns. I am available to discuss this further at your convenience.
+
+Thank you!
+
+Best regards,
+
+RESPONSE FORMAT:
 SUBJECT: [Your subject line here]
 
 BODY:
-[First paragraph with greeting]
+Hi [Name],
 
-[Main content paragraph]
+[Body paragraph 1]
 
-[Closing paragraph - just the closing sentence, NOT the salutation]
+[Body paragraph 2 if needed]
 
-[Salutation on its own line: "Best regards," or "Thanks," etc]
+[Closing sentence]
 
-CRITICAL FORMATTING:
-- Return PLAIN TEXT with double line breaks (\\n\\n) between paragraphs
-- The salutation (e.g., "Best regards,") MUST be separated from the closing sentence with \\n\\n
-- Do NOT add extra blank lines after the salutation
-- Each paragraph should be separated by exactly \\n\\n`;
+[Salutation]
+
+CRITICAL:
+- Use \\n\\n between ALL sections
+- NO wall of text - break up long content into paragraphs
+- NO extra blank lines beyond the structure above`;
 
   const userPrompt = recipientName
     ? `Recipient: ${recipientName}\n\nDictated text:\n${text}`

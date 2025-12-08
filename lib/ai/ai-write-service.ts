@@ -190,24 +190,37 @@ export class AIWriteService {
   private buildSystemPrompt(input: AIWriteInput): string {
     const { tone = 'professional', length = 'normal', formality = 'professional' } = input.preferences || {};
 
-    let systemPrompt = `You are an expert email writer. Generate professional, clear, and engaging emails.
+    let systemPrompt = `You are an expert email writer. Generate professional, send-ready emails.
 
 TONE: ${tone}
 LENGTH: ${length}
 FORMALITY: ${formality}
 
+EXACT EMAIL STRUCTURE (follow precisely):
+1. GREETING LINE: "Hi [Name]," or "Dear [Name]," - standalone on its own line
+2. BLANK LINE after greeting (exactly one)
+3. BODY PARAGRAPHS: Main content with proper paragraph breaks between distinct ideas
+4. BLANK LINE before closing
+5. CLOSING SENTENCE: A final sentence like "Let me know if you have questions." or "Looking forward to hearing from you."
+6. BLANK LINE before salutation
+7. SALUTATION: "Thank you!" or "Best regards," or "Thanks," - standalone on its own line
+
+EXAMPLE FORMAT:
+Hi Hunter and Elizabeth,
+
+Good evening. We have made significant progress on the app and will be ready for deployment once we receive the information for OpenPhone to complete the phone monitoring feature. Additionally, we have added a feature that may serve as an optional workflow for the Kanban Board. I would like to discuss this with you to gather your feedback. Are you available at 4 PM Central tomorrow afternoon?
+
+Thank you both!
+
+Best regards,
+[Name]
+
 RULES:
-1. Generate emails that sound natural and authentic
-2. Match the specified tone and formality level
-3. Keep the length appropriate (brief: 2-3 sentences, normal: 1-2 paragraphs, detailed: 3-4 paragraphs)
-4. Include a clear subject line
-5. Use proper email structure (greeting, body, closing with salutation)
-6. Be concise and to the point
-7. Proofread for grammar and spelling
-8. Format emails with clear paragraph breaks (use double line breaks between paragraphs)
-9. Each paragraph should address one main idea
-10. Use professional spacing for readability
-11. Salutation line (e.g., "Best regards,", "Thanks,") should be in its own paragraph at the end`;
+- Sound natural and authentic
+- Be concise and to the point
+- Each paragraph addresses one main idea
+- NO extra blank lines beyond the structure above
+- NO wall of text - break up long content into paragraphs`;
 
     // Add writing style profile if available
     if (input.writingStyle) {
@@ -215,18 +228,17 @@ RULES:
     }
 
     systemPrompt += `\n\nRESPONSE FORMAT:
-Return ONLY a JSON object with this structure:
+Return ONLY a JSON object:
 {
-  "subject": "Email subject line",
-  "body": "Greeting paragraph\\n\\nMain content paragraph\\n\\nClosing paragraph with salutation"
+  "subject": "Clear subject line",
+  "body": "Greeting,\\n\\nBody paragraph 1.\\n\\nBody paragraph 2 (if needed).\\n\\nClosing sentence.\\n\\nSalutation,"
 }
 
-CRITICAL FORMATTING RULES:
-- Use double line breaks (\\n\\n) between paragraphs - these will be converted to HTML <p> tags
-- Salutation line (e.g., "Best regards,") should be in its own final paragraph
-- Do NOT add extra blank lines after the salutation
-- Each paragraph addresses one idea
-- Do not include any text outside the JSON object`;
+CRITICAL:
+- Use \\n\\n between ALL sections (greeting, body paragraphs, closing, salutation)
+- The greeting ends with a comma (e.g., "Hi John,")
+- The salutation is its own line (e.g., "Best regards,")
+- Return ONLY the JSON, nothing else`;
 
     return systemPrompt;
   }

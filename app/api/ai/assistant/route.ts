@@ -423,26 +423,33 @@ async function generateEmail(openai: OpenAI, params: {
   message?: string;
   tone?: string;
 }): Promise<{ body: string; usage?: any }> {
-  const emailPrompt = `Write a ${params.tone || 'professional'} email with the following details:
+  const emailPrompt = `Write a ${params.tone || 'professional'} email that is SEND-READY.
 
 Recipient: ${params.recipient || 'recipient'}
 Subject: ${params.subject || 'No subject specified'}
 Message: ${params.message || 'General correspondence'}
 
-Instructions:
-- Write a complete, well-formatted email body (no subject line in body)
-- Use appropriate greeting and closing
+EXACT EMAIL STRUCTURE (follow precisely):
+1. GREETING LINE: "Hi [Name]," - standalone paragraph
+2. BODY: Main content in separate paragraphs (break up long content)
+3. CLOSING: Final sentence or "Thank you!"
+4. SALUTATION: "Best regards," - standalone paragraph
+
+CORRECT HTML FORMAT:
+<p>Hi ${params.recipient || '[Name]'},</p>
+<p>First paragraph of content here. Keep it focused on one idea.</p>
+<p>Second paragraph if needed. Each paragraph addresses one topic.</p>
+<p>Thank you for your time!</p>
+<p>Best regards,</p>
+
+RULES:
+- Each section is its own <p> tag (this creates proper spacing)
+- NO wall of text - break up content into logical paragraphs
 - Be clear, concise, and ${params.tone || 'professional'}
-- Use HTML formatting (paragraphs with <p> tags, line breaks with <br/>)
-- Do NOT include the subject line in the email body
-- Do NOT include "To:" or "From:" fields in the body
+- Do NOT include subject line, "To:", or "From:" in the body
+- The email should be ready to send immediately
 
-Example format:
-<p>Hi [Name],</p>
-<p>[Email content here...]</p>
-<p>Best regards,<br/>[Sender]</p>
-
-Write the email body now:`;
+Write the HTML email body now:`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',

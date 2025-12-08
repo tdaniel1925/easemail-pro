@@ -124,14 +124,14 @@ export class AIRemixService {
    * Build remix prompt
    */
   private buildRemixPrompt(options: RemixOptions): string {
-    let prompt = 'You are an expert email editor. Transform the provided email according to these specifications:\n\n';
+    let prompt = 'You are an expert email editor. Transform the provided email to be send-ready.\n\n';
 
     if (options.tone) {
       prompt += `TONE: Adjust to ${options.tone} tone\n`;
     }
 
     if (options.lengthAdjustment && options.lengthAdjustment !== 'same') {
-      const adjustment = options.lengthAdjustment === 'shorter' 
+      const adjustment = options.lengthAdjustment === 'shorter'
         ? 'Make 30-50% shorter while keeping key points'
         : 'Expand with more detail and context';
       prompt += `LENGTH: ${adjustment}\n`;
@@ -145,22 +145,34 @@ export class AIRemixService {
       prompt += `FIXES: ${options.fixes.join(', ')}\n`;
     }
 
-    prompt += `\nFORMATTING REQUIREMENTS:
-1. Use double line breaks (\\n\\n) to separate paragraphs - these will be converted to HTML <p> tags
-2. Each paragraph should address one main idea
-3. Use single line breaks (\\n) only for line breaks within a paragraph
-4. Salutation line (e.g., "Best regards,") should be in its own final paragraph
-5. Do NOT add extra blank paragraphs after the salutation
-6. Ensure professional spacing between sections
+    prompt += `
+EXACT EMAIL STRUCTURE (follow precisely):
+1. GREETING LINE: "Hi [Name]," or "Dear [Name]," - standalone on its own line
+2. BLANK LINE after greeting (exactly one)
+3. BODY PARAGRAPHS: Main content with proper paragraph breaks between distinct ideas
+4. BLANK LINE before closing
+5. CLOSING SENTENCE: A final sentence (if appropriate)
+6. BLANK LINE before salutation
+7. SALUTATION: "Thank you!" or "Best regards," or "Thanks," - standalone on its own line
 
-CONTENT RULES:
-1. Preserve the core message and intent
-2. Keep all important facts and figures
-3. Maintain the overall structure (greeting, body, closing with salutation)
-4. Return ONLY the transformed email text (plain text, not HTML)
-5. Do not add commentary or explanations
+EXAMPLE OUTPUT:
+Hi John,
 
-Return the transformed email with professional formatting:`;
+We have reviewed your proposal and are pleased to move forward with the project. The timeline you suggested works well for our team.
+
+Please send over the contract documents when you have a chance. We can schedule a kickoff call for next week.
+
+Looking forward to working together!
+
+Best regards,
+[Name]
+
+RULES:
+- Preserve the core message and all important facts
+- Use \\n\\n between ALL sections (greeting, body paragraphs, closing, salutation)
+- NO wall of text - break up long content into paragraphs
+- NO extra blank lines beyond the structure above
+- Return ONLY the transformed email text (plain text, not HTML)`;
 
     return prompt;
   }
