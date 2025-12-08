@@ -1,19 +1,19 @@
 /**
- * AI Remix Panel Component - PROFESSIONAL REDESIGN
- * 
+ * AI Remix Panel Component
+ *
  * Transform existing email drafts with AI
- * Supports: tone, length, style, fixes, and variations
+ * Supports: tone and length adjustment
+ * Automatically applies grammar, clarity, conciseness, and flow fixes
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Wand2, Loader2, Check, X, ChevronDown } from 'lucide-react';
+import { Wand2, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import type { ToneType } from '@/lib/ai/ai-write-types';
-import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 
 interface AIRemixPanelProps {
@@ -24,7 +24,6 @@ interface AIRemixPanelProps {
 }
 
 type LengthAdjustment = 'shorter' | 'same' | 'longer';
-type StyleType = 'bullets' | 'paragraph' | 'executive' | 'same';
 
 export function AIRemixPanel({
   isOpen,
@@ -34,15 +33,11 @@ export function AIRemixPanel({
 }: AIRemixPanelProps) {
   const [tone, setTone] = useState<ToneType>('professional');
   const [length, setLength] = useState<LengthAdjustment>('same');
-  const [style, setStyle] = useState<StyleType>('same');
-  const [fixes, setFixes] = useState<string[]>([]);
   const [isRemixing, setIsRemixing] = useState(false);
-  const [variations, setVariations] = useState<Array<{ body: string; changes: string[] }>>([]);
-  const [selectedVariation, setSelectedVariation] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null); // ✅ Store user ID
+  const [userId, setUserId] = useState<string | null>(null);
 
-  // ✅ Get authenticated user ID
+  // Get authenticated user ID
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
@@ -52,19 +47,11 @@ export function AIRemixPanel({
     });
   }, []);
 
-  const toggleFix = (fix: string) => {
-    setFixes(prev =>
-      prev.includes(fix) ? prev.filter(f => f !== fix) : [...prev, fix]
-    );
-  };
-
-  const handleRemix = async (generateVariations: boolean = false) => {
+  const handleRemix = async () => {
     setIsRemixing(true);
     setError(null);
-    setVariations([]);
-    setSelectedVariation(null);
 
-    // ✅ Check authentication
+    // Check authentication
     if (!userId) {
       setError('Please log in to use AI Remix');
       setIsRemixing(false);
@@ -76,16 +63,16 @@ export function AIRemixPanel({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId, // ✅ Add authentication header
+          'x-user-id': userId,
         },
         body: JSON.stringify({
           content: currentContent,
           options: {
             tone,
             lengthAdjustment: length,
-            style,
-            fixes: fixes.length > 0 ? fixes : undefined,
-            variationCount: generateVariations ? 3 : 1,
+            style: 'paragraph', // Always use paragraphs
+            fixes: ['grammar', 'clarity', 'conciseness', 'flow'], // Always apply all fixes
+            variationCount: 1,
           },
         }),
       });
@@ -96,14 +83,8 @@ export function AIRemixPanel({
       }
 
       const data = await response.json();
-
-      if (data.variations) {
-        setVariations(data.variations);
-        setSelectedVariation(0);
-      } else {
-        onApply(data.email.body);
-        onClose();
-      }
+      onApply(data.email.body);
+      onClose();
     } catch (error: any) {
       console.error('Remix error:', error);
       setError(error.message || 'Failed to remix email');
@@ -111,36 +92,6 @@ export function AIRemixPanel({
       setIsRemixing(false);
     }
   };
-
-  const applyVariation = () => {
-    if (selectedVariation !== null && variations[selectedVariation]) {
-      onApply(variations[selectedVariation].body);
-      onClose();
-    }
-  };
-
-  if (variations.length > 0) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto p-0 [&>button]:hidden">
-          <VisuallyHidden>
-            <DialogTitle>AI Remix - Select Variation</DialogTitle>
-            <DialogDescription>
-              Choose from 3 AI-generated variations of your email
-            </DialogDescription>
-          </VisuallyHidden>
-          <VariationSelector
-            variations={variations}
-            selectedIndex={selectedVariation || 0}
-            onSelect={setSelectedVariation}
-            onApply={applyVariation}
-            onBack={() => setVariations([])}
-            onClose={onClose}
-          />
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -219,84 +170,6 @@ export function AIRemixPanel({
             </div>
           </div>
 
-          {/* Quick Fixes */}
-          <div>
-            <label className="block text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">
-              Quick Fixes
-            </label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {[
-                { value: 'grammar', label: 'Grammar' },
-                { value: 'clarity', label: 'Clarity' },
-                { value: 'conciseness', label: 'Concise' },
-                { value: 'flow', label: 'Flow' },
-              ].map((fix) => (
-                <button
-                  key={fix.value}
-                  onClick={() => toggleFix(fix.value)}
-                  className={cn(
-                    'px-3 py-2 border rounded-md text-xs transition-all text-left',
-                    fixes.includes(fix.value)
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border hover:border-primary/50 bg-card'
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={cn(
-                        'w-3.5 h-3.5 border rounded flex items-center justify-center',
-                        fixes.includes(fix.value)
-                          ? 'border-primary bg-primary'
-                          : 'border-muted-foreground/30'
-                      )}
-                    >
-                      {fixes.includes(fix.value) && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
-                    </div>
-                    {fix.label}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Style Transform */}
-          <div>
-            <label className="block text-xs font-semibold mb-2 text-muted-foreground uppercase tracking-wide">
-              Style
-            </label>
-            <div className="space-y-1.5">
-              {[
-                { value: 'same', label: 'Keep current' },
-                { value: 'bullets', label: 'Bullet points' },
-                { value: 'paragraph', label: 'Paragraphs' },
-                { value: 'executive', label: 'Executive summary' },
-              ].map((s) => (
-                <button
-                  key={s.value}
-                  onClick={() => setStyle(s.value as StyleType)}
-                  className={cn(
-                    'w-full px-3 py-2 border rounded-md text-xs transition-all text-left',
-                    style === s.value
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50 bg-card'
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={cn(
-                        'w-3 h-3 border rounded-full',
-                        style === s.value
-                          ? 'border-primary bg-primary'
-                          : 'border-muted-foreground/30'
-                      )}
-                    />
-                    {s.label}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Error Display */}
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-xs text-destructive">
@@ -309,120 +182,26 @@ export function AIRemixPanel({
             <Button variant="ghost" size="sm" onClick={onClose}>
               Cancel
             </Button>
-            <div className="flex gap-2">
-              <Button
-                onClick={() => handleRemix(true)}
-                disabled={isRemixing}
-                variant="outline"
-                size="sm"
-              >
-                3 Variations
-              </Button>
-              <Button
-                onClick={() => handleRemix(false)}
-                disabled={isRemixing}
-                size="sm"
-              >
-                {isRemixing ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                    Remixing
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="w-3.5 h-3.5 mr-1.5" />
-                    Apply
-                  </>
-                )}
-              </Button>
-            </div>
+            <Button
+              onClick={handleRemix}
+              disabled={isRemixing}
+              size="sm"
+            >
+              {isRemixing ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  Remixing
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-3.5 h-3.5 mr-1.5" />
+                  Apply
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/**
- * Variation Selector Component
- */
-function VariationSelector({
-  variations,
-  selectedIndex,
-  onSelect,
-  onApply,
-  onBack,
-  onClose,
-}: {
-  variations: Array<{ body: string; changes: string[] }>;
-  selectedIndex: number;
-  onSelect: (index: number) => void;
-  onApply: () => void;
-  onBack: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <>
-      <div className="bg-card border-b border-border p-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Choose Version</h2>
-          <Button
-            onClick={onClose}
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="p-4 space-y-3">
-        {variations.map((variation, index) => (
-          <button
-            key={index}
-            onClick={() => onSelect(index)}
-            className={cn(
-              'w-full p-3 border rounded-md text-left transition-all',
-              selectedIndex === index
-                ? 'border-primary bg-primary/10'
-                : 'border-border hover:border-primary/50 bg-card'
-            )}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <div className="text-sm font-semibold">
-                Version {index + 1}
-                {index === 1 && (
-                  <span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
-                    Recommended
-                  </span>
-                )}
-              </div>
-              {selectedIndex === index && <Check className="w-4 h-4 text-primary" />}
-            </div>
-            <div className="text-xs text-muted-foreground mb-2 line-clamp-3">
-              {variation.body}
-            </div>
-            {variation.changes.length > 0 && (
-              <div className="text-xs text-muted-foreground">
-                Changes: {variation.changes.join(', ')}
-              </div>
-            )}
-          </button>
-        ))}
-
-        <div className="flex justify-between pt-3 border-t border-border">
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            ← Back
-          </Button>
-          <Button
-            onClick={onApply}
-            size="sm"
-          >
-            Use Version {selectedIndex + 1}
-          </Button>
-        </div>
-      </div>
-    </>
   );
 }
