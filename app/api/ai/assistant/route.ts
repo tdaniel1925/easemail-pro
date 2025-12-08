@@ -429,33 +429,25 @@ Recipient: ${params.recipient || 'recipient'}
 Subject: ${params.subject || 'No subject specified'}
 Message: ${params.message || 'General correspondence'}
 
-EXACT EMAIL STRUCTURE (follow precisely):
-1. GREETING LINE: "Hi [Name]," - standalone paragraph
-2. BLANK LINE (empty paragraph with <br>)
-3. BODY: Main content in separate paragraphs (break up long content)
-4. BLANK LINE (empty paragraph with <br>)
-5. CLOSING: Final sentence like "Thank you!" or "Looking forward to hearing from you."
-6. BLANK LINE (empty paragraph with <br>)
-7. SALUTATION: "Best regards," - standalone paragraph
+EMAIL STRUCTURE:
+1. Greeting: "Hi [Name],"
+2. Body paragraphs (break up long content into separate paragraphs)
+3. Closing sentence
+4. Salutation: "Best regards,"
 
-CORRECT HTML FORMAT (note the <p><br></p> for blank lines):
+HTML FORMAT - wrap each section in <p> tags, NO blank lines between paragraphs:
 <p>Hi ${params.recipient || '[Name]'},</p>
-<p><br></p>
-<p>First paragraph of content here. Keep it focused on one idea.</p>
-<p><br></p>
-<p>Second paragraph if needed. Each paragraph addresses one topic.</p>
-<p><br></p>
+<p>First paragraph of content here.</p>
+<p>Second paragraph if needed.</p>
 <p>Thank you for your time!</p>
-<p><br></p>
 <p>Best regards,</p>
 
 RULES:
-- Use <p><br></p> to create VISIBLE blank lines between sections
-- Each content section is its own <p> tag
+- Each section is its own <p> tag
+- NO <p><br></p> or empty paragraphs - just consecutive <p> tags
 - NO wall of text - break up content into logical paragraphs
 - Be clear, concise, and ${params.tone || 'professional'}
 - Do NOT include subject line, "To:", or "From:" in the body
-- The email should be ready to send immediately
 
 Write the HTML email body now:`;
 

@@ -203,26 +203,17 @@ export function RichTextEditor({
 
   return (
     <div className={cn('border border-border rounded-lg', className)}>
-      {/* Custom CSS for email formatting with proper blank line spacing */}
+      {/* Custom CSS for email formatting - paragraphs have natural spacing */}
       <style jsx global>{`
         .ProseMirror p {
           line-height: 1.5 !important;
-          margin-bottom: 0 !important;
+          margin-bottom: 0.5em !important;
           margin-top: 0 !important;
           min-height: 1.5em !important;
         }
-        /* Empty paragraphs (blank lines) should take up a full line height */
-        /* This creates visible blank lines between email sections */
-        .ProseMirror p:empty,
-        .ProseMirror p:has(> br:only-child) {
-          min-height: 1.5em !important;
-          height: 1.5em !important;
-        }
-        /* Fallback for browsers that don't support :has() */
-        .ProseMirror p > br:only-child {
-          display: block !important;
-          content: "" !important;
-          min-height: 1.5em !important;
+        /* Last paragraph doesn't need bottom margin */
+        .ProseMirror p:last-child {
+          margin-bottom: 0 !important;
         }
       `}</style>
       {/* Toolbar */}

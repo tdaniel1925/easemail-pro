@@ -121,14 +121,8 @@ CRITICAL:
 
 /**
  * Format plain text email to HTML with proper paragraph spacing
- * Uses <p><br></p> between sections to create visible blank lines in TipTap editor
- *
- * Email structure:
- * 1. Greeting (e.g., "Hi John,")
- * 2. BLANK LINE
- * 3. Body paragraphs
- * 4. BLANK LINE
- * 5. Salutation (e.g., "Best regards,")
+ * NO blank lines between paragraphs - just wrap each paragraph in <p> tags
+ * TipTap naturally spaces paragraphs with line-height
  */
 function formatEmailBody(body: string): string {
   // If already has HTML tags, return as-is
@@ -149,20 +143,14 @@ function formatEmailBody(body: string): string {
     return `<p>${lines.join('<br>')}</p>`;
   }
 
-  // Build HTML with proper blank lines between sections
-  // Each double newline in the source text becomes a <p><br></p> (empty paragraph)
-  // This creates visible blank lines in TipTap editor
+  // Build HTML - just wrap each paragraph, NO extra blank lines
+  // TipTap's paragraph spacing handles the visual separation
   const result: string[] = [];
 
   for (let i = 0; i < paragraphs.length; i++) {
     const p = paragraphs[i];
     const pWithBreaks = p.replace(/\n/g, '<br>');
     result.push(`<p>${pWithBreaks}</p>`);
-
-    // Add blank line after each paragraph except the last
-    if (i < paragraphs.length - 1) {
-      result.push('<p><br></p>');
-    }
   }
 
   return result.join('');
