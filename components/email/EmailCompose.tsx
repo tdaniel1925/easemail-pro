@@ -158,6 +158,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const saveRetryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isAIUpdatingRef = useRef<boolean>(false); // Track AI updates to skip auto-save
   const isSavingRef = useRef<boolean>(false); // Track save operation to prevent send race
+  const isClosingRef = useRef<boolean>(false); // Track when close dialog is showing to prevent double trigger
 
   // Text formatting state - REMOVED (they don't actually work)
   const [isHtmlMode, setIsHtmlMode] = useState(true); // HTML vs Plain text mode
@@ -999,13 +1000,20 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
   // Handle close with auto-save
   const handleClose = async () => {
+    // Prevent double trigger of close dialog
+    if (isClosingRef.current) {
+      return;
+    }
+
     if (isDirty && selectedAccountId) {
+      isClosingRef.current = true;
       const confirmed = await confirm({
         title: 'Discard Draft?',
         message: 'Do you want to save this draft or discard it?',
         confirmText: 'Save Draft',
         cancelText: 'Discard',
       });
+      isClosingRef.current = false;
 
       if (confirmed) {
         // Save draft before closing
@@ -1020,7 +1028,13 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
   // Handle backdrop click with confirmation
   const handleBackdropClick = async () => {
+    // Prevent double trigger of close dialog
+    if (isClosingRef.current) {
+      return;
+    }
+
     if (isDirty) {
+      isClosingRef.current = true;
       const confirmed = await confirm({
         title: 'Unsaved Changes',
         message: 'You have unsaved changes. Save draft before closing?',
@@ -1028,6 +1042,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         cancelText: 'Discard',
         variant: 'warning',
       });
+      isClosingRef.current = false;
 
       if (confirmed) {
         handleSaveDraft(false).then(() => {

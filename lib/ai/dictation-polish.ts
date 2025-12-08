@@ -121,8 +121,8 @@ CRITICAL:
 
 /**
  * Format plain text email to HTML with proper paragraph spacing
- * NO blank lines between paragraphs - just wrap each paragraph in <p> tags
- * TipTap naturally spaces paragraphs with line-height
+ * Each line becomes its own paragraph for proper email formatting
+ * TipTap's paragraph spacing handles the visual separation
  */
 function formatEmailBody(body: string): string {
   // If already has HTML tags, return as-is
@@ -130,27 +130,21 @@ function formatEmailBody(body: string): string {
     return body;
   }
 
-  // Split by double newlines (paragraphs)
-  const paragraphs = body
-    .split(/\n\n+/)
-    .map(p => p.trim())
-    .filter(p => p.length > 0);
+  // For emails: each line becomes its own paragraph
+  // This ensures proper visual separation between greeting, body, signature
+  const lines = body
+    .split(/\n/)
+    .map(line => line.trim());
 
-  // If no paragraphs found (single block of text), split by single newlines
-  if (paragraphs.length === 1) {
-    const lines = body.split(/\n/).filter(l => l.trim());
-    // Wrap entire block as one paragraph with line breaks
-    return `<p>${lines.join('<br>')}</p>`;
-  }
-
-  // Build HTML - just wrap each paragraph, NO extra blank lines
-  // TipTap's paragraph spacing handles the visual separation
   const result: string[] = [];
 
-  for (let i = 0; i < paragraphs.length; i++) {
-    const p = paragraphs[i];
-    const pWithBreaks = p.replace(/\n/g, '<br>');
-    result.push(`<p>${pWithBreaks}</p>`);
+  for (const line of lines) {
+    if (line.length > 0) {
+      result.push(`<p>${line}</p>`);
+    } else {
+      // Empty line = empty paragraph for spacing
+      result.push('<p></p>');
+    }
   }
 
   return result.join('');

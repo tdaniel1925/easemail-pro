@@ -47,11 +47,17 @@ export function ConfirmDialog({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 animate-in fade-in duration-200"
-        onClick={onClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
       />
-      
+
       {/* Dialog */}
-      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 animate-in zoom-in-95 duration-200">
+      <div
+        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="bg-background border border-border rounded-lg shadow-2xl w-[90vw] max-w-md">
           {/* Header */}
           <div className="flex items-start gap-3 p-6 pb-4">
@@ -82,13 +88,19 @@ export function ConfirmDialog({
           <div className="flex items-center justify-end gap-3 px-6 py-4 bg-muted/30 rounded-b-lg">
             <Button
               variant="outline"
-              onClick={onClose}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
             >
               {cancelText}
             </Button>
             <Button
               variant={variant === 'danger' ? 'destructive' : 'default'}
-              onClick={handleConfirm}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleConfirm();
+              }}
             >
               {confirmText}
             </Button>

@@ -193,6 +193,7 @@ export async function GET(request: NextRequest) {
             // body excluded from list view for performance - fetch via /messages/[id]
             folders: Array.isArray(msg.folders) ? msg.folders : [folderName],
             attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
+            hasAttachments: Array.isArray(msg.attachments) && msg.attachments.length > 0,
           };
         }),
         nextCursor: nextOffset !== null ? String(nextOffset) : null,

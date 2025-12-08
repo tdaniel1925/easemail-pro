@@ -203,11 +203,11 @@ export function RichTextEditor({
 
   return (
     <div className={cn('border border-border rounded-lg', className)}>
-      {/* Custom CSS for email formatting - paragraphs have natural spacing */}
+      {/* Custom CSS for email formatting - paragraphs have clear visual separation */}
       <style jsx global>{`
         .ProseMirror p {
           line-height: 1.5 !important;
-          margin-bottom: 0.5em !important;
+          margin-bottom: 1em !important;
           margin-top: 0 !important;
           min-height: 1.5em !important;
         }
