@@ -179,6 +179,14 @@ RULES:
 
   /**
    * Format email body with proper HTML paragraphs
+   * Uses <p><br></p> between sections to create visible blank lines in TipTap editor
+   *
+   * Email structure:
+   * 1. Greeting (e.g., "Hi John,")
+   * 2. BLANK LINE
+   * 3. Body paragraphs
+   * 4. BLANK LINE
+   * 5. Salutation (e.g., "Best regards,")
    */
   private formatEmailBody(text: string): string {
     if (!text || text.trim().length === 0) {
@@ -196,16 +204,23 @@ RULES:
       .map(p => p.trim())
       .filter(p => p.length > 0);
 
-    // Wrap each paragraph in <p> tags
-    // CSS margin-bottom on <p> tags will provide spacing
-    const formatted = paragraphs
-      .map(p => {
-        const withBreaks = p.replace(/\n/g, '<br>');
-        return `<p>${withBreaks}</p>`;
-      })
-      .join('');
+    // Build HTML with proper blank lines between sections
+    // Each double newline in the source text becomes a <p><br></p> (empty paragraph)
+    // This creates visible blank lines in TipTap editor
+    const result: string[] = [];
 
-    return formatted;
+    for (let i = 0; i < paragraphs.length; i++) {
+      const p = paragraphs[i];
+      const pWithBreaks = p.replace(/\n/g, '<br>');
+      result.push(`<p>${pWithBreaks}</p>`);
+
+      // Add blank line after each paragraph except the last
+      if (i < paragraphs.length - 1) {
+        result.push('<p><br></p>');
+      }
+    }
+
+    return result.join('');
   }
 
   /**

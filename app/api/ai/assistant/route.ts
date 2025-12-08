@@ -431,19 +431,27 @@ Message: ${params.message || 'General correspondence'}
 
 EXACT EMAIL STRUCTURE (follow precisely):
 1. GREETING LINE: "Hi [Name]," - standalone paragraph
-2. BODY: Main content in separate paragraphs (break up long content)
-3. CLOSING: Final sentence or "Thank you!"
-4. SALUTATION: "Best regards," - standalone paragraph
+2. BLANK LINE (empty paragraph with <br>)
+3. BODY: Main content in separate paragraphs (break up long content)
+4. BLANK LINE (empty paragraph with <br>)
+5. CLOSING: Final sentence like "Thank you!" or "Looking forward to hearing from you."
+6. BLANK LINE (empty paragraph with <br>)
+7. SALUTATION: "Best regards," - standalone paragraph
 
-CORRECT HTML FORMAT:
+CORRECT HTML FORMAT (note the <p><br></p> for blank lines):
 <p>Hi ${params.recipient || '[Name]'},</p>
+<p><br></p>
 <p>First paragraph of content here. Keep it focused on one idea.</p>
+<p><br></p>
 <p>Second paragraph if needed. Each paragraph addresses one topic.</p>
+<p><br></p>
 <p>Thank you for your time!</p>
+<p><br></p>
 <p>Best regards,</p>
 
 RULES:
-- Each section is its own <p> tag (this creates proper spacing)
+- Use <p><br></p> to create VISIBLE blank lines between sections
+- Each content section is its own <p> tag
 - NO wall of text - break up content into logical paragraphs
 - Be clear, concise, and ${params.tone || 'professional'}
 - Do NOT include subject line, "To:", or "From:" in the body
