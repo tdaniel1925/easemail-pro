@@ -203,25 +203,26 @@ export function RichTextEditor({
 
   return (
     <div className={cn('border border-border rounded-lg', className)}>
-      {/* Custom CSS to preserve signature formatting and reduce paragraph spacing */}
+      {/* Custom CSS for email formatting with proper blank line spacing */}
       <style jsx global>{`
         .ProseMirror p {
-          line-height: 1.4 !important;
-          margin-bottom: 0.25em !important;
-          margin-top: 0 !important;
-        }
-        /* Remove bottom margin from the last paragraph to prevent extra space */
-        .ProseMirror p:last-child {
+          line-height: 1.5 !important;
           margin-bottom: 0 !important;
+          margin-top: 0 !important;
+          min-height: 1.5em !important;
         }
-        /* Reduce spacing for empty paragraphs (blank lines) */
+        /* Empty paragraphs (blank lines) should take up a full line height */
+        /* This creates visible blank lines between email sections */
         .ProseMirror p:empty,
-        .ProseMirror p > br:only-child {
-          margin-bottom: 0.5em !important;
+        .ProseMirror p:has(> br:only-child) {
+          min-height: 1.5em !important;
+          height: 1.5em !important;
         }
-        .ProseMirror br {
-          content: "";
-          display: block;
+        /* Fallback for browsers that don't support :has() */
+        .ProseMirror p > br:only-child {
+          display: block !important;
+          content: "" !important;
+          min-height: 1.5em !important;
         }
       `}</style>
       {/* Toolbar */}
