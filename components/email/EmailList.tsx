@@ -1024,7 +1024,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
                   </Button>
                 </div>
 
-                {(email.attachments?.length > 0 || email.hasAttachments) && (
+                {((email.attachments && email.attachments.length > 0) || email.hasAttachments) && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
                     <Paperclip className="h-3.5 w-3.5" />
                     <span>{email.attachments?.length || 1} attachment{(email.attachments?.length || 1) > 1 ? 's' : ''}</span>
@@ -1182,7 +1182,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
                 )}
 
                 {/* Attachments (V2 only - V3 handles its own attachments) */}
-                {!useEmailRendererV3 && (email.attachments?.length > 0 || email.hasAttachments) && (
+                {!useEmailRendererV3 && ((email.attachments && email.attachments.length > 0) || email.hasAttachments) && (
                   <div className="mt-5 pt-5 border-t border-border">
                     <h4 className="text-sm font-medium mb-3">
                       Attachments ({email.attachments?.length || 0})
