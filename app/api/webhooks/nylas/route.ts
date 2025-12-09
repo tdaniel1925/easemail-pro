@@ -261,14 +261,30 @@ async function handleMessageCreated(message: any) {
     const rawFolder = folders[0] || 'inbox';
     const normalizedFolder = normalizeFolderToCanonical(rawFolder);
 
-    // Skip if this is a sent message coming from webhook (we already saved it when sending)
-    const isSentFolder = normalizedFolder === 'sent';
-    if (isSentFolder && message.from?.[0]?.email === account.emailAddress) {
-      console.log(`⏭️ Skipping sent message ${message.id} from webhook (already saved when sending)`);
-      return;
+    // ✅ FIX: Check if this email is FROM the account owner (sent email)
+    const isFromAccountOwner = message.from?.[0]?.email?.toLowerCase() === account.emailAddress?.toLowerCase();
+
+    // Override folder to 'sent' if email is from account owner (regardless of provider folder)
+    // This handles emails sent from external clients that may arrive in inbox
+    let finalFolder = normalizedFolder;
+    if (isFromAccountOwner && normalizedFolder !== 'sent' && normalizedFolder !== 'drafts') {
+      console.log(`📤 Webhook: Overriding folder "${normalizedFolder}" → "sent" for email from account owner`);
+      finalFolder = 'sent';
     }
 
-    // Insert message into database with sanitized text and normalized folder
+    // Skip if this is a sent message that we already saved when sending from EaseMail
+    if (finalFolder === 'sent' && isFromAccountOwner) {
+      // Check if this message already exists (sent via EaseMail)
+      const existingMessage = await db.query.emails.findFirst({
+        where: eq(emails.providerMessageId, message.id),
+      });
+      if (existingMessage) {
+        console.log(`⏭️ Skipping sent message ${message.id} from webhook (already exists)`);
+        return;
+      }
+    }
+
+    // Insert message into database with sanitized text and correct folder
     await db.insert(emails).values({
       accountId: account.id,
       provider: 'nylas',
@@ -283,20 +299,20 @@ async function handleMessageCreated(message: any) {
       hasAttachments: message.attachments?.length > 0,
       isRead: message.unread === false,
       isStarred: message.starred === true,
-      folder: normalizedFolder, // ✅ Use normalized folder (sent, inbox, drafts, etc.)
+      folder: finalFolder, // ✅ Use corrected folder (sent for emails from account owner)
       folders: folders, // Keep original provider folders for reference
       receivedAt: new Date(message.date * 1000),
       providerData: message,
     }).onConflictDoNothing();
 
-    console.log(`✅ Created message ${message.id} for account ${account.id} in folder ${normalizedFolder} (raw: ${rawFolder})`);
+    console.log(`✅ Created message ${message.id} for account ${account.id} in folder ${finalFolder} (raw: ${rawFolder})`);
 
     // ✅ NEW: Broadcast real-time update via SSE
     const sseEvent: EmailSyncEvent = {
       type: 'message.created',
       accountId: account.id,
       messageId: message.id,
-      folder: normalizedFolder,
+      folder: finalFolder,
       timestamp: Date.now(),
       data: {
         subject: sanitizeText(message.subject),
