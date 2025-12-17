@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, User, LogOut, ChevronUp, Shield, Users, Zap, Mail } from 'lucide-react';
+import { Settings, User, LogOut, ChevronUp, Shield, Users, Zap, Mail, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 
@@ -89,6 +89,15 @@ export default function SettingsMenuNew({ onLogout, onNavigate }: SettingsMenuNe
             >
               <Zap className="h-3 w-3 text-muted-foreground" />
               <span>Rules</span>
+            </button>
+
+            {/* Microsoft Teams */}
+            <button
+              onClick={() => handleMenuClick('/teams')}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-accent transition-colors text-left"
+            >
+              <MessageSquare className="h-3 w-3 text-[#6264A7]" />
+              <span>Teams Chat</span>
             </button>
 
             {/* Team - Show for org users */}

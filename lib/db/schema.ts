@@ -2335,6 +2335,243 @@ export const mutedConversations = pgTable('muted_conversations', {
 }));
 
 
+// ============================================
+// MICROSOFT TEAMS INTEGRATION TABLES
+// ============================================
+
+// Teams Accounts (separate from email accounts for direct MS Graph auth)
+export const teamsAccounts = pgTable('teams_accounts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+
+  // Microsoft identity
+  microsoftUserId: varchar('microsoft_user_id', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  displayName: varchar('display_name', { length: 255 }),
+  tenantId: varchar('tenant_id', { length: 255 }),
+
+  // OAuth tokens (encrypted)
+  accessToken: text('access_token').notNull(),
+  refreshToken: text('refresh_token'),
+  tokenExpiresAt: timestamp('token_expires_at'),
+  scopes: jsonb('scopes').$type<string[]>(),
+
+  // Sync status
+  syncStatus: varchar('sync_status', { length: 50 }).default('idle'), // 'idle', 'syncing', 'error'
+  lastSyncAt: timestamp('last_sync_at'),
+  lastError: text('last_error'),
+
+  // Settings
+  isActive: boolean('is_active').default(true),
+  autoSync: boolean('auto_sync').default(true),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('idx_teams_accounts_user').on(table.userId),
+  msUserIdx: index('idx_teams_accounts_ms_user').on(table.microsoftUserId),
+  uniqueMsUser: unique('teams_accounts_ms_user_unique').on(table.userId, table.microsoftUserId),
+}));
+
+// Teams Chats (1:1, group chats, and meeting chats)
+export const teamsChats = pgTable('teams_chats', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  teamsAccountId: uuid('teams_account_id').references(() => teamsAccounts.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+
+  // Teams identifiers
+  teamsChatId: varchar('teams_chat_id', { length: 255 }).notNull(),
+  chatType: varchar('chat_type', { length: 50 }).notNull(), // 'oneOnOne', 'group', 'meeting'
+
+  // Chat metadata
+  topic: text('topic'), // Group chat topic/name
+  webUrl: text('web_url'), // Direct link to chat in Teams
+
+  // Participants (for display)
+  participants: jsonb('participants').$type<Array<{
+    id: string;
+    displayName: string;
+    email?: string;
+    avatarUrl?: string;
+  }>>(),
+
+  // For 1:1 chats, store the other person directly
+  otherParticipantName: varchar('other_participant_name', { length: 255 }),
+  otherParticipantEmail: varchar('other_participant_email', { length: 255 }),
+
+  // Message tracking
+  lastMessageId: varchar('last_message_id', { length: 255 }),
+  lastMessageAt: timestamp('last_message_at'),
+  lastMessagePreview: text('last_message_preview'),
+  lastMessageSenderId: varchar('last_message_sender_id', { length: 255 }),
+  lastMessageSenderName: varchar('last_message_sender_name', { length: 255 }),
+
+  // Read status
+  unreadCount: integer('unread_count').default(0),
+  lastReadAt: timestamp('last_read_at'),
+
+  // Sync tracking
+  syncCursor: text('sync_cursor'), // For delta sync
+  lastSyncedAt: timestamp('last_synced_at'),
+
+  // Status
+  isArchived: boolean('is_archived').default(false),
+  isPinned: boolean('is_pinned').default(false),
+  isMuted: boolean('is_muted').default(false),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index('idx_teams_chats_account').on(table.teamsAccountId),
+  userIdx: index('idx_teams_chats_user').on(table.userId),
+  teamsChatIdx: index('idx_teams_chats_teams_id').on(table.teamsChatId),
+  lastMessageIdx: index('idx_teams_chats_last_message').on(table.lastMessageAt),
+  uniqueChat: unique('teams_chats_unique').on(table.teamsAccountId, table.teamsChatId),
+}));
+
+// Teams Messages
+export const teamsMessages = pgTable('teams_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  chatId: uuid('chat_id').references(() => teamsChats.id, { onDelete: 'cascade' }).notNull(),
+  teamsAccountId: uuid('teams_account_id').references(() => teamsAccounts.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+
+  // Teams identifiers
+  teamsMessageId: varchar('teams_message_id', { length: 255 }).notNull(),
+  replyToMessageId: varchar('reply_to_message_id', { length: 255 }), // For threaded replies
+
+  // Sender info
+  senderId: varchar('sender_id', { length: 255 }).notNull(),
+  senderName: varchar('sender_name', { length: 255 }),
+  senderEmail: varchar('sender_email', { length: 255 }),
+
+  // Message content
+  body: text('body'),
+  bodyType: varchar('body_type', { length: 20 }).default('html'), // 'text', 'html'
+  subject: varchar('subject', { length: 500 }), // For channel messages
+  summary: text('summary'), // Preview text
+
+  // Message type
+  messageType: varchar('message_type', { length: 50 }).default('message'), // 'message', 'systemEventMessage', 'chatEvent'
+  importance: varchar('importance', { length: 20 }).default('normal'), // 'normal', 'high', 'urgent'
+
+  // Attachments
+  hasAttachments: boolean('has_attachments').default(false),
+  attachments: jsonb('attachments').$type<Array<{
+    id: string;
+    name: string;
+    contentType: string;
+    contentUrl?: string;
+    size?: number;
+  }>>(),
+
+  // Mentions
+  mentions: jsonb('mentions').$type<Array<{
+    id: number;
+    mentionText: string;
+    mentioned: {
+      user?: { id: string; displayName: string };
+    };
+  }>>(),
+
+  // Reactions
+  reactions: jsonb('reactions').$type<Array<{
+    reactionType: string;
+    user: { id: string; displayName: string };
+    createdAt: string;
+  }>>(),
+
+  // Read status
+  isRead: boolean('is_read').default(false),
+
+  // Status flags
+  isDeleted: boolean('is_deleted').default(false),
+  isEdited: boolean('is_edited').default(false),
+  deletedAt: timestamp('deleted_at'),
+  editedAt: timestamp('edited_at'),
+
+  // Timestamps from Teams
+  teamsCreatedAt: timestamp('teams_created_at'),
+  teamsModifiedAt: timestamp('teams_modified_at'),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  chatIdx: index('idx_teams_messages_chat').on(table.chatId),
+  accountIdx: index('idx_teams_messages_account').on(table.teamsAccountId),
+  userIdx: index('idx_teams_messages_user').on(table.userId),
+  teamsMessageIdx: index('idx_teams_messages_teams_id').on(table.teamsMessageId),
+  createdAtIdx: index('idx_teams_messages_created').on(table.teamsCreatedAt),
+  uniqueMessage: unique('teams_messages_unique').on(table.chatId, table.teamsMessageId),
+}));
+
+// Teams Sync State (track sync progress)
+export const teamsSyncState = pgTable('teams_sync_state', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  teamsAccountId: uuid('teams_account_id').references(() => teamsAccounts.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+
+  // Sync type
+  syncType: varchar('sync_type', { length: 50 }).notNull(), // 'chats', 'messages', 'full'
+
+  // Status
+  status: varchar('status', { length: 50 }).default('idle'), // 'idle', 'running', 'completed', 'error'
+  progress: integer('progress').default(0), // 0-100
+
+  // Delta sync tokens
+  deltaLink: text('delta_link'),
+  skipToken: text('skip_token'),
+
+  // Statistics
+  itemsSynced: integer('items_synced').default(0),
+  itemsCreated: integer('items_created').default(0),
+  itemsUpdated: integer('items_updated').default(0),
+  itemsDeleted: integer('items_deleted').default(0),
+
+  // Timing
+  startedAt: timestamp('started_at'),
+  completedAt: timestamp('completed_at'),
+  lastError: text('last_error'),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index('idx_teams_sync_account').on(table.teamsAccountId),
+  typeIdx: index('idx_teams_sync_type').on(table.syncType),
+}));
+
+// Teams Webhook Subscriptions (for real-time updates)
+export const teamsWebhookSubscriptions = pgTable('teams_webhook_subscriptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  teamsAccountId: uuid('teams_account_id').references(() => teamsAccounts.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+
+  // Subscription details
+  subscriptionId: varchar('subscription_id', { length: 255 }).notNull(),
+  resource: varchar('resource', { length: 500 }).notNull(), // e.g., '/me/chats/getAllMessages'
+  changeTypes: jsonb('change_types').$type<string[]>(), // ['created', 'updated', 'deleted']
+
+  // Status
+  status: varchar('status', { length: 50 }).default('active'), // 'active', 'expired', 'deleted'
+  expiresAt: timestamp('expires_at').notNull(),
+
+  // Client state for validation
+  clientState: varchar('client_state', { length: 255 }),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  accountIdx: index('idx_teams_webhook_account').on(table.teamsAccountId),
+  subscriptionIdx: index('idx_teams_webhook_subscription').on(table.subscriptionId),
+}));
+
+// Aliases for snake_case compatibility
+export const teams_accounts = teamsAccounts;
+export const teams_chats = teamsChats;
+export const teams_messages = teamsMessages;
+export const teams_sync_state = teamsSyncState;
+export const teams_webhook_subscriptions = teamsWebhookSubscriptions;
+
 // Aliases for snake_case compatibility
 export const sms_usage = smsUsage;
 export const ai_usage = aiUsage;
