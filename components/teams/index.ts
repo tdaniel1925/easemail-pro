@@ -6,3 +6,4 @@ export { TeamsCalendarView } from './TeamsCalendarView';
 export { TeamsChatSidebar } from './TeamsChatSidebar';
 export { TeamsConnectButton } from './TeamsConnectButton';
 export { TeamsMeetingModal } from './TeamsMeetingModal';
+export { TeamsHub } from './TeamsHub';
