@@ -9,7 +9,10 @@ import {
   markTeamsChatAsRead,
   deleteTeamsMessage,
   editTeamsMessage,
+  incrementalSyncChat,
 } from '@/lib/teams/teams-sync';
+
+export const dynamic = 'force-dynamic';
 
 // GET - Get messages for a chat
 export async function GET(
@@ -29,6 +32,7 @@ export async function GET(
     const limit = parseInt(searchParams.get('limit') || '50');
     const before = searchParams.get('before'); // Cursor for pagination
     const includeDeleted = searchParams.get('includeDeleted') === 'true';
+    const skipSync = searchParams.get('skipSync') === 'true';
 
     // Verify chat ownership
     const chat = await db
@@ -44,6 +48,19 @@ export async function GET(
 
     if (!chat.length) {
       return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
+    }
+
+    // Sync messages from Microsoft Graph before returning
+    // This ensures we have the latest messages
+    if (!skipSync) {
+      try {
+        console.log(`Syncing messages for chat ${chatId}...`);
+        const syncResult = await incrementalSyncChat(chat[0].teamsAccountId, chatId);
+        console.log(`Sync result: added=${syncResult.messagesAdded}, updated=${syncResult.messagesUpdated}`);
+      } catch (syncError) {
+        // Log but don't fail - still return cached messages
+        console.error('Error syncing messages:', syncError);
+      }
     }
 
     // Build query conditions
