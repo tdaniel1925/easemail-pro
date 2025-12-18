@@ -315,8 +315,15 @@ CRITICAL:
 
   /**
    * Format plain text email to HTML with proper paragraph spacing
-   * Each line becomes its own paragraph for proper email formatting
-   * TipTap's paragraph spacing handles the visual separation
+   *
+   * Structure:
+   * - Greeting (its own paragraph)
+   * - Blank line
+   * - Body paragraphs (separated by blank lines)
+   * - Blank line
+   * - Salutation (its own paragraph)
+   * - Blank line
+   * - Signature block (single-spaced using <br> tags)
    */
   private formatEmailBody(body: string): string {
     // If already has HTML tags, return as-is
@@ -324,21 +331,56 @@ CRITICAL:
       return body;
     }
 
-    // For emails: each line becomes its own paragraph
-    // This ensures proper visual separation between greeting, body, signature
-    const lines = body
-      .split(/\n/)
-      .map(line => line.trim());
-
+    const lines = body.split(/\n/);
     const result: string[] = [];
 
-    for (const line of lines) {
-      if (line.length > 0) {
-        result.push(`<p>${line}</p>`);
-      } else {
-        // Empty line = empty paragraph for spacing
-        result.push('<p></p>');
+    // Salutation patterns that indicate end of main content
+    const salutationPatterns = [
+      /^(thank you|thanks|best|regards|sincerely|cheers|warm regards|best regards|kind regards|best wishes|take care)/i,
+    ];
+
+    // Find the salutation line index
+    let salutationIndex = -1;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i].trim();
+      if (line && salutationPatterns.some(pattern => pattern.test(line))) {
+        salutationIndex = i;
+        break;
       }
+    }
+
+    // Process lines
+    let inSignatureBlock = false;
+    let signatureLines: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+
+      // Check if we've passed the salutation and hit the signature block
+      if (salutationIndex !== -1 && i > salutationIndex && line.length > 0) {
+        inSignatureBlock = true;
+      }
+
+      if (inSignatureBlock) {
+        // Collect signature lines
+        if (line.length > 0) {
+          signatureLines.push(line);
+        }
+      } else {
+        // Normal processing for greeting, body, salutation
+        if (line.length > 0) {
+          result.push(`<p>${line}</p>`);
+        } else {
+          // Empty line = blank paragraph for spacing
+          result.push('<p></p>');
+        }
+      }
+    }
+
+    // Add signature block as single paragraph with <br> tags (single-spaced)
+    if (signatureLines.length > 0) {
+      result.push('<p></p>'); // Blank line before signature
+      result.push(`<p>${signatureLines.join('<br>')}</p>`);
     }
 
     return result.join('');
