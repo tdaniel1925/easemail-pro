@@ -52,9 +52,9 @@ export function buildFolderTree(folders: any[]): FolderNode[] {
     }
   });
 
-  // Sort children alphabetically at each level
+  // Sort children alphabetically at each level (with null safety)
   const sortChildren = (nodes: FolderNode[]) => {
-    nodes.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    nodes.sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
     nodes.forEach(node => {
       if (node.children.length > 0) {
         sortChildren(node.children);
@@ -136,7 +136,8 @@ export function searchFolders(folders: any[], query: string): any[] {
  * 
  * Example: 'Projects/2024/Q1' -> folder object
  */
-export function getFolderByPath(folders: any[], path: string): any | null {
+export function getFolderByPath(folders: any[], path: string | null | undefined): any | null {
+  if (!path) return null;
   const parts = path.split('/').map(p => p.trim());
   
   let current: any[] = folders.filter(f => !f.parentFolderId);

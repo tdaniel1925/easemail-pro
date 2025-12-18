@@ -107,14 +107,16 @@ export function FolderSidebarV3({
       if (countsResponse.ok) {
         const countsData = await countsResponse.json();
         if (countsData.success && countsData.counts) {
-          // Create a map of folder name -> counts
+          // Create a map of folder name -> counts (with null safety)
           const countsMap = new Map<string, { totalCount: number; unreadCount: number }>(
-            countsData.counts.map((c: any) => [c.folder.toLowerCase(), { totalCount: c.totalCount, unreadCount: c.unreadCount }])
+            countsData.counts
+              .filter((c: any) => c.folder != null)
+              .map((c: any) => [(c.folder || '').toLowerCase(), { totalCount: c.totalCount || 0, unreadCount: c.unreadCount || 0 }])
           );
 
           // Recursive function to update counts in folder tree
           const updateFolderCounts = (folder: FolderItem): FolderItem => {
-            const folderCounts = countsMap.get(folder.name.toLowerCase());
+            const folderCounts = countsMap.get((folder.name || '').toLowerCase());
             const updatedFolder: FolderItem = {
               ...folder,
               totalCount: folderCounts?.totalCount ?? folder.totalCount,
@@ -142,7 +144,7 @@ export function FolderSidebarV3({
   };
 
   const getFolderIcon = (folder: FolderItem) => {
-    const name = folder.name.toLowerCase();
+    const name = (folder.name || '').toLowerCase();
     const attrs = folder.attributes || [];
 
     if (name.includes('inbox') || attrs.includes('\\Inbox')) return Mail;
