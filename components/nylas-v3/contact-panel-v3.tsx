@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Calendar as CalendarIcon, Mail, Phone, UserPlus, MessageSquare, FileText, Sun } from 'lucide-react';
+import { User, Calendar as CalendarIcon, Mail, Phone, UserPlus, MessageSquare, FileText, Sun, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getInitials, generateAvatarColor, cn } from '@/lib/utils';
 import { MiniCalendar } from '@/components/calendar/MiniCalendar';
@@ -16,6 +16,7 @@ import { SMSModal } from '@/components/sms/SMSModal';
 import { ContactNotes } from '@/components/contacts/ContactNotes';
 import { CommunicationTimeline } from '@/components/contacts/CommunicationTimeline';
 import QuickAddV4 from '@/components/calendar/QuickAddV4';
+import { TeamsMeetingModal } from '@/components/teams';
 
 interface EmailMessage {
   id: string;
@@ -42,6 +43,7 @@ interface ContactPanelV3Props {
 export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChange, onEventClick }: ContactPanelV3Props) {
   const [internalActiveTab, setInternalActiveTab] = useState<TabType>('agenda');
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isTeamsMeetingOpen, setIsTeamsMeetingOpen] = useState(false);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
 
   // Use external activeTab if provided, otherwise use internal
@@ -130,11 +132,25 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
             </div>
           )
         ) : (
-          <MiniCalendar
-            key={calendarRefreshKey}
-            onQuickAddClick={() => setIsQuickAddOpen(true)}
-            onEventClick={onEventClick}
-          />
+          <div className="flex flex-col h-full">
+            <MiniCalendar
+              key={calendarRefreshKey}
+              onQuickAddClick={() => setIsQuickAddOpen(true)}
+              onEventClick={onEventClick}
+            />
+            {/* Add Team Event Button */}
+            <div className="flex-shrink-0 p-2 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-[#6264A7] border-[#6264A7]/30 hover:bg-[#6264A7]/10"
+                onClick={() => setIsTeamsMeetingOpen(true)}
+              >
+                <Video className="h-3 w-3 mr-1.5" />
+                Add Teams Meeting
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -144,6 +160,16 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
         onClose={() => setIsQuickAddOpen(false)}
         onEventCreated={() => {
           // Refresh MiniCalendar by updating key
+          setCalendarRefreshKey(prev => prev + 1);
+        }}
+      />
+
+      {/* Teams Meeting Modal */}
+      <TeamsMeetingModal
+        isOpen={isTeamsMeetingOpen}
+        onClose={() => setIsTeamsMeetingOpen(false)}
+        onSuccess={() => {
+          // Refresh MiniCalendar after creating a Teams meeting
           setCalendarRefreshKey(prev => prev + 1);
         }}
       />
