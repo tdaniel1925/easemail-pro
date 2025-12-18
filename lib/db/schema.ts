@@ -2488,11 +2488,11 @@ export const teamsMessages = pgTable('teams_messages', {
   isDeleted: boolean('is_deleted').default(false),
   isEdited: boolean('is_edited').default(false),
   deletedAt: timestamp('deleted_at'),
-  editedAt: timestamp('edited_at'),
+  editedAt: timestamp('teams_last_edited_at'),
 
   // Timestamps from Teams
   teamsCreatedAt: timestamp('teams_created_at'),
-  teamsModifiedAt: timestamp('teams_modified_at'),
+  teamsModifiedAt: timestamp('teams_last_modified_at'),
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
