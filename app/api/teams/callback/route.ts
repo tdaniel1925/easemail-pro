@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     // Handle OAuth errors
     if (error) {
       console.error('Teams OAuth error:', error, errorDescription);
-      const returnUrl = state ? parseOAuthState(state).returnUrl || '/settings/integrations' : '/settings/integrations';
+      const returnUrl = state ? parseOAuthState(state).returnUrl || '/teams' : '/teams';
       return NextResponse.redirect(
         new URL(`${returnUrl}?error=${encodeURIComponent(errorDescription || error)}`, process.env.NEXT_PUBLIC_APP_URL!)
       );
@@ -30,13 +30,13 @@ export async function GET(request: Request) {
 
     if (!code || !state) {
       return NextResponse.redirect(
-        new URL('/settings/integrations?error=Missing+authorization+code', process.env.NEXT_PUBLIC_APP_URL!)
+        new URL('/teams?error=Missing+authorization+code', process.env.NEXT_PUBLIC_APP_URL!)
       );
     }
 
     // Parse state to get user ID
     const { userId, returnUrl } = parseOAuthState(state);
-    const redirectUrl = returnUrl || '/settings/integrations';
+    const redirectUrl = returnUrl || '/teams';
 
     // Exchange code for tokens
     console.log('🔄 Exchanging Teams auth code for tokens...');
@@ -109,7 +109,7 @@ export async function GET(request: Request) {
     console.error('Teams callback error:', error);
     return NextResponse.redirect(
       new URL(
-        `/settings/integrations?error=${encodeURIComponent(
+        `/teams?error=${encodeURIComponent(
           error instanceof Error ? error.message : 'Failed to connect Teams'
         )}`,
         process.env.NEXT_PUBLIC_APP_URL!
