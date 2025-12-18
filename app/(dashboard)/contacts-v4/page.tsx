@@ -9,7 +9,7 @@ export const metadata = {
 
 export default function ContactsV4Page() {
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-screen overflow-hidden">
       <Suspense fallback={<ContactListSkeleton />}>
         <ContactsV4List />
       </Suspense>

@@ -871,72 +871,71 @@ function CalendarContent() {
     <div className="flex h-screen bg-background">
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
+        {/* Header - Compact */}
         <div className="border-b border-border bg-card">
-          <div className="px-6 py-4">
+          <div className="px-4 py-2">
             <div className="flex items-center justify-between">
               {/* Left: Back to Inbox + Title & Navigation */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <a
                   href="/inbox"
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  <span>Back to Inbox</span>
+                  <span className="hidden sm:inline">Back</span>
                 </a>
 
-                <div className="h-6 w-px bg-border" />
+                <div className="h-5 w-px bg-border" />
 
-                <div className="flex items-center gap-3">
-                  <CalendarIconLucide className="h-6 w-6 text-primary" />
-                  <h1 className="text-2xl font-bold">Calendar</h1>
+                <div className="flex items-center gap-2">
+                  <CalendarIconLucide className="h-5 w-5 text-primary" />
+                  <h1 className="text-lg font-bold">Calendar</h1>
                 </div>
 
-                <div className="flex items-center gap-2 ml-4">
-                  <div className="flex items-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={previousMonth}
-                      className="h-8 w-8"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <div className="min-w-[140px] text-center">
-                      <span className="font-semibold">
-                        {format(currentMonth, 'MMMM yyyy')}
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={nextMonth}
-                      className="h-8 w-8"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+                <div className="flex items-center gap-1 ml-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={previousMonth}
+                    className="h-7 w-7"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="min-w-[120px] text-center">
+                    <span className="text-sm font-semibold">
+                      {format(currentMonth, 'MMMM yyyy')}
+                    </span>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={nextMonth}
+                    className="h-7 w-7"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
 
               {/* Right: Actions */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleSync(false)}
                   disabled={syncing}
+                  className="h-8"
                 >
-                  <RefreshCw className={cn("h-4 w-4 mr-2", syncing && "animate-spin")} />
-                  Sync
+                  <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
                 </Button>
 
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setIsQuickAddOpen(true)}
+                  className="h-8 hidden sm:flex"
                 >
-                  <Sparkles className="h-4 w-4 mr-2" />
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
                   Quick Add
                 </Button>
 
@@ -948,17 +947,18 @@ function CalendarContent() {
                     setSelectedDate(null);
                     setIsEventModalOpen(true);
                   }}
+                  className="h-8"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Event
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Add
                 </Button>
               </div>
             </div>
 
             {/* Second Row: Search & View Selector */}
-            <div className="flex items-center justify-between mt-4 gap-4">
+            <div className="flex items-center justify-between mt-2 gap-2">
               {/* Search */}
-              <div className="flex-1 max-w-md">
+              <div className="flex-1 max-w-sm">
                 <EventSearch
                   events={events}
                   onResultsChange={handleSearchResults}
@@ -966,7 +966,7 @@ function CalendarContent() {
               </div>
 
               {/* View Selector */}
-              <div className="flex gap-1 bg-muted p-1 rounded-lg">
+              <div className="flex gap-0.5 bg-muted p-0.5 rounded-md">
                 {(['month', 'week', 'day', 'year', 'agenda', 'list'] as ViewType[]).map((v) => (
                   <Button
                     key={v}
@@ -979,7 +979,7 @@ function CalendarContent() {
                         localStorage.setItem('calendar-default-view', v);
                       }
                     }}
-                    className="capitalize"
+                    className="capitalize h-7 px-2 text-xs"
                   >
                     {v}
                   </Button>
@@ -990,7 +990,7 @@ function CalendarContent() {
         </div>
 
         {/* Calendar Content */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-4">
           {loading && !initialLoadDone ? (
             <div className="flex flex-col items-center justify-center h-full gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />

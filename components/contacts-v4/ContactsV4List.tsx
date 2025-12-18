@@ -706,24 +706,11 @@ export default function ContactsV4List() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="p-6 border-b border-border bg-card">
-        {/* Back Button */}
-        <div className="mb-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push('/inbox')}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Inbox
-          </Button>
-        </div>
-
+      {/* Header - Compact like inbox */}
+      <div className="px-4 py-3 border-b border-border bg-card">
         {/* Bulk Actions Toolbar */}
         {selectedContactIds.size > 0 && (
-          <div className="flex items-center justify-between p-3 mb-4 bg-primary/10 border border-primary/20 rounded-lg">
+          <div className="flex items-center justify-between p-2 mb-2 bg-primary/10 border border-primary/20 rounded-lg">
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -731,43 +718,41 @@ export default function ContactsV4List() {
                 onChange={toggleSelectAll}
                 className="h-4 w-4 rounded border-gray-300"
               />
-              <span className="font-medium">{selectedContactIds.size} selected</span>
+              <span className="text-sm font-medium">{selectedContactIds.size} selected</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               <Button variant="outline" size="sm" onClick={handleExport}>
-                <Download className="h-4 w-4 mr-2" />
-                Export Selected
+                <Download className="h-3 w-3 mr-1" />
+                Export
               </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleBulkDelete}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Selected
+              <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                <Trash2 className="h-3 w-3 mr-1" />
+                Delete
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedContactIds(new Set())}
-              >
-                <X className="h-4 w-4" />
+              <Button variant="outline" size="sm" onClick={() => setSelectedContactIds(new Set())}>
+                <X className="h-3 w-3" />
               </Button>
             </div>
           </div>
         )}
 
-        {/* Title and Actions */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">Contacts</h1>
-              <p className="text-muted-foreground">{total} contacts</p>
-            </div>
+        {/* Title Row */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <a
+              href="/inbox"
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Back</span>
+            </a>
+            <div className="h-5 w-px bg-border" />
+            <h1 className="text-lg font-bold">Contacts</h1>
+            <span className="text-sm text-muted-foreground">({total.toLocaleString()})</span>
 
             {/* Account Filter */}
             <select
-              className="h-10 px-3 rounded-md border border-input bg-background min-w-[200px]"
+              className="h-8 px-2 text-sm rounded-md border border-input bg-background min-w-[180px]"
               value={selectedAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
             >
@@ -780,75 +765,57 @@ export default function ContactsV4List() {
             </select>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             <Button
               variant="outline"
+              size="sm"
               onClick={toggleSelectAll}
               disabled={total === 0}
+              className="hidden lg:flex"
             >
-              {isAllSelected ? (
-                <>
-                  <X className="h-4 w-4 mr-2" />
-                  Deselect All
-                </>
-              ) : (
-                <>
-                  <CheckSquare className="h-4 w-4 mr-2" />
-                  Select All {total.toLocaleString()} Contacts
-                </>
-              )}
+              {isAllSelected ? <X className="h-3 w-3 mr-1" /> : <CheckSquare className="h-3 w-3 mr-1" />}
+              {isAllSelected ? 'Deselect' : 'Select All'}
             </Button>
-            <Button
-              variant="outline"
-              onClick={handleSync}
-              disabled={syncing}
-            >
-              <RefreshCw className={cn("h-4 w-4 mr-2", syncing && "animate-spin")} />
-              {syncing ? 'Syncing...' : selectedAccountId === 'all' ? 'Sync All Accounts' : 'Sync'}
+            <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
+              <RefreshCw className={cn("h-3 w-3", syncing && "animate-spin")} />
             </Button>
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Export
+            <Button variant="outline" size="sm" onClick={handleExport} className="hidden md:flex">
+              <Download className="h-3 w-3" />
             </Button>
-            <Button variant="outline" onClick={handleImport}>
-              <Upload className="h-4 w-4 mr-2" />
-              Import
+            <Button variant="outline" size="sm" onClick={handleImport} className="hidden md:flex">
+              <Upload className="h-3 w-3" />
             </Button>
-            <Button onClick={handleAddContact}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Contact
+            <Button size="sm" onClick={handleAddContact}>
+              <Plus className="h-3 w-3 mr-1" />
+              Add
             </Button>
           </div>
         </div>
 
         {/* Sync Progress */}
         {syncProgress && (
-          <div className="mb-4 p-4 bg-primary/10 border border-primary/20 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">{syncProgress.status}</span>
-              <span className="text-sm text-muted-foreground">{syncProgress.percentage}%</span>
+          <div className="mb-2 p-2 bg-primary/10 border border-primary/20 rounded-lg">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium">{syncProgress.status}</span>
+              <span className="text-xs text-muted-foreground">{syncProgress.percentage}%</span>
             </div>
-            <div className="w-full bg-muted rounded-full h-2 mb-2">
+            <div className="w-full bg-muted rounded-full h-1.5">
               <div
-                className="bg-primary h-2 rounded-full transition-all duration-300"
+                className="bg-primary h-1.5 rounded-full transition-all duration-300"
                 style={{ width: `${syncProgress.percentage}%` }}
               />
-            </div>
-            <div className="flex gap-4 text-sm text-muted-foreground">
-              <span>Imported: {syncProgress.imported}</span>
-              <span>Updated: {syncProgress.updated}</span>
             </div>
           </div>
         )}
 
         {/* Search and Filters */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search contacts by name, email, company..."
-              className="pl-10"
+              placeholder="Search contacts..."
+              className="pl-8 h-8 text-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -859,38 +826,37 @@ export default function ContactsV4List() {
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
           >
-            <Filter className="h-4 w-4 mr-2" />
-            Filters
+            <Filter className="h-3 w-3" />
           </Button>
 
-          <div className="flex border border-border rounded-lg">
+          <div className="flex border border-border rounded-md">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
               size="sm"
-              className="rounded-r-none"
+              className="rounded-r-none h-8 w-8 p-0"
               onClick={() => setViewMode('grid')}
             >
-              <Grid className="h-4 w-4" />
+              <Grid className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant={viewMode === 'list' ? 'default' : 'ghost'}
               size="sm"
-              className="rounded-l-none"
+              className="rounded-l-none h-8 w-8 p-0"
               onClick={() => setViewMode('list')}
             >
-              <List className="h-4 w-4" />
+              <List className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
 
         {/* Filter Panel */}
         {showFilters && (
-          <div className="mt-4 p-4 border border-border rounded-lg bg-muted/50">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="mt-2 p-2 border border-border rounded-lg bg-muted/50">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               <div>
-                <label className="block text-sm font-medium mb-2">Favorites</label>
+                <label className="block text-xs font-medium mb-1">Favorites</label>
                 <select
-                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                  className="w-full h-8 px-2 text-sm rounded-md border border-input bg-background"
                   value={filters.is_favorite ? 'true' : 'false'}
                   onChange={(e) => setFilters({ ...filters, is_favorite: e.target.value === 'true' ? true : undefined })}
                 >
@@ -900,9 +866,9 @@ export default function ContactsV4List() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Source</label>
+                <label className="block text-xs font-medium mb-1">Source</label>
                 <select
-                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                  className="w-full h-8 px-2 text-sm rounded-md border border-input bg-background"
                   value={filters.source || ''}
                   onChange={(e) => setFilters({ ...filters, source: e.target.value as any || undefined })}
                 >

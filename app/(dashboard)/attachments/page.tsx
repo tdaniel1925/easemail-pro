@@ -175,11 +175,11 @@ function AttachmentsContent() {
   const hasFilters = !!(filters.search || filters.fileTypes.length > 0 || filters.documentTypes.length > 0 || filters.senders.length > 0 || filters.dateRange);
 
   return (
-    <div className="flex h-screen bg-background">
-      <div className="flex-1 flex flex-col">
+    <div className="flex h-screen bg-background overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Error/Success Messages */}
         {error && (
-          <div className="px-6 pt-4">
+          <div className="px-4 pt-2">
             <InlineAlert
               variant="error"
               message={error}
@@ -188,7 +188,7 @@ function AttachmentsContent() {
           </div>
         )}
         {success && (
-          <div className="px-6 pt-4">
+          <div className="px-4 pt-2">
             <InlineAlert
               variant="success"
               message={success}
@@ -196,7 +196,7 @@ function AttachmentsContent() {
           </div>
         )}
         {fetchError && (
-          <div className="px-6 pt-4">
+          <div className="px-4 pt-2">
             <InlineAlert
               variant="error"
               title="Failed to load attachments"
@@ -207,99 +207,78 @@ function AttachmentsContent() {
 
         {/* Bulk Actions Toolbar */}
         {selectedIds.size > 0 && (
-          <div className="border-b bg-accent px-6 py-3">
+          <div className="border-b bg-accent px-4 py-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={isAllSelected}
                   onChange={toggleSelectAll}
                   className="h-4 w-4 rounded border-gray-300"
                 />
-                <span className="font-medium">{selectedIds.size} selected</span>
+                <span className="text-sm font-medium">{selectedIds.size} selected</span>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={toggleSelectAll}
-                  title={isAllSelected ? "Deselect All" : "Select All"}
-                >
-                  {isAllSelected ? <Square className="h-4 w-4 mr-2" /> : <CheckSquare className="h-4 w-4 mr-2" />}
-                  {isAllSelected ? "Deselect All" : "Select All"}
+              <div className="flex gap-1">
+                <Button variant="outline" size="sm" onClick={handleBulkDownload}>
+                  <Download className="h-3 w-3 mr-1" />
+                  Download
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleBulkDownload}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download Selected
+                <Button variant="outline" size="sm" onClick={handleBulkDelete} className="text-destructive hover:text-destructive">
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Delete
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Selected
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearSelection}
-                >
-                  <X className="h-4 w-4" />
+                <Button variant="ghost" size="sm" onClick={clearSelection}>
+                  <X className="h-3 w-3" />
                 </Button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Header */}
-        <div className="border-b bg-card px-6 py-4 space-y-4">
+        {/* Header - Compact */}
+        <div className="border-b bg-card px-4 py-3">
           <div className="flex items-center justify-between">
             {/* Title & Stats */}
-            <div className="flex items-center gap-4">
-              <div>
-                <h1 className="text-2xl font-bold">Attachments</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {data?.pagination.total.toLocaleString() || 0} files • {formatFileSize(stats?.totalSizeBytes || 0)}
-                </p>
-                <a
-                  href="/inbox"
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mt-2"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m12 19-7-7 7-7"/>
-                    <path d="M19 12H5"/>
-                  </svg>
-                  Back to Inbox
-                </a>
-              </div>
-              <UploadButton />
+            <div className="flex items-center gap-3">
+              <a
+                href="/inbox"
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m12 19-7-7 7-7"/>
+                  <path d="M19 12H5"/>
+                </svg>
+                <span className="hidden sm:inline">Back</span>
+              </a>
+              <div className="h-5 w-px bg-border" />
+              <Paperclip className="h-5 w-5 text-primary" />
+              <h1 className="text-lg font-bold">Attachments</h1>
+              <span className="text-sm text-muted-foreground">
+                ({data?.pagination.total.toLocaleString() || 0} files • {formatFileSize(stats?.totalSizeBytes || 0)})
+              </span>
             </div>
 
-            {/* Controls: View Toggle */}
-            <div className="flex items-center gap-4">
-              {/* View Toggle */}
-              <div className="flex items-center gap-2">
+            {/* Controls: View Toggle + Upload */}
+            <div className="flex items-center gap-2">
+              <UploadButton />
+              <div className="flex border border-border rounded-md">
                 <Button
                   variant={view === 'grid' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setView('grid')}
                   title="Grid view"
+                  className="rounded-r-none h-8 w-8 p-0"
                 >
-                  <Squares2X2Icon className="h-4 w-4" size={16} />
+                  <Squares2X2Icon className="h-3.5 w-3.5" size={14} />
                 </Button>
                 <Button
                   variant={view === 'list' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setView('list')}
                   title="List view"
+                  className="rounded-l-none h-8 w-8 p-0"
                 >
-                  <ListBulletIcon className="h-4 w-4" size={16} />
+                  <ListBulletIcon className="h-3.5 w-3.5" size={14} />
                 </Button>
               </div>
             </div>
@@ -307,7 +286,7 @@ function AttachmentsContent() {
         </div>
 
         {/* Search */}
-        <div className="border-b px-6 py-4">
+        <div className="border-b px-4 py-2">
           <SearchBar value={filters.search} onChange={handleSearch} />
         </div>
 
@@ -319,7 +298,7 @@ function AttachmentsContent() {
         />
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-4">
           {isLoading && <LoadingState />}
           
           {!isLoading && !fetchError && !hasAttachments && (

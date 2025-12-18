@@ -14,7 +14,7 @@ export default function TeamsPage() {
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     }>
-      <div className="h-[calc(100vh-4rem)]">
+      <div className="h-screen overflow-hidden">
         <TeamsPanel />
       </div>
     </Suspense>
