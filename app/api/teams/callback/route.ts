@@ -1,5 +1,8 @@
 // Teams OAuth Callback Route
 import { NextResponse } from 'next/server';
+
+// Force dynamic rendering for OAuth callback
+export const dynamic = 'force-dynamic';
 import { db } from '@/lib/db';
 import { teamsAccounts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
