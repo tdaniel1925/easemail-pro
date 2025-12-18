@@ -9,7 +9,8 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nfix: Add null safety and IMAP/JMAP support to folder APIs\n\n- Fix /api/nylas/folders/counts to support IMAP/JMAP accounts by also\n  looking up by database ID (not just nylasGrantId)\n- Add null safety to determineFolderType() to handle null folder names\n- Add null safety to sortFolders() for alphabetical comparison\n- Install @types/jest for test file type checking\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git push:*)",
       "Bash(git commit:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(npx tsc --noEmit)"
     ]
   }
 }

@@ -21,7 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, parseGraphDateTime } from '@/lib/utils';
 import { format, parseISO, isToday, isTomorrow, addMinutes, differenceInMinutes, isPast, isFuture } from 'date-fns';
 import { TeamsMeetingModal } from './TeamsMeetingModal';
 
@@ -29,8 +29,8 @@ interface CalendarEvent {
   id: string;
   subject: string;
   bodyPreview?: string;
-  start: { dateTime: string; timeZone: string };
-  end: { dateTime: string; timeZone: string };
+  start: { dateTime: string; timeZone?: string };
+  end: { dateTime: string; timeZone?: string };
   location?: { displayName: string };
   attendees?: Array<{
     emailAddress: { address: string; name: string };
@@ -178,8 +178,8 @@ export function TeamsHub() {
   };
 
   const getMeetingStatus = (meeting: CalendarEvent) => {
-    const start = parseISO(meeting.start.dateTime);
-    const end = parseISO(meeting.end.dateTime);
+    const start = parseGraphDateTime(meeting.start.dateTime, meeting.start.timeZone);
+    const end = parseGraphDateTime(meeting.end.dateTime, meeting.end.timeZone);
     const now = new Date();
     const minutesUntilStart = differenceInMinutes(start, now);
 
@@ -209,7 +209,8 @@ export function TeamsHub() {
     const groups: Record<string, CalendarEvent[]> = {};
 
     meetings.forEach(meeting => {
-      const date = format(parseISO(meeting.start.dateTime), 'yyyy-MM-dd');
+      const startDate = parseGraphDateTime(meeting.start.dateTime, meeting.start.timeZone);
+      const date = format(startDate, 'yyyy-MM-dd');
       if (!groups[date]) {
         groups[date] = [];
       }
@@ -222,7 +223,8 @@ export function TeamsHub() {
         date,
         label: getDateLabel(date + 'T00:00:00'),
         meetings: meetings.sort((a, b) =>
-          parseISO(a.start.dateTime).getTime() - parseISO(b.start.dateTime).getTime()
+          parseGraphDateTime(a.start.dateTime, a.start.timeZone).getTime() -
+          parseGraphDateTime(b.start.dateTime, b.start.timeZone).getTime()
         ),
       }));
   };
@@ -344,7 +346,7 @@ export function TeamsHub() {
                 <p className="text-xs font-medium truncate">{nextMeeting.subject}</p>
                 <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                   <Clock className="h-2.5 w-2.5" />
-                  <span>{format(parseISO(nextMeeting.start.dateTime), 'h:mm a')}</span>
+                  <span>{format(parseGraphDateTime(nextMeeting.start.dateTime, nextMeeting.start.timeZone), 'h:mm a')}</span>
                   <Badge className={cn("h-4 px-1 text-[9px]", getMeetingStatus(nextMeeting).color)}>
                     {getMeetingStatus(nextMeeting).label}
                   </Badge>
@@ -404,7 +406,7 @@ export function TeamsHub() {
                           <div className="flex-1 min-w-0">
                             <p className="text-xs truncate">{meeting.subject}</p>
                             <p className="text-[10px] text-muted-foreground">
-                              {format(parseISO(meeting.start.dateTime), 'h:mm a')}
+                              {format(parseGraphDateTime(meeting.start.dateTime, meeting.start.timeZone), 'h:mm a')}
                             </p>
                           </div>
                           {meeting.onlineMeeting?.joinUrl && (

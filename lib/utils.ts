@@ -102,3 +102,42 @@ export function toTitleCase(text: string | null | undefined): string {
     .join(' ');
 }
 
+/**
+ * Parse Microsoft Graph API datetime with timezone
+ * Graph API returns datetime strings without timezone suffix (e.g., "2025-12-18T19:49:00.0000000")
+ * but includes a separate timeZone field. This function handles the conversion properly.
+ *
+ * @param dateTime - The datetime string from Graph API
+ * @param timeZone - The timezone string (e.g., "UTC", "Pacific Standard Time")
+ * @returns A Date object representing the correct local time
+ */
+export function parseGraphDateTime(dateTime: string, timeZone?: string): Date {
+  if (!dateTime) return new Date();
+
+  // Remove fractional seconds if present (Graph API returns .0000000)
+  const cleanDateTime = dateTime.replace(/\.\d+$/, '');
+
+  // If timezone is UTC or not specified, treat the datetime as UTC
+  if (!timeZone || timeZone === 'UTC' || timeZone.toLowerCase().includes('utc')) {
+    // Append Z to indicate UTC
+    return new Date(cleanDateTime + 'Z');
+  }
+
+  // For other timezones, the datetime is already in that timezone
+  // We need to parse it as-is (local interpretation) since it represents
+  // the time in the specified timezone
+  // Note: This is a simplification - for full timezone support, use date-fns-tz
+
+  // Create a date from the datetime string
+  // JavaScript will parse it as local time, which is what we want if
+  // the event's timezone matches the user's timezone
+  const date = new Date(cleanDateTime);
+
+  // If the date is invalid, try with Z suffix as fallback
+  if (isNaN(date.getTime())) {
+    return new Date(cleanDateTime + 'Z');
+  }
+
+  return date;
+}
+

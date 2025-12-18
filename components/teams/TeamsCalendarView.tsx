@@ -39,7 +39,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, parseGraphDateTime } from '@/lib/utils';
 import {
   format,
   parseISO,
@@ -258,7 +258,8 @@ export function TeamsCalendarView({ accountId }: TeamsCalendarViewProps) {
     const groups: Record<string, CalendarEvent[]> = {};
 
     events.forEach(event => {
-      const date = format(parseISO(event.start.dateTime), 'yyyy-MM-dd');
+      const startDate = parseGraphDateTime(event.start.dateTime, event.start.timeZone);
+      const date = format(startDate, 'yyyy-MM-dd');
       if (!groups[date]) {
         groups[date] = [];
       }
@@ -270,7 +271,8 @@ export function TeamsCalendarView({ accountId }: TeamsCalendarViewProps) {
       .map(([date, events]) => ({
         date,
         events: events.sort((a, b) =>
-          parseISO(a.start.dateTime).getTime() - parseISO(b.start.dateTime).getTime()
+          parseGraphDateTime(a.start.dateTime, a.start.timeZone).getTime() -
+          parseGraphDateTime(b.start.dateTime, b.start.timeZone).getTime()
         ),
       }));
   };
@@ -395,7 +397,7 @@ export function TeamsCalendarView({ accountId }: TeamsCalendarViewProps) {
                                 {event.isAllDay ? (
                                   'All day'
                                 ) : (
-                                  `${format(parseISO(event.start.dateTime), 'h:mm a')} - ${format(parseISO(event.end.dateTime), 'h:mm a')}`
+                                  `${format(parseGraphDateTime(event.start.dateTime, event.start.timeZone), 'h:mm a')} - ${format(parseGraphDateTime(event.end.dateTime, event.end.timeZone), 'h:mm a')}`
                                 )}
                               </span>
                               {event.location?.displayName && (
@@ -451,13 +453,13 @@ export function TeamsCalendarView({ accountId }: TeamsCalendarViewProps) {
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="font-medium">
-                    {format(parseISO(selectedEvent.start.dateTime), 'EEEE, MMMM d, yyyy')}
+                    {format(parseGraphDateTime(selectedEvent.start.dateTime, selectedEvent.start.timeZone), 'EEEE, MMMM d, yyyy')}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {selectedEvent.isAllDay ? (
                       'All day'
                     ) : (
-                      `${format(parseISO(selectedEvent.start.dateTime), 'h:mm a')} - ${format(parseISO(selectedEvent.end.dateTime), 'h:mm a')}`
+                      `${format(parseGraphDateTime(selectedEvent.start.dateTime, selectedEvent.start.timeZone), 'h:mm a')} - ${format(parseGraphDateTime(selectedEvent.end.dateTime, selectedEvent.end.timeZone), 'h:mm a')}`
                     )}
                   </p>
                 </div>
