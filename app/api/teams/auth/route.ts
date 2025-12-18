@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
     // Get optional return URL from query params
     const { searchParams } = new URL(request.url);
-    const returnUrl = searchParams.get('returnUrl') || '/settings/integrations';
+    const returnUrl = searchParams.get('returnUrl') || '/teams';
 
     // Create state parameter with user ID and return URL
     const state = createOAuthState(user.id, returnUrl);
