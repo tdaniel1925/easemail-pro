@@ -283,7 +283,7 @@ async function syncChatMessages(
           continue;
         }
 
-        const messageResult = await upsertMessage(account, chat.id, message);
+        const messageResult = await upsertMessage(account, chat.id, teamsChatId, message);
         if (messageResult === 'added') result.messagesAdded++;
         else if (messageResult === 'updated') result.messagesUpdated++;
       }
@@ -340,6 +340,7 @@ async function syncChatMessages(
 async function upsertMessage(
   account: TeamsAccountRecord,
   chatId: string,
+  teamsChatId: string,
   message: TeamsMessage
 ): Promise<'added' | 'updated' | 'skipped'> {
   // Check if message exists
@@ -362,6 +363,7 @@ async function upsertMessage(
 
   const messageData = {
     teamsMessageId: message.id,
+    teamsChatId,
     replyToMessageId: message.replyToId || null,
     senderId: message.from?.user?.id || message.from?.application?.id || 'unknown',
     senderName: message.from?.user?.displayName || message.from?.application?.displayName || null,
@@ -497,7 +499,7 @@ export async function sendTeamsMessage(
         .limit(1);
 
       if (chatRecord.length > 0) {
-        await upsertMessage(account[0] as TeamsAccountRecord, chatRecord[0].id, message);
+        await upsertMessage(account[0] as TeamsAccountRecord, chatRecord[0].id, teamsChatId, message);
       }
     }
 

@@ -2438,6 +2438,7 @@ export const teamsMessages = pgTable('teams_messages', {
 
   // Teams identifiers
   teamsMessageId: varchar('teams_message_id', { length: 255 }).notNull(),
+  teamsChatId: varchar('teams_chat_id', { length: 255 }).notNull(),
   replyToMessageId: varchar('reply_to_message_id', { length: 255 }), // For threaded replies
 
   // Sender info
