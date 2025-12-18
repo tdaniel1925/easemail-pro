@@ -59,7 +59,8 @@ async function createTeamsTables() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS teams_chats (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        account_id UUID NOT NULL REFERENCES teams_accounts(id) ON DELETE CASCADE,
+        teams_account_id UUID NOT NULL REFERENCES teams_accounts(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         teams_chat_id VARCHAR(255) NOT NULL,
         chat_type VARCHAR(50) NOT NULL,
         topic VARCHAR(500),
@@ -85,10 +86,17 @@ async function createTeamsTables() {
 
     // Create unique index on teams_chats
     await client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS teams_chats_account_chat_idx
-      ON teams_chats(account_id, teams_chat_id)
+      CREATE UNIQUE INDEX IF NOT EXISTS teams_chats_unique
+      ON teams_chats(teams_account_id, teams_chat_id)
     `);
     console.log('  ✓ teams_chats unique index created');
+
+    // Create user index on teams_chats
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_teams_chats_user
+      ON teams_chats(user_id)
+    `);
+    console.log('  ✓ teams_chats user index created');
 
     // Create teams_messages table
     console.log('Creating teams_messages table...');
@@ -96,25 +104,35 @@ async function createTeamsTables() {
       CREATE TABLE IF NOT EXISTS teams_messages (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         chat_id UUID NOT NULL REFERENCES teams_chats(id) ON DELETE CASCADE,
+        teams_account_id UUID NOT NULL REFERENCES teams_accounts(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         teams_message_id VARCHAR(255) NOT NULL,
         teams_chat_id VARCHAR(255) NOT NULL,
+        reply_to_message_id VARCHAR(255),
         sender_id VARCHAR(255),
         sender_name VARCHAR(255),
         sender_email VARCHAR(255),
+        sender_type VARCHAR(50) DEFAULT 'user',
         body TEXT,
         body_type VARCHAR(50) DEFAULT 'text',
         message_type VARCHAR(50) DEFAULT 'message',
         importance VARCHAR(50) DEFAULT 'normal',
+        subject VARCHAR(500),
+        summary TEXT,
+        web_url TEXT,
+        locale VARCHAR(50),
         has_attachments BOOLEAN DEFAULT false,
         attachments JSONB,
         mentions JSONB,
         reactions JSONB,
-        reply_to_message_id VARCHAR(255),
+        hosted_contents JSONB,
         is_read BOOLEAN DEFAULT false,
         is_deleted BOOLEAN DEFAULT false,
-        is_edited BOOLEAN DEFAULT false,
+        deleted_at TIMESTAMP,
+        is_from_me BOOLEAN DEFAULT false,
         teams_created_at TIMESTAMP,
         teams_last_modified_at TIMESTAMP,
+        teams_last_edited_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       )
@@ -123,48 +141,66 @@ async function createTeamsTables() {
 
     // Create unique index on teams_messages
     await client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS teams_messages_chat_message_idx
+      CREATE UNIQUE INDEX IF NOT EXISTS teams_messages_unique
       ON teams_messages(chat_id, teams_message_id)
     `);
     console.log('  ✓ teams_messages unique index created');
 
     // Create index on teams_messages for faster lookups
     await client.query(`
-      CREATE INDEX IF NOT EXISTS teams_messages_chat_created_idx
-      ON teams_messages(chat_id, teams_created_at DESC)
+      CREATE INDEX IF NOT EXISTS idx_teams_messages_chat ON teams_messages(chat_id)
     `);
-    console.log('  ✓ teams_messages chat/date index created');
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_teams_messages_account ON teams_messages(teams_account_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_teams_messages_user ON teams_messages(user_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_teams_messages_created ON teams_messages(teams_created_at DESC)
+    `);
+    console.log('  ✓ teams_messages indexes created');
 
     // Create teams_sync_state table
     console.log('Creating teams_sync_state table...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS teams_sync_state (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        account_id UUID NOT NULL REFERENCES teams_accounts(id) ON DELETE CASCADE,
-        resource_type VARCHAR(100) NOT NULL,
+        teams_account_id UUID NOT NULL REFERENCES teams_accounts(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        sync_type VARCHAR(50) NOT NULL,
         resource_id VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'pending',
+        total_items INTEGER DEFAULT 0,
+        synced_items INTEGER DEFAULT 0,
         delta_link TEXT,
         skip_token TEXT,
         last_sync_at TIMESTAMP,
+        started_at TIMESTAMP,
+        completed_at TIMESTAMP,
+        last_error TEXT,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       )
     `);
     console.log('  ✓ teams_sync_state created');
 
-    // Create unique index on teams_sync_state
+    // Create index on teams_sync_state
     await client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS teams_sync_state_account_resource_idx
-      ON teams_sync_state(account_id, resource_type, resource_id)
+      CREATE INDEX IF NOT EXISTS idx_teams_sync_account ON teams_sync_state(teams_account_id)
     `);
-    console.log('  ✓ teams_sync_state unique index created');
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_teams_sync_type ON teams_sync_state(sync_type)
+    `);
+    console.log('  ✓ teams_sync_state indexes created');
 
     // Create teams_webhook_subscriptions table
     console.log('Creating teams_webhook_subscriptions table...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS teams_webhook_subscriptions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        account_id UUID NOT NULL REFERENCES teams_accounts(id) ON DELETE CASCADE,
+        teams_account_id UUID NOT NULL REFERENCES teams_accounts(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         subscription_id VARCHAR(255) NOT NULL,
         resource VARCHAR(500) NOT NULL,
         change_type VARCHAR(100) NOT NULL,
@@ -178,12 +214,14 @@ async function createTeamsTables() {
     `);
     console.log('  ✓ teams_webhook_subscriptions created');
 
-    // Create unique index on teams_webhook_subscriptions
+    // Create indexes on teams_webhook_subscriptions
     await client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS teams_webhook_subscriptions_subscription_idx
-      ON teams_webhook_subscriptions(subscription_id)
+      CREATE INDEX IF NOT EXISTS idx_teams_webhook_account ON teams_webhook_subscriptions(teams_account_id)
     `);
-    console.log('  ✓ teams_webhook_subscriptions unique index created');
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_teams_webhook_subscription ON teams_webhook_subscriptions(subscription_id)
+    `);
+    console.log('  ✓ teams_webhook_subscriptions indexes created');
 
     console.log('\n✅ All Teams tables created successfully!');
 

@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { TeamsChatList } from './TeamsChatList';
 import { TeamsChatView } from './TeamsChatView';
 import { TeamsConnectButton } from './TeamsConnectButton';
+import { NewChatDialog } from './NewChatDialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import EaseMailLogoFull from '@/components/ui/EaseMailLogoFull';
@@ -54,6 +55,8 @@ export function TeamsPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedChat, setSelectedChat] = useState<TeamsChat | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+  const [isNewChatOpen, setIsNewChatOpen] = useState(false);
+  const [chatListKey, setChatListKey] = useState(0);
 
   useEffect(() => {
     fetchAccounts();
@@ -87,6 +90,13 @@ export function TeamsPanel() {
     setSelectedChat(null);
   };
 
+  const handleChatCreated = (chat: TeamsChat) => {
+    // Select the newly created chat
+    setSelectedChat(chat);
+    // Refresh the chat list
+    setChatListKey(prev => prev + 1);
+  };
+
   // Header component with navigation
   const Header = () => (
     <div className="flex items-center justify-between p-4 border-b bg-background">
@@ -101,6 +111,16 @@ export function TeamsPanel() {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        {accounts.length > 0 && (
+          <Button
+            size="sm"
+            onClick={() => setIsNewChatOpen(true)}
+            className="bg-[#6264A7] hover:bg-[#6264A7]/90"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New Chat
+          </Button>
+        )}
         <Link href="/inbox">
           <Button variant="outline" size="sm">
             <Inbox className="h-4 w-4 mr-2" />
@@ -161,6 +181,7 @@ export function TeamsPanel() {
           )}
         >
           <TeamsChatList
+            key={chatListKey}
             onSelectChat={handleSelectChat}
             selectedChatId={selectedChat?.id}
           />
@@ -188,6 +209,13 @@ export function TeamsPanel() {
           </div>
         )}
       </div>
+
+      {/* New Chat Dialog */}
+      <NewChatDialog
+        open={isNewChatOpen}
+        onOpenChange={setIsNewChatOpen}
+        onChatCreated={handleChatCreated}
+      />
     </div>
   );
 }
