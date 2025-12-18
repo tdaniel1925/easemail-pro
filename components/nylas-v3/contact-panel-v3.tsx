@@ -1,12 +1,12 @@
 /**
  * Contact Panel v3
- * Right sidebar with Contact, Calendar, Teams, and Agenda tabs
+ * Right sidebar with Contact, Calendar, and Agenda tabs
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, Calendar as CalendarIcon, Mail, Phone, UserPlus, MessageSquare, FileText, Sun, Video } from 'lucide-react';
+import { User, Calendar as CalendarIcon, Mail, Phone, UserPlus, MessageSquare, FileText, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getInitials, generateAvatarColor, cn } from '@/lib/utils';
 import { MiniCalendar } from '@/components/calendar/MiniCalendar';
@@ -16,7 +16,6 @@ import { SMSModal } from '@/components/sms/SMSModal';
 import { ContactNotes } from '@/components/contacts/ContactNotes';
 import { CommunicationTimeline } from '@/components/contacts/CommunicationTimeline';
 import QuickAddV4 from '@/components/calendar/QuickAddV4';
-import { TeamsChatSidebar } from '@/components/teams';
 
 interface EmailMessage {
   id: string;
@@ -30,7 +29,7 @@ interface EmailMessage {
   snippet?: string;
 }
 
-type TabType = 'agenda' | 'contact' | 'calendar' | 'teams';
+type TabType = 'agenda' | 'contact' | 'calendar';
 
 interface ContactPanelV3Props {
   email?: EmailMessage;
@@ -112,18 +111,6 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
             <CalendarIcon className="h-3 w-3 inline mr-1" />
             Calendar
           </button>
-          <button
-            className={cn(
-              'px-2 py-1.5 text-xs rounded-sm transition-colors',
-              activeTab === 'teams'
-                ? 'text-[#6264A7] font-semibold'
-                : 'text-muted-foreground font-medium hover:text-foreground'
-            )}
-            onClick={() => handleTabChange('teams')}
-          >
-            <Video className="h-3 w-3 inline mr-1" />
-            Teams
-          </button>
         </div>
       </div>
 
@@ -142,14 +129,12 @@ export function ContactPanelV3({ email, activeTab: externalActiveTab, onTabChang
               </p>
             </div>
           )
-        ) : activeTab === 'calendar' ? (
+        ) : (
           <MiniCalendar
             key={calendarRefreshKey}
             onQuickAddClick={() => setIsQuickAddOpen(true)}
             onEventClick={onEventClick}
           />
-        ) : (
-          <TeamsChatSidebar />
         )}
       </div>
 
