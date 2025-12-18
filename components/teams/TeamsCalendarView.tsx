@@ -525,9 +525,24 @@ export function TeamsCalendarView({ accountId }: TeamsCalendarViewProps) {
               {/* Description */}
               {selectedEvent.bodyPreview && (
                 <div className="pt-2 border-t">
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                    {selectedEvent.bodyPreview}
-                  </p>
+                  <div className="text-sm text-muted-foreground whitespace-pre-wrap break-words overflow-hidden">
+                    {selectedEvent.bodyPreview.split(/(https?:\/\/[^\s]+)/g).map((part, index) => {
+                      if (part.match(/^https?:\/\//)) {
+                        return (
+                          <a
+                            key={index}
+                            href={part}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#6264A7] hover:underline break-all"
+                          >
+                            {part}
+                          </a>
+                        );
+                      }
+                      return <span key={index}>{part}</span>;
+                    })}
+                  </div>
                 </div>
               )}
 
