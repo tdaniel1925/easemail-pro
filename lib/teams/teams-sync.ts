@@ -719,3 +719,150 @@ export async function editTeamsMessage(
     };
   }
 }
+
+/**
+ * Add a reaction to a message
+ */
+export async function addTeamsReaction(
+  accountId: string,
+  teamsChatId: string,
+  teamsMessageId: string,
+  reactionType: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const account = await db
+      .select()
+      .from(teamsAccounts)
+      .where(eq(teamsAccounts.id, accountId))
+      .limit(1);
+
+    if (!account.length) {
+      return { success: false, error: 'Account not found' };
+    }
+
+    const client = await getTeamsClientForAccount(account[0] as TeamsAccountRecord);
+    await client.addReaction(teamsChatId, teamsMessageId, reactionType);
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to add reaction',
+    };
+  }
+}
+
+/**
+ * Remove a reaction from a message
+ */
+export async function removeTeamsReaction(
+  accountId: string,
+  teamsChatId: string,
+  teamsMessageId: string,
+  reactionType: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const account = await db
+      .select()
+      .from(teamsAccounts)
+      .where(eq(teamsAccounts.id, accountId))
+      .limit(1);
+
+    if (!account.length) {
+      return { success: false, error: 'Account not found' };
+    }
+
+    const client = await getTeamsClientForAccount(account[0] as TeamsAccountRecord);
+    await client.removeReaction(teamsChatId, teamsMessageId, reactionType);
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to remove reaction',
+    };
+  }
+}
+
+/**
+ * Get presence status for chat participants
+ */
+export async function getTeamsPresence(
+  accountId: string,
+  userIds: string[]
+): Promise<{
+  success: boolean;
+  presence?: Array<{ id: string; availability: string; activity: string }>;
+  error?: string
+}> {
+  try {
+    const account = await db
+      .select()
+      .from(teamsAccounts)
+      .where(eq(teamsAccounts.id, accountId))
+      .limit(1);
+
+    if (!account.length) {
+      return { success: false, error: 'Account not found' };
+    }
+
+    const client = await getTeamsClientForAccount(account[0] as TeamsAccountRecord);
+
+    if (userIds.length === 1) {
+      const presence = await client.getUserPresence(userIds[0]);
+      return { success: true, presence: [presence] };
+    } else {
+      const presence = await client.getBulkPresence(userIds);
+      return { success: true, presence };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get presence',
+    };
+  }
+}
+
+/**
+ * Pin or unpin a chat
+ */
+export async function toggleTeamsChatPin(
+  chatId: string,
+  isPinned: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db
+      .update(teamsChats)
+      .set({ isPinned, updatedAt: new Date() })
+      .where(eq(teamsChats.id, chatId));
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to toggle pin',
+    };
+  }
+}
+
+/**
+ * Mute or unmute a chat
+ */
+export async function toggleTeamsChatMute(
+  chatId: string,
+  isMuted: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await db
+      .update(teamsChats)
+      .set({ isMuted, updatedAt: new Date() })
+      .where(eq(teamsChats.id, chatId));
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to toggle mute',
+    };
+  }
+}
