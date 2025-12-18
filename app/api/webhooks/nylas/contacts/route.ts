@@ -10,32 +10,21 @@ import { db } from '@/lib/db/drizzle';
 import { contacts, contactSyncStatus, emailAccounts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getNylasClient } from '@/lib/nylas-v3/config';
-
-/**
- * Verify Nylas webhook signature
- */
-function verifyWebhookSignature(
-  payload: string,
-  signature: string,
-  secret: string
-): boolean {
-  const crypto = require('crypto');
-  const hmac = crypto.createHmac('sha256', secret);
-  hmac.update(payload);
-  const expectedSignature = hmac.digest('hex');
-  return signature === expectedSignature;
-}
+import { verifyWebhookSignature } from '@/lib/nylas-v3/webhooks';
 
 export async function POST(request: NextRequest) {
   try {
     // Get raw body for signature verification
     const rawBody = await request.text();
-    const signature = request.headers.get('x-nylas-signature') || '';
-    const webhookSecret = process.env.NYLAS_WEBHOOK_SECRET || '';
+    const signature = request.headers.get('x-nylas-signature') ||
+                      request.headers.get('X-Nylas-Signature') || '';
 
-    // Verify webhook signature
-    if (webhookSecret && !verifyWebhookSignature(rawBody, signature, webhookSecret)) {
-      console.error('[Contact Webhook] Invalid signature');
+    // Verify webhook signature using centralized, timing-safe verification
+    if (!verifyWebhookSignature(rawBody, signature)) {
+      console.error('[Contact Webhook] Invalid signature', {
+        signatureLength: signature.length,
+        payloadLength: rawBody.length,
+      });
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 

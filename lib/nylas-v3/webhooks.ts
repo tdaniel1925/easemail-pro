@@ -44,6 +44,12 @@ export function verifyWebhookSignature(
     return true;
   }
 
+  // Warn if secret length seems incorrect (Nylas secrets are typically 64 hex chars)
+  const secretLength = nylasConfig.webhookSecret.length;
+  if (secretLength < 32 || secretLength > 128) {
+    console.warn(`⚠️ NYLAS_WEBHOOK_SECRET length (${secretLength}) seems unusual. Expected 64 characters for Nylas webhook secret.`);
+  }
+
   try {
     // Clean signature (remove any whitespace or prefix)
     const cleanSignature = signature.trim();
