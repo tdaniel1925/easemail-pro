@@ -48,10 +48,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Check account belongs to user
-    // Note: accountId is the Nylas grant ID, not the database ID (for consistency with /api/nylas-v3/folders)
-    const account = await db.query.emailAccounts.findFirst({
+    // Note: accountId could be either nylasGrantId (for Nylas accounts) or database ID (for IMAP/JMAP accounts)
+    let account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.nylasGrantId, accountId),
     });
+
+    // If not found by nylasGrantId, try by database ID (for IMAP/JMAP accounts)
+    if (!account) {
+      account = await db.query.emailAccounts.findFirst({
+        where: eq(emailAccounts.id, accountId),
+      });
+    }
 
     if (!account || account.userId !== user.id) {
       return NextResponse.json({

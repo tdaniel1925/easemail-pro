@@ -84,7 +84,12 @@ export async function fetchFolder(grantId: string, folderId: string): Promise<Ny
 /**
  * Determine folder type based on name and attributes
  */
-export function determineFolderType(folderName: string, attributes?: string[]): string {
+export function determineFolderType(folderName: string | null | undefined, attributes?: string[]): string {
+  // Handle null/undefined folder names
+  if (!folderName) {
+    return 'custom';
+  }
+
   const lowerName = folderName.toLowerCase();
 
   // Check attributes first (most reliable)
@@ -167,8 +172,10 @@ export function sortFolders(folders: NylasFolder[]): NylasFolder[] {
     // b is standard, a is custom
     if (bIndex !== -1) return 1;
 
-    // Both are custom, sort alphabetically
-    return a.name.localeCompare(b.name);
+    // Both are custom, sort alphabetically (with null safety)
+    const aName = a.name || '';
+    const bName = b.name || '';
+    return aName.localeCompare(bName);
   });
 }
 
