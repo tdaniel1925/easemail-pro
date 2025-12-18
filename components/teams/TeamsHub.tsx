@@ -1,5 +1,5 @@
 /**
- * Teams Hub Component
+ * Teams Hub Component (Compact Sidebar Version)
  * Full Teams experience within EaseMail - view meetings, join with one click, start instant meetings
  */
 
@@ -16,15 +16,10 @@ import {
   Loader2,
   RefreshCw,
   Plus,
-  ChevronRight,
   Phone,
-  Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { format, parseISO, isToday, isTomorrow, addMinutes, differenceInMinutes, isPast, isFuture } from 'date-fns';
@@ -68,7 +63,6 @@ export function TeamsHub() {
 
   const { toast } = useToast();
 
-  // Check for Teams account
   useEffect(() => {
     checkTeamsAccount();
   }, []);
@@ -92,7 +86,6 @@ export function TeamsHub() {
     }
   };
 
-  // Fetch upcoming meetings
   const fetchMeetings = useCallback(async () => {
     if (!account) return;
 
@@ -115,7 +108,6 @@ export function TeamsHub() {
       const data = await response.json();
 
       if (data.success && data.events) {
-        // Filter to only show Teams meetings (online meetings)
         const teamsMeetings = data.events.filter((e: CalendarEvent) =>
           e.isOnlineMeeting && !e.isCancelled
         );
@@ -131,13 +123,11 @@ export function TeamsHub() {
   useEffect(() => {
     if (account) {
       fetchMeetings();
-      // Refresh every 2 minutes
       const interval = setInterval(fetchMeetings, 120000);
       return () => clearInterval(interval);
     }
   }, [account, fetchMeetings]);
 
-  // Start an instant meeting
   const startInstantMeeting = async () => {
     if (!account) return;
 
@@ -167,7 +157,6 @@ export function TeamsHub() {
           title: 'Meeting created!',
           description: 'Opening Teams meeting...',
         });
-        // Open the meeting immediately
         window.open(data.joinUrl, '_blank');
         fetchMeetings();
       } else {
@@ -184,12 +173,10 @@ export function TeamsHub() {
     }
   };
 
-  // Join a meeting
   const joinMeeting = (joinUrl: string) => {
     window.open(joinUrl, '_blank');
   };
 
-  // Get meeting status
   const getMeetingStatus = (meeting: CalendarEvent) => {
     const start = parseISO(meeting.start.dateTime);
     const end = parseISO(meeting.end.dateTime);
@@ -197,29 +184,27 @@ export function TeamsHub() {
     const minutesUntilStart = differenceInMinutes(start, now);
 
     if (isPast(end)) {
-      return { status: 'ended', label: 'Ended', color: 'bg-gray-100 text-gray-600' };
+      return { status: 'ended', label: 'Ended', color: 'bg-muted text-muted-foreground' };
     }
     if (isPast(start) && isFuture(end)) {
-      return { status: 'live', label: 'Live Now', color: 'bg-red-100 text-red-700 animate-pulse' };
+      return { status: 'live', label: 'Live', color: 'bg-red-500 text-white' };
     }
     if (minutesUntilStart <= 5) {
-      return { status: 'starting', label: 'Starting Soon', color: 'bg-yellow-100 text-yellow-700' };
+      return { status: 'starting', label: 'Soon', color: 'bg-yellow-500 text-white' };
     }
     if (minutesUntilStart <= 15) {
-      return { status: 'upcoming', label: `In ${minutesUntilStart} min`, color: 'bg-blue-100 text-blue-700' };
+      return { status: 'upcoming', label: `${minutesUntilStart}m`, color: 'bg-blue-500 text-white' };
     }
-    return { status: 'scheduled', label: format(start, 'h:mm a'), color: 'bg-gray-100 text-gray-600' };
+    return { status: 'scheduled', label: format(start, 'h:mm a'), color: 'bg-muted text-muted-foreground' };
   };
 
-  // Get date label
   const getDateLabel = (dateStr: string) => {
     const date = parseISO(dateStr);
     if (isToday(date)) return 'Today';
     if (isTomorrow(date)) return 'Tomorrow';
-    return format(date, 'EEEE, MMM d');
+    return format(date, 'EEE, MMM d');
   };
 
-  // Group meetings by day
   const groupMeetingsByDay = () => {
     const groups: Record<string, CalendarEvent[]> = {};
 
@@ -245,8 +230,8 @@ export function TeamsHub() {
   // Loading state
   if (isCheckingAccount) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-[#6264A7]" />
+      <div className="flex items-center justify-center h-full p-4">
+        <Loader2 className="h-5 w-5 animate-spin text-[#6264A7]" />
       </div>
     );
   }
@@ -254,291 +239,197 @@ export function TeamsHub() {
   // No Teams account connected
   if (!account) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-        <div className="w-20 h-20 rounded-full bg-[#6264A7]/10 flex items-center justify-center mb-6">
-          <Video className="h-10 w-10 text-[#6264A7]" />
+      <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+        <div className="w-10 h-10 rounded-full bg-[#6264A7]/10 flex items-center justify-center mb-3">
+          <Video className="h-5 w-5 text-[#6264A7]" />
         </div>
-        <h2 className="text-2xl font-bold mb-2">Connect Microsoft Teams</h2>
-        <p className="text-muted-foreground mb-6 max-w-md">
-          Connect your Microsoft Teams account to view meetings, join calls, and schedule new meetings - all from within EaseMail.
+        <h3 className="text-xs font-semibold mb-1">Connect Teams</h3>
+        <p className="text-[10px] text-muted-foreground mb-3">
+          View and join meetings
         </p>
         <Button
-          size="lg"
-          className="bg-[#6264A7] hover:bg-[#6264A7]/90"
+          size="sm"
+          className="h-7 text-xs bg-[#6264A7] hover:bg-[#6264A7]/90"
           onClick={() => window.location.href = '/teams'}
         >
-          <Video className="h-5 w-5 mr-2" />
-          Connect Teams Account
+          <Video className="h-3 w-3 mr-1" />
+          Connect
         </Button>
       </div>
     );
   }
 
-  // Find the next meeting
-  const liveMeeting = meetings.find(m => {
-    const status = getMeetingStatus(m);
-    return status.status === 'live';
-  });
-
+  const liveMeeting = meetings.find(m => getMeetingStatus(m).status === 'live');
   const nextMeeting = meetings.find(m => {
-    const status = getMeetingStatus(m);
-    return status.status === 'starting' || status.status === 'upcoming' || status.status === 'scheduled';
+    const status = getMeetingStatus(m).status;
+    return status === 'starting' || status === 'upcoming' || status === 'scheduled';
   });
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b bg-gradient-to-r from-[#6264A7] to-[#7B83EB]">
+    <div className="flex flex-col h-full">
+      {/* Compact Header */}
+      <div className="flex-shrink-0 p-2 border-b border-border bg-[#6264A7]">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
-              <Video className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-white">Teams Hub</h1>
-              <p className="text-sm text-white/70">{account.email}</p>
-            </div>
+          <div className="flex items-center gap-2 min-w-0">
+            <Video className="h-3.5 w-3.5 text-white flex-shrink-0" />
+            <span className="text-xs font-medium text-white truncate">{account.email}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/20"
-              onClick={fetchMeetings}
-              disabled={isLoading}
-            >
-              <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/20"
-              onClick={() => window.location.href = '/teams'}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 text-white/80 hover:text-white hover:bg-white/20"
+            onClick={fetchMeetings}
+            disabled={isLoading}
+          >
+            <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} />
+          </Button>
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
-          {/* Quick Actions */}
-          <div className="grid grid-cols-2 gap-3">
-            <Card
-              className="cursor-pointer hover:shadow-md transition-all hover:border-[#6264A7]/50"
-              onClick={startInstantMeeting}
-            >
-              <CardContent className="p-4 flex items-center gap-3">
-                {isStartingInstant ? (
-                  <Loader2 className="h-8 w-8 animate-spin text-[#6264A7]" />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-[#6264A7] flex items-center justify-center">
-                    <Play className="h-6 w-6 text-white ml-0.5" />
-                  </div>
-                )}
-                <div>
-                  <p className="font-semibold">Start Meeting</p>
-                  <p className="text-xs text-muted-foreground">Start now</p>
-                </div>
-              </CardContent>
-            </Card>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-3">
+        {/* Quick Actions */}
+        <div className="flex gap-1.5">
+          <button
+            onClick={startInstantMeeting}
+            disabled={isStartingInstant}
+            className="flex-1 flex items-center gap-1.5 p-2 rounded-md bg-[#6264A7] text-white hover:bg-[#6264A7]/90 transition-colors"
+          >
+            {isStartingInstant ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Play className="h-3.5 w-3.5" />
+            )}
+            <span className="text-xs font-medium">Start</span>
+          </button>
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="flex-1 flex items-center gap-1.5 p-2 rounded-md border border-[#6264A7]/30 text-[#6264A7] hover:bg-[#6264A7]/10 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">Schedule</span>
+          </button>
+        </div>
 
-            <Card
-              className="cursor-pointer hover:shadow-md transition-all hover:border-[#6264A7]/50"
-              onClick={() => setIsCreateOpen(true)}
+        {/* Live Meeting Alert */}
+        {liveMeeting && liveMeeting.onlineMeeting?.joinUrl && (
+          <div className="p-2 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center animate-pulse">
+                <Video className="h-2.5 w-2.5 text-white" />
+              </div>
+              <Badge className="h-4 px-1 text-[9px] bg-red-500 text-white">LIVE</Badge>
+            </div>
+            <p className="text-xs font-medium truncate mb-1.5">{liveMeeting.subject}</p>
+            <Button
+              size="sm"
+              className="w-full h-6 text-xs bg-red-500 hover:bg-red-600"
+              onClick={() => joinMeeting(liveMeeting.onlineMeeting!.joinUrl)}
             >
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-[#6264A7]/10 flex items-center justify-center">
-                  <Plus className="h-6 w-6 text-[#6264A7]" />
-                </div>
-                <div>
-                  <p className="font-semibold">Schedule</p>
-                  <p className="text-xs text-muted-foreground">Plan ahead</p>
-                </div>
-              </CardContent>
-            </Card>
+              <Phone className="h-3 w-3 mr-1" />
+              Join Now
+            </Button>
           </div>
+        )}
 
-          {/* Live Meeting Alert */}
-          {liveMeeting && liveMeeting.onlineMeeting?.joinUrl && (
-            <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center animate-pulse">
-                      <Video className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-red-500 text-white">LIVE</Badge>
-                        <span className="font-semibold">{liveMeeting.subject}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Meeting in progress • {liveMeeting.attendees?.length || 0} participants
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    className="bg-red-500 hover:bg-red-600"
-                    onClick={() => joinMeeting(liveMeeting.onlineMeeting!.joinUrl)}
-                  >
-                    <Phone className="h-4 w-4 mr-2" />
-                    Join Now
-                  </Button>
+        {/* Next Meeting */}
+        {nextMeeting && !liveMeeting && nextMeeting.onlineMeeting?.joinUrl && (
+          <div className="p-2 rounded-md border border-border bg-muted/30">
+            <p className="text-[10px] text-muted-foreground mb-1">Next Meeting</p>
+            <div className="flex items-start gap-2">
+              <div className="w-6 h-6 rounded bg-[#6264A7]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Video className="h-3 w-3 text-[#6264A7]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{nextMeeting.subject}</p>
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Clock className="h-2.5 w-2.5" />
+                  <span>{format(parseISO(nextMeeting.start.dateTime), 'h:mm a')}</span>
+                  <Badge className={cn("h-4 px-1 text-[9px]", getMeetingStatus(nextMeeting).color)}>
+                    {getMeetingStatus(nextMeeting).label}
+                  </Badge>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Next Meeting */}
-          {nextMeeting && !liveMeeting && nextMeeting.onlineMeeting?.joinUrl && (
-            <Card className="border-[#6264A7]/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Next Meeting</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-[#6264A7]/10 flex items-center justify-center">
-                      <Video className="h-6 w-6 text-[#6264A7]" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">{nextMeeting.subject}</h3>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        <span>
-                          {format(parseISO(nextMeeting.start.dateTime), 'h:mm a')} - {format(parseISO(nextMeeting.end.dateTime), 'h:mm a')}
-                        </span>
-                        {nextMeeting.attendees && nextMeeting.attendees.length > 0 && (
-                          <>
-                            <span>•</span>
-                            <Users className="h-3 w-3" />
-                            <span>{nextMeeting.attendees.length}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={getMeetingStatus(nextMeeting).color}>
-                      {getMeetingStatus(nextMeeting).label}
-                    </Badge>
-                    <Button
-                      className="bg-[#6264A7] hover:bg-[#6264A7]/90"
-                      onClick={() => joinMeeting(nextMeeting.onlineMeeting!.joinUrl)}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Join
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Upcoming Meetings */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold">Upcoming Meetings</h2>
+              </div>
               <Button
-                variant="ghost"
                 size="sm"
-                className="text-[#6264A7]"
-                onClick={() => window.location.href = '/teams'}
+                className="h-6 px-2 text-xs bg-[#6264A7] hover:bg-[#6264A7]/90"
+                onClick={() => joinMeeting(nextMeeting.onlineMeeting!.joinUrl)}
               >
-                View All
-                <ChevronRight className="h-4 w-4 ml-1" />
+                Join
               </Button>
             </div>
-
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : meetings.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-                  <Calendar className="h-10 w-10 text-muted-foreground mb-3" />
-                  <p className="font-medium mb-1">No upcoming Teams meetings</p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Your schedule is clear for the next two days
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCreateOpen(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Schedule a Meeting
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {groupMeetingsByDay().map(({ date, label, meetings }) => (
-                  <div key={date}>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">{label}</h3>
-                    <div className="space-y-2">
-                      {meetings.map(meeting => {
-                        const status = getMeetingStatus(meeting);
-                        return (
-                          <Card
-                            key={meeting.id}
-                            className={cn(
-                              "hover:shadow-sm transition-shadow",
-                              status.status === 'live' && "border-red-200"
-                            )}
-                          >
-                            <CardContent className="p-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <div className={cn(
-                                    "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-                                    status.status === 'live' ? "bg-red-100" : "bg-[#6264A7]/10"
-                                  )}>
-                                    <Video className={cn(
-                                      "h-5 w-5",
-                                      status.status === 'live' ? "text-red-500" : "text-[#6264A7]"
-                                    )} />
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="font-medium truncate">{meeting.subject}</p>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      <Clock className="h-3 w-3" />
-                                      <span>
-                                        {format(parseISO(meeting.start.dateTime), 'h:mm a')} - {format(parseISO(meeting.end.dateTime), 'h:mm a')}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  <Badge className={status.color} variant="secondary">
-                                    {status.label}
-                                  </Badge>
-                                  {meeting.onlineMeeting?.joinUrl && (
-                                    <Button
-                                      size="sm"
-                                      variant={status.status === 'live' ? 'default' : 'outline'}
-                                      className={status.status === 'live' ? 'bg-red-500 hover:bg-red-600' : ''}
-                                      onClick={() => joinMeeting(meeting.onlineMeeting!.joinUrl)}
-                                    >
-                                      {status.status === 'live' ? 'Join' : <ExternalLink className="h-4 w-4" />}
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
+        )}
+
+        {/* Upcoming Meetings */}
+        <div>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5">
+            Upcoming
+          </p>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : meetings.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-4 text-center">
+              <Calendar className="h-6 w-6 text-muted-foreground/50 mb-2" />
+              <p className="text-xs text-muted-foreground">No meetings</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {groupMeetingsByDay().map(({ date, label, meetings }) => (
+                <div key={date}>
+                  <p className="text-[10px] font-medium text-muted-foreground mb-1">{label}</p>
+                  <div className="space-y-1">
+                    {meetings.map(meeting => {
+                      const status = getMeetingStatus(meeting);
+                      return (
+                        <div
+                          key={meeting.id}
+                          className={cn(
+                            "flex items-center gap-2 p-1.5 rounded-md border border-border hover:bg-muted/50 transition-colors",
+                            status.status === 'live' && "border-red-200 bg-red-50/50 dark:bg-red-950/20"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-5 h-5 rounded flex items-center justify-center flex-shrink-0",
+                            status.status === 'live' ? "bg-red-100" : "bg-[#6264A7]/10"
+                          )}>
+                            <Video className={cn(
+                              "h-2.5 w-2.5",
+                              status.status === 'live' ? "text-red-500" : "text-[#6264A7]"
+                            )} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs truncate">{meeting.subject}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {format(parseISO(meeting.start.dateTime), 'h:mm a')}
+                            </p>
+                          </div>
+                          {meeting.onlineMeeting?.joinUrl && (
+                            <Button
+                              size="sm"
+                              variant={status.status === 'live' ? 'default' : 'ghost'}
+                              className={cn(
+                                "h-5 w-5 p-0",
+                                status.status === 'live' ? 'bg-red-500 hover:bg-red-600' : 'text-[#6264A7]'
+                              )}
+                              onClick={() => joinMeeting(meeting.onlineMeeting!.joinUrl)}
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Create Meeting Modal */}
       <TeamsMeetingModal
