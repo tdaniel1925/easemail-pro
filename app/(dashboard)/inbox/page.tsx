@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Pencil, MessageSquare, Users, Calendar, Paperclip, Loader2 } from 'lucide-react';
+import { Pencil, MessageSquare, Users, Calendar, Paperclip, Loader2, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FolderSidebarV3 } from '@/components/nylas-v3/folder-sidebar-v3';
 import { EmailListEnhancedV3 } from '@/components/nylas-v3/email-list-enhanced-v3';
@@ -269,6 +269,13 @@ function InboxV3Content() {
         {/* Quick Links - Fixed at bottom */}
         <div className="flex-shrink-0 border-t border-border">
           <div className="p-1.5 space-y-0.5">
+            <a
+              href="/teams"
+              className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"
+            >
+              <Video className="h-3 w-3" />
+              MS Teams
+            </a>
             <a
               href="/contacts-v4"
               className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"

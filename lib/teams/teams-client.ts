@@ -452,6 +452,361 @@ export class TeamsClient {
       return null;
     }
   }
+
+  // ============================================
+  // ONLINE MEETINGS
+  // ============================================
+
+  /**
+   * Create an online meeting (Teams meeting)
+   */
+  async createOnlineMeeting(options: {
+    subject: string;
+    startDateTime: string; // ISO 8601 format
+    endDateTime: string; // ISO 8601 format
+    participants?: Array<{ email: string; name?: string }>;
+    lobbyBypassSettings?: {
+      scope?: 'everyone' | 'organization' | 'organizer' | 'invited';
+      isDialInBypassEnabled?: boolean;
+    };
+    allowedPresenters?: 'everyone' | 'organization' | 'roleIsPresenter' | 'organizer';
+    recordAutomatically?: boolean;
+  }): Promise<{
+    id: string;
+    joinWebUrl: string;
+    joinUrl: string;
+    subject: string;
+    startDateTime: string;
+    endDateTime: string;
+    videoTeleconferenceId?: string;
+    chatInfo?: {
+      threadId: string;
+      messageId: string;
+    };
+  }> {
+    const attendees = options.participants?.map(p => ({
+      upn: p.email,
+      role: 'attendee',
+    })) || [];
+
+    const body: Record<string, any> = {
+      subject: options.subject,
+      startDateTime: options.startDateTime,
+      endDateTime: options.endDateTime,
+      participants: {
+        attendees,
+      },
+    };
+
+    if (options.lobbyBypassSettings) {
+      body.lobbyBypassSettings = options.lobbyBypassSettings;
+    }
+    if (options.allowedPresenters) {
+      body.allowedPresenters = options.allowedPresenters;
+    }
+    if (options.recordAutomatically !== undefined) {
+      body.recordAutomatically = options.recordAutomatically;
+    }
+
+    const meeting = await this.request<any>('/me/onlineMeetings', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    return {
+      id: meeting.id,
+      joinWebUrl: meeting.joinWebUrl,
+      joinUrl: meeting.joinUrl || meeting.joinWebUrl,
+      subject: meeting.subject,
+      startDateTime: meeting.startDateTime,
+      endDateTime: meeting.endDateTime,
+      videoTeleconferenceId: meeting.videoTeleconferenceId,
+      chatInfo: meeting.chatInfo,
+    };
+  }
+
+  /**
+   * Get an online meeting by ID
+   */
+  async getOnlineMeeting(meetingId: string): Promise<any> {
+    return this.request(`/me/onlineMeetings/${meetingId}`);
+  }
+
+  /**
+   * Create a Meet Now instant meeting
+   */
+  async createInstantMeeting(subject?: string): Promise<{
+    id: string;
+    joinWebUrl: string;
+    joinUrl: string;
+    subject: string;
+  }> {
+    const now = new Date();
+    const endTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+
+    const meeting = await this.request<any>('/me/onlineMeetings', {
+      method: 'POST',
+      body: JSON.stringify({
+        subject: subject || 'Instant Meeting',
+        startDateTime: now.toISOString(),
+        endDateTime: endTime.toISOString(),
+      }),
+    });
+
+    return {
+      id: meeting.id,
+      joinWebUrl: meeting.joinWebUrl,
+      joinUrl: meeting.joinUrl || meeting.joinWebUrl,
+      subject: meeting.subject,
+    };
+  }
+
+  // ============================================
+  // CALENDAR EVENTS
+  // ============================================
+
+  /**
+   * Get calendar events (including Teams meetings)
+   */
+  async getCalendarEvents(options?: {
+    startDateTime?: string;
+    endDateTime?: string;
+    top?: number;
+    skip?: number;
+    filter?: string;
+    orderBy?: string;
+  }): Promise<GraphApiResponse<CalendarEvent>> {
+    const params = new URLSearchParams();
+
+    if (options?.startDateTime && options?.endDateTime) {
+      params.append('startDateTime', options.startDateTime);
+      params.append('endDateTime', options.endDateTime);
+    }
+    if (options?.top) {
+      params.append('$top', options.top.toString());
+    }
+    if (options?.skip) {
+      params.append('$skip', options.skip.toString());
+    }
+    if (options?.filter) {
+      params.append('$filter', options.filter);
+    }
+    if (options?.orderBy) {
+      params.append('$orderby', options.orderBy);
+    }
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+
+    // Use calendarView for date range queries, events for other queries
+    const endpoint = options?.startDateTime && options?.endDateTime
+      ? `/me/calendarView${query}`
+      : `/me/events${query}`;
+
+    return this.request<GraphApiResponse<CalendarEvent>>(endpoint);
+  }
+
+  /**
+   * Create a calendar event with optional Teams meeting
+   */
+  async createCalendarEvent(options: {
+    subject: string;
+    body?: { content: string; contentType?: 'text' | 'html' };
+    start: { dateTime: string; timeZone: string };
+    end: { dateTime: string; timeZone: string };
+    location?: { displayName: string };
+    attendees?: Array<{
+      email: string;
+      name?: string;
+      type?: 'required' | 'optional' | 'resource';
+    }>;
+    isOnlineMeeting?: boolean;
+    onlineMeetingProvider?: 'teamsForBusiness' | 'skypeForBusiness' | 'skypeForConsumer';
+    isAllDay?: boolean;
+    recurrence?: any;
+    reminderMinutesBeforeStart?: number;
+    showAs?: 'free' | 'tentative' | 'busy' | 'oof' | 'workingElsewhere' | 'unknown';
+    importance?: 'low' | 'normal' | 'high';
+    sensitivity?: 'normal' | 'personal' | 'private' | 'confidential';
+    categories?: string[];
+  }): Promise<CalendarEvent> {
+    const body: Record<string, any> = {
+      subject: options.subject,
+      start: options.start,
+      end: options.end,
+    };
+
+    if (options.body) {
+      body.body = {
+        contentType: options.body.contentType || 'html',
+        content: options.body.content,
+      };
+    }
+    if (options.location) {
+      body.location = options.location;
+    }
+    if (options.attendees) {
+      body.attendees = options.attendees.map(a => ({
+        emailAddress: { address: a.email, name: a.name },
+        type: a.type || 'required',
+      }));
+    }
+    if (options.isOnlineMeeting) {
+      body.isOnlineMeeting = true;
+      body.onlineMeetingProvider = options.onlineMeetingProvider || 'teamsForBusiness';
+    }
+    if (options.isAllDay !== undefined) {
+      body.isAllDay = options.isAllDay;
+    }
+    if (options.recurrence) {
+      body.recurrence = options.recurrence;
+    }
+    if (options.reminderMinutesBeforeStart !== undefined) {
+      body.reminderMinutesBeforeStart = options.reminderMinutesBeforeStart;
+    }
+    if (options.showAs) {
+      body.showAs = options.showAs;
+    }
+    if (options.importance) {
+      body.importance = options.importance;
+    }
+    if (options.sensitivity) {
+      body.sensitivity = options.sensitivity;
+    }
+    if (options.categories) {
+      body.categories = options.categories;
+    }
+
+    return this.request<CalendarEvent>('/me/events', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  /**
+   * Update a calendar event
+   */
+  async updateCalendarEvent(eventId: string, updates: Partial<{
+    subject: string;
+    body: { content: string; contentType?: 'text' | 'html' };
+    start: { dateTime: string; timeZone: string };
+    end: { dateTime: string; timeZone: string };
+    location: { displayName: string };
+    isOnlineMeeting: boolean;
+    showAs: 'free' | 'tentative' | 'busy' | 'oof' | 'workingElsewhere' | 'unknown';
+  }>): Promise<CalendarEvent> {
+    return this.request<CalendarEvent>(`/me/events/${eventId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  /**
+   * Delete a calendar event
+   */
+  async deleteCalendarEvent(eventId: string): Promise<void> {
+    await this.request<void>(`/me/events/${eventId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * RSVP to a calendar event
+   */
+  async respondToCalendarEvent(
+    eventId: string,
+    response: 'accept' | 'tentativelyAccept' | 'decline',
+    comment?: string,
+    sendResponse: boolean = true
+  ): Promise<void> {
+    await this.request<void>(`/me/events/${eventId}/${response}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        comment: comment || '',
+        sendResponse,
+      }),
+    });
+  }
+
+  /**
+   * Get a single calendar event by ID
+   */
+  async getCalendarEvent(eventId: string): Promise<CalendarEvent> {
+    return this.request<CalendarEvent>(`/me/events/${eventId}`);
+  }
+}
+
+// Calendar event type from Graph API
+export interface CalendarEvent {
+  id: string;
+  subject: string;
+  bodyPreview?: string;
+  body?: {
+    contentType: string;
+    content: string;
+  };
+  start: {
+    dateTime: string;
+    timeZone: string;
+  };
+  end: {
+    dateTime: string;
+    timeZone: string;
+  };
+  location?: {
+    displayName: string;
+    locationType?: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      countryOrRegion?: string;
+      postalCode?: string;
+    };
+  };
+  attendees?: Array<{
+    emailAddress: {
+      name: string;
+      address: string;
+    };
+    type: string;
+    status: {
+      response: 'none' | 'organizer' | 'tentativelyAccepted' | 'accepted' | 'declined' | 'notResponded';
+      time?: string;
+    };
+  }>;
+  organizer?: {
+    emailAddress: {
+      name: string;
+      address: string;
+    };
+  };
+  isOnlineMeeting: boolean;
+  onlineMeetingProvider?: string;
+  onlineMeeting?: {
+    joinUrl: string;
+    conferenceId?: string;
+    tollNumber?: string;
+    tollFreeNumber?: string;
+  };
+  isAllDay: boolean;
+  isCancelled: boolean;
+  isOrganizer: boolean;
+  responseRequested: boolean;
+  responseStatus: {
+    response: string;
+    time?: string;
+  };
+  showAs: string;
+  importance: string;
+  sensitivity: string;
+  categories?: string[];
+  hasAttachments: boolean;
+  webLink?: string;
+  createdDateTime: string;
+  lastModifiedDateTime: string;
+  recurrence?: any;
+  seriesMasterId?: string;
+  type?: string;
 }
 
 /**

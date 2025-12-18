@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Mail, Phone, Building, MapPin, Linkedin, Globe, Twitter, Edit, Trash2, ExternalLink, Calendar, MessageSquare, Loader2 } from 'lucide-react';
+import { X, Mail, Phone, Building, MapPin, Linkedin, Globe, Twitter, Edit, Trash2, ExternalLink, Calendar, MessageSquare, Loader2, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { CommunicationTimeline } from './CommunicationTimeline';
 import { SMSModal } from '@/components/sms/SMSModal';
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/use-toast';
 
 interface ContactDetailModalProps {
   isOpen: boolean;
@@ -23,9 +24,29 @@ interface ContactDetailModalProps {
 
 export default function ContactDetailModal({ isOpen, onClose, contact, onEdit, onDelete }: ContactDetailModalProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
+  const [teamsAccountId, setTeamsAccountId] = useState<string | null>(null);
+  const [isCreatingTeamsChat, setIsCreatingTeamsChat] = useState(false);
+  const [isSchedulingMeeting, setIsSchedulingMeeting] = useState(false);
+
+  // Fetch Teams account on mount
+  useEffect(() => {
+    const fetchTeamsAccount = async () => {
+      try {
+        const response = await fetch('/api/teams/accounts');
+        const data = await response.json();
+        if (data.accounts && data.accounts.length > 0) {
+          setTeamsAccountId(data.accounts[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching Teams accounts:', error);
+      }
+    };
+    fetchTeamsAccount();
+  }, []);
   
   // Build display name with proper fallbacks
   const displayName = contact.displayName || 
@@ -67,6 +88,109 @@ export default function ContactDetailModal({ isOpen, onClose, contact, onEdit, o
     onClose();
   };
 
+  const handleStartTeamsChat = async () => {
+    if (!contact.email || !teamsAccountId) {
+      toast({
+        title: 'Cannot start Teams chat',
+        description: !contact.email ? 'Contact needs an email address' : 'No Teams account connected',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setIsCreatingTeamsChat(true);
+
+      const response = await fetch('/api/teams/chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: teamsAccountId,
+          participantEmail: contact.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success || data.chat) {
+        toast({
+          title: 'Teams chat ready',
+          description: 'Opening Teams chat...',
+        });
+        // Navigate to Teams page with the chat selected
+        router.push('/teams');
+      } else {
+        throw new Error(data.error || 'Failed to create chat');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to start Teams chat',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingTeamsChat(false);
+    }
+  };
+
+  const handleScheduleMeeting = async () => {
+    if (!contact.email || !teamsAccountId) {
+      toast({
+        title: 'Cannot schedule meeting',
+        description: !contact.email ? 'Contact needs an email address' : 'No Teams account connected',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setIsSchedulingMeeting(true);
+
+      // Create a meeting for tomorrow at 10 AM
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(10, 0, 0, 0);
+
+      const endTime = new Date(tomorrow);
+      endTime.setHours(11, 0, 0, 0);
+
+      const response = await fetch('/api/teams/calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: teamsAccountId,
+          subject: `Meeting with ${displayName}`,
+          startDateTime: tomorrow.toISOString(),
+          endDateTime: endTime.toISOString(),
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          isOnlineMeeting: true,
+          attendees: [{ email: contact.email, name: displayName }],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: 'Meeting scheduled',
+          description: `Teams meeting scheduled for tomorrow at 10 AM`,
+        });
+        // Navigate to Teams calendar
+        router.push('/teams');
+      } else {
+        throw new Error(data.error || 'Failed to schedule meeting');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to schedule meeting',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSchedulingMeeting(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -103,9 +227,9 @@ export default function ContactDetailModal({ isOpen, onClose, contact, onEdit, o
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleSMS}
                 disabled={!contact.phone}
                 title={contact.phone ? "Send SMS" : "Add phone number to send SMS"}
@@ -113,9 +237,9 @@ export default function ContactDetailModal({ isOpen, onClose, contact, onEdit, o
                 <MessageSquare className="h-4 w-4 mr-2" />
                 SMS
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleComposeEmail}
                 disabled={!contact.email}
                 title={contact.email ? "Send Email" : "Add email to send email"}
@@ -123,6 +247,40 @@ export default function ContactDetailModal({ isOpen, onClose, contact, onEdit, o
                 <Mail className="h-4 w-4 mr-2" />
                 Email
               </Button>
+              {teamsAccountId && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleStartTeamsChat}
+                    disabled={!contact.email || isCreatingTeamsChat}
+                    title={contact.email ? "Start Teams Chat" : "Add email to start Teams chat"}
+                    className="text-[#6264A7] border-[#6264A7]/50 hover:bg-[#6264A7]/10"
+                  >
+                    {isCreatingTeamsChat ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                    )}
+                    Teams Chat
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleScheduleMeeting}
+                    disabled={!contact.email || isSchedulingMeeting}
+                    title={contact.email ? "Schedule Teams Meeting" : "Add email to schedule meeting"}
+                    className="text-[#6264A7] border-[#6264A7]/50 hover:bg-[#6264A7]/10"
+                  >
+                    {isSchedulingMeeting ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Video className="h-4 w-4 mr-2" />
+                    )}
+                    Meeting
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </DialogHeader>
