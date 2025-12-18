@@ -305,7 +305,7 @@ export function TeamsChatSidebar() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-[10px] font-medium">{msg.senderName.split(' ')[0]}</span>
+                      <span className="text-[10px] font-medium">{(msg.senderName || 'Unknown').split(' ')[0]}</span>
                       <span className="text-[9px] text-muted-foreground">
                         {formatDistanceToNow(new Date(msg.teamsCreatedAt), { addSuffix: false })}
                       </span>
