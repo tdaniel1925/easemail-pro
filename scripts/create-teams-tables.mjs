@@ -40,6 +40,7 @@ async function createTeamsTables() {
         last_sync_at TIMESTAMP,
         last_error TEXT,
         is_active BOOLEAN DEFAULT true,
+        auto_sync BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       )
