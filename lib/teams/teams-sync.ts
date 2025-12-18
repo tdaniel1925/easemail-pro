@@ -279,13 +279,24 @@ async function syncChatMessages(
 
       for (const message of response.value) {
         // Skip system messages that aren't useful
-        if (message.messageType === 'systemEventMessage' && !message.body.content) {
+        if (message.messageType === 'systemEventMessage' && !message.body?.content) {
           continue;
         }
 
-        const messageResult = await upsertMessage(account, chat.id, teamsChatId, message);
-        if (messageResult === 'added') result.messagesAdded++;
-        else if (messageResult === 'updated') result.messagesUpdated++;
+        // Skip messages with no body content (deleted messages, system events)
+        if (!message.body?.content) {
+          console.log(`Skipping message ${message.id} - no body content`);
+          continue;
+        }
+
+        try {
+          const messageResult = await upsertMessage(account, chat.id, teamsChatId, message);
+          if (messageResult === 'added') result.messagesAdded++;
+          else if (messageResult === 'updated') result.messagesUpdated++;
+        } catch (msgError) {
+          console.error(`Error upserting message ${message.id}:`, msgError);
+          // Continue with other messages instead of failing entire sync
+        }
       }
 
       // Check for next page or delta link
@@ -343,6 +354,15 @@ async function upsertMessage(
   teamsChatId: string,
   message: TeamsMessage
 ): Promise<'added' | 'updated' | 'skipped'> {
+  // Safety check - skip if no body content
+  const bodyContent = message.body?.content || '';
+  const bodyType = message.body?.contentType || 'text';
+
+  if (!bodyContent && message.messageType === 'message') {
+    console.log(`Skipping message ${message.id} - empty body content`);
+    return 'skipped';
+  }
+
   // Check if message exists
   const existing = await db
     .select()
@@ -356,7 +376,7 @@ async function upsertMessage(
     .limit(1);
 
   // Strip HTML tags for summary/preview
-  const summary = message.body.content
+  const summary = bodyContent
     .replace(/<[^>]*>/g, '')
     .substring(0, 200)
     .trim();
@@ -368,8 +388,8 @@ async function upsertMessage(
     senderId: message.from?.user?.id || message.from?.application?.id || 'unknown',
     senderName: message.from?.user?.displayName || message.from?.application?.displayName || null,
     senderEmail: null, // Graph API doesn't return email in message
-    body: message.body.content,
-    bodyType: message.body.contentType,
+    body: bodyContent,
+    bodyType: bodyType,
     subject: message.subject || null,
     summary,
     messageType: message.messageType,
