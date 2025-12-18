@@ -251,6 +251,8 @@ async function syncChatMessages(
   };
 
   try {
+    console.log(`[Teams Sync] Starting sync for teamsChatId: ${teamsChatId}`);
+
     // Get the chat record
     const chatRecord = await db
       .select()
@@ -264,18 +266,25 @@ async function syncChatMessages(
       .limit(1);
 
     if (!chatRecord.length) {
+      console.log(`[Teams Sync] Chat not found in database for teamsChatId: ${teamsChatId}`);
       result.error = 'Chat not found in database';
       return result;
     }
 
     const chat = chatRecord[0];
+    console.log(`[Teams Sync] Found chat record with internal ID: ${chat.id}`);
+
     let deltaLink = chat.syncCursor || undefined;
     let hasMore = true;
 
     while (hasMore) {
+      console.log(`[Teams Sync] Fetching messages from Graph API, deltaLink: ${deltaLink ? 'yes' : 'no'}`);
+
       const response = deltaLink
         ? await client.getChatMessagesDelta(teamsChatId, deltaLink)
         : await client.getChatMessages(teamsChatId, { top: 50 });
+
+      console.log(`[Teams Sync] Graph API returned ${response.value?.length || 0} messages`);
 
       for (const message of response.value) {
         // Skip system messages that aren't useful
@@ -285,16 +294,18 @@ async function syncChatMessages(
 
         // Skip messages with no body content (deleted messages, system events)
         if (!message.body?.content) {
-          console.log(`Skipping message ${message.id} - no body content`);
+          console.log(`[Teams Sync] Skipping message ${message.id} - no body content`);
           continue;
         }
 
         try {
+          console.log(`[Teams Sync] Upserting message ${message.id}, type: ${message.messageType}, from: ${message.from?.user?.displayName || 'unknown'}`);
           const messageResult = await upsertMessage(account, chat.id, teamsChatId, message);
+          console.log(`[Teams Sync] Message ${message.id} result: ${messageResult}`);
           if (messageResult === 'added') result.messagesAdded++;
           else if (messageResult === 'updated') result.messagesUpdated++;
         } catch (msgError) {
-          console.error(`Error upserting message ${message.id}:`, msgError);
+          console.error(`[Teams Sync] Error upserting message ${message.id}:`, msgError);
           // Continue with other messages instead of failing entire sync
         }
       }
