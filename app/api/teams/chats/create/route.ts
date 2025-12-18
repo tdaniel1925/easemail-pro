@@ -126,9 +126,6 @@ export async function POST(request: Request) {
         isPinned: false,
         isMuted: false,
         isArchived: false,
-        teamsCreatedAt: chatData.createdDateTime ? new Date(chatData.createdDateTime) : new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: [teamsChats.teamsAccountId, teamsChats.teamsChatId],

@@ -53,7 +53,12 @@
       "Bash(cmd.exe /c \"cd /d \"c:devEaseMail - The Future\" && npm run dev\")",
       "Bash(ls:*)",
       "Bash(echo:*)",
-      "Bash(node scripts/create-teams-tables.mjs:*)"
+      "Bash(node scripts/create-teams-tables.mjs:*)",
+      "Bash(npx playwright install chromium)",
+      "Bash(npx playwright test --reporter=list)",
+      "Bash(cat:*)",
+      "Bash(dir:*)",
+      "Bash(npm run test:e2e:*)"
     ],
     "deny": [],
     "ask": []
