@@ -120,12 +120,24 @@ export default function EventModal({ isOpen, onClose, event, onSuccess, defaultD
                 if (calendarsResponse.ok) {
                   const calendarsData = await calendarsResponse.json();
                   if (calendarsData.success && calendarsData.calendars) {
-                    setAvailableCalendars(calendarsData.calendars);
+                    console.log('[EventModal] Fetched calendars:', calendarsData.calendars.length);
 
-                    // Auto-select primary calendar or first writable calendar
-                    const primaryCal = calendarsData.calendars.find((cal: any) => cal.isPrimary && !cal.readOnly);
-                    const firstWritable = calendarsData.calendars.find((cal: any) => !cal.readOnly);
-                    const defaultCal = primaryCal || firstWritable || calendarsData.calendars[0];
+                    // Filter out system calendars (holidays, birthdays, etc.)
+                    const userCalendars = calendarsData.calendars.filter((cal: any) => {
+                      const lowerName = (cal.name || '').toLowerCase();
+                      const excludePatterns = ['holiday', 'birthday', 'en.usa', 'contacts', 'week numbers'];
+                      return !excludePatterns.some(pattern => lowerName.includes(pattern));
+                    });
+
+                    setAvailableCalendars(userCalendars);
+
+                    // Auto-select primary calendar first (it's always writable for the account owner)
+                    // Then try first non-readOnly, then fall back to first available
+                    const primaryCal = userCalendars.find((cal: any) => cal.isPrimary);
+                    const firstWritable = userCalendars.find((cal: any) => !cal.readOnly);
+                    const defaultCal = primaryCal || firstWritable || userCalendars[0];
+
+                    console.log('[EventModal] Selected calendar:', defaultCal?.name, 'isPrimary:', defaultCal?.isPrimary, 'readOnly:', defaultCal?.readOnly);
 
                     if (defaultCal) {
                       setSelectedCalendarId(defaultCal.id);

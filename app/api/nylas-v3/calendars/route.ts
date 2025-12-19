@@ -64,9 +64,32 @@ export async function GET(request: NextRequest) {
 
     console.log('[Calendars] Fetched calendars:', calendars.data.length);
 
+    // Debug: Log calendar properties to diagnose readOnly issues
+    calendars.data.slice(0, 5).forEach((cal: any) => {
+      console.log('[Calendars] Calendar details:', {
+        id: cal.id?.substring(0, 30) + '...',
+        name: cal.name,
+        readOnly: cal.readOnly,
+        read_only: cal.read_only,
+        isReadOnly: cal.isReadOnly,
+        is_read_only: cal.is_read_only,
+        isPrimary: cal.isPrimary,
+        is_primary: cal.is_primary,
+      });
+    });
+
+    // Normalize the calendar data - Nylas v3 SDK returns snake_case properties
+    // but may also have camelCase depending on SDK version
+    const normalizedCalendars = calendars.data.map((cal: any) => ({
+      ...cal,
+      // Handle both snake_case and camelCase property names
+      readOnly: cal.readOnly ?? cal.read_only ?? cal.isReadOnly ?? cal.is_read_only ?? false,
+      isPrimary: cal.isPrimary ?? cal.is_primary ?? false,
+    }));
+
     return NextResponse.json({
       success: true,
-      calendars: calendars.data,
+      calendars: normalizedCalendars,
     });
   } catch (error) {
     console.error('[Calendars] Error fetching calendars:', error);

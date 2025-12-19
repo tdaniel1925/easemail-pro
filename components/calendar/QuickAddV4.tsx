@@ -110,19 +110,42 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
           const data = await response.json();
 
           if (data.success && data.calendars) {
-            // Only include writable calendars (exclude read-only, holidays, birthdays, and shared calendars)
+            console.log(`[QuickAdd] Fetched ${data.calendars.length} calendars for ${account.emailAddress}`);
+
+            // Debug: Log all calendars with their readOnly status
+            data.calendars.forEach((cal: any) => {
+              console.log(`[QuickAdd] Calendar: "${cal.name}" - readOnly: ${cal.readOnly}, isPrimary: ${cal.isPrimary}`);
+            });
+
+            // Filter calendars - include writable ones or primary calendar (even if marked readOnly)
             const writableCalendars = data.calendars
               .filter((cal: any) => {
-                // Exclude read-only calendars
-                if (cal.readOnly) return false;
-
-                // Exclude holiday and birthday calendars by name pattern
-                const lowerName = cal.name.toLowerCase();
+                // Exclude holiday and birthday calendars by name pattern (these are always read-only)
+                const lowerName = (cal.name || '').toLowerCase();
                 const excludePatterns = ['holiday', 'birthday', 'en.usa', 'contacts', 'week numbers'];
-                if (excludePatterns.some(pattern => lowerName.includes(pattern))) return false;
+                if (excludePatterns.some(pattern => lowerName.includes(pattern))) {
+                  console.log(`[QuickAdd] Excluding calendar by name pattern: ${cal.name}`);
+                  return false;
+                }
 
                 // Exclude calendars that don't support event creation by ID pattern
-                if (cal.id && (cal.id.startsWith('en.') || cal.id.includes('#holiday') || cal.id.includes('#contacts'))) return false;
+                if (cal.id && (cal.id.startsWith('en.') || cal.id.includes('#holiday') || cal.id.includes('#contacts'))) {
+                  console.log(`[QuickAdd] Excluding calendar by ID pattern: ${cal.name}`);
+                  return false;
+                }
+
+                // For Microsoft calendars, primary calendar is always writable even if readOnly is true
+                // Nylas sometimes returns readOnly: true for Microsoft calendars incorrectly
+                if (cal.isPrimary) {
+                  console.log(`[QuickAdd] Including primary calendar: ${cal.name}`);
+                  return true;
+                }
+
+                // Exclude explicitly read-only calendars
+                if (cal.readOnly === true) {
+                  console.log(`[QuickAdd] Excluding read-only calendar: ${cal.name}`);
+                  return false;
+                }
 
                 return true;
               })
@@ -137,6 +160,7 @@ export default function QuickAddV4({ isOpen, onClose, onEventCreated }: QuickAdd
                 readOnly: cal.readOnly,
               }));
 
+            console.log(`[QuickAdd] After filtering: ${writableCalendars.length} writable calendars`);
             allCalendars.push(...writableCalendars);
           }
         } catch (err) {
