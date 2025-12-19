@@ -1,8 +1,23 @@
 /* TipTap Editor Styles */
 
 .ProseMirror {
-  > * + * {
-    margin-top: 0.75em;
+  /* Paragraph styling - matches email display */
+  p {
+    margin: 0;
+    padding: 0;
+    min-height: 1.4em;
+    line-height: 1.5;
+  }
+
+  /* Space between consecutive paragraphs */
+  p + p {
+    margin-top: 1em;
+  }
+
+  /* Empty paragraphs (blank lines) should still take space */
+  p:empty,
+  p:has(> br:only-child) {
+    min-height: 1.4em;
   }
 
   ul,

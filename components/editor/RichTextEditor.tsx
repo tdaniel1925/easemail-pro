@@ -203,17 +203,26 @@ export function RichTextEditor({
 
   return (
     <div className={cn('border border-border rounded-lg', className)}>
-      {/* Custom CSS for email formatting - paragraphs have clear visual separation */}
+      {/* Custom CSS for email formatting - consistent paragraph spacing */}
       <style jsx global>{`
         .ProseMirror p {
+          margin: 0 !important;
+          padding: 0 !important;
+          min-height: 1.4em !important;
           line-height: 1.5 !important;
-          margin-bottom: 1em !important;
-          margin-top: 0 !important;
-          min-height: 1.5em !important;
         }
-        /* Last paragraph doesn't need bottom margin */
-        .ProseMirror p:last-child {
-          margin-bottom: 0 !important;
+        /* Space between consecutive paragraphs */
+        .ProseMirror p + p {
+          margin-top: 1em !important;
+        }
+        /* Empty paragraphs used as blank lines should render */
+        .ProseMirror p:empty {
+          min-height: 1.4em !important;
+          display: block !important;
+        }
+        .ProseMirror p:has(> br:only-child) {
+          min-height: 1.4em !important;
+          display: block !important;
         }
       `}</style>
       {/* Toolbar */}

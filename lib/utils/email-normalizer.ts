@@ -127,16 +127,17 @@ function stripProblematicStyles(doc: Document): void {
 
 /**
  * Normalize excessive whitespace that causes vertical gaps
+ * NOTE: Be conservative - preserve intentional blank lines for email formatting
  */
 function normalizeWhitespace(doc: Document): void {
-  // Remove excessive <br> tags (more than 2 in a row)
+  // Remove excessive <br> tags (more than 3 in a row - allow some for spacing)
   doc.querySelectorAll('br').forEach((br) => {
     let consecutiveBrs = 0;
     let sibling = br.nextSibling;
 
     while (sibling && sibling.nodeName === 'BR') {
       consecutiveBrs++;
-      if (consecutiveBrs > 1) {
+      if (consecutiveBrs > 2) { // Allow up to 3 consecutive <br> tags
         const toRemove = sibling;
         sibling = sibling.nextSibling;
         toRemove.remove();
@@ -146,15 +147,8 @@ function normalizeWhitespace(doc: Document): void {
     }
   });
 
-  // Remove empty divs that just contain &nbsp; or whitespace
-  doc.querySelectorAll('div, p').forEach((el) => {
-    const text = el.textContent?.trim();
-    if (!text || text === '\u00A0') {
-      if (!el.querySelector('img, table, a, button')) {
-        el.remove();
-      }
-    }
-  });
+  // REMOVED: Don't remove empty divs/paragraphs - they're often used for intentional spacing
+  // The email display CSS now handles empty paragraphs properly
 }
 
 /**
@@ -239,15 +233,17 @@ function fixNestedTables(doc: Document): void {
 }
 
 /**
- * Remove empty paragraphs that create unwanted space
+ * Handle empty paragraphs - convert to nbsp for consistent rendering
+ * NOTE: Don't remove empty paragraphs as they're used for intentional spacing
  */
 function fixEmptyParagraphs(doc: Document): void {
   doc.querySelectorAll('p').forEach((p) => {
     const text = p.textContent?.trim();
     const hasChildren = p.children.length > 0;
 
+    // Instead of removing empty paragraphs, add &nbsp; to ensure they render
     if (!text && !hasChildren) {
-      p.remove();
+      p.innerHTML = '&nbsp;';
     }
   });
 }
@@ -267,17 +263,18 @@ function removeInvisibleElements(doc: Document): void {
 
 /**
  * Quick fix for common email issues without full parsing
+ * NOTE: Preserve intentional blank lines for email formatting
  */
 export function quickFixEmailHTML(html: string): string {
   if (!html) return '';
 
   let fixed = html;
 
-  // Remove excessive line breaks
-  fixed = fixed.replace(/(<br\s*\/?>\s*){3,}/gi, '<br><br>');
+  // Remove excessive line breaks (more than 3 in a row)
+  fixed = fixed.replace(/(<br\s*\/?>\s*){4,}/gi, '<br><br><br>');
 
-  // Remove empty paragraphs
-  fixed = fixed.replace(/<p[^>]*>\s*(&nbsp;|\s)*\s*<\/p>/gi, '');
+  // Convert empty paragraphs to &nbsp; paragraphs (don't remove them)
+  fixed = fixed.replace(/<p[^>]*>\s*<\/p>/gi, '<p>&nbsp;</p>');
 
   // Fix images without proper sizing
   fixed = fixed.replace(

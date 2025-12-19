@@ -318,12 +318,12 @@ CRITICAL:
    *
    * Structure:
    * - Greeting (its own paragraph)
-   * - Blank line
+   * - Blank line (rendered with &nbsp; to ensure visibility)
    * - Body paragraphs (separated by blank lines)
    * - Blank line
    * - Salutation (its own paragraph)
    * - Blank line
-   * - Signature block (single-spaced using <br> tags)
+   * - Signature block (single-spaced using <br> tags, wrapped in signature div)
    */
   private formatEmailBody(body: string): string {
     // If already has HTML tags, return as-is
@@ -371,16 +371,17 @@ CRITICAL:
         if (line.length > 0) {
           result.push(`<p>${line}</p>`);
         } else {
-          // Empty line = blank paragraph for spacing
-          result.push('<p></p>');
+          // Empty line = blank paragraph for spacing (use &nbsp; to ensure it renders)
+          result.push('<p>&nbsp;</p>');
         }
       }
     }
 
     // Add signature block as single paragraph with <br> tags (single-spaced)
+    // Wrap in a div with data-signature attribute for styling
     if (signatureLines.length > 0) {
-      result.push('<p></p>'); // Blank line before signature
-      result.push(`<p>${signatureLines.join('<br>')}</p>`);
+      result.push('<p>&nbsp;</p>'); // Blank line before signature
+      result.push(`<div class="email-signature" data-signature="true"><p>${signatureLines.join('<br>')}</p></div>`);
     }
 
     return result.join('');

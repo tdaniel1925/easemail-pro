@@ -44,6 +44,9 @@ export function SimpleEmailViewer({ body, bodyText, attachments, accountId, mess
     // Secure HTML sanitization using DOMPurify
     let sanitized = sanitizeHtml(content);
 
+    // Normalize paragraph structure for consistent display
+    sanitized = normalizeEmailParagraphs(sanitized);
+
     // Remove leading whitespace that causes blank space at start
     sanitized = removeLeadingWhitespace(sanitized);
 
@@ -135,20 +138,54 @@ function sanitizeHtml(html: string): string {
 }
 
 /**
- * Remove leading whitespace that causes blank space at top of email
+ * Remove ONLY leading whitespace that causes blank space at top of email
+ * Preserves intentional blank lines within the content
  */
 function removeLeadingWhitespace(html: string): string {
   if (!html) return '';
 
-  return html
-    // Remove leading <br> tags
-    .replace(/^(\s*<br\s*\/?>\s*)+/gi, '')
-    // Remove leading empty paragraphs
-    .replace(/^(\s*<p[^>]*>\s*(&nbsp;|\s)*<\/p>\s*)+/gi, '')
-    // Remove leading empty divs
-    .replace(/^(\s*<div[^>]*>\s*(&nbsp;|\s)*<\/div>\s*)+/gi, '')
-    // Trim leading whitespace
-    .trimStart();
+  let result = html.trimStart();
+
+  // Only remove leading empty elements (not ones in the middle of content)
+  // More conservative approach - only strip truly empty leading elements
+
+  // Remove leading <br> tags (but only at the very start)
+  while (result.match(/^<br\s*\/?>\s*/i)) {
+    result = result.replace(/^<br\s*\/?>\s*/i, '');
+  }
+
+  // Remove leading empty paragraphs (only at the very start, and only truly empty ones)
+  while (result.match(/^<p[^>]*>\s*(<br\s*\/?>)?\s*<\/p>\s*/i)) {
+    result = result.replace(/^<p[^>]*>\s*(<br\s*\/?>)?\s*<\/p>\s*/i, '');
+  }
+
+  // Remove leading empty divs (only at the very start)
+  while (result.match(/^<div[^>]*>\s*(<br\s*\/?>)?\s*<\/div>\s*/i)) {
+    result = result.replace(/^<div[^>]*>\s*(<br\s*\/?>)?\s*<\/div>\s*/i, '');
+  }
+
+  return result;
+}
+
+/**
+ * Normalize paragraph structure for consistent display
+ * - Ensures paragraphs render with proper spacing
+ * - Handles AI-generated email format
+ */
+function normalizeEmailParagraphs(html: string): string {
+  if (!html) return '';
+
+  // Replace multiple consecutive <br> tags (more than 2) with paragraph breaks
+  let result = html.replace(/(<br\s*\/?>\s*){3,}/gi, '</p><p>');
+
+  // Ensure empty paragraphs used as spacers have content that renders
+  // Replace <p></p> with <p>&nbsp;</p> to ensure they take up space
+  result = result.replace(/<p><\/p>/gi, '<p>&nbsp;</p>');
+
+  // Same for paragraphs with just whitespace
+  result = result.replace(/<p>\s+<\/p>/gi, '<p>&nbsp;</p>');
+
+  return result;
 }
 
 /**
