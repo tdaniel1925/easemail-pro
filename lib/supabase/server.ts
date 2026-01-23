@@ -1,8 +1,9 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 
-export function createClient() {
-  const cookieStore = cookies();
+export const createClient = cache(async () => {
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,19 +30,19 @@ export function createClient() {
       },
     }
   );
-}
+});
 
 /**
  * Create a Supabase client with service role privileges
  * Use ONLY for admin operations like creating users
  * NEVER expose this to the client side
  */
-export function createAdminClient() {
+export const createAdminClient = cache(async () => {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set in environment variables. This is required for admin operations like creating users.');
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -68,6 +69,6 @@ export function createAdminClient() {
       },
     }
   );
-}
+});
 
 

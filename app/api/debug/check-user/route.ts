@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Email parameter required' }, { status: 400 });
     }
 
-    const adminClient = createAdminClient();
+    const adminClient = await createAdminClient();
     const { data: { users }, error } = await adminClient.auth.admin.listUsers();
 
     if (error) {

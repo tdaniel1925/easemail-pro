@@ -1075,12 +1075,17 @@ export const subscriptions = pgTable('subscriptions', {
   canceledAt: timestamp('canceled_at'),
   stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
   stripeSubscriptionId: varchar('stripe_subscription_id', { length: 255 }),
+  // PayPal fields
+  paymentProvider: varchar('payment_provider', { length: 20 }).default('stripe'), // 'stripe' or 'paypal'
+  paypalSubscriptionId: varchar('paypal_subscription_id', { length: 255 }),
+  paypalPlanId: varchar('paypal_plan_id', { length: 255 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   orgIdIdx: index('subscriptions_org_id_idx').on(table.organizationId),
   userIdIdx: index('subscriptions_user_id_idx').on(table.userId),
   stripeSubIdIdx: index('subscriptions_stripe_sub_id_idx').on(table.stripeSubscriptionId),
+  paypalSubIdIdx: index('subscriptions_paypal_sub_id_idx').on(table.paypalSubscriptionId),
 }));
 
 // Team Invitations
@@ -1129,6 +1134,10 @@ export const invoices = pgTable('invoices', {
   stripeInvoiceId: varchar('stripe_invoice_id', { length: 255 }).unique(),
   stripePaymentIntentId: varchar('stripe_payment_intent_id', { length: 255 }),
 
+  // PayPal fields
+  paymentProvider: varchar('payment_provider', { length: 20 }).default('stripe'), // 'stripe' or 'paypal'
+  paypalInvoiceId: varchar('paypal_invoice_id', { length: 255 }),
+
   pdfUrl: varchar('pdf_url', { length: 500 }),
   invoiceUrl: varchar('invoice_url', { length: 500 }), // Stripe hosted invoice URL
   invoicePdfUrl: varchar('invoice_pdf_url', { length: 500 }), // Alias for pdfUrl
@@ -1143,6 +1152,7 @@ export const invoices = pgTable('invoices', {
   statusIdx: index('invoices_status_idx').on(table.status),
   periodIdx: index('invoices_period_idx').on(table.periodStart, table.periodEnd),
   stripeInvoiceIdIdx: index('invoices_stripe_invoice_id_idx').on(table.stripeInvoiceId),
+  paypalInvoiceIdIdx: index('invoices_paypal_invoice_id_idx').on(table.paypalInvoiceId),
 }));
 
 // Payment Methods
@@ -2566,12 +2576,30 @@ export const teamsWebhookSubscriptions = pgTable('teams_webhook_subscriptions', 
   subscriptionIdx: index('idx_teams_webhook_subscription').on(table.subscriptionId),
 }));
 
+// PayPal Billing Plans (tracks PayPal products and billing plans)
+export const paypalBillingPlans = pgTable('paypal_billing_plans', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  planId: varchar('plan_id', { length: 50 }).notNull(), // 'individual', 'team', 'enterprise'
+  billingCycle: varchar('billing_cycle', { length: 20 }).notNull(), // 'monthly', 'annual'
+  paypalProductId: varchar('paypal_product_id', { length: 255 }).notNull(),
+  paypalPlanId: varchar('paypal_plan_id', { length: 255 }).notNull().unique(),
+  pricePerSeat: decimal('price_per_seat', { precision: 10, scale: 2 }).notNull(),
+  currency: varchar('currency', { length: 3 }).default('USD'),
+  status: varchar('status', { length: 20 }).default('active'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  planCycleIdx: index('paypal_plans_plan_cycle_idx').on(table.planId, table.billingCycle),
+  productIdIdx: index('paypal_plans_product_id_idx').on(table.paypalProductId),
+}));
+
 // Aliases for snake_case compatibility
 export const teams_accounts = teamsAccounts;
 export const teams_chats = teamsChats;
 export const teams_messages = teamsMessages;
 export const teams_sync_state = teamsSyncState;
 export const teams_webhook_subscriptions = teamsWebhookSubscriptions;
+export const paypal_billing_plans = paypalBillingPlans;
 
 // Aliases for snake_case compatibility
 export const sms_usage = smsUsage;

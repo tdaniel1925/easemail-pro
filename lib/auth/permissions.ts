@@ -26,7 +26,7 @@ export interface UserContext {
  */
 export async function getUserContext(): Promise<UserContext | null> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

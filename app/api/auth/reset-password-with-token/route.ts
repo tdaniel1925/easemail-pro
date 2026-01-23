@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update password in Supabase Auth using admin client
-    const adminClient = createAdminClient();
+    const adminClient = await createAdminClient();
     const { error: updateError } = await adminClient.auth.admin.updateUserById(
       user.id,
       { password: newPassword }

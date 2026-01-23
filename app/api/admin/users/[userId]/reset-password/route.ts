@@ -50,7 +50,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     console.log(`🔑 Password: ${newTempPassword}`); // Log it for debugging
 
     // Update password in Supabase Auth FIRST
-    const adminClient = createAdminClient();
+    const adminClient = await createAdminClient();
     const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
       password: newTempPassword,
       email_confirm: true, // Ensure email is confirmed

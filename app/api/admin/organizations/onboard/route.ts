@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     const tempPassword = crypto.randomBytes(12).toString('base64').slice(0, 16);
 
     // Create user account in Supabase
-    const supabaseAdmin = createAdminClient();
+    const supabaseAdmin = await createAdminClient();
     const { data: newAuthUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: primaryContactEmail,
       password: tempPassword,

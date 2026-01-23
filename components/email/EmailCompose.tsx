@@ -172,6 +172,9 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [hideSignaturePromptPreference, setHideSignaturePromptPreference] = useState(false);
   const [showSignatureEditor, setShowSignatureEditor] = useState(false);
 
+  // Progressive disclosure - hide advanced features by default
+  const [showAdvancedFeatures, setShowAdvancedFeatures] = useState(false);
+
   // ✅ FIX: Reset recipients when replyTo changes (when modal reopens with new email)
   useEffect(() => {
     if (isOpen && replyTo) {
@@ -1469,179 +1472,218 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               </div>
             </div>
 
-            {/* Toolbar */}
-            <div className="flex items-center gap-0.5 p-1.5 border-b border-border bg-muted/30 overflow-x-auto">
-              {/* HTML/Plain Toggle */}
-              <Button
-                variant={isHtmlMode ? 'default' : 'outline'}
-                size="sm"
-                className="h-6 text-[10px] px-1.5"
-                onClick={() => setIsHtmlMode(!isHtmlMode)}
-                title="Toggle HTML/Plain Text"
-              >
-                {isHtmlMode ? 'HTML' : 'Plain'}
-              </Button>
-              <div className="w-px h-5 bg-border mx-0.5" />
-
-              {/* Removed: Bold/Italic/Underline buttons (don't actually work without rich text editor) */}
-
-              {/* Headings */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                title="Heading 1"
-                onClick={() => handleInsertHeading(1)}
-                disabled={!isHtmlMode}
-              >
-                <Heading1 className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                title="Heading 2"
-                onClick={() => handleInsertHeading(2)}
-                disabled={!isHtmlMode}
-              >
-                <Heading2 className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                title="Heading 3"
-                onClick={() => handleInsertHeading(3)}
-                disabled={!isHtmlMode}
-              >
-                <Heading3 className="h-3 w-3" />
-              </Button>
-
-              <div className="w-px h-5 bg-border mx-0.5" />
-
-              {/* List & Code */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                title="Bullet list"
-                onClick={() => setBody(body + '\n• ')}
-                disabled={!isHtmlMode}
-              >
-                <List className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                title="Code block"
-                onClick={handleInsertCodeBlock}
-                disabled={!isHtmlMode}
-              >
-                <Code className="h-3 w-3" />
-              </Button>
-
-              <div className="w-px h-5 bg-border mx-0.5" />
-
-              {/* Link & Image */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                title="Insert link"
-                onClick={handleInsertLink}
-              >
-                <Link2 className="h-3 w-3" />
-              </Button>
-              <label title="Insert image">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAttachment}
-                  className="hidden"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 cursor-pointer"
-                  asChild
-                >
-                  <span>
-                    <Image className="h-3 w-3" />
-                  </span>
-                </Button>
-              </label>
-
-              {/* Signature Controls */}
-              {signatures.length > 0 ? (
-                <>
-                  <div className="w-px h-5 bg-border mx-0.5" />
-                  <div className="relative">
+            {/* Toolbar - Progressive Disclosure */}
+            <div className="border-b border-border bg-muted/30 overflow-x-auto">
+              {/* Simple Toolbar (Always Visible) */}
+              <div className="flex items-center justify-between p-1.5">
+                <div className="flex items-center gap-1">
+                  {/* Attachment Button */}
+                  <label title="Attach files">
+                    <input
+                      type="file"
+                      multiple
+                      onChange={handleAttachment}
+                      className="hidden"
+                    />
                     <Button
                       variant="ghost"
                       size="icon"
-                      className={cn('h-6 w-6', useSignature && 'bg-accent')}
+                      className="h-7 w-7 cursor-pointer"
+                      asChild
+                    >
+                      <span>
+                        <Paperclip className="h-4 w-4" />
+                      </span>
+                    </Button>
+                  </label>
+
+                  {/* Quick Signature Toggle (if signatures exist) */}
+                  {signatures.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn('h-7 w-7', useSignature && 'bg-accent')}
                       onClick={handleSignatureToggle}
                       title={useSignature ? 'Remove signature' : 'Add signature'}
                     >
-                      <PenTool className="h-3 w-3" />
-                      {useSignature && (
-                        <Check className="h-2 w-2 absolute top-0.5 right-0.5 text-primary" />
-                      )}
+                      <PenTool className="h-4 w-4" />
                     </Button>
-                  </div>
-                  {signatures.length > 1 && (
-                    <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-1.5 text-[10px]"
-                        onClick={() => setShowSignatureDropdown(!showSignatureDropdown)}
-                        title="Choose signature"
-                      >
-                        {selectedSignatureId
-                          ? signatures.find(s => s.id === selectedSignatureId)?.name || 'Signature'
-                          : 'Signature'}
-                      </Button>
-                      {showSignatureDropdown && (
-                        <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[200px]">
-                          {signatures
-                            .filter(s => s.isActive)
-                            .map(sig => (
-                              <button
-                                key={sig.id}
-                                onClick={() => handleSignatureChange(sig.id)}
-                                className={cn(
-                                  'w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors',
-                                  sig.id === selectedSignatureId && 'bg-accent'
-                                )}
-                              >
-                                <div className="font-medium">{sig.name}</div>
-                                {sig.isDefault && (
-                                  <div className="text-xs text-muted-foreground">Default</div>
-                                )}
-                              </button>
-                            ))}
-                        </div>
-                      )}
-                    </div>
                   )}
-                </>
-              ) : !signaturesLoading && !hideSignaturePromptPreference && (
-                <>
-                  {/* Add Signature Badge - Shows when user has no signatures */}
-                  <div className="w-px h-6 bg-border mx-1" />
+                </div>
+
+                {/* More Options Toggle */}
+                <Button
+                  variant={showAdvancedFeatures ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-7 px-3 text-xs gap-1.5 transition-smooth"
+                  onClick={() => setShowAdvancedFeatures(!showAdvancedFeatures)}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {showAdvancedFeatures ? 'Less Options' : 'More Options'}
+                  <ChevronDown className={cn('h-3 w-3 transition-transform', showAdvancedFeatures && 'rotate-180')} />
+                </Button>
+              </div>
+
+              {/* Advanced Toolbar (Collapsible) */}
+              {showAdvancedFeatures && (
+                <div className="flex items-center gap-0.5 px-1.5 pb-1.5 overflow-x-auto fade-in">
+                  {/* HTML/Plain Toggle */}
                   <Button
-                    variant="outline"
+                    variant={isHtmlMode ? 'default' : 'outline'}
                     size="sm"
-                    className="h-8 px-3 text-xs gap-1.5 border-dashed border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
-                    onClick={() => setShowSignatureEditor(true)}
-                    title="Create your email signature"
+                    className="h-6 text-[10px] px-1.5"
+                    onClick={() => setIsHtmlMode(!isHtmlMode)}
+                    title="Toggle HTML/Plain Text"
                   >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Add Signature
+                    {isHtmlMode ? 'HTML' : 'Plain'}
                   </Button>
-                </>
+                  <div className="w-px h-5 bg-border mx-0.5" />
+
+                  {/* Headings */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    title="Heading 1"
+                    onClick={() => handleInsertHeading(1)}
+                    disabled={!isHtmlMode}
+                  >
+                    <Heading1 className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    title="Heading 2"
+                    onClick={() => handleInsertHeading(2)}
+                    disabled={!isHtmlMode}
+                  >
+                    <Heading2 className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    title="Heading 3"
+                    onClick={() => handleInsertHeading(3)}
+                    disabled={!isHtmlMode}
+                  >
+                    <Heading3 className="h-3 w-3" />
+                  </Button>
+
+                  <div className="w-px h-5 bg-border mx-0.5" />
+
+                  {/* List & Code */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    title="Bullet list"
+                    onClick={() => setBody(body + '\n• ')}
+                    disabled={!isHtmlMode}
+                  >
+                    <List className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    title="Code block"
+                    onClick={handleInsertCodeBlock}
+                    disabled={!isHtmlMode}
+                  >
+                    <Code className="h-3 w-3" />
+                  </Button>
+
+                  <div className="w-px h-5 bg-border mx-0.5" />
+
+                  {/* Link & Image */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    title="Insert link"
+                    onClick={handleInsertLink}
+                  >
+                    <Link2 className="h-3 w-3" />
+                  </Button>
+                  <label title="Insert image">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAttachment}
+                      className="hidden"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 cursor-pointer"
+                      asChild
+                    >
+                      <span>
+                        <Image className="h-3 w-3" />
+                      </span>
+                    </Button>
+                  </label>
+
+                  {/* Signature Controls */}
+                  {signatures.length > 0 && signatures.length > 1 && (
+                    <>
+                      <div className="w-px h-5 bg-border mx-0.5" />
+                      <div className="relative">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-1.5 text-[10px]"
+                          onClick={() => setShowSignatureDropdown(!showSignatureDropdown)}
+                          title="Choose signature"
+                        >
+                          {selectedSignatureId
+                            ? signatures.find(s => s.id === selectedSignatureId)?.name || 'Signature'
+                            : 'Signature'}
+                        </Button>
+                        {showSignatureDropdown && (
+                          <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[200px]">
+                            {signatures
+                              .filter(s => s.isActive)
+                              .map(sig => (
+                                <button
+                                  key={sig.id}
+                                  onClick={() => handleSignatureChange(sig.id)}
+                                  className={cn(
+                                    'w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors',
+                                    sig.id === selectedSignatureId && 'bg-accent'
+                                  )}
+                                >
+                                  <div className="font-medium">{sig.name}</div>
+                                  {sig.isDefault && (
+                                    <div className="text-xs text-muted-foreground">Default</div>
+                                  )}
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Add Signature Badge - Shows when user has no signatures */}
+                  {signatures.length === 0 && !signaturesLoading && !hideSignaturePromptPreference && (
+                    <>
+                      <div className="w-px h-6 bg-border mx-1" />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-2 text-xs gap-1.5 border-dashed border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
+                        onClick={() => setShowSignatureEditor(true)}
+                        title="Create your email signature"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        Add Signature
+                      </Button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
 
@@ -1711,29 +1753,31 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               </div>
             )}
 
-            {/* AI Composition Toolbar */}
-            <Suspense fallback={
-              <div className="p-3 border-t border-border bg-muted/10 text-center text-sm text-muted-foreground">
-                Loading AI features...
-              </div>
-            }>
-              <UnifiedAIToolbar
-                subject={subject}
-                body={body}
-                onSubjectChange={(newSubject) => {
-                  isAIUpdatingRef.current = true; // Set flag before AI updates
-                  setSubject(newSubject);
-                }}
-                onBodyChange={(newBody) => {
-                  isAIUpdatingRef.current = true; // Set flag before AI updates
-                  setBody(newBody);
-                }}
-                recipientEmail={to.length > 0 ? to[0].email : undefined}
-                recipientName={to.length > 0 ? to[0].name : undefined}
-                userTier="free"
-                onAttachVoiceMessage={handleVoiceMessageAttachment}
-              />
-            </Suspense>
+            {/* AI Composition Toolbar - Only show when advanced features enabled */}
+            {showAdvancedFeatures && (
+              <Suspense fallback={
+                <div className="p-3 border-t border-border bg-muted/10 text-center text-sm text-muted-foreground">
+                  Loading AI features...
+                </div>
+              }>
+                <UnifiedAIToolbar
+                  subject={subject}
+                  body={body}
+                  onSubjectChange={(newSubject) => {
+                    isAIUpdatingRef.current = true; // Set flag before AI updates
+                    setSubject(newSubject);
+                  }}
+                  onBodyChange={(newBody) => {
+                    isAIUpdatingRef.current = true; // Set flag before AI updates
+                    setBody(newBody);
+                  }}
+                  recipientEmail={to.length > 0 ? to[0].email : undefined}
+                  recipientName={to.length > 0 ? to[0].name : undefined}
+                  userTier="free"
+                  onAttachVoiceMessage={handleVoiceMessageAttachment}
+                />
+              </Suspense>
+            )}
 
             {/* Footer */}
             <div className="flex flex-col border-t border-border">
@@ -1761,109 +1805,121 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
               <div className="flex items-center justify-between p-2">
                 <div className="flex items-center gap-1.5">
-                  {/* Send Button with Dropdown */}
-                  <div className="relative">
-                    <div className="flex">
-                      <Button
-                        onClick={() => handleSend()}
-                        className="gap-1.5 rounded-r-none h-7 px-2 text-xs"
-                        disabled={isSending || !selectedAccountId}
+                  {/* Send Button - Simple or with Dropdown based on advanced features */}
+                  {showAdvancedFeatures ? (
+                    <div className="relative">
+                      <div className="flex">
+                        <Button
+                          onClick={() => handleSend()}
+                          className="gap-1.5 rounded-r-none h-7 px-2 text-xs btn-press"
+                          disabled={isSending || !selectedAccountId}
+                        >
+                          <Send className="h-3 w-3" />
+                          {isSending ? 'Sending...' : 'Send'}
+                        </Button>
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const dropdown = document.getElementById('send-dropdown');
+                            if (dropdown) {
+                              dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                            }
+                          }}
+                          className="rounded-l-none border-l px-1.5 h-7 btn-press"
+                          disabled={isSending || !selectedAccountId}
+                          title="More send options"
+                        >
+                          <span className="text-[10px]">▼</span>
+                        </Button>
+                      </div>
+                      <div
+                        id="send-dropdown"
+                        className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[160px] scale-in"
+                        style={{ display: 'none' }}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <Send className="h-3 w-3" />
-                        {isSending ? 'Sending...' : 'Send'}
-                      </Button>
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const dropdown = document.getElementById('send-dropdown');
-                          if (dropdown) {
-                            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-                          }
-                        }}
-                        className="rounded-l-none border-l px-1.5 h-7"
-                        disabled={isSending || !selectedAccountId}
-                        title="More send options"
-                      >
-                        <span className="text-[10px]">▼</span>
-                      </Button>
+                        <button
+                          onClick={async () => {
+                            await handleSend();
+                            // Archive the original email if this is a reply
+                            if (replyTo && replyTo.messageId) {
+                              try {
+                                await fetch(`/api/nylas-v3/messages/${replyTo.messageId}/archive`, {
+                                  method: 'POST',
+                                });
+                              } catch (err) {
+                                console.error('Failed to archive:', err);
+                              }
+                            }
+                            document.getElementById('send-dropdown')!.style.display = 'none';
+                          }}
+                          className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent transition-smooth"
+                          disabled={isSending}
+                        >
+                          Send & Archive
+                        </button>
+                        <button
+                          onClick={async () => {
+                            await handleSend();
+                            // Delete the original email if this is a reply
+                            if (replyTo && replyTo.messageId) {
+                              try {
+                                await fetch(`/api/nylas-v3/messages/${replyTo.messageId}`, {
+                                  method: 'DELETE',
+                                });
+                              } catch (err) {
+                                console.error('Failed to delete:', err);
+                              }
+                            }
+                            document.getElementById('send-dropdown')!.style.display = 'none';
+                          }}
+                          className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent transition-smooth border-t"
+                          disabled={isSending}
+                        >
+                          Send & Delete
+                        </button>
+                      </div>
                     </div>
-                    <div
-                      id="send-dropdown"
-                      className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[160px]"
-                      style={{ display: 'none' }}
-                      onClick={(e) => e.stopPropagation()}
+                  ) : (
+                    <Button
+                      onClick={() => handleSend()}
+                      className="gap-1.5 h-7 px-3 text-xs btn-press"
+                      disabled={isSending || !selectedAccountId}
                     >
-                      <button
-                        onClick={async () => {
-                          await handleSend();
-                          // Archive the original email if this is a reply
-                          if (replyTo && replyTo.messageId) {
-                            try {
-                              await fetch(`/api/nylas-v3/messages/${replyTo.messageId}/archive`, {
-                                method: 'POST',
-                              });
-                            } catch (err) {
-                              console.error('Failed to archive:', err);
-                            }
-                          }
-                          document.getElementById('send-dropdown')!.style.display = 'none';
-                        }}
-                        className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent transition-colors"
-                        disabled={isSending}
-                      >
-                        Send & Archive
-                      </button>
-                      <button
-                        onClick={async () => {
-                          await handleSend();
-                          // Delete the original email if this is a reply
-                          if (replyTo && replyTo.messageId) {
-                            try {
-                              await fetch(`/api/nylas-v3/messages/${replyTo.messageId}`, {
-                                method: 'DELETE',
-                              });
-                            } catch (err) {
-                              console.error('Failed to delete:', err);
-                            }
-                          }
-                          document.getElementById('send-dropdown')!.style.display = 'none';
-                        }}
-                        className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent transition-colors border-t"
-                        disabled={isSending}
-                      >
-                        Send & Delete
-                      </button>
-                    </div>
-                  </div>
-                <label>
-                  <input
-                    type="file"
-                    multiple
-                    onChange={handleAttachment}
-                    className="hidden"
-                  />
-                  <Button variant="ghost" size="icon" className="cursor-pointer h-6 w-6" asChild>
-                    <span>
-                      <Paperclip className="h-3 w-3" />
-                    </span>
-                  </Button>
-                </label>
+                      <Send className="h-3 w-3" />
+                      {isSending ? 'Sending...' : 'Send'}
+                    </Button>
+                  )}
+
+                  {/* Manual Save Draft Button - Only visible with advanced features */}
+                  {showAdvancedFeatures && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs transition-smooth"
+                      onClick={() => handleSaveDraft(false)}
+                      disabled={isSavingDraft || !selectedAccountId}
+                      title="Save draft manually"
+                    >
+                      {isSavingDraft ? 'Saving...' : 'Save Draft'}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Right Side - Discard Button (Only visible with advanced features) */}
+                <div className="flex items-center gap-1">
+                  {showAdvancedFeatures && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClose}
+                      className="h-7 px-2 text-xs transition-smooth"
+                    >
+                      Discard
+                    </Button>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSaveDraft(false)}
-                  disabled={isSavingDraft || !selectedAccountId}
-                  className="h-6 px-2 text-xs"
-                >
-                  {isSavingDraft ? 'Saving...' : 'Save Draft'}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={handleClose} className="h-6 px-2 text-xs">
-                  Discard
-                </Button>
-              </div>
-            </div>
             </div>
           </>
         )}

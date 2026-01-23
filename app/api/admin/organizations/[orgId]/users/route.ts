@@ -99,7 +99,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // Check if user exists in Supabase Auth (to prevent duplicate auth users)
-    const adminClient = createAdminClient();
+    const adminClient = await createAdminClient();
     const { data: existingAuthUsers } = await adminClient.auth.admin.listUsers();
     const authUserExists = existingAuthUsers?.users?.some(
       u => u.email?.toLowerCase() === email.toLowerCase().trim()

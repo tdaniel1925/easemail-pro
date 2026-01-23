@@ -29,7 +29,7 @@ export const maxDuration = 300; // 5 minutes for complete deletion
 export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate user
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
