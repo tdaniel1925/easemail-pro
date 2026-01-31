@@ -158,8 +158,8 @@ function EmailCard({
     <div
       className={cn(
         // ✨ Professional email card styling
-        'relative border-b border-border px-4 py-3 cursor-pointer transition-smooth group',
-        'hover:bg-muted/50',
+        'relative border-b border-border px-3 sm:px-4 py-3 cursor-pointer transition-smooth group',
+        'hover:bg-muted/50 active:bg-muted', // Added active state for mobile
         // Active state
         isActive && 'bg-card shadow-sm',
         // Unread state - subtle left border
@@ -167,10 +167,10 @@ function EmailCard({
       )}
       onClick={() => onClick(email)}
     >
-      <div className="flex items-start gap-3">
-        {/* Checkbox */}
+      <div className="flex items-start gap-2 sm:gap-3">
+        {/* Checkbox - Hidden on mobile, shown on tablet+ */}
         <div
-          className="pt-1"
+          className="pt-1 hidden sm:block"
           onClick={(e) => {
             e.stopPropagation();
             onSelect(email.id);
@@ -179,10 +179,10 @@ function EmailCard({
           <Checkbox checked={isSelected} />
         </div>
 
-        {/* Avatar */}
+        {/* Avatar - Smaller on mobile */}
         <div
           className={cn(
-            'flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold text-sm',
+            'flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm',
             email.isRead
               ? 'bg-muted-foreground/60'
               : 'bg-primary'
@@ -291,10 +291,10 @@ function EmailCard({
           </div>
         </div>
 
-        {/* Quick Actions (on hover) */}
-        <div className="opacity-0 group-hover:opacity-100 transition-smooth flex items-center gap-1">
+        {/* Quick Actions - Always visible on mobile, hover on desktop */}
+        <div className="sm:opacity-0 sm:group-hover:opacity-100 transition-smooth flex items-center gap-0.5 sm:gap-1">
           <button
-            className="p-1 hover:bg-muted rounded transition-smooth"
+            className="p-2 hover:bg-muted rounded transition-smooth touch-target"
             onClick={(e) => {
               e.stopPropagation();
               setShowSnoozeDialog(true);
@@ -304,7 +304,7 @@ function EmailCard({
             <Clock className="h-4 w-4 text-muted-foreground hover:text-primary transition-smooth" />
           </button>
           <button
-            className="p-1 hover:bg-muted rounded transition-smooth"
+            className="p-2 hover:bg-muted rounded transition-smooth touch-target hidden sm:flex"
             onClick={(e) => {
               e.stopPropagation();
               // Handle archive
@@ -314,7 +314,7 @@ function EmailCard({
             <ArchiveX className="h-4 w-4 text-muted-foreground hover:text-foreground transition-smooth" />
           </button>
           <button
-            className="p-1 hover:bg-muted rounded transition-smooth"
+            className="p-2 hover:bg-muted rounded transition-smooth touch-target"
             onClick={(e) => {
               e.stopPropagation();
               // Handle delete
@@ -324,7 +324,7 @@ function EmailCard({
             <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive transition-smooth" />
           </button>
           <button
-            className="p-1 hover:bg-muted rounded transition-smooth"
+            className="p-2 hover:bg-muted rounded transition-smooth touch-target hidden sm:flex"
             onClick={async (e) => {
               e.stopPropagation();
               try {

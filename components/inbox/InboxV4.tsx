@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,8 @@ import {
   Filter,
   LayoutGrid,
   LayoutList,
+  Menu,
+  X,
 } from 'lucide-react';
 
 interface Email {
@@ -97,6 +100,7 @@ export default function InboxV4({
   const [offset, setOffset] = useState(50);
   const [threadModalOpen, setThreadModalOpen] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Virtual scrolling ref
   const parentRef = useRef<HTMLDivElement>(null);
@@ -511,24 +515,57 @@ export default function InboxV4({
   useKeyboardShortcuts(shortcuts, !threadModalOpen);
 
   return (
-    <div className="flex h-screen bg-muted/30">
+    <div className="flex h-screen bg-muted/30 relative">
+      {/* Mobile Sidebar Overlay */}
+      {isMobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar - Folder Navigation */}
-      <FolderNav
-        currentFolder={currentFolder}
-        onFolderChange={handleFolderChange}
-        accounts={accounts}
-        selectedAccount={selectedAccount}
-        onAccountChange={setSelectedAccount}
-      />
+      <div
+        className={cn(
+          'lg:block transition-transform duration-300 z-50',
+          isMobileSidebarOpen
+            ? 'fixed inset-y-0 left-0 translate-x-0'
+            : 'hidden lg:translate-x-0'
+        )}
+      >
+        <FolderNav
+          currentFolder={currentFolder}
+          onFolderChange={(folder) => {
+            handleFolderChange(folder);
+            setIsMobileSidebarOpen(false);
+          }}
+          accounts={accounts}
+          selectedAccount={selectedAccount}
+          onAccountChange={setSelectedAccount}
+        />
+      </div>
 
       {/* Email List */}
       <div className="flex-1 flex flex-col border-r border-border bg-background">
         {/* Toolbar */}
-        <div className="border-b border-border bg-background p-4 space-y-4">
+        <div className="border-b border-border bg-background p-2 sm:p-4 space-y-2 sm:space-y-4">
           {/* Search and Sync */}
           <div className="flex items-center gap-2">
-            <SearchBar onSearch={handleSearch} />
-            <TrainAIButton accountId={selectedAccount} />
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden touch-target"
+              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <div className="flex-1">
+              <SearchBar onSearch={handleSearch} />
+            </div>
+            <div className="hidden sm:flex">
+              <TrainAIButton accountId={selectedAccount} />
+            </div>
             <Button
               variant="outline"
               size="icon"
