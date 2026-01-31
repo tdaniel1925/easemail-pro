@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
-import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code, Sparkles, Plus, ChevronDown } from 'lucide-react';
+import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code, Sparkles, Plus, ChevronDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1928,8 +1928,18 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                           className="gap-1.5 rounded-r-none h-7 px-2 text-xs btn-press"
                           disabled={isSending || !selectedAccountId}
                         >
-                          <Send className="h-3 w-3" />
-                          {isSending ? 'Sending...' : 'Send'}
+                          {/* HIGH PRIORITY FIX: Enhanced loading state with spinner */}
+                          {isSending ? (
+                            <>
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="h-3 w-3" />
+                              Send
+                            </>
+                          )}
                         </Button>
                         <Button
                           onClick={(e) => {
@@ -2000,8 +2010,18 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                       className="gap-1.5 h-7 px-3 text-xs btn-press"
                       disabled={isSending || !selectedAccountId}
                     >
-                      <Send className="h-3 w-3" />
-                      {isSending ? 'Sending...' : 'Send'}
+                      {/* HIGH PRIORITY FIX: Enhanced loading state with spinner */}
+                      {isSending ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-3 w-3" />
+                          Send
+                        </>
+                      )}
                     </Button>
                   )}
 
