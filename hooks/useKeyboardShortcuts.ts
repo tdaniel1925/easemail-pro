@@ -17,6 +17,19 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[], enabled = tr
     if (!enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in inputs or textareas
+      const target = e.target as HTMLElement;
+      const isTypingInInput =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.contentEditable === 'true' ||
+        target.isContentEditable;
+
+      // Allow Ctrl/Cmd shortcuts even in inputs (for cut, copy, paste, etc.)
+      if (isTypingInInput && !(e.ctrlKey || e.metaKey)) {
+        return;
+      }
+
       for (const shortcut of shortcuts) {
         const ctrlMatch = shortcut.ctrl === undefined || shortcut.ctrl === (e.ctrlKey || e.metaKey);
         const metaMatch = shortcut.meta === undefined || shortcut.meta === e.metaKey;

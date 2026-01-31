@@ -15,6 +15,7 @@ import { ThreadSummaryModal } from './ThreadSummaryModal';
 import { ActiveFilters } from './ActiveFilters';
 import { TrainAIButton } from './TrainAIButton';
 import type { SearchFilters } from './AdvancedSearchPanel';
+import { useKeyboardShortcuts, type KeyboardShortcut } from '@/hooks/useKeyboardShortcuts';
 import {
   Mail,
   RefreshCw,
@@ -433,6 +434,81 @@ export default function InboxV4({
       fetchEmails(currentFolder, true);
     }
   }, [isLoading, hasMore, currentFolder, fetchEmails]);
+
+  // Keyboard shortcuts
+  const shortcuts: KeyboardShortcut[] = useMemo(() => [
+    // Navigation
+    {
+      key: 'j',
+      description: 'Next email',
+      handler: () => {
+        const currentIndex = displayEmails.findIndex(e => e.id === selectedEmail?.id);
+        if (currentIndex < displayEmails.length - 1) {
+          handleEmailClick(displayEmails[currentIndex + 1]);
+        }
+      },
+    },
+    {
+      key: 'k',
+      description: 'Previous email',
+      handler: () => {
+        const currentIndex = displayEmails.findIndex(e => e.id === selectedEmail?.id);
+        if (currentIndex > 0) {
+          handleEmailClick(displayEmails[currentIndex - 1]);
+        }
+      },
+    },
+    {
+      key: 'Escape',
+      description: 'Close email',
+      handler: () => setSelectedEmail(null),
+    },
+    // Actions
+    {
+      key: 'e',
+      description: 'Archive',
+      handler: async () => {
+        if (selectedEmail) {
+          setSelectedIds(new Set([selectedEmail.id]));
+          await handleBulkAction('archive');
+        }
+      },
+    },
+    {
+      key: 's',
+      description: 'Star / Unstar',
+      handler: async () => {
+        if (selectedEmail) {
+          setSelectedIds(new Set([selectedEmail.id]));
+          const action = selectedEmail.isStarred ? 'unstar' : 'star';
+          await handleBulkAction(action);
+        }
+      },
+    },
+    {
+      key: 'x',
+      description: 'Select email',
+      handler: () => {
+        if (selectedEmail) {
+          toggleSelection(selectedEmail.id);
+        }
+      },
+    },
+    // Folders
+    {
+      key: 'g',
+      description: 'Go to inbox (press i)',
+      handler: () => handleFolderChange('inbox'),
+    },
+    {
+      key: 'r',
+      ctrl: true,
+      description: 'Refresh',
+      handler: () => syncEmails(),
+    },
+  ], [displayEmails, selectedEmail, handleEmailClick, handleBulkAction, toggleSelection, handleFolderChange, syncEmails]);
+
+  useKeyboardShortcuts(shortcuts, !threadModalOpen);
 
   return (
     <div className="flex h-screen bg-muted/30">

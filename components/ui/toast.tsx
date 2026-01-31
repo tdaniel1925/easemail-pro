@@ -11,11 +11,17 @@ import { cn } from '@/lib/utils';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface Toast {
   id: string;
   type: ToastType;
   message: string;
   duration?: number;
+  action?: ToastAction;
 }
 
 interface ToastProps {
@@ -58,12 +64,25 @@ function ToastItem({ toast, onClose }: ToastProps) {
       <div className="flex-shrink-0 mt-0.5">
         {icons[toast.type]}
       </div>
-      <div className="flex-1 text-sm font-medium">
-        {toast.message}
+      <div className="flex-1">
+        <div className="text-sm font-medium">
+          {toast.message}
+        </div>
+        {toast.action && (
+          <button
+            onClick={() => {
+              toast.action?.onClick();
+              onClose(toast.id);
+            }}
+            className="mt-2 text-sm font-semibold underline hover:no-underline transition-smooth"
+          >
+            {toast.action.label}
+          </button>
+        )}
       </div>
       <button
         onClick={() => onClose(toast.id)}
-        className="flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity"
+        className="flex-shrink-0 opacity-70 hover:opacity-100 transition-smooth"
       >
         <X className="h-4 w-4" />
       </button>
@@ -90,9 +109,14 @@ export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
 export function useToast() {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const showToast = (type: ToastType, message: string, duration = 5000) => {
+  const showToast = (
+    type: ToastType,
+    message: string,
+    duration = 5000,
+    action?: ToastAction
+  ) => {
     const id = Math.random().toString(36).substring(7);
-    const newToast: Toast = { id, type, message, duration };
+    const newToast: Toast = { id, type, message, duration, action };
     setToasts((prev) => [...prev, newToast]);
   };
 
@@ -104,10 +128,14 @@ export function useToast() {
     toasts,
     showToast,
     closeToast,
-    success: (message: string, duration?: number) => showToast('success', message, duration),
-    error: (message: string, duration?: number) => showToast('error', message, duration),
-    info: (message: string, duration?: number) => showToast('info', message, duration),
-    warning: (message: string, duration?: number) => showToast('warning', message, duration),
+    success: (message: string, duration?: number, action?: ToastAction) =>
+      showToast('success', message, duration, action),
+    error: (message: string, duration?: number, action?: ToastAction) =>
+      showToast('error', message, duration, action),
+    info: (message: string, duration?: number, action?: ToastAction) =>
+      showToast('info', message, duration, action),
+    warning: (message: string, duration?: number, action?: ToastAction) =>
+      showToast('warning', message, duration, action),
   };
 }
 
