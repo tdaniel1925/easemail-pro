@@ -94,6 +94,60 @@ function getOAuthErrorMessage(error: string): string {
   return `Connection failed: ${error}. Please try connecting again or contact support.`;
 }
 
+/**
+ * HIGH PRIORITY FIX: Validate OAuth scopes to ensure all required permissions were granted
+ */
+function validateScopes(grantedScopes: string[] = [], provider: string): { valid: boolean; missing: string[]; message?: string } {
+  // Required scopes for email functionality
+  const requiredScopes: Record<string, string[]> = {
+    google: [
+      'https://www.googleapis.com/auth/gmail.readonly', // Read emails
+      'https://www.googleapis.com/auth/gmail.send',     // Send emails
+      'https://www.googleapis.com/auth/gmail.modify',   // Modify emails (archive, delete, etc)
+    ],
+    microsoft: [
+      'https://outlook.office.com/Mail.ReadWrite', // Read/write emails
+      'https://outlook.office.com/Mail.Send',      // Send emails
+    ],
+    imap: [], // IMAP doesn't use OAuth scopes
+  };
+
+  // Get required scopes for this provider (default to empty if not found)
+  const required = requiredScopes[provider] || requiredScopes.google;
+
+  // IMAP doesn't need scope validation
+  if (provider === 'imap') {
+    return { valid: true, missing: [] };
+  }
+
+  // Check for missing scopes
+  const missing = required.filter(scope => !grantedScopes.includes(scope));
+
+  if (missing.length > 0) {
+    console.warn('⚠️ Missing required OAuth scopes:', missing);
+
+    // Create user-friendly message
+    const scopeDescriptions: Record<string, string> = {
+      'https://www.googleapis.com/auth/gmail.readonly': 'Read emails',
+      'https://www.googleapis.com/auth/gmail.send': 'Send emails',
+      'https://www.googleapis.com/auth/gmail.modify': 'Manage emails (archive, delete, move)',
+      'https://outlook.office.com/Mail.ReadWrite': 'Read and manage emails',
+      'https://outlook.office.com/Mail.Send': 'Send emails',
+    };
+
+    const missingDescriptions = missing.map(scope => scopeDescriptions[scope] || scope).join(', ');
+
+    return {
+      valid: false,
+      missing,
+      message: `Missing required permissions: ${missingDescriptions}. Please reconnect and grant all requested permissions.`
+    };
+  }
+
+  console.log('✅ All required OAuth scopes granted:', grantedScopes);
+  return { valid: true, missing: [] };
+}
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
   const state = request.nextUrl.searchParams.get('state');
@@ -135,7 +189,17 @@ export async function GET(request: NextRequest) {
     const scopes = grantResponse.scopes;
 
     console.log('✅ Grant received:', { grantId, email, provider, scopes });
-    
+
+    // HIGH PRIORITY FIX: Validate OAuth scopes
+    const scopeValidation = validateScopes(scopes, provider || 'google');
+    if (!scopeValidation.valid) {
+      console.error('❌ OAuth scope validation failed:', scopeValidation.missing);
+      const errorMessage = scopeValidation.message || 'Missing required permissions. Please reconnect and grant all requested permissions.';
+      return NextResponse.redirect(
+        new URL(`/settings?tab=sync&oauth_error=${encodeURIComponent(errorMessage)}&can_retry=true&missing_scopes=${encodeURIComponent(scopeValidation.missing.join(','))}`, request.url)
+      );
+    }
+
     // Check if account already exists (reconnection scenario)
     console.log('🔍 Checking for existing account...');
     const existingAccount = await db.query.emailAccounts.findFirst({
