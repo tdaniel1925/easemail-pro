@@ -44,11 +44,8 @@ export function SimpleEmailViewer({ body, bodyText, attachments, accountId, mess
     // Secure HTML sanitization using DOMPurify
     let sanitized = sanitizeHtml(content);
 
-    // Normalize paragraph structure for consistent display
-    sanitized = normalizeEmailParagraphs(sanitized);
-
-    // Remove leading whitespace that causes blank space at start
-    sanitized = removeLeadingWhitespace(sanitized);
+    // Normalize spacing and structure for consistent display
+    sanitized = normalizeEmailSpacing(sanitized);
 
     // Replace cid: references with actual attachment URLs
     if (attachments && accountId && messageId) {
@@ -121,7 +118,8 @@ function sanitizeHtml(html: string): string {
       'mark', 'nav', 'ol', 'p', 'picture', 'pre', 'q', 'rp', 'rt', 'ruby', 's',
       'samp', 'section', 'small', 'source', 'span', 'strong', 'sub', 'sup', 'table',
       'tbody', 'td', 'tfoot', 'th', 'thead', 'time', 'tr', 'u', 'ul', 'var', 'wbr',
-      'font', 'center', 'style',
+      'font', 'center',
+      // 'style', // ❌ REMOVED: XSS vulnerability - allows CSS injection attacks
     ],
     // Allow safe attributes
     ALLOWED_ATTR: [
@@ -138,52 +136,50 @@ function sanitizeHtml(html: string): string {
 }
 
 /**
- * Remove ONLY leading whitespace that causes blank space at top of email
- * Preserves intentional blank lines within the content
+ * ✅ FIXED: Unified spacing normalization function
+ *
+ * Consolidates previous normalizeEmailParagraphs() and removeLeadingWhitespace()
+ * into a single, consistent function that prevents spacing issues.
+ *
+ * Key improvements:
+ * - 2+ breaks (not 3+) convert to paragraph (normal double-enter behavior)
+ * - No &nbsp; injection (CSS handles empty paragraph spacing)
+ * - Removes only leading/trailing whitespace (preserves content spacing)
+ * - Single source of truth for spacing logic
  */
-function removeLeadingWhitespace(html: string): string {
+function normalizeEmailSpacing(html: string): string {
   if (!html) return '';
 
   let result = html.trimStart();
 
-  // Only remove leading empty elements (not ones in the middle of content)
-  // More conservative approach - only strip truly empty leading elements
+  // Step 1: Convert 2+ consecutive breaks to paragraph breaks (normal double-enter)
+  // OLD: 3+ breaks (too aggressive, lost user intent)
+  // NEW: 2+ breaks (matches normal typing behavior)
+  result = result.replace(/(<br\s*\/?>\s*){2,}/gi, '</p><p>');
 
-  // Remove leading <br> tags (but only at the very start)
+  // Step 2: Clean up consecutive empty paragraphs (but keep one for intentional spacing)
+  // Reduces <p></p><p></p><p></p> to just <p></p>
+  result = result.replace(/(<p[^>]*>\s*<\/p>\s*){2,}/gi, '<p></p>');
+
+  // Step 3: Remove leading empty elements (prevent blank space at top)
+  // Remove leading breaks
   while (result.match(/^<br\s*\/?>\s*/i)) {
     result = result.replace(/^<br\s*\/?>\s*/i, '');
   }
 
-  // Remove leading empty paragraphs (only at the very start, and only truly empty ones)
+  // Remove leading empty paragraphs
   while (result.match(/^<p[^>]*>\s*(<br\s*\/?>)?\s*<\/p>\s*/i)) {
     result = result.replace(/^<p[^>]*>\s*(<br\s*\/?>)?\s*<\/p>\s*/i, '');
   }
 
-  // Remove leading empty divs (only at the very start)
+  // Remove leading empty divs
   while (result.match(/^<div[^>]*>\s*(<br\s*\/?>)?\s*<\/div>\s*/i)) {
     result = result.replace(/^<div[^>]*>\s*(<br\s*\/?>)?\s*<\/div>\s*/i, '');
   }
 
-  return result;
-}
-
-/**
- * Normalize paragraph structure for consistent display
- * - Ensures paragraphs render with proper spacing
- * - Handles AI-generated email format
- */
-function normalizeEmailParagraphs(html: string): string {
-  if (!html) return '';
-
-  // Replace multiple consecutive <br> tags (more than 2) with paragraph breaks
-  let result = html.replace(/(<br\s*\/?>\s*){3,}/gi, '</p><p>');
-
-  // Ensure empty paragraphs used as spacers have content that renders
-  // Replace <p></p> with <p>&nbsp;</p> to ensure they take up space
-  result = result.replace(/<p><\/p>/gi, '<p>&nbsp;</p>');
-
-  // Same for paragraphs with just whitespace
-  result = result.replace(/<p>\s+<\/p>/gi, '<p>&nbsp;</p>');
+  // Step 4: Remove trailing empty elements (prevent blank space at bottom)
+  result = result.replace(/(<p[^>]*>\s*<\/p>\s*)+$/i, '');
+  result = result.replace(/(<br\s*\/?>\s*)+$/i, '');
 
   return result;
 }

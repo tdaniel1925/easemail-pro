@@ -158,6 +158,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const saveRetryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isAIUpdatingRef = useRef<boolean>(false); // Track AI updates to skip auto-save
   const isSavingRef = useRef<boolean>(false); // Track save operation to prevent send race
+  const currentSavePromiseRef = useRef<Promise<void> | null>(null); // ✅ FIX: Store actual Promise for proper coordination
   const isClosingRef = useRef<boolean>(false); // Track when close dialog is showing to prevent double trigger
 
   // Text formatting state - REMOVED (they don't actually work)
@@ -578,15 +579,16 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   };
 
   const handleSend = async (skipSignature: boolean = false) => {
-    // Wait for any in-flight save to complete
-    if (isSavingRef.current) {
-      console.log('[Send] ⏳ Waiting for save to complete...');
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Check again after waiting
-      if (isSavingRef.current) {
-        console.log('[Send] ⚠️ Save still in progress, waiting longer...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+    // ✅ FIX: Wait for any in-flight save to complete using actual Promise
+    // OLD: Used arbitrary setTimeout delays (500ms, 1000ms) - caused race conditions
+    // NEW: Await the actual save Promise for proper coordination
+    if (currentSavePromiseRef.current) {
+      console.log('[Send] ⏳ Waiting for in-progress save to complete...');
+      try {
+        await currentSavePromiseRef.current;
+        console.log('[Send] ✅ Save completed, proceeding with send');
+      } catch (error) {
+        console.log('[Send] ⚠️ Save failed but continuing with send:', error);
       }
     }
 
@@ -809,6 +811,8 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     setSavingStatus('saving');
     isSavingRef.current = true; // Set saving flag
 
+    // ✅ FIX: Create Promise wrapper for proper race condition handling
+    const saveOperation = (async () => {
     try {
       if (!silent) {
         console.log('💾 Saving draft...');
@@ -910,7 +914,15 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
     } finally {
       setIsSavingDraft(false);
       isSavingRef.current = false; // Clear saving flag
+      currentSavePromiseRef.current = null; // Clear Promise ref
     }
+    })(); // Execute the Promise wrapper
+
+    // ✅ FIX: Store the Promise so handleSend can await it
+    currentSavePromiseRef.current = saveOperation;
+
+    // Return the Promise (maintains existing behavior for callers who await this)
+    return saveOperation;
   }, [selectedAccountId, to, cc, bcc, subject, body, replyTo, type, isSending, toast]);
 
   // Debounced auto-save with instant first save
