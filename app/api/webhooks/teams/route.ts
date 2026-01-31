@@ -129,6 +129,7 @@ async function handleMessageChange(
   }
 
   // Trigger incremental sync for this chat
+  // Note: The sync function now automatically recalculates unread count
   const result = await incrementalSyncChat(accountId, chat[0].id);
 
   if (result.error) {
@@ -137,16 +138,7 @@ async function handleMessageChange(
     console.log(`✅ Synced chat ${teamsChatId}: +${result.messagesAdded} messages`);
   }
 
-  // Update unread count for new messages
-  if (changeType === 'created') {
-    await db
-      .update(teamsChats)
-      .set({
-        unreadCount: (chat[0].unreadCount ?? 0) + 1,
-        updatedAt: new Date(),
-      })
-      .where(eq(teamsChats.id, chat[0].id));
-  }
+  // ✅ FIX: Removed manual unread count increment - sync now recalculates accurately
 }
 
 /**

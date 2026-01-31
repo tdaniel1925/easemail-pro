@@ -1,7 +1,7 @@
 // Microsoft Teams Bidirectional Sync Service
 import { db } from '@/lib/db';
 import { teamsAccounts, teamsChats, teamsMessages, teamsSyncState } from '@/lib/db/schema';
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { eq, and, desc, inArray, count, sql } from 'drizzle-orm';
 import { createTeamsClient, TeamsClient } from './teams-client';
 import { getValidAccessToken, encryptTokens } from './teams-auth';
 import {
@@ -348,6 +348,32 @@ async function syncChatMessages(
         })
         .where(eq(teamsChats.id, chat.id));
     }
+
+    // ✅ FIX: Recalculate unread count to prevent desync
+    // Count actual unread messages from our database (messages where isRead = false)
+    const unreadResult = await db
+      .select({ count: count() })
+      .from(teamsMessages)
+      .where(
+        and(
+          eq(teamsMessages.chatId, chat.id),
+          eq(teamsMessages.isRead, false),
+          eq(teamsMessages.isDeleted, false)
+        )
+      );
+
+    const actualUnreadCount = unreadResult[0]?.count || 0;
+
+    // Update the chat with the accurate unread count
+    await db
+      .update(teamsChats)
+      .set({
+        unreadCount: actualUnreadCount,
+        updatedAt: new Date(),
+      })
+      .where(eq(teamsChats.id, chat.id));
+
+    console.log(`[Teams Sync] Recalculated unread count for chat ${teamsChatId}: ${actualUnreadCount}`);
   } catch (error) {
     console.error(`Error syncing messages for chat ${teamsChatId}:`, error);
     result.error = error instanceof Error ? error.message : 'Failed to sync messages';

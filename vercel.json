@@ -67,6 +67,14 @@
     {
       "path": "/api/cron/refresh-account-tokens",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/renew-teams-webhooks",
+      "schedule": "55 * * * *"
+    },
+    {
+      "path": "/api/cron/reconcile-teams-unread",
+      "schedule": "0 3 * * *"
     }
   ]
 }

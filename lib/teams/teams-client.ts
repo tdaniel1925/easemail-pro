@@ -14,6 +14,42 @@ import {
 const GRAPH_API_BASE = 'https://graph.microsoft.com/v1.0';
 const GRAPH_API_BETA = 'https://graph.microsoft.com/beta';
 
+// Retry configuration
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000; // 1 second
+
+/**
+ * Helper function for exponential backoff with jitter
+ */
+function calculateBackoffDelay(attempt: number, baseDelayMs: number = BASE_DELAY_MS): number {
+  // Exponential backoff: 1s, 2s, 4s
+  const exponentialDelay = baseDelayMs * Math.pow(2, attempt);
+  // Add jitter to prevent thundering herd (±20%)
+  const jitter = exponentialDelay * 0.2 * (Math.random() - 0.5);
+  return Math.floor(exponentialDelay + jitter);
+}
+
+/**
+ * Check if an error is retryable
+ */
+function isRetryableError(status: number, error?: GraphApiError): boolean {
+  // Retry on rate limits (429)
+  if (status === 429) return true;
+
+  // Retry on server errors (5xx)
+  if (status >= 500 && status < 600) return true;
+
+  // Don't retry on client errors (4xx) except 429
+  return false;
+}
+
+/**
+ * Sleep helper for retry delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export class TeamsClient {
   private accessToken: string;
 
@@ -22,7 +58,7 @@ export class TeamsClient {
   }
 
   /**
-   * Make an authenticated request to the Graph API
+   * Make an authenticated request to the Graph API with retry logic
    */
   private async request<T>(
     endpoint: string,
@@ -32,27 +68,85 @@ export class TeamsClient {
     const baseUrl = useBeta ? GRAPH_API_BETA : GRAPH_API_BASE;
     const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
+    let lastError: Error | null = null;
 
-    if (!response.ok) {
-      const error: GraphApiError = await response.json();
-      console.error('Graph API error:', error);
-      throw new Error(error.error?.message || `Graph API error: ${response.status}`);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+            ...options.headers,
+          },
+        });
+
+        if (!response.ok) {
+          const error: GraphApiError = await response.json().catch(() => ({
+            error: { message: `HTTP ${response.status}` },
+          }));
+
+          // Check if we should retry
+          if (attempt < MAX_RETRIES && isRetryableError(response.status, error)) {
+            // Calculate delay (honor Retry-After header for 429)
+            let delayMs = calculateBackoffDelay(attempt);
+
+            if (response.status === 429) {
+              const retryAfter = response.headers.get('Retry-After');
+              if (retryAfter) {
+                // Retry-After can be in seconds or a date
+                const retryAfterSeconds = parseInt(retryAfter);
+                if (!isNaN(retryAfterSeconds)) {
+                  delayMs = retryAfterSeconds * 1000;
+                }
+              }
+            }
+
+            console.warn(
+              `⚠️ Graph API error ${response.status}, retrying in ${delayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`
+            );
+
+            await sleep(delayMs);
+            continue; // Retry
+          }
+
+          // Not retryable or max retries reached
+          console.error('Graph API error:', error);
+          throw new Error(error.error?.message || `Graph API error: ${response.status}`);
+        }
+
+        // Success - handle 204 No Content
+        if (response.status === 204) {
+          return {} as T;
+        }
+
+        return response.json();
+      } catch (error: any) {
+        lastError = error;
+
+        // Check if it's a network error (retryable)
+        const isNetworkError =
+          error.name === 'TypeError' ||
+          error.code === 'ECONNRESET' ||
+          error.code === 'ETIMEDOUT' ||
+          error.code === 'ENOTFOUND';
+
+        if (attempt < MAX_RETRIES && isNetworkError) {
+          const delayMs = calculateBackoffDelay(attempt);
+          console.warn(
+            `⚠️ Network error, retrying in ${delayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES}): ${error.message}`
+          );
+          await sleep(delayMs);
+          continue; // Retry
+        }
+
+        // Not retryable or max retries reached
+        throw error;
+      }
     }
 
-    // Handle 204 No Content
-    if (response.status === 204) {
-      return {} as T;
-    }
-
-    return response.json();
+    // Max retries exceeded
+    throw lastError || new Error('Max retries exceeded');
   }
 
   // ============================================
