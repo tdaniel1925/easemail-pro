@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -33,55 +33,6 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // Animated gradient background for left panel
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const resizeCanvas = () => {
-      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    };
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    let animationId: number;
-    let time = 0;
-
-    const animate = () => {
-      time += 0.003;
-
-      const gradient = ctx.createLinearGradient(
-        0,
-        canvas.height / 2 + Math.sin(time) * 100,
-        canvas.width,
-        canvas.height / 2 + Math.cos(time) * 100
-      );
-
-      gradient.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
-      gradient.addColorStop(0.5, 'rgba(147, 51, 234, 0.6)');
-      gradient.addColorStop(1, 'rgba(236, 72, 153, 0.7)');
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      animationId = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener('resize', resizeCanvas);
-    };
-  }, []);
 
   // Check for verification success or errors from URL params
   useEffect(() => {
@@ -194,17 +145,11 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
-      {/* Left Panel - Marketing with Animated Gradient */}
-      <div className="hidden lg:flex lg:w-1/2 relative p-12 xl:p-16 flex-col justify-between overflow-hidden">
-        {/* Animated gradient canvas */}
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
-        />
-
-        {/* Decorative grid overlay */}
-        <div className="absolute inset-0 opacity-10">
+    <div className="flex min-h-screen w-full">
+      {/* Left Panel - Marketing */}
+      <div className="hidden lg:flex lg:w-1/2 relative p-12 xl:p-16 flex-col justify-between bg-primary">
+        {/* Decorative subtle pattern */}
+        <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0" style={{
             backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
             backgroundSize: '40px 40px'
@@ -308,8 +253,8 @@ function LoginForm() {
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-background overflow-y-auto">
-        <div className="w-full max-w-md space-y-8">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 lg:p-12 bg-background">
+        <div className="w-full max-w-md space-y-6">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8 animate-in fade-in duration-500">
             <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg">

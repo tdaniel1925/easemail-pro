@@ -296,7 +296,7 @@ export default function PricingPage() {
             <Sparkles className="h-3 w-3 mr-1.5 text-primary" />
             Pricing
           </Badge>
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-primary">
             Simple, transparent pricing
           </h1>
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-8 leading-relaxed animate-in fade-in slide-in-from-bottom-5 duration-1000 delay-150">
@@ -317,10 +317,10 @@ export default function PricingPage() {
 
           {/* Testimonial */}
           <div className="max-w-2xl mx-auto mb-14 animate-in fade-in duration-1000 delay-500">
-            <Card className="p-8 border-primary/10 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 shadow-xl hover:shadow-2xl transition-all duration-500">
+            <Card className="p-8 border-primary/10 bg-primary/5 shadow-xl hover:shadow-2xl transition-all duration-500">
               <div className="flex items-start gap-5">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center flex-shrink-0">
-                  <Star className="h-7 w-7 text-white fill-white" />
+                <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                  <Star className="h-7 w-7 text-primary-foreground fill-current" />
                 </div>
                 <div className="text-left">
                   <p className="text-lg mb-3 text-foreground italic leading-relaxed">
