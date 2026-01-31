@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, X, Star, Zap, Users, Building2, ArrowRight, Info } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Check, X, Star, Zap, Users, Building2, ArrowRight, Info, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +33,6 @@ interface PricingPlan {
   minSeats?: number;
 }
 
-// Simplified to 3 tiers - reduce decision fatigue
 const plans: PricingPlan[] = [
   {
     id: 'free',
@@ -158,6 +157,57 @@ export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [teamSeats, setTeamSeats] = useState(5);
   const [loading, setLoading] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Subtle animated gradient background
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const resizeCanvas = () => {
+      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    let animationId: number;
+    let time = 0;
+
+    const animate = () => {
+      time += 0.002;
+
+      const gradient = ctx.createRadialGradient(
+        canvas.width / 2 + Math.sin(time) * 150,
+        canvas.height / 3 + Math.cos(time * 0.8) * 150,
+        0,
+        canvas.width / 2,
+        canvas.height / 3,
+        canvas.width / 2
+      );
+
+      gradient.addColorStop(0, 'rgba(59, 130, 246, 0.1)');
+      gradient.addColorStop(0.5, 'rgba(147, 51, 234, 0.05)');
+      gradient.addColorStop(1, 'rgba(236, 72, 153, 0.02)');
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', resizeCanvas);
+    };
+  }, []);
 
   const handleSelectPlan = async (planId: string) => {
     if (planId === 'free') {
@@ -165,7 +215,6 @@ export default function PricingPage() {
       return;
     }
 
-    // For large teams (10+ users), direct to sales
     if (planId === 'team' && teamSeats >= 10) {
       window.location.href = '/contact-sales?plan=team&seats=' + teamSeats;
       return;
@@ -232,316 +281,350 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-muted/20 to-background">
-      {/* Header */}
-      <div className="container mx-auto px-6 pt-20 pb-12 text-center">
-        <Badge variant="outline" className="mb-4 transition-smooth">
-          Pricing
-        </Badge>
-        <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-          Simple, transparent pricing
-        </h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-          Start free. Scale when ready.
-        </p>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Animated background */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full"
+        style={{ filter: 'blur(60px)' }}
+      />
 
-        {/* Social Proof */}
-        <div className="flex items-center justify-center gap-6 mb-8 text-sm text-muted-foreground fade-in">
-          <div className="flex items-center gap-2">
-            <div className="flex -space-x-2">
-              <div className="w-8 h-8 rounded-full bg-primary/20 border-2 border-background flex items-center justify-center text-xs font-semibold">A</div>
-              <div className="w-8 h-8 rounded-full bg-accent/20 border-2 border-background flex items-center justify-center text-xs font-semibold">B</div>
-              <div className="w-8 h-8 rounded-full bg-primary/30 border-2 border-background flex items-center justify-center text-xs font-semibold">C</div>
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="container mx-auto px-6 pt-24 pb-16 text-center">
+          <Badge variant="outline" className="mb-6 transition-smooth border-primary/30 bg-primary/5 animate-in fade-in duration-700">
+            <Sparkles className="h-3 w-3 mr-1.5 text-primary" />
+            Pricing
+          </Badge>
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            Simple, transparent pricing
+          </h1>
+          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-8 leading-relaxed animate-in fade-in slide-in-from-bottom-5 duration-1000 delay-150">
+            Start free. Scale when ready. No hidden fees.
+          </p>
+
+          {/* Social Proof */}
+          <div className="flex items-center justify-center gap-8 mb-10 text-sm text-muted-foreground animate-in fade-in duration-1000 delay-300">
+            <div className="flex items-center gap-2">
+              <div className="flex -space-x-2">
+                <div className="w-9 h-9 rounded-full bg-primary/20 border-2 border-background flex items-center justify-center text-xs font-semibold">A</div>
+                <div className="w-9 h-9 rounded-full bg-purple-500/20 border-2 border-background flex items-center justify-center text-xs font-semibold">B</div>
+                <div className="w-9 h-9 rounded-full bg-pink-500/20 border-2 border-background flex items-center justify-center text-xs font-semibold">C</div>
+              </div>
+              <span className="font-medium">Trusted by 10,000+ professionals</span>
             </div>
-            <span>Used by 10,000+ professionals</span>
+          </div>
+
+          {/* Testimonial */}
+          <div className="max-w-2xl mx-auto mb-14 animate-in fade-in duration-1000 delay-500">
+            <Card className="p-8 border-primary/10 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 shadow-xl hover:shadow-2xl transition-all duration-500">
+              <div className="flex items-start gap-5">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center flex-shrink-0">
+                  <Star className="h-7 w-7 text-white fill-white" />
+                </div>
+                <div className="text-left">
+                  <p className="text-lg mb-3 text-foreground italic leading-relaxed">
+                    "EaseMail transformed how I manage emails. The AI features alone save me 2+ hours every day. Best investment I've made this year."
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-bold">Sarah Chen</span> · Product Manager at TechCorp
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Billing Toggle with Premium Design */}
+          <div className="flex items-center justify-center gap-4 mb-16 animate-in fade-in duration-1000 delay-700">
+            <Label htmlFor="billing-toggle" className={cn(
+              "text-lg font-semibold transition-all cursor-pointer",
+              billingCycle === 'monthly' ? 'text-foreground scale-105' : 'text-muted-foreground hover:text-foreground'
+            )}>
+              Monthly
+            </Label>
+            <div className="relative">
+              <Switch
+                id="billing-toggle"
+                checked={billingCycle === 'annual'}
+                onCheckedChange={(checked) => setBillingCycle(checked ? 'annual' : 'monthly')}
+                className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-primary data-[state=checked]:to-purple-500"
+              />
+            </div>
+            <Label htmlFor="billing-toggle" className={cn(
+              "text-lg font-semibold transition-all cursor-pointer",
+              billingCycle === 'annual' ? 'text-foreground scale-105' : 'text-muted-foreground hover:text-foreground'
+            )}>
+              Annual{' '}
+              <span className="inline-flex items-center gap-1 ml-2 px-2 py-0.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white text-sm font-bold">
+                <Sparkles className="h-3 w-3" />
+                Save 20%
+              </span>
+            </Label>
           </div>
         </div>
 
-        {/* Testimonial */}
-        <div className="max-w-2xl mx-auto mb-12 fade-in">
-          <Card className="p-6 card-hover border-primary/10">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Star className="h-6 w-6 text-primary fill-primary" />
-              </div>
-              <div className="text-left">
-                <p className="text-base mb-2 text-foreground italic">
-                  "EaseMail transformed how I manage emails. The AI features alone save me 2+ hours every day."
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-semibold">Sarah Chen</span> · Product Manager at TechCorp
-                </p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Billing Toggle */}
-        <div className="flex items-center justify-center gap-4 mb-12">
-          <Label htmlFor="billing-toggle" className={cn(
-            "text-base font-medium transition-colors",
-            billingCycle === 'monthly' ? 'text-foreground' : 'text-muted-foreground'
-          )}>
-            Monthly
-          </Label>
-          <Switch
-            id="billing-toggle"
-            checked={billingCycle === 'annual'}
-            onCheckedChange={(checked) => setBillingCycle(checked ? 'annual' : 'monthly')}
-          />
-          <Label htmlFor="billing-toggle" className={cn(
-            "text-base font-medium transition-colors",
-            billingCycle === 'annual' ? 'text-foreground' : 'text-muted-foreground'
-          )}>
-            Annual <span className="text-green-600 dark:text-green-400 ml-1">(Save 20%)</span>
-          </Label>
-        </div>
-      </div>
-
-      {/* Pricing Cards */}
-      <div className="container mx-auto px-6 pb-20">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {plans.map((plan) => {
-            const Icon = plan.icon;
-            return (
-              <Card key={plan.id} className={cn(
-                "relative p-8 flex flex-col card-hover transition-smooth",
-                plan.popular && "border-primary shadow-lg scale-105 z-10 bg-primary/5"
-              )}>
-                {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary shadow-sm">
-                    Most Popular
-                  </Badge>
-                )}
-
-                {/* Icon & Name */}
-                <div className="text-center mb-6">
-                  <div className={cn(
-                    "inline-flex p-3 rounded-full mb-4",
-                    plan.popular ? "bg-primary/10 text-primary" : "bg-muted"
-                  )}>
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-2xl font-bold mb-1">{plan.name}</h3>
-                  <p className="text-sm text-muted-foreground">{plan.tagline}</p>
-                </div>
-
-                {/* Price */}
-                <div className="mb-6 text-center pb-6 border-b border-border">
-                  <div className="text-4xl font-bold mb-2">
-                    {getPriceLabel(plan)}
-                  </div>
-                  {getPerUserLabel(plan) && (
-                    <p className="text-sm text-muted-foreground">{getPerUserLabel(plan)}</p>
-                  )}
-                  <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
-                  {plan.id === 'team' && (
-                    <div className="mt-4">
-                      <Label htmlFor={`seats-${plan.id}`} className="text-xs text-muted-foreground block mb-2">
-                        Team size: {teamSeats} users
-                      </Label>
-                      <input
-                        id={`seats-${plan.id}`}
-                        type="range"
-                        min="2"
-                        max="50"
-                        value={teamSeats}
-                        onChange={(e) => setTeamSeats(parseInt(e.target.value))}
-                        className="w-full"
-                      />
+        {/* Pricing Cards with Luxury Design */}
+        <div className="container mx-auto px-6 pb-24">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+            {plans.map((plan, index) => {
+              const Icon = plan.icon;
+              return (
+                <Card key={plan.id} className={cn(
+                  "relative p-10 flex flex-col transition-all duration-500 animate-in fade-in slide-in-from-bottom-8",
+                  plan.popular
+                    ? "border-primary/50 shadow-2xl scale-105 z-10 bg-gradient-to-br from-primary/5 via-purple-500/5 to-pink-500/5"
+                    : "border-border/50 hover:border-primary/30 hover:shadow-xl hover:scale-102",
+                  `delay-${index * 150}`
+                )}>
+                  {plan.popular && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                      <Badge className="bg-gradient-to-r from-primary via-purple-500 to-pink-500 shadow-lg px-4 py-1.5 text-white font-bold">
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        Most Popular
+                      </Badge>
                     </div>
                   )}
-                </div>
 
-                {/* CTA Button */}
-                <div className="mb-8">
-                  <Button
-                    className="w-full btn-press"
-                    variant={plan.ctaVariant}
-                    size="lg"
-                    onClick={() => handleSelectPlan(plan.id)}
-                    disabled={loading === plan.id}
-                  >
-                    {loading === plan.id ? 'Loading...' : (plan.id === 'team' && teamSeats >= 10 ? 'Contact Sales' : plan.cta)}
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
+                  {/* Icon & Name */}
+                  <div className="text-center mb-8">
+                    <div className={cn(
+                      "inline-flex p-4 rounded-2xl mb-4 transition-transform hover:scale-110 duration-300",
+                      plan.popular
+                        ? "bg-gradient-to-br from-primary to-purple-500 text-white shadow-lg"
+                        : "bg-muted"
+                    )}>
+                      <Icon className="h-7 w-7" />
+                    </div>
+                    <h3 className="text-3xl font-bold mb-2">{plan.name}</h3>
+                    <p className="text-sm text-muted-foreground font-medium">{plan.tagline}</p>
+                  </div>
 
-                {/* Features */}
-                <div className="space-y-4 flex-1">
-                  <ul className="space-y-3">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-3 text-sm">
-                        <Check className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
-                        <span className="text-foreground">{feature}</span>
-                      </li>
+                  {/* Price */}
+                  <div className="mb-8 text-center pb-8 border-b border-border">
+                    <div className={cn(
+                      "text-5xl font-bold mb-3",
+                      plan.popular && "bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent"
+                    )}>
+                      {getPriceLabel(plan)}
+                    </div>
+                    {getPerUserLabel(plan) && (
+                      <p className="text-sm text-muted-foreground font-medium">{getPerUserLabel(plan)}</p>
+                    )}
+                    <p className="text-base text-muted-foreground mt-3 leading-relaxed">{plan.description}</p>
+                    {plan.id === 'team' && (
+                      <div className="mt-6">
+                        <Label htmlFor={`seats-${plan.id}`} className="text-sm text-muted-foreground block mb-3 font-medium">
+                          Team size: <span className="font-bold text-foreground">{teamSeats} users</span>
+                        </Label>
+                        <input
+                          id={`seats-${plan.id}`}
+                          type="range"
+                          min="2"
+                          max="50"
+                          value={teamSeats}
+                          onChange={(e) => setTeamSeats(parseInt(e.target.value))}
+                          className="w-full accent-primary"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* CTA Button */}
+                  <div className="mb-10">
+                    <Button
+                      className={cn(
+                        "w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300",
+                        plan.popular && "bg-gradient-to-r from-primary via-purple-500 to-pink-500 hover:scale-105"
+                      )}
+                      variant={plan.ctaVariant}
+                      size="lg"
+                      onClick={() => handleSelectPlan(plan.id)}
+                      disabled={loading === plan.id}
+                    >
+                      {loading === plan.id ? 'Loading...' : (plan.id === 'team' && teamSeats >= 10 ? 'Contact Sales' : plan.cta)}
+                      <ArrowRight className="h-5 w-5 ml-2" />
+                    </Button>
+                  </div>
+
+                  {/* Features */}
+                  <div className="space-y-4 flex-1">
+                    <ul className="space-y-3.5">
+                      {plan.features.map((feature, idx) => (
+                        <li key={idx} className="flex items-start gap-3 text-sm">
+                          <div className="w-5 h-5 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-400 font-bold" />
+                          </div>
+                          <span className="text-foreground leading-relaxed">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Usage-Based Pricing */}
+        <div className="bg-gradient-to-br from-muted/50 via-muted/30 to-background py-24">
+          <div className="container mx-auto px-6">
+            <div className="text-center mb-16">
+              <Badge variant="outline" className="mb-4 border-primary/30">
+                <Info className="h-3 w-3 mr-1.5" />
+                Usage-Based Pricing
+              </Badge>
+              <h2 className="text-4xl md:text-5xl font-bold mb-5 bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
+                Pay only for what you use
+              </h2>
+              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                Transparent, volume-based pricing for SMS, AI, and storage
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {usagePricing.map((category, idx) => (
+                <Card key={idx} className="p-8 border-border/50 hover:border-primary/30 hover:shadow-xl transition-all duration-500">
+                  <h3 className="text-2xl font-bold mb-6">{category.category}</h3>
+                  <div className="space-y-4 mb-6">
+                    {category.tiers.map((tier, tierIdx) => (
+                      <div key={tierIdx} className="flex justify-between items-start text-sm">
+                        <span className="text-muted-foreground leading-relaxed">{tier.range}</span>
+                        <span className="font-bold text-right ml-3">{tier.price}</span>
+                      </div>
                     ))}
-                  </ul>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Usage-Based Pricing */}
-      <div className="bg-muted/30 py-20">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4">
-              Usage-Based Pricing
-            </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Pay only for what you use
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Transparent, volume-based pricing for SMS, AI, and storage
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {usagePricing.map((category, idx) => (
-              <Card key={idx} className="p-6">
-                <h3 className="text-xl font-bold mb-4">{category.category}</h3>
-                <div className="space-y-3 mb-4">
-                  {category.tiers.map((tier, tierIdx) => (
-                    <div key={tierIdx} className="flex justify-between items-start text-sm">
-                      <span className="text-muted-foreground">{tier.range}</span>
-                      <span className="font-semibold text-right ml-2">{tier.price}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="pt-3 border-t border-border">
-                  <div className="flex items-start gap-2">
-                    <Info className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-muted-foreground">{category.note}</p>
                   </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Feature Comparison */}
-      <div className="py-20">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4">
-              Feature Comparison
-            </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Compare all features
-            </h2>
-          </div>
-
-          <Card className="p-8 max-w-4xl mx-auto overflow-x-auto card-hover">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-border">
-                  <th className="text-left py-4 px-4 font-semibold">Feature</th>
-                  <th className="text-center py-4 px-4 font-semibold">Starter</th>
-                  <th className="text-center py-4 px-4 font-semibold">Professional</th>
-                  <th className="text-center py-4 px-4 font-semibold">Team</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                <tr className="transition-smooth hover:bg-muted/50">
-                  <td className="py-4 px-4 text-sm font-medium">AI Requests/Month</td>
-                  <td className="py-4 px-4 text-center text-sm">10</td>
-                  <td className="py-4 px-4 text-center text-sm font-semibold text-primary">Unlimited</td>
-                  <td className="py-4 px-4 text-center text-sm font-semibold text-primary">Unlimited</td>
-                </tr>
-                <tr className="transition-smooth hover:bg-muted/50">
-                  <td className="py-4 px-4 text-sm font-medium">SMS Messaging</td>
-                  <td className="py-4 px-4 text-center text-sm"><X className="h-4 w-4 mx-auto text-muted-foreground" /></td>
-                  <td className="py-4 px-4 text-center text-sm"><Check className="h-5 w-5 mx-auto text-accent" /></td>
-                  <td className="py-4 px-4 text-center text-sm"><Check className="h-5 w-5 mx-auto text-accent" /></td>
-                </tr>
-                <tr className="transition-smooth hover:bg-muted/50">
-                  <td className="py-4 px-4 text-sm font-medium">Team Members</td>
-                  <td className="py-4 px-4 text-center text-sm">1</td>
-                  <td className="py-4 px-4 text-center text-sm">1</td>
-                  <td className="py-4 px-4 text-center text-sm font-semibold text-primary">Unlimited</td>
-                </tr>
-                <tr className="transition-smooth hover:bg-muted/50">
-                  <td className="py-4 px-4 text-sm font-medium">Support</td>
-                  <td className="py-4 px-4 text-center text-sm">Community</td>
-                  <td className="py-4 px-4 text-center text-sm">Priority Email</td>
-                  <td className="py-4 px-4 text-center text-sm font-semibold text-primary">Dedicated</td>
-                </tr>
-                <tr className="transition-smooth hover:bg-muted/50">
-                  <td className="py-4 px-4 text-sm font-medium">Team Features</td>
-                  <td className="py-4 px-4 text-center text-sm"><X className="h-4 w-4 mx-auto text-muted-foreground" /></td>
-                  <td className="py-4 px-4 text-center text-sm"><X className="h-4 w-4 mx-auto text-muted-foreground" /></td>
-                  <td className="py-4 px-4 text-center text-sm"><Check className="h-5 w-5 mx-auto text-accent" /></td>
-                </tr>
-                <tr className="transition-smooth hover:bg-muted/50">
-                  <td className="py-4 px-4 text-sm font-medium">SSO & Security</td>
-                  <td className="py-4 px-4 text-center text-sm"><X className="h-4 w-4 mx-auto text-muted-foreground" /></td>
-                  <td className="py-4 px-4 text-center text-sm"><X className="h-4 w-4 mx-auto text-muted-foreground" /></td>
-                  <td className="py-4 px-4 text-center text-sm"><Check className="h-5 w-5 mx-auto text-accent" /></td>
-                </tr>
-              </tbody>
-            </table>
-          </Card>
-        </div>
-      </div>
-
-      {/* FAQs */}
-      <div className="bg-muted/30 py-20">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4">
-              FAQs
-            </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Frequently asked questions
-            </h2>
-          </div>
-
-          <Accordion type="single" collapsible className="max-w-3xl mx-auto">
-            {faqs.map((faq, idx) => (
-              <AccordionItem key={idx} value={`item-${idx}`}>
-                <AccordionTrigger className="text-left font-semibold">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
-      </div>
-
-      {/* CTA Section */}
-      <div className="py-20">
-        <div className="container mx-auto px-6">
-          <Card className="p-12 text-center bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-primary/20 card-hover">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Ready to transform your email?
-            </h2>
-            <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Join 10,000+ professionals who save hours every day with EaseMail
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/signup">
-                <Button size="lg" className="min-w-[200px] btn-press">
-                  Start Free Trial
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </Link>
-              <Link href="/contact-sales">
-                <Button size="lg" variant="outline" className="min-w-[200px] btn-press">
-                  Talk to Sales
-                </Button>
-              </Link>
+                  <div className="pt-4 border-t border-border">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground leading-relaxed">{category.note}</p>
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
-            <p className="text-sm text-muted-foreground mt-6">
-              No credit card required • Cancel anytime • 30-day money-back guarantee
-            </p>
-          </Card>
+          </div>
+        </div>
+
+        {/* Feature Comparison */}
+        <div className="py-24">
+          <div className="container mx-auto px-6">
+            <div className="text-center mb-16">
+              <Badge variant="outline" className="mb-4 border-primary/30">
+                Feature Comparison
+              </Badge>
+              <h2 className="text-4xl md:text-5xl font-bold mb-5">
+                Compare all features
+              </h2>
+            </div>
+
+            <Card className="p-10 max-w-5xl mx-auto overflow-x-auto border-border/50 shadow-xl">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b-2 border-border">
+                    <th className="text-left py-5 px-5 font-bold text-lg">Feature</th>
+                    <th className="text-center py-5 px-5 font-bold text-lg">Starter</th>
+                    <th className="text-center py-5 px-5 font-bold text-lg">Professional</th>
+                    <th className="text-center py-5 px-5 font-bold text-lg">Team</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  <tr className="transition-all hover:bg-muted/30">
+                    <td className="py-5 px-5 text-sm font-semibold">AI Requests/Month</td>
+                    <td className="py-5 px-5 text-center text-sm">10</td>
+                    <td className="py-5 px-5 text-center text-sm font-bold text-primary">Unlimited</td>
+                    <td className="py-5 px-5 text-center text-sm font-bold text-primary">Unlimited</td>
+                  </tr>
+                  <tr className="transition-all hover:bg-muted/30">
+                    <td className="py-5 px-5 text-sm font-semibold">SMS Messaging</td>
+                    <td className="py-5 px-5 text-center text-sm"><X className="h-5 w-5 mx-auto text-muted-foreground" /></td>
+                    <td className="py-5 px-5 text-center text-sm"><Check className="h-6 w-6 mx-auto text-green-600" /></td>
+                    <td className="py-5 px-5 text-center text-sm"><Check className="h-6 w-6 mx-auto text-green-600" /></td>
+                  </tr>
+                  <tr className="transition-all hover:bg-muted/30">
+                    <td className="py-5 px-5 text-sm font-semibold">Team Members</td>
+                    <td className="py-5 px-5 text-center text-sm">1</td>
+                    <td className="py-5 px-5 text-center text-sm">1</td>
+                    <td className="py-5 px-5 text-center text-sm font-bold text-primary">Unlimited</td>
+                  </tr>
+                  <tr className="transition-all hover:bg-muted/30">
+                    <td className="py-5 px-5 text-sm font-semibold">Support</td>
+                    <td className="py-5 px-5 text-center text-sm">Community</td>
+                    <td className="py-5 px-5 text-center text-sm">Priority Email</td>
+                    <td className="py-5 px-5 text-center text-sm font-bold text-primary">Dedicated</td>
+                  </tr>
+                  <tr className="transition-all hover:bg-muted/30">
+                    <td className="py-5 px-5 text-sm font-semibold">Team Features</td>
+                    <td className="py-5 px-5 text-center text-sm"><X className="h-5 w-5 mx-auto text-muted-foreground" /></td>
+                    <td className="py-5 px-5 text-center text-sm"><X className="h-5 w-5 mx-auto text-muted-foreground" /></td>
+                    <td className="py-5 px-5 text-center text-sm"><Check className="h-6 w-6 mx-auto text-green-600" /></td>
+                  </tr>
+                  <tr className="transition-all hover:bg-muted/30">
+                    <td className="py-5 px-5 text-sm font-semibold">SSO & Security</td>
+                    <td className="py-5 px-5 text-center text-sm"><X className="h-5 w-5 mx-auto text-muted-foreground" /></td>
+                    <td className="py-5 px-5 text-center text-sm"><X className="h-5 w-5 mx-auto text-muted-foreground" /></td>
+                    <td className="py-5 px-5 text-center text-sm"><Check className="h-6 w-6 mx-auto text-green-600" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </Card>
+          </div>
+        </div>
+
+        {/* FAQs */}
+        <div className="bg-gradient-to-br from-muted/50 via-muted/30 to-background py-24">
+          <div className="container mx-auto px-6">
+            <div className="text-center mb-16">
+              <Badge variant="outline" className="mb-4 border-primary/30">
+                FAQs
+              </Badge>
+              <h2 className="text-4xl md:text-5xl font-bold mb-5">
+                Frequently asked questions
+              </h2>
+            </div>
+
+            <Accordion type="single" collapsible className="max-w-3xl mx-auto">
+              {faqs.map((faq, idx) => (
+                <AccordionItem key={idx} value={`item-${idx}`} className="border-border/50">
+                  <AccordionTrigger className="text-left font-bold text-lg hover:text-primary transition-colors">
+                    {faq.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground leading-relaxed text-base">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </div>
+
+        {/* CTA Section */}
+        <div className="py-24">
+          <div className="container mx-auto px-6">
+            <Card className="p-16 text-center bg-gradient-to-br from-primary via-purple-500 to-pink-500 border-0 shadow-2xl hover:shadow-3xl transition-all duration-500">
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">
+                Ready to transform your email?
+              </h2>
+              <p className="text-xl md:text-2xl text-white/90 mb-10 max-w-2xl mx-auto leading-relaxed">
+                Join 10,000+ professionals who save hours every day with EaseMail
+              </p>
+              <div className="flex flex-col sm:flex-row gap-5 justify-center">
+                <Link href="/signup">
+                  <Button size="lg" variant="secondary" className="min-w-[220px] h-14 text-lg font-semibold shadow-xl hover:shadow-2xl hover:scale-105 transition-all">
+                    Start Free Trial
+                    <ArrowRight className="h-5 w-5 ml-2" />
+                  </Button>
+                </Link>
+                <Link href="/contact-sales">
+                  <Button size="lg" variant="outline" className="min-w-[220px] h-14 text-lg font-semibold bg-white/10 border-white/30 hover:bg-white/20 text-white backdrop-blur-sm">
+                    Talk to Sales
+                  </Button>
+                </Link>
+              </div>
+              <p className="text-sm text-white/80 mt-8 font-medium">
+                No credit card required • Cancel anytime • 30-day money-back guarantee
+              </p>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

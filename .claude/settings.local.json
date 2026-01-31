@@ -54,7 +54,8 @@
       "Bash(EMAIL-RENDERING-AUDIT.md)",
       "Bash(tee:*)",
       "Bash(xargs -I {} sh -c 'grep -q \"\"\"\"export const dynamic\"\"\"\" \"\"\"\"{}\"\"\"\" || (echo \"\"\"\"\"\"\"\" >> \"\"\"\"{}\"\"\"\" && echo \"\"\"\"export const dynamic = ''''force-dynamic'''';\"\"\"\" >> \"\"\"\"{}\"\"\"\")')",
-      "Bash(timeout /t 15)"
+      "Bash(timeout /t 15)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
