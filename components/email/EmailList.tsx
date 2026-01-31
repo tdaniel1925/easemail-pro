@@ -536,44 +536,53 @@ export function EmailList({ emails, expandedEmailId, selectedEmailId, onEmailCli
 
       {/* Email List */}
       <div className="flex-1 overflow-y-auto px-3 py-2">
-        <div className="space-y-2">
-        {visibleEmails.map((email) => (
-          <EmailCard
-            key={email.id}
-            email={email}
-            isExpanded={expandedEmailId === email.id}
-            isSelected={selectedEmailId === email.id}
-            isChecked={selectedEmails.has(email.id)}
-            selectMode={selectMode}
-            showImages={showImages}
-            useEmailRendererV3={useEmailRendererV3}
+        {/* HIGH PRIORITY FIX: Context-aware empty states */}
+        {visibleEmails.length === 0 ? (
+          <EmptyState
+            searchQuery={searchQuery}
             currentFolder={currentFolder}
-            onSelect={(e) => handleSelectEmail(email.id, e)}
-            onClick={() => onEmailClick(email.id)}
-            showToast={(type, message) => {
-              if (type === 'success') success(message);
-              else if (type === 'error') error(message);
-              else if (type === 'info') info(message);
-            }}
-            onShowImagesToggle={() => setShowImages(!showImages)}
-            onRemove={(emailId, action) => {
-              // Optimistically remove from UI
-              setLocallyRemovedEmails(prev => {
-                const next = new Set(prev);
-                next.add(emailId);
-                return next;
-              });
-
-              // Set undo stack
-              setUndoStack({
-                action,
-                emailIds: [emailId],
-                timestamp: Date.now(),
-              });
-            }}
+            totalEmailCount={emails.length}
           />
-        ))}
-        </div>
+        ) : (
+          <div className="space-y-2">
+          {visibleEmails.map((email) => (
+            <EmailCard
+              key={email.id}
+              email={email}
+              isExpanded={expandedEmailId === email.id}
+              isSelected={selectedEmailId === email.id}
+              isChecked={selectedEmails.has(email.id)}
+              selectMode={selectMode}
+              showImages={showImages}
+              useEmailRendererV3={useEmailRendererV3}
+              currentFolder={currentFolder}
+              onSelect={(e) => handleSelectEmail(email.id, e)}
+              onClick={() => onEmailClick(email.id)}
+              showToast={(type, message) => {
+                if (type === 'success') success(message);
+                else if (type === 'error') error(message);
+                else if (type === 'info') info(message);
+              }}
+              onShowImagesToggle={() => setShowImages(!showImages)}
+              onRemove={(emailId, action) => {
+                // Optimistically remove from UI
+                setLocallyRemovedEmails(prev => {
+                  const next = new Set(prev);
+                  next.add(emailId);
+                  return next;
+                });
+
+                // Set undo stack
+                setUndoStack({
+                  action,
+                  emailIds: [emailId],
+                  timestamp: Date.now(),
+                });
+              }}
+            />
+          ))}
+          </div>
+        )}
       </div>
       
       {/* ✅ Undo Bar */}
@@ -1239,6 +1248,150 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
           onClose={() => setShowThread(false)}
         />
       )}
+    </div>
+  );
+}
+
+// HIGH PRIORITY FIX: Context-aware empty states component
+interface EmptyStateProps {
+  searchQuery: string;
+  currentFolder: string | null;
+  totalEmailCount: number;
+}
+
+function EmptyState({ searchQuery, currentFolder, totalEmailCount }: EmptyStateProps) {
+  // Case 1: Search with no results
+  if (searchQuery.trim()) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Search className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">No results found</h3>
+        <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
+          No emails found for "<span className="font-medium">{searchQuery}</span>".
+          Try different keywords or check your spelling.
+        </p>
+        <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+          <p className="flex items-center gap-2">
+            <span className="font-medium">Tips:</span>
+          </p>
+          <ul className="list-disc list-inside space-y-1 ml-4">
+            <li>Use fewer or different keywords</li>
+            <li>Check for typos</li>
+            <li>Try searching in all folders</li>
+          </ul>
+        </div>
+      </div>
+    );
+  }
+
+  // Case 2: Specific folder empty states
+  const folderName = currentFolder || 'inbox';
+  const folderLower = folderName.toLowerCase();
+
+  // Inbox empty
+  if (folderLower === 'inbox') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+          <Mail className="h-8 w-8 text-primary" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">Inbox Zero! 🎉</h3>
+        <p className="text-sm text-muted-foreground text-center max-w-md">
+          {totalEmailCount === 0
+            ? "You haven't received any emails yet. Your inbox is ready for incoming messages."
+            : "You've cleared your inbox! All emails have been archived, deleted, or moved."}
+        </p>
+      </div>
+    );
+  }
+
+  // Sent folder empty
+  if (folderLower === 'sent') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+        <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-4">
+          <Mail className="h-8 w-8 text-blue-500" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">No sent emails</h3>
+        <p className="text-sm text-muted-foreground text-center max-w-md">
+          You haven't sent any emails yet. Click "Compose" to send your first email.
+        </p>
+      </div>
+    );
+  }
+
+  // Drafts folder empty
+  if (folderLower === 'drafts') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+        <div className="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center mb-4">
+          <Mail className="h-8 w-8 text-yellow-500" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">No drafts</h3>
+        <p className="text-sm text-muted-foreground text-center max-w-md">
+          You don't have any draft emails. Start composing an email to create a draft.
+        </p>
+      </div>
+    );
+  }
+
+  // Trash folder empty
+  if (folderLower === 'trash' || folderLower === 'deleted') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+          <Trash2 className="h-8 w-8 text-red-500" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">Trash is empty</h3>
+        <p className="text-sm text-muted-foreground text-center max-w-md">
+          No deleted emails. Deleted emails will appear here.
+        </p>
+      </div>
+    );
+  }
+
+  // Archive folder empty
+  if (folderLower === 'archive' || folderLower === 'archived') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+        <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-4">
+          <Archive className="h-8 w-8 text-green-500" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">No archived emails</h3>
+        <p className="text-sm text-muted-foreground text-center max-w-md">
+          You haven't archived any emails yet. Archive emails to keep your inbox clean.
+        </p>
+      </div>
+    );
+  }
+
+  // Spam folder empty
+  if (folderLower === 'spam' || folderLower === 'junk') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+        <div className="w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center mb-4">
+          <Ban className="h-8 w-8 text-orange-500" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">No spam</h3>
+        <p className="text-sm text-muted-foreground text-center max-w-md">
+          Great! No spam emails found. Spam emails will be filtered here automatically.
+        </p>
+      </div>
+    );
+  }
+
+  // Generic folder empty (custom folder or other)
+  return (
+    <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+        <Mail className="h-8 w-8 text-muted-foreground" />
+      </div>
+      <h3 className="text-lg font-semibold mb-2">No emails in {folderName}</h3>
+      <p className="text-sm text-muted-foreground text-center max-w-md">
+        This folder is empty. Emails will appear here when you move them to this folder.
+      </p>
     </div>
   );
 }
