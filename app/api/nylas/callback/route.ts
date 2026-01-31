@@ -315,9 +315,21 @@ export async function GET(request: NextRequest) {
         initialComplete: existingAccount.initialSyncCompleted,
       });
     }
-    
+
+    // HIGH PRIORITY FIX: Communicate webhook status to user
     console.log('🎉 Redirecting to inbox with success message');
-    return NextResponse.redirect(new URL('/inbox?success=account_added&syncing=true', request.url));
+    const successUrl = new URL('/inbox', request.url);
+    successUrl.searchParams.set('success', 'account_added');
+    successUrl.searchParams.set('syncing', 'true');
+
+    // Warn user if webhook setup failed or timed out
+    if (!webhookResult) {
+      console.warn('⚠️ Webhook setup incomplete - user will be notified');
+      successUrl.searchParams.set('webhook_pending', 'true');
+      successUrl.searchParams.set('account_id', account.id);
+    }
+
+    return NextResponse.redirect(successUrl);
   } catch (error) {
     console.error('❌ OAuth callback error:', error);
     console.error('Error details:', JSON.stringify(error, null, 2));
