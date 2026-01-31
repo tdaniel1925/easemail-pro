@@ -40,26 +40,34 @@ export async function GET() {
         // Debug: log the count for this account
         console.log(`📊 Account ${account.emailAddress} (ID: ${account.id}): ${actualEmailCount} emails in DB, syncedEmailCount: ${account.syncedEmailCount}`);
 
-        // Use the actual count if syncedEmailCount is 0 or missing
+        // ✅ FIXED: Simplified status logic - trust the database, don't guess
+
+        // Use actual synced count from DB if available, otherwise use stored value
         const syncedEmailCount = account.syncedEmailCount || actualEmailCount;
 
-        // Determine effective sync status
-        let effectiveSyncStatus = account.syncStatus || 'idle';
-        let effectiveSyncProgress = account.syncProgress || 0;
-
-        // If we have emails but status shows idle/0%, update to show completed
-        if (actualEmailCount > 0 && effectiveSyncStatus === 'idle' && effectiveSyncProgress === 0) {
-          // Account has emails but sync stats weren't updated - treat as completed
-          effectiveSyncStatus = 'completed';
-          effectiveSyncProgress = 100;
-        }
-
-        // If totalEmailCount is 0 but we have synced emails, use synced as total
+        // Use stored total from Nylas, fallback to synced count if not yet fetched
         const totalEmailCount = account.totalEmailCount || syncedEmailCount || actualEmailCount;
 
-        // Recalculate progress if needed
-        if (totalEmailCount > 0 && syncedEmailCount > 0 && effectiveSyncProgress === 0) {
-          effectiveSyncProgress = Math.min(100, Math.round((syncedEmailCount / totalEmailCount) * 100));
+        // Calculate progress based on actual counts
+        let calculatedProgress = 0;
+        if (totalEmailCount > 0) {
+          calculatedProgress = Math.min(100, Math.round((syncedEmailCount / totalEmailCount) * 100));
+        }
+
+        // Trust the stored sync status from DB (set by sync processes)
+        // Only override if status is obviously stale (completed but progress < 100)
+        let effectiveSyncStatus = account.syncStatus || 'idle';
+        let effectiveSyncProgress = account.syncProgress || calculatedProgress;
+
+        // Only adjust status if there's a clear mismatch
+        if (effectiveSyncStatus === 'completed' && effectiveSyncProgress < 100 && syncedEmailCount < totalEmailCount) {
+          // Sync marked complete but isn't - probably stalled
+          effectiveSyncStatus = 'idle';
+        }
+
+        // If account is inactive or has errors, reflect that
+        if (!account.isActive) {
+          effectiveSyncStatus = 'error';
         }
 
         return {

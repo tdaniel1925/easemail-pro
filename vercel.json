@@ -59,6 +59,10 @@
     {
       "path": "/api/cron/monitor-billing",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/refresh-account-tokens",
+      "schedule": "0 * * * *"
     }
   ]
 }

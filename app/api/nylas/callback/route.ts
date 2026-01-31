@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
           nylasGrantId: grantId,
           providerAccountId: grantId,
           nylasScopes: scopes,
-          syncStatus: 'active',
+          syncStatus: 'idle', // ✅ Fixed: was 'active' (invalid), now 'idle'
           lastError: null, // Clear any previous errors
           isActive: true,
           autoSync: true,
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
         nylasEmail: email,
         nylasProvider: provider,
         nylasScopes: scopes,
-        syncStatus: 'initializing',
+        syncStatus: 'idle', // ✅ Fixed: was 'initializing' (invalid), now 'idle' (will be set to 'syncing' when sync starts)
         isActive: true,
         autoSync: true,
       }).returning();
@@ -180,35 +180,35 @@ export async function GET(request: NextRequest) {
       }, 10000)),
     ]);
 
-    // ✅ FIX: Move folder/email sync to background - DON'T block callback
-    if (!existingAccount) {
-      console.log('🚀 New account - triggering background sync jobs (async)...');
+    // ✅ FIX: Trigger sync for both new accounts AND reconnections
+    console.log(existingAccount ? '🔄 Reconnected account' : '🆕 New account', '- triggering background sync jobs (async)...');
 
-      // Set account status to 'syncing' immediately
-      await db.update(emailAccounts)
-        .set({
-          syncStatus: 'syncing',
-        })
-        .where(eq(emailAccounts.id, account.id));
+    // Set account status to 'syncing' immediately
+    await db.update(emailAccounts)
+      .set({
+        syncStatus: 'syncing',
+      })
+      .where(eq(emailAccounts.id, account.id));
 
-      // Trigger folder sync (async - fire and forget with short timeout)
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${account.id}`, {
-        method: 'POST',
-        signal: AbortSignal.timeout(5000), // 5 second timeout for trigger
-      }).catch(err => console.error('⚠️ Folder sync trigger error:', err));
+    // Trigger folder sync (async - fire and forget with short timeout)
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${account.id}`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(5000), // 5 second timeout for trigger
+    }).catch(err => console.error('⚠️ Folder sync trigger error:', err));
 
-      // Trigger background sync for emails (async - fire and forget)
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: account.id }),
-        signal: AbortSignal.timeout(5000), // 5 second timeout for trigger
-      }).catch(err => console.error('⚠️ Background sync trigger error:', err));
+    // Trigger background sync for emails (async - fire and forget)
+    // For reconnections, this will continue from saved cursor
+    // For new accounts, this will start fresh sync
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId: account.id }),
+      signal: AbortSignal.timeout(5000), // 5 second timeout for trigger
+    }).catch(err => console.error('⚠️ Background sync trigger error:', err));
 
-      console.log('✅ Background sync jobs triggered');
-    } else {
-      console.log('✅ Reconnected - skipping initial sync, cursor preserved');
-      console.log('📊 Existing sync state:', {
+    console.log('✅ Background sync jobs triggered');
+    if (existingAccount) {
+      console.log('📊 Continuing from saved sync state:', {
         cursor: existingAccount.syncCursor?.substring(0, 20) + '...',
         syncedCount: existingAccount.syncedEmailCount,
         initialComplete: existingAccount.initialSyncCompleted,

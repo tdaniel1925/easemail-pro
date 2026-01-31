@@ -308,16 +308,16 @@ function SyncStatusSettings() {
   const getSyncStatusText = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'Sync Complete';
+        return 'All caught up';
       case 'syncing':
       case 'background_syncing':
         return 'Syncing...';
       case 'error':
-        return 'Sync Error';
+        return 'Connection problem';
       case 'pending':
-        return 'Pending';
+        return 'Waiting to sync...';
       case 'idle':
-        return 'Ready';
+        return 'Up to date';
       default:
         return 'Unknown';
     }
@@ -399,16 +399,16 @@ function SyncStatusSettings() {
                 <Database className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                 <div className="space-y-2">
                   <p className="font-medium text-foreground">
-                    Understanding Email Sync
+                    How Email Sync Works
                   </p>
                   <div className="text-sm text-muted-foreground space-y-1">
-                    <p><strong>In Database:</strong> Emails already downloaded and stored locally - these are immediately searchable and viewable.</p>
-                    <p><strong>Total in Mailbox:</strong> Complete count of emails in your email provider's servers.</p>
-                    <p><strong>Progress:</strong> Percentage of emails that have been downloaded from the server to your local database.</p>
-                    <p><strong>Sync Speed:</strong> How many emails per minute are being processed during synchronization.</p>
+                    <p><strong>Synced:</strong> Emails already downloaded and ready to view.</p>
+                    <p><strong>Total:</strong> Complete count of emails in your account.</p>
+                    <p><strong>Progress:</strong> How many emails have been downloaded so far.</p>
+                    <p><strong>Speed:</strong> Emails being downloaded per minute.</p>
                   </div>
                   <p className="text-xs text-muted-foreground pt-2">
-                    Syncs run automatically in the background. You can use the app while syncing continues.
+                    Sync runs automatically in the background. You can use the app while it's working.
                   </p>
                 </div>
               </div>
@@ -489,11 +489,11 @@ function SyncStatusSettings() {
                       {/* Stats Grid */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
                         <div>
-                          <p className="text-xs text-muted-foreground mb-1">In Database</p>
+                          <p className="text-xs text-muted-foreground mb-1">Synced</p>
                           <p className="text-lg font-semibold">{formatNumber(syncedEmails)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground mb-1">Total in Mailbox</p>
+                          <p className="text-xs text-muted-foreground mb-1">Total</p>
                           <p className="text-lg font-semibold">{formatNumber(totalEmails)}</p>
                         </div>
                         <div>
@@ -501,7 +501,7 @@ function SyncStatusSettings() {
                           <p className="text-lg font-semibold">{formatNumber(remainingEmails)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground mb-1">Sync Speed</p>
+                          <p className="text-xs text-muted-foreground mb-1">Speed</p>
                           <p className="text-lg font-semibold">{emailsPerMinute}/min</p>
                         </div>
                       </div>
@@ -525,14 +525,34 @@ function SyncStatusSettings() {
                           </div>
                         )}
                         {account.lastError && (
-                          <div className="md:col-span-2 text-red-600 dark:text-red-400">
-                            <span className="text-muted-foreground">Error:</span>
-                            <span className="ml-2">{account.lastError}</span>
+                          <div className="md:col-span-2">
+                            <div className="flex items-start gap-2 p-3 rounded-lg border border-destructive/50 bg-destructive/10">
+                              <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-destructive mb-1">Connection Problem</p>
+                                <p className="text-xs text-muted-foreground">{account.lastError}</p>
+                                {(account.lastError.toLowerCase().includes('auth') ||
+                                  account.lastError.toLowerCase().includes('unauthorized') ||
+                                  account.lastError.toLowerCase().includes('401') ||
+                                  account.lastError.toLowerCase().includes('token')) && (
+                                  <Button
+                                    size="sm"
+                                    className="mt-2"
+                                    onClick={() => {
+                                      // Redirect to Nylas auth to reconnect
+                                      window.location.href = `/api/nylas/auth?reconnect=${account.id}`;
+                                    }}
+                                  >
+                                    Reconnect Account
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
 
-                      {/* Force Resync Button */}
+                      {/* Refresh All Emails Button */}
                       <div className="pt-4 border-t">
                         <Button
                           variant="outline"
@@ -542,10 +562,10 @@ function SyncStatusSettings() {
                           className="w-full sm:w-auto"
                         >
                           <RefreshCw className={cn("h-4 w-4 mr-2", resyncingAccount === account.id && "animate-spin")} />
-                          {resyncingAccount === account.id ? 'Restarting Sync...' : 'Force Resync'}
+                          {resyncingAccount === account.id ? 'Refreshing...' : 'Refresh All Emails'}
                         </Button>
                         <p className="text-xs text-muted-foreground mt-2">
-                          Use this to re-download all emails from the server if sync seems incomplete.
+                          Start a fresh sync if emails seem to be missing.
                         </p>
                       </div>
 

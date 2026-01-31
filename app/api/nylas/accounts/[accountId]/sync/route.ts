@@ -69,6 +69,16 @@ export async function POST(
       return NextResponse.json({ error: 'Account not found or unauthorized' }, { status: 403 });
     }
 
+    // ✅ SYNC LOCKING: Prevent concurrent syncs on same account
+    if (account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing') {
+      console.log(`[Manual Sync] ⚠️ Sync already in progress for account ${accountId}`);
+      return NextResponse.json({
+        error: 'Sync already in progress',
+        message: 'A sync is currently running for this account. Please wait for it to complete.',
+        syncStatus: account.syncStatus,
+      }, { status: 409 }); // 409 Conflict
+    }
+
     console.log(`[Manual Sync] Starting sync for account ${accountId}`, {
       email: account.emailAddress,
       provider: account.emailProvider,
