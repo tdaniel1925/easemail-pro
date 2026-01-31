@@ -55,7 +55,11 @@
       "Bash(tee:*)",
       "Bash(xargs -I {} sh -c 'grep -q \"\"\"\"export const dynamic\"\"\"\" \"\"\"\"{}\"\"\"\" || (echo \"\"\"\"\"\"\"\" >> \"\"\"\"{}\"\"\"\" && echo \"\"\"\"export const dynamic = ''''force-dynamic'''';\"\"\"\" >> \"\"\"\"{}\"\"\"\")')",
       "Bash(timeout /t 15)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(if [ ! -f \"C:\\dev\\EaseMail - The Future\\components\\ui\\celebration.tsx\" ])",
+      "Bash(then echo \"File does not exist\")",
+      "Bash(else echo \"File exists\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []
