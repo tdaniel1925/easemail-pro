@@ -68,13 +68,13 @@ export function SmartEditor({
       Highlight.configure({
         multicolor: true,
       }),
-      // @ts-expect-error - TipTap type conflict due to PNPM hoisting multiple @tiptap/core versions
+      // Type cast to bypass PNPM hoisting conflict with @tiptap/core versions
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
           class: 'text-blue-600 underline hover:text-blue-700 cursor-pointer',
         },
-      }),
+      }) as any,
       Image.configure({
         inline: true,
         allowBase64: true,
