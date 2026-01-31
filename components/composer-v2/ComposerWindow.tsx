@@ -264,6 +264,7 @@ function ComposerWindowContent() {
                 <SmartEditor
                   content={bodyHtml}
                   onChange={(html, text) => setBody(html, text)}
+                  onCtrlEnter={handleSend}
                 />
 
                 {/* Attachments */}

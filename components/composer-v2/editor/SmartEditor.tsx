@@ -24,6 +24,7 @@ interface SmartEditorProps {
   autoFocus?: boolean;
   showToolbar?: boolean;
   onEditorReady?: (editor: Editor) => void;
+  onCtrlEnter?: () => void;
 }
 
 /**
@@ -48,6 +49,7 @@ export function SmartEditor({
   autoFocus = false,
   showToolbar = true,
   onEditorReady,
+  onCtrlEnter,
 }: SmartEditorProps) {
   const editorRef = useRef<Editor | null>(null);
 
@@ -114,6 +116,22 @@ export function SmartEditor({
       editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content, editor]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (!editor || !onCtrlEnter) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Enter or Cmd+Enter to trigger send
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        onCtrlEnter();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editor, onCtrlEnter]);
 
   // Cleanup
   useEffect(() => {

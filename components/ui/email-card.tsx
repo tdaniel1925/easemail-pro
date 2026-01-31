@@ -37,6 +37,7 @@ interface EmailCardProps {
   isRead?: boolean;
   isStarred?: boolean;
   hasAttachments?: boolean;
+  attachmentsCount?: number;
   labels?: string[];
   onClick?: () => void;
   onStar?: () => void;
@@ -56,6 +57,7 @@ export function EmailCard({
   isRead = false,
   isStarred = false,
   hasAttachments = false,
+  attachmentsCount = 0,
   labels = [],
   onClick,
   onStar,
@@ -79,6 +81,31 @@ export function EmailCard({
         .slice(0, 2);
     }
     return email ? email[0].toUpperCase() : '?';
+  };
+
+  // Strip HTML tags from snippet
+  const stripHtml = (html: string) => {
+    // Remove HTML tags
+    let text = html.replace(/<[^>]*>/g, '');
+
+    // Decode common HTML entities
+    const entityMap: Record<string, string> = {
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#39;': "'",
+      '&nbsp;': ' ',
+    };
+
+    text = text.replace(/&[a-z]+;|&#\d+;/gi, (match) => {
+      return entityMap[match.toLowerCase()] || match;
+    });
+
+    // Replace multiple spaces with single space
+    text = text.replace(/\s+/g, ' ').trim();
+
+    return text;
   };
 
   const initials = getInitials(from.name, from.email);
@@ -132,7 +159,10 @@ export function EmailCard({
 
             <div className="flex items-center gap-1 flex-shrink-0">
               {hasAttachments && (
-                <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  {attachmentsCount > 0 && attachmentsCount}
+                </span>
               )}
               <span className="text-xs text-muted-foreground whitespace-nowrap">
                 {timeAgo.replace('about ', '')}
@@ -151,7 +181,7 @@ export function EmailCard({
           {/* Snippet */}
           {snippet && (
             <p className="text-sm text-muted-foreground truncate-2">
-              {snippet}
+              {stripHtml(snippet)}
             </p>
           )}
         </div>

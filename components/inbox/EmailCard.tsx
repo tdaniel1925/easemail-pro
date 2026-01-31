@@ -68,9 +68,37 @@ function EmailCard({
     }
   };
 
+  const stripHtml = (html: string | null) => {
+    if (!html) return '';
+
+    // Remove HTML tags
+    let text = html.replace(/<[^>]*>/g, '');
+
+    // Decode common HTML entities
+    const entityMap: Record<string, string> = {
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#39;': "'",
+      '&nbsp;': ' ',
+    };
+
+    text = text.replace(/&[a-z]+;|&#\d+;/gi, (match) => {
+      return entityMap[match.toLowerCase()] || match;
+    });
+
+    // Replace multiple spaces with single space
+    text = text.replace(/\s+/g, ' ').trim();
+
+    return text;
+  };
+
   const truncate = (text: string | null, length: number) => {
     if (!text) return '';
-    return text.length > length ? text.substring(0, length) + '...' : text;
+    // Strip HTML first, then truncate
+    const cleanText = stripHtml(text);
+    return cleanText.length > length ? cleanText.substring(0, length) + '...' : cleanText;
   };
 
   const formatRecipients = (recipients: Array<{ email: string; name?: string }> | null) => {
