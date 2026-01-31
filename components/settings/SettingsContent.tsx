@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker, Search, Calendar, X, History } from 'lucide-react';
+import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker, Search, Calendar, X, History, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -864,6 +864,95 @@ function SignaturesSettings() {
 }
 
 function PreferencesSettings() {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [preferences, setPreferences] = useState({
+    conversationView: true,
+    autoAdvance: true,
+    showImages: false,
+    smartCompose: true,
+    defaultReplyBehavior: 'reply' as 'reply' | 'reply-all' | 'forward',
+    markAsReadOnView: true,
+    showAvatars: true,
+    showSnippets: true,
+    emailsPerPage: 50,
+  });
+
+  // Fetch preferences on mount
+  useEffect(() => {
+    fetchPreferences();
+  }, []);
+
+  const fetchPreferences = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/user/preferences');
+      const data = await response.json();
+
+      if (data.success && data.preferences) {
+        setPreferences({
+          conversationView: data.preferences.conversationView ?? true,
+          autoAdvance: data.preferences.autoAdvance ?? true,
+          showImages: data.preferences.showImages ?? false,
+          smartCompose: data.preferences.smartCompose ?? true,
+          defaultReplyBehavior: data.preferences.defaultReplyBehavior ?? 'reply',
+          markAsReadOnView: data.preferences.markAsReadOnView ?? true,
+          showAvatars: data.preferences.showAvatars ?? true,
+          showSnippets: data.preferences.showSnippets ?? true,
+          emailsPerPage: data.preferences.emailsPerPage ?? 50,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching preferences:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updatePreference = async (key: string, value: any) => {
+    try {
+      setSaving(true);
+      const response = await fetch('/api/user/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [key]: value }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save preference');
+      }
+
+      setPreferences(prev => ({ ...prev, [key]: value }));
+
+      toast({
+        title: 'Saved',
+        description: 'Preference updated successfully',
+      });
+    } catch (error: any) {
+      console.error('Error saving preference:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save preference',
+        variant: 'destructive',
+      });
+      // Revert on error
+      fetchPreferences();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Sticky Header */}
@@ -907,21 +996,79 @@ function PreferencesSettings() {
                   <p className="font-medium">Conversation View</p>
                   <p className="text-sm text-muted-foreground">Group related emails together</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={preferences.conversationView}
+                  onCheckedChange={(checked) => updatePreference('conversationView', checked)}
+                  disabled={saving}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Auto-advance</p>
                   <p className="text-sm text-muted-foreground">Move to next email after delete or archive</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={preferences.autoAdvance}
+                  onCheckedChange={(checked) => updatePreference('autoAdvance', checked)}
+                  disabled={saving}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Show Images</p>
                   <p className="text-sm text-muted-foreground">Always display external images</p>
                 </div>
-                <Switch />
+                <Switch
+                  checked={preferences.showImages}
+                  onCheckedChange={(checked) => updatePreference('showImages', checked)}
+                  disabled={saving}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Mark as Read on View</p>
+                  <p className="text-sm text-muted-foreground">Automatically mark emails as read when opened</p>
+                </div>
+                <Switch
+                  checked={preferences.markAsReadOnView}
+                  onCheckedChange={(checked) => updatePreference('markAsReadOnView', checked)}
+                  disabled={saving}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Show Avatars</p>
+                  <p className="text-sm text-muted-foreground">Display sender profile pictures</p>
+                </div>
+                <Switch
+                  checked={preferences.showAvatars}
+                  onCheckedChange={(checked) => updatePreference('showAvatars', checked)}
+                  disabled={saving}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Show Snippets</p>
+                  <p className="text-sm text-muted-foreground">Display email preview text</p>
+                </div>
+                <Switch
+                  checked={preferences.showSnippets}
+                  onCheckedChange={(checked) => updatePreference('showSnippets', checked)}
+                  disabled={saving}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Emails Per Page</Label>
+                <select
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]"
+                  value={preferences.emailsPerPage}
+                  onChange={(e) => updatePreference('emailsPerPage', parseInt(e.target.value))}
+                  disabled={saving}
+                >
+                  <option value="25" className="bg-background text-foreground">25</option>
+                  <option value="50" className="bg-background text-foreground">50</option>
+                  <option value="100" className="bg-background text-foreground">100</option>
+                </select>
               </div>
             </CardContent>
           </Card>
@@ -933,9 +1080,15 @@ function PreferencesSettings() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Default Reply Behavior</Label>
-                <select className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]">
-                  <option className="bg-background text-foreground">Reply</option>
-                  <option className="bg-background text-foreground">Reply All</option>
+                <select
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]"
+                  value={preferences.defaultReplyBehavior}
+                  onChange={(e) => updatePreference('defaultReplyBehavior', e.target.value)}
+                  disabled={saving}
+                >
+                  <option value="reply" className="bg-background text-foreground">Reply</option>
+                  <option value="reply-all" className="bg-background text-foreground">Reply All</option>
+                  <option value="forward" className="bg-background text-foreground">Forward</option>
                 </select>
               </div>
               <div className="flex items-center justify-between">
@@ -943,7 +1096,11 @@ function PreferencesSettings() {
                   <p className="font-medium">Smart Compose</p>
                   <p className="text-sm text-muted-foreground">AI-powered writing suggestions</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={preferences.smartCompose}
+                  onCheckedChange={(checked) => updatePreference('smartCompose', checked)}
+                  disabled={saving}
+                />
               </div>
             </CardContent>
           </Card>
