@@ -64,6 +64,36 @@ function getUserFriendlyError(error: any, provider?: string): string {
   return 'Failed to connect your email account. Please try again or contact support if the issue persists.';
 }
 
+/**
+ * Get user-friendly OAuth error message for query string errors
+ */
+function getOAuthErrorMessage(error: string): string {
+  const errorLower = error.toLowerCase();
+
+  if (errorLower.includes('access_denied')) {
+    return 'You denied access. To connect your email, you need to grant permission to access your account.';
+  }
+
+  if (errorLower.includes('invalid_scope')) {
+    return 'Required email permissions were not granted. Please try again and accept all requested permissions.';
+  }
+
+  if (errorLower.includes('server_error') || errorLower.includes('temporarily_unavailable')) {
+    return 'Email provider is temporarily unavailable. Please try again in a few minutes.';
+  }
+
+  if (errorLower.includes('invalid_request')) {
+    return 'Invalid connection request. Please start the connection process again from Settings.';
+  }
+
+  if (errorLower.includes('unauthorized_client')) {
+    return 'App is not authorized with your email provider. Please contact support.';
+  }
+
+  // Default fallback with the actual error for debugging
+  return `Connection failed: ${error}. Please try connecting again or contact support.`;
+}
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
   const state = request.nextUrl.searchParams.get('state');
@@ -71,14 +101,21 @@ export async function GET(request: NextRequest) {
   
   console.log('🔵 Nylas callback received:', { code: code?.slice(0, 20), state, error });
   
+  // HIGH PRIORITY FIX: Better OAuth error handling with specific messages and retry path
   if (error) {
     console.error('❌ OAuth error:', error);
-    return NextResponse.redirect(new URL(`/inbox?error=${error}`, request.url));
+    const errorMessage = getOAuthErrorMessage(error);
+    return NextResponse.redirect(
+      new URL(`/settings?tab=sync&oauth_error=${encodeURIComponent(errorMessage)}&can_retry=true`, request.url)
+    );
   }
-  
+
   if (!code || !state) {
     console.error('❌ Missing code or state');
-    return NextResponse.redirect(new URL('/inbox?error=invalid_request', request.url));
+    const errorMessage = 'Invalid OAuth request. Please try connecting your account again.';
+    return NextResponse.redirect(
+      new URL(`/settings?tab=sync&oauth_error=${encodeURIComponent(errorMessage)}&can_retry=true`, request.url)
+    );
   }
   
   try {

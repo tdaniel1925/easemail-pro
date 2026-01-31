@@ -41,19 +41,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 });
     }
 
-    // ✅ FIXED: Check if sync is stuck (status says "syncing" but no activity for 10+ minutes)
+    // HIGH PRIORITY FIX: Robust stuck sync detection with multiple signals
     const STUCK_SYNC_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
-    const isStuckSync = (account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing') &&
-                        account.lastActivityAt &&
-                        (Date.now() - account.lastActivityAt.getTime()) > STUCK_SYNC_TIMEOUT_MS;
+    const isSyncing = (account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing');
+
+    let isStuckSync = false;
+    if (isSyncing) {
+      if (!account.lastActivityAt) {
+        // No activity timestamp but sync status is active - definitely stuck
+        console.warn(`⚠️ Account ${accountId} in syncing state but lastActivityAt is null - stuck sync detected`);
+        isStuckSync = true;
+      } else if ((Date.now() - account.lastActivityAt.getTime()) > STUCK_SYNC_TIMEOUT_MS) {
+        // Has activity timestamp but it's too old
+        isStuckSync = true;
+      } else if (account.updatedAt && (Date.now() - account.updatedAt.getTime()) > STUCK_SYNC_TIMEOUT_MS) {
+        // No updates to the record for too long
+        console.warn(`⚠️ Account ${accountId} hasn't been updated in ${Math.round((Date.now() - account.updatedAt.getTime()) / 60000)} minutes`);
+        isStuckSync = true;
+      }
+    }
 
     if (isStuckSync) {
-      console.log(`🔧 Detected stuck sync for ${accountId} - resetting (last activity: ${account.lastActivityAt})`);
-      // Reset the stuck sync state
+      const lastActivity = account.lastActivityAt
+        ? new Date(account.lastActivityAt).toISOString()
+        : 'never';
+      console.log(`🔧 Detected stuck sync for ${accountId} - resetting (last activity: ${lastActivity})`);
+
+      // Reset the stuck sync state with detailed error message
       await db.update(emailAccounts)
         .set({
           syncStatus: 'idle',
-          lastError: 'Previous sync timed out - restarting',
+          lastError: 'Previous sync timed out - automatically recovered',
+          lastActivityAt: new Date(), // Update activity timestamp
+          continuationCount: 0, // Reset continuation counter
         })
         .where(eq(emailAccounts.id, accountId));
 

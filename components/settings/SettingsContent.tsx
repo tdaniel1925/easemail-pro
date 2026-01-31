@@ -19,6 +19,7 @@ import { WritingStyleSettings } from '@/components/settings/WritingStyleSettings
 import CalcomSettings from '@/components/settings/CalcomSettings';
 import UserBillingPage from '@/components/billing/UserBillingPage';
 import { useToast } from '@/components/ui/use-toast';
+import { sanitizeEmailHTML } from '@/lib/utils/email-html';
 
 type SettingsSection = 'sync' | 'signatures' | 'preferences' | 'notifications' | 'privacy' | 'integrations' | 'billing' | 'calcom' | 'ai-writing' | 'utilities' | 'features' | 'help';
 
@@ -835,7 +836,7 @@ function SignaturesSettings() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="border border-border rounded-lg p-4 bg-muted/50">
-                    <div dangerouslySetInnerHTML={{ __html: signature.contentHtml }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(signature.contentHtml, true) }} />
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={() => handleEdit(signature)}>Edit</Button>

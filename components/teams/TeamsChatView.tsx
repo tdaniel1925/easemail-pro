@@ -61,6 +61,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn, getInitials, generateAvatarColor } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
+import { sanitizeEmailHTML } from '@/lib/utils/email-html';
 
 // Teams supported reactions
 const TEAMS_REACTIONS = [
@@ -473,7 +474,7 @@ export function TeamsChatView({ chat, onBack, currentUserId, teamsAccountId }: T
       return (
         <div
           className="prose prose-sm dark:prose-invert max-w-none"
-          dangerouslySetInnerHTML={{ __html: message.body }}
+          dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(message.body, true) }}
         />
       );
     }

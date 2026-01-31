@@ -13,12 +13,10 @@ import { parseInternationalPhone, isSMSSupportedCountry } from '@/lib/utils/phon
 import { calculateSMSSegments, validateSMSLength } from '@/lib/sms/character-counter';
 import { logSMSAudit } from '@/lib/sms/audit-service';
 import { checkSMSConsent } from '@/lib/sms/audit-service';
+import { calculateSMSCostAndPrice, getSMSPricingWarning } from '@/lib/sms/pricing';
 import { eq, gte, lte, and, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
-
-const SMS_PRICE = parseFloat(process.env.SMS_PRICE_PER_MESSAGE || '0.05');
-const SMS_COST = parseFloat(process.env.SMS_COST_PER_MESSAGE || '0.0075');
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -89,7 +87,14 @@ export async function POST(request: NextRequest) {
     }
 
     const segments = lengthValidation.segments;
-    const totalCost = segments.messageCount * SMS_PRICE;
+
+    // HIGH PRIORITY FIX: Calculate cost and price based on destination country
+    const pricing = calculateSMSCostAndPrice(phoneValidation.country, segments.messageCount);
+    const totalCost = pricing.price; // What we charge the customer
+    const estimatedCost = pricing.cost; // What we expect to pay Twilio
+
+    // Show pricing warning if destination is expensive
+    const pricingWarning = getSMSPricingWarning(phoneValidation.country);
 
     // 6. Privacy: Check consent
     if (contactId) {
@@ -102,9 +107,13 @@ export async function POST(request: NextRequest) {
 
     console.log('📤 Sending SMS:', {
       to: phoneValidation.e164,
+      country: phoneValidation.country || 'Unknown',
       segments: segments.messageCount,
       encoding: segments.encoding,
-      cost: totalCost,
+      estimatedCost: estimatedCost,
+      chargedPrice: totalCost,
+      pricePerSegment: pricing.pricePerSegment,
+      warning: pricingWarning,
     });
 
     // 7. Send with Test Mode Support
@@ -135,8 +144,8 @@ export async function POST(request: NextRequest) {
       messageBody: message,
       twilioSid: result.sid,
       twilioStatus: result.status || 'queued',
-      costUsd: (result.cost || SMS_COST).toString(),
-      priceChargedUsd: totalCost.toString(),
+      costUsd: (result.cost || estimatedCost).toString(), // Use Twilio's actual cost or our estimate
+      priceChargedUsd: totalCost.toString(), // Country-specific pricing
       direction: 'outbound',
       sentAt: new Date(),
     }).returning();
@@ -225,7 +234,7 @@ export async function POST(request: NextRequest) {
     });
 
     // 12. Update usage tracking
-    await updateUsageTracking(user.id, result.cost || SMS_COST, totalCost);
+    await updateUsageTracking(user.id, result.cost || estimatedCost, totalCost);
 
     // 13. Success response
     console.log('✅ SMS API Success - returning response with twilioSid:', result.sid);
@@ -239,6 +248,9 @@ export async function POST(request: NextRequest) {
       cost: totalCost,
       segments: segments.messageCount,
       encoding: segments.encoding,
+      country: phoneValidation.country,
+      pricePerSegment: pricing.pricePerSegment,
+      warning: pricingWarning || undefined,
     });
 
   } catch (error: any) {

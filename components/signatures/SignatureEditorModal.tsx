@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import type { EmailSignature } from '@/lib/signatures/types';
 import { URLInputDialog } from '@/components/ui/url-input-dialog';
 import { useToast, ToastContainer } from '@/components/ui/toast';
+import { sanitizeEmailHTML } from '@/lib/utils/email-html';
 
 interface SignatureEditorModalProps {
   isOpen: boolean;
@@ -340,7 +341,7 @@ export function SignatureEditorModal({
 
             {showPreview && (
               <div className="border border-input rounded-md p-4 min-h-[200px] bg-muted/30">
-                <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(contentHtml, true) }} />
               </div>
             )}
 

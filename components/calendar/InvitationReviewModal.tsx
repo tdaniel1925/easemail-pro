@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { sanitizeEmailHTML } from '@/lib/utils/email-html';
 // Preview will be generated via API call to avoid client-side template issues
 
 interface InvitationReviewModalProps {
@@ -224,7 +225,7 @@ export default function InvitationReviewModal({
                 React.createElement("span", { className: "ml-2 text-sm text-muted-foreground" }, "Loading preview...")
               ) : previewHtml ? React.createElement(
                 "div",
-                { className: "border border-border rounded-lg bg-white p-4 max-h-[500px] overflow-y-auto", dangerouslySetInnerHTML: { __html: previewHtml } }
+                { className: "border border-border rounded-lg bg-white p-4 max-h-[500px] overflow-y-auto", dangerouslySetInnerHTML: { __html: sanitizeEmailHTML(previewHtml, true) } }
               ) : React.createElement("p", { className: "text-sm text-muted-foreground" }, "Add attendees to see preview")
             )
           ),

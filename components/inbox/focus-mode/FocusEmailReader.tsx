@@ -10,6 +10,7 @@ import { X, Reply, ReplyAll, Forward, Archive, Trash2, Star, ChevronLeft } from 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
+import { sanitizeEmailHTML } from '@/lib/utils/email-html';
 
 interface FocusEmailReaderProps {
   email: any;
@@ -167,7 +168,7 @@ export function FocusEmailReader({
               <div className="prose prose-invert prose-lg max-w-none">
                 <div
                   className="text-neutral-200 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: email.body || email.snippet || 'No content available' }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(email.body || email.snippet || 'No content available', true) }}
                 />
               </div>
 
