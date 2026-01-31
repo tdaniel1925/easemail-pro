@@ -528,7 +528,11 @@ export const userPreferences = pgTable('user_preferences', {
   notificationsEnabled: boolean('notifications_enabled').default(true),
   desktopNotifications: boolean('desktop_notifications').default(true),
   soundEnabled: boolean('sound_enabled').default(true),
-  
+  showNotificationPreview: boolean('show_notification_preview').default(true),
+  quietHoursEnabled: boolean('quiet_hours_enabled').default(false),
+  quietHoursStart: varchar('quiet_hours_start', { length: 5 }).default('22:00'), // HH:MM format
+  quietHoursEnd: varchar('quiet_hours_end', { length: 5 }).default('08:00'), // HH:MM format
+
   // AI Features
   aiEnabled: boolean('ai_enabled').default(true),
   aiAutoSummarize: boolean('ai_auto_summarize').default(true),
@@ -538,6 +542,9 @@ export const userPreferences = pgTable('user_preferences', {
   emailWritingStyle: text('email_writing_style'), // AI-generated style profile
   emailStyleLearnedAt: timestamp('email_style_learned_at'), // When style was last learned
   usePersonalStyle: boolean('use_personal_style').default(true), // Toggle for using learned style
+
+  // Feature Flags
+  useEmailRendererV3: boolean('use_email_renderer_v3').default(true), // V3 email renderer with iframe isolation
 
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

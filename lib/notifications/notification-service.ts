@@ -191,14 +191,42 @@ function playNotificationSound() {
 }
 
 /**
- * Get notification preferences from localStorage
+ * Get notification preferences from API (with localStorage fallback)
+ */
+export async function getNotificationPreferencesFromAPI(): Promise<NotificationPreferences> {
+  try {
+    const response = await fetch('/api/user/preferences');
+    const data = await response.json();
+
+    if (data.success && data.preferences) {
+      return {
+        enabled: data.preferences.notificationsEnabled ?? true,
+        sound: data.preferences.soundEnabled ?? true,
+        showPreview: data.preferences.showNotificationPreview ?? true,
+        quietHours: {
+          enabled: data.preferences.quietHoursEnabled ?? false,
+          start: data.preferences.quietHoursStart ?? '22:00',
+          end: data.preferences.quietHoursEnd ?? '08:00',
+        },
+      };
+    }
+  } catch (error) {
+    console.error('Failed to fetch notification preferences from API:', error);
+  }
+
+  // Fallback to localStorage
+  return getNotificationPreferences();
+}
+
+/**
+ * Get notification preferences from localStorage (legacy, for sync access)
  */
 export function getNotificationPreferences(): NotificationPreferences {
   const prefsStr = localStorage.getItem('notificationPreferences');
   if (prefsStr) {
     return JSON.parse(prefsStr);
   }
-  
+
   // Default preferences
   return {
     enabled: true,
@@ -213,15 +241,47 @@ export function getNotificationPreferences(): NotificationPreferences {
 }
 
 /**
- * Save notification preferences to localStorage
+ * Save notification preferences to database (with localStorage backup)
  */
-export function saveNotificationPreferences(preferences: NotificationPreferences): void {
+export async function saveNotificationPreferences(preferences: NotificationPreferences): Promise<boolean> {
+  try {
+    const response = await fetch('/api/user/preferences', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        notificationsEnabled: preferences.enabled,
+        soundEnabled: preferences.sound,
+        showNotificationPreview: preferences.showPreview,
+        quietHoursEnabled: preferences.quietHours?.enabled,
+        quietHoursStart: preferences.quietHours?.start,
+        quietHoursEnd: preferences.quietHours?.end,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Also save to localStorage for offline access
+      localStorage.setItem('notificationPreferences', JSON.stringify(preferences));
+
+      // Dispatch event so other components can react
+      window.dispatchEvent(new CustomEvent('notificationPreferencesChanged', {
+        detail: preferences,
+      }));
+
+      return true;
+    }
+  } catch (error) {
+    console.error('Failed to save notification preferences to API:', error);
+  }
+
+  // Fallback to localStorage only
   localStorage.setItem('notificationPreferences', JSON.stringify(preferences));
-  
-  // Dispatch event so other components can react
   window.dispatchEvent(new CustomEvent('notificationPreferencesChanged', {
     detail: preferences,
   }));
+
+  return false;
 }
 
 /**

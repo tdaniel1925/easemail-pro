@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,12 @@ import { useFeatureFlags } from '@/lib/stores/useFeatureFlags';
 import { Beaker, RotateCcw, AlertCircle } from 'lucide-react';
 
 export function FeatureFlagsContent() {
-  const { useEmailRendererV3, toggleFeature, resetToDefaults } = useFeatureFlags();
+  const { useEmailRendererV3, toggleFeature, resetToDefaults, loadFromAPI } = useFeatureFlags();
+
+  // Load feature flags from API on mount
+  useEffect(() => {
+    loadFromAPI();
+  }, [loadFromAPI]);
 
   return (
     <div className="space-y-6">

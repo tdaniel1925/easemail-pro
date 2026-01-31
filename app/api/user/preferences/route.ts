@@ -42,6 +42,10 @@ const userPreferencesSchema = z.object({
   notificationsEnabled: z.boolean().optional(),
   desktopNotifications: z.boolean().optional(),
   soundEnabled: z.boolean().optional(),
+  showNotificationPreview: z.boolean().optional(),
+  quietHoursEnabled: z.boolean().optional(),
+  quietHoursStart: z.string().regex(/^\d{2}:\d{2}$/).optional(), // HH:MM format
+  quietHoursEnd: z.string().regex(/^\d{2}:\d{2}$/).optional(), // HH:MM format
 
   // AI Features
   aiEnabled: z.boolean().optional(),
@@ -52,6 +56,9 @@ const userPreferencesSchema = z.object({
   emailWritingStyle: z.string().optional(),
   emailStyleLearnedAt: z.date().optional(),
   usePersonalStyle: z.boolean().optional(),
+
+  // Feature Flags
+  useEmailRendererV3: z.boolean().optional(),
 }).strict(); // Reject any fields not in schema
 
 export async function PATCH(request: NextRequest) {

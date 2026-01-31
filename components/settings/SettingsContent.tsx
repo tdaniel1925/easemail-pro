@@ -1134,9 +1134,9 @@ function NotificationsSettings() {
   useEffect(() => {
     const loadPreferences = async () => {
       try {
-        const { getNotificationPreferences, getNotificationPermission } = await import('@/lib/notifications/notification-service');
-        
-        const prefs = getNotificationPreferences();
+        const { getNotificationPreferencesFromAPI, getNotificationPermission } = await import('@/lib/notifications/notification-service');
+
+        const prefs = await getNotificationPreferencesFromAPI();
         setPreferences({
           ...prefs,
           quietHours: prefs.quietHours || {
@@ -1145,7 +1145,7 @@ function NotificationsSettings() {
             end: '08:00',
           },
         });
-        
+
         const perm = getNotificationPermission();
         setPermission(perm);
       } catch (error) {
