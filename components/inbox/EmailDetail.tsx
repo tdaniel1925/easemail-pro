@@ -271,29 +271,29 @@ export default function EmailDetail({
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 max-w-4xl">
+    <div className="flex-1 flex flex-col bg-background max-w-4xl">
       {/* Header */}
-      <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+      <div className="border-b border-border p-4 bg-background">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex-1 mr-4">
+          <h2 className="text-xl font-semibold text-foreground flex-1 mr-4">
             {email.subject || '(No subject)'}
           </h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={onClose} className="transition-smooth">
             <X className="h-5 w-5" />
           </Button>
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="transition-smooth">
             <Reply className="h-4 w-4 mr-2" />
             Reply
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="transition-smooth">
             <ReplyAll className="h-4 w-4 mr-2" />
             Reply All
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="transition-smooth">
             <Forward className="h-4 w-4 mr-2" />
             Forward
           </Button>
@@ -305,25 +305,26 @@ export default function EmailDetail({
             size="icon"
             onClick={onStar}
             title={email.isStarred ? 'Unstar' : 'Star'}
+            className="transition-smooth"
           >
             <Star
               className={
                 email.isStarred
                   ? 'h-4 w-4 fill-yellow-400 text-yellow-400'
-                  : 'h-4 w-4'
+                  : 'h-4 w-4 hover:text-yellow-400'
               }
             />
           </Button>
-          <Button variant="outline" size="icon" onClick={onArchive}>
+          <Button variant="outline" size="icon" onClick={onArchive} className="transition-smooth">
             <Archive className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={onDelete}>
+          <Button variant="outline" size="icon" onClick={onDelete} className="transition-smooth hover:text-destructive">
             <Trash2 className="h-4 w-4" />
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" className="transition-smooth">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -346,16 +347,16 @@ export default function EmailDetail({
             return (
               <div
                 key={threadEmail.id}
-                className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
+                className="border border-border rounded-lg overflow-hidden transition-smooth hover:shadow-sm"
               >
                 {/* Email Header */}
                 <div
-                  className="p-4 bg-gray-50 dark:bg-gray-900/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-900"
+                  className="p-4 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-smooth"
                   onClick={() => !isLast && toggleEmailExpanded(threadEmail.id)}
                 >
                   <div className="flex items-start gap-3">
                     {/* Avatar */}
-                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-500 dark:bg-blue-600 flex items-center justify-center text-white font-semibold">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold">
                       {(threadEmail.fromName || threadEmail.fromEmail || '?')
                         .charAt(0)
                         .toUpperCase()}
@@ -364,18 +365,18 @@ export default function EmailDetail({
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="font-semibold text-gray-900 dark:text-gray-100">
+                        <p className="font-semibold text-foreground">
                           {threadEmail.fromName || threadEmail.fromEmail}
                         </p>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                        <span className="text-sm text-muted-foreground">
                           {formatDate(threadEmail.receivedAt)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <p className="text-sm text-muted-foreground">
                         to {formatRecipients(threadEmail.toEmails)}
                       </p>
                       {threadEmail.ccEmails && threadEmail.ccEmails.length > 0 && (
-                        <p className="text-sm text-gray-500 dark:text-gray-500">
+                        <p className="text-sm text-muted-foreground">
                           cc {formatRecipients(threadEmail.ccEmails)}
                         </p>
                       )}
@@ -418,7 +419,7 @@ export default function EmailDetail({
 
                     {/* Body Content */}
                     <div
-                      className="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300"
+                      className="prose dark:prose-invert max-w-none text-foreground"
                       dangerouslySetInnerHTML={{
                         __html: sanitizeHtml(threadEmail.bodyHtml ?? threadEmail.bodyText ?? ''),
                       }}
@@ -446,7 +447,7 @@ export default function EmailDetail({
                       threadEmail.attachments.length > 0 && (
                         <div className="mt-6">
                           <Separator className="mb-4" />
-                          <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                          <h4 className="text-sm font-semibold text-foreground mb-3">
                             Attachments ({threadEmail.attachments.length})
                           </h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

@@ -79,13 +79,13 @@ export default function SearchBar({ onSearch, debounceMs = 500 }: SearchBarProps
   return (
     <form onSubmit={handleSubmit} className="relative flex-1">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           type="text"
           placeholder="Search emails..."
           value={query}
           onChange={handleChange}
-          className="pl-10 pr-20"
+          className="pl-10 pr-20 transition-smooth"
         />
         <div className="absolute right-1 top-1/2 transform -translate-y-1/2 flex items-center gap-1 z-10">
           {query && (
@@ -106,14 +106,14 @@ export default function SearchBar({ onSearch, debounceMs = 500 }: SearchBarProps
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "h-7 w-7 relative",
-                  hasActiveFilters && "text-blue-600 dark:text-blue-400"
+                  "h-7 w-7 relative transition-smooth",
+                  hasActiveFilters && "text-primary"
                 )}
                 title="Advanced search filters"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 {hasActiveFilters && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-blue-600 text-[10px] text-white flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] text-white flex items-center justify-center">
                     {Object.keys(filters).filter(key => key !== 'query').length}
                   </span>
                 )}
