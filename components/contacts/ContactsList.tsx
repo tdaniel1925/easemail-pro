@@ -645,23 +645,18 @@ export default function ContactsList() {
           />
         )}
         
+        {/* HIGH PRIORITY FIX: Enhanced context-aware empty states */}
         {filteredContacts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="text-6xl mb-4">👥</div>
-            <h2 className="text-2xl font-semibold mb-2">No contacts yet</h2>
-            <p className="text-muted-foreground mb-4">
-              {searchQuery || selectedFilter !== 'all' 
-                ? 'No contacts match your search criteria'
-                : 'Add your first contact to get started'
-              }
-            </p>
-            {!searchQuery && selectedFilter === 'all' && (
-              <Button onClick={() => setIsAddModalOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Contact
-              </Button>
-            )}
-          </div>
+          <ContactsEmptyState
+            searchQuery={searchQuery}
+            selectedFilter={selectedFilter}
+            syncing={syncing}
+            filterByAccountId={filterByAccountId}
+            totalContactsCount={contacts.length}
+            onAddContact={() => setIsAddModalOpen(true)}
+            onImport={() => setIsImportModalOpen(true)}
+            onSync={handleContactSync}
+          />
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredContacts.map((contact) => (
@@ -1026,5 +1021,164 @@ function ContactListItem({ contact, onDelete, onEdit, onEmail, onSMS, onClick, i
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// HIGH PRIORITY FIX: Context-aware empty states for contacts
+interface ContactsEmptyStateProps {
+  searchQuery: string;
+  selectedFilter: string;
+  syncing: boolean;
+  filterByAccountId: string;
+  totalContactsCount: number;
+  onAddContact: () => void;
+  onImport: () => void;
+  onSync: () => void;
+}
+
+function ContactsEmptyState({
+  searchQuery,
+  selectedFilter,
+  syncing,
+  filterByAccountId,
+  totalContactsCount,
+  onAddContact,
+  onImport,
+  onSync,
+}: ContactsEmptyStateProps) {
+  // Case 1: Currently syncing
+  if (syncing) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+          <RefreshCw className="h-8 w-8 text-primary animate-spin" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">Syncing contacts...</h3>
+        <p className="text-sm text-muted-foreground text-center max-w-md">
+          Fetching contacts from your email accounts. This may take a moment.
+        </p>
+      </div>
+    );
+  }
+
+  // Case 2: Search with no results
+  if (searchQuery.trim()) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Search className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">No contacts found</h3>
+        <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
+          No contacts found for "<span className="font-medium">{searchQuery}</span>".
+        </p>
+        <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+          <p className="flex items-center gap-2">
+            <span className="font-medium">Try:</span>
+          </p>
+          <ul className="list-disc list-inside space-y-1 ml-4">
+            <li>Checking your spelling</li>
+            <li>Using fewer keywords</li>
+            <li>Searching by email or company name</li>
+          </ul>
+        </div>
+      </div>
+    );
+  }
+
+  // Case 3: Filter by tag with no results
+  if (selectedFilter !== 'all') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Search className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">No contacts with "{selectedFilter}" tag</h3>
+        <p className="text-sm text-muted-foreground text-center max-w-md">
+          No contacts have been tagged with "{selectedFilter}". Try a different tag or clear filters.
+        </p>
+      </div>
+    );
+  }
+
+  // Case 4: Filter by specific account with no results
+  if (filterByAccountId !== 'all' && totalContactsCount > 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Mail className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">No contacts for this account</h3>
+        <p className="text-sm text-muted-foreground text-center max-w-md mb-4">
+          This email account doesn't have any synced contacts yet.
+        </p>
+        <div className="flex gap-2">
+          <Button onClick={onSync} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Sync Contacts
+          </Button>
+          <Button onClick={onAddContact}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Manually
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Case 5: No contacts at all (first time user)
+  return (
+    <div className="flex flex-col items-center justify-center h-full py-20 px-4">
+      <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+        <Plus className="h-10 w-10 text-primary" />
+      </div>
+      <h3 className="text-2xl font-semibold mb-3">Get started with contacts</h3>
+      <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
+        Build your contact list to keep track of important people, send emails, and manage relationships.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mb-8">
+        <div className="flex flex-col items-center p-4 border border-border rounded-lg bg-card hover:bg-accent transition-colors">
+          <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mb-3">
+            <Plus className="h-6 w-6 text-blue-500" />
+          </div>
+          <h4 className="font-medium mb-1">Add manually</h4>
+          <p className="text-xs text-muted-foreground text-center">
+            Create contacts one by one
+          </p>
+        </div>
+        <div className="flex flex-col items-center p-4 border border-border rounded-lg bg-card hover:bg-accent transition-colors">
+          <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mb-3">
+            <Upload className="h-6 w-6 text-green-500" />
+          </div>
+          <h4 className="font-medium mb-1">Import CSV</h4>
+          <p className="text-xs text-muted-foreground text-center">
+            Upload existing contacts
+          </p>
+        </div>
+        <div className="flex flex-col items-center p-4 border border-border rounded-lg bg-card hover:bg-accent transition-colors">
+          <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center mb-3">
+            <RefreshCw className="h-6 w-6 text-purple-500" />
+          </div>
+          <h4 className="font-medium mb-1">Sync from email</h4>
+          <p className="text-xs text-muted-foreground text-center">
+            Auto-sync from providers
+          </p>
+        </div>
+      </div>
+      <div className="flex gap-3">
+        <Button onClick={onAddContact} size="lg">
+          <Plus className="h-5 w-5 mr-2" />
+          Add Your First Contact
+        </Button>
+        <Button onClick={onImport} variant="outline" size="lg">
+          <Upload className="h-5 w-5 mr-2" />
+          Import Contacts
+        </Button>
+        <Button onClick={onSync} variant="outline" size="lg">
+          <RefreshCw className="h-5 w-5 mr-2" />
+          Sync Contacts
+        </Button>
+      </div>
+    </div>
   );
 }
