@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 
+
+export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const supabase = await createClient();

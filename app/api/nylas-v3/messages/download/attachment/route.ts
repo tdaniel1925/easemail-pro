@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic';
 /**
  * Nylas v3 Attachment Download API
  * GET /api/nylas-v3/messages/download/attachment

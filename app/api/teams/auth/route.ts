@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getTeamsAuthUrl, createOAuthState, validateTeamsConfig } from '@/lib/teams/teams-auth';
 
+
+export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   try {
     // Validate Teams config

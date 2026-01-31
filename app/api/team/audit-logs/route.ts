@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic';
 /**
  * Audit Logs API
  * GET /api/team/audit-logs - List audit logs

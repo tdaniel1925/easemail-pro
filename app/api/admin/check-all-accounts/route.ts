@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic';
 /**
  * Admin endpoint to check all accounts and their providers
  */

@@ -12,6 +12,8 @@ import { db } from '@/lib/db/drizzle';
 import { smsUsage, subscriptions } from '@/lib/db/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const context = await requireAuth();

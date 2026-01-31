@@ -1,3 +1,5 @@
+
+export const dynamic = 'force-dynamic';
 /**
  * Team Usage API - Aggregate usage statistics
  * GET /api/team/usage
