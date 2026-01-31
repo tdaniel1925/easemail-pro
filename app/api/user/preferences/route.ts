@@ -8,6 +8,51 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { userPreferences, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
+
+// Validation schema for user preferences
+const userPreferencesSchema = z.object({
+  // Appearance
+  theme: z.enum(['light', 'dark']).optional(),
+  language: z.string().max(10).optional(),
+  timezone: z.string().max(50).optional(),
+  dateFormat: z.string().max(20).optional(),
+  timeFormat: z.enum(['12h', '24h']).optional(),
+
+  // Email display
+  emailDensity: z.enum(['comfortable', 'compact', 'spacious']).optional(),
+  emailsPerPage: z.number().int().min(10).max(100).optional(),
+  showAvatars: z.boolean().optional(),
+  showSnippets: z.boolean().optional(),
+  showAISummaries: z.boolean().optional(),
+
+  // Reading
+  autoAdvance: z.boolean().optional(),
+  conversationView: z.boolean().optional(),
+  showImages: z.boolean().optional(),
+  markAsReadOnView: z.boolean().optional(),
+
+  // Composing
+  smartCompose: z.boolean().optional(),
+  defaultReplyBehavior: z.enum(['reply', 'reply-all', 'forward']).optional(),
+  autoSaveDrafts: z.boolean().optional(),
+  hideSignaturePrompt: z.boolean().optional(),
+
+  // Notifications
+  notificationsEnabled: z.boolean().optional(),
+  desktopNotifications: z.boolean().optional(),
+  soundEnabled: z.boolean().optional(),
+
+  // AI Features
+  aiEnabled: z.boolean().optional(),
+  aiAutoSummarize: z.boolean().optional(),
+  aiAttachmentProcessing: z.boolean().optional(),
+
+  // Writing Style Learning
+  emailWritingStyle: z.string().optional(),
+  emailStyleLearnedAt: z.date().optional(),
+  usePersonalStyle: z.boolean().optional(),
+}).strict(); // Reject any fields not in schema
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -19,6 +64,20 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    // Validate request body
+    const validationResult = userPreferencesSchema.safeParse(body);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: 'Invalid preferences data',
+          details: validationResult.error.flatten().fieldErrors,
+        },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validationResult.data;
 
     // Get user from database
     const dbUser = await db.query.users.findFirst({
@@ -35,18 +94,18 @@ export async function PATCH(request: NextRequest) {
     });
 
     if (existingPrefs) {
-      // Update existing preferences
+      // Update existing preferences with validated data
       await db.update(userPreferences)
         .set({
-          ...body,
+          ...validatedData,
           updatedAt: new Date(),
         })
         .where(eq(userPreferences.userId, dbUser.id));
     } else {
-      // Create new preferences
+      // Create new preferences with validated data
       await db.insert(userPreferences).values({
         userId: dbUser.id,
-        ...body,
+        ...validatedData,
       });
     }
 

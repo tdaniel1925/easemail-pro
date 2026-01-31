@@ -200,7 +200,7 @@ export function WritingStyleSettings() {
       const response = await fetch('/api/user/preferences', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ use_personal_style: checked }),
+        body: JSON.stringify({ usePersonalStyle: checked }),
       });
 
       if (response.ok) {
