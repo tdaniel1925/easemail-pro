@@ -157,9 +157,13 @@ function EmailCard({
   return (
     <div
       className={cn(
-        'relative border-b border-gray-200 dark:border-gray-700 p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group',
-        isActive && 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500',
-        !email.isRead && 'bg-blue-50/30 dark:bg-blue-950/20'
+        // ✨ Professional email card styling
+        'relative border-b border-border px-4 py-3 cursor-pointer transition-smooth group',
+        'hover:bg-muted/50',
+        // Active state
+        isActive && 'bg-card shadow-sm',
+        // Unread state - subtle left border
+        !email.isRead && 'bg-primary/5 border-l-2 border-l-primary font-medium'
       )}
       onClick={() => onClick(email)}
     >
@@ -180,8 +184,8 @@ function EmailCard({
           className={cn(
             'flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold text-sm',
             email.isRead
-              ? 'bg-gray-400 dark:bg-gray-600'
-              : 'bg-blue-500 dark:bg-blue-600'
+              ? 'bg-muted-foreground/60'
+              : 'bg-primary'
           )}
         >
           {getInitial(avatarInitialName, avatarInitialEmail)}
@@ -194,23 +198,23 @@ function EmailCard({
             <div className="flex-1 min-w-0">
               <p
                 className={cn(
-                  'text-sm truncate',
+                  'email-sender truncate',
                   email.isRead
-                    ? 'text-gray-600 dark:text-gray-400'
-                    : 'text-gray-900 dark:text-gray-100 font-semibold'
+                    ? 'text-muted-foreground'
+                    : 'text-foreground'
                 )}
               >
                 {isSentFolder ? `To: ${displayName}` : displayName}
               </p>
               {/* Show From: in sent folder for context */}
               {isSentFolder && (email.fromName || email.fromEmail) && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   From: {email.fromName || email.fromEmail}
                 </p>
               )}
               {/* Show To: field in inbox/other folders */}
               {!isSentFolder && email.toEmails && email.toEmails.length > 0 && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   To: {formatRecipients(email.toEmails)}
                 </p>
               )}
@@ -218,12 +222,12 @@ function EmailCard({
 
             {/* Date and Star */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
+              <span className="email-timestamp text-muted-foreground">
                 {formatDate(email.receivedAt)}
               </span>
               <button
                 className={cn(
-                  'opacity-0 group-hover:opacity-100 transition-opacity',
+                  'opacity-0 group-hover:opacity-100 transition-smooth',
                   email.isStarred && 'opacity-100'
                 )}
                 onClick={(e) => {
@@ -236,7 +240,7 @@ function EmailCard({
                     'h-4 w-4',
                     email.isStarred
                       ? 'fill-yellow-400 text-yellow-400'
-                      : 'text-gray-400'
+                      : 'text-muted-foreground hover:text-foreground'
                   )}
                 />
               </button>
@@ -246,17 +250,17 @@ function EmailCard({
           {/* Subject */}
           <p
             className={cn(
-              'text-sm mb-1 truncate',
+              'email-subject mb-1 truncate',
               email.isRead
-                ? 'text-gray-700 dark:text-gray-300'
-                : 'text-gray-900 dark:text-gray-100 font-semibold'
+                ? 'text-muted-foreground'
+                : 'text-foreground'
             )}
           >
             {email.subject || '(No subject)'}
           </p>
 
           {/* Snippet */}
-          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+          <p className="email-snippet text-muted-foreground line-clamp-2">
             {truncate(email.snippet, 150)}
           </p>
 
@@ -265,7 +269,7 @@ function EmailCard({
             {threadCount > 1 && email.threadId && (
               <Badge
                 variant="secondary"
-                className="text-xs cursor-pointer hover:bg-primary/20 hover:text-primary transition-colors"
+                className="text-xs cursor-pointer hover:bg-primary/20 hover:text-primary transition-smooth"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (onThreadClick && email.threadId) {
@@ -288,39 +292,39 @@ function EmailCard({
         </div>
 
         {/* Quick Actions (on hover) */}
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+        <div className="opacity-0 group-hover:opacity-100 transition-smooth flex items-center gap-1">
           <button
-            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+            className="p-1 hover:bg-muted rounded transition-smooth"
             onClick={(e) => {
               e.stopPropagation();
               setShowSnoozeDialog(true);
             }}
             title="Snooze"
           >
-            <Clock className="h-4 w-4 text-gray-500 hover:text-blue-500" />
+            <Clock className="h-4 w-4 text-muted-foreground hover:text-primary transition-smooth" />
           </button>
           <button
-            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+            className="p-1 hover:bg-muted rounded transition-smooth"
             onClick={(e) => {
               e.stopPropagation();
               // Handle archive
             }}
             title="Archive"
           >
-            <ArchiveX className="h-4 w-4 text-gray-500" />
+            <ArchiveX className="h-4 w-4 text-muted-foreground hover:text-foreground transition-smooth" />
           </button>
           <button
-            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+            className="p-1 hover:bg-muted rounded transition-smooth"
             onClick={(e) => {
               e.stopPropagation();
               // Handle delete
             }}
             title="Delete"
           >
-            <Trash2 className="h-4 w-4 text-gray-500" />
+            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive transition-smooth" />
           </button>
           <button
-            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+            className="p-1 hover:bg-muted rounded transition-smooth"
             onClick={async (e) => {
               e.stopPropagation();
               try {
@@ -343,7 +347,7 @@ function EmailCard({
             }}
             title="Mark as spam"
           >
-            <ShieldAlert className="h-4 w-4 text-gray-500 hover:text-red-500" />
+            <ShieldAlert className="h-4 w-4 text-muted-foreground hover:text-destructive transition-smooth" />
           </button>
         </div>
       </div>

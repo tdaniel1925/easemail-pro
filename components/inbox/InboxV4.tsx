@@ -435,7 +435,7 @@ export default function InboxV4({
   }, [isLoading, hasMore, currentFolder, fetchEmails]);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen bg-muted/30">
       {/* Sidebar - Folder Navigation */}
       <FolderNav
         currentFolder={currentFolder}
@@ -446,9 +446,9 @@ export default function InboxV4({
       />
 
       {/* Email List */}
-      <div className="flex-1 flex flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+      <div className="flex-1 flex flex-col border-r border-border bg-background">
         {/* Toolbar */}
-        <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 space-y-4">
+        <div className="border-b border-border bg-background p-4 space-y-4">
           {/* Search and Sync */}
           <div className="flex items-center gap-2">
             <SearchBar onSearch={handleSearch} />
@@ -501,8 +501,8 @@ export default function InboxV4({
               ))}
             </div>
           ) : displayEmails.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500">
-              <Mail className="h-16 w-16 mb-4" />
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+              <Mail className="h-16 w-16 mb-4 opacity-50" />
               <p className="text-lg font-medium">No emails found</p>
               <p className="text-sm">Try adjusting your filters or search query</p>
             </div>
@@ -589,9 +589,9 @@ export default function InboxV4({
           }
         />
       ) : (
-        <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-500">
+        <div className="flex-1 flex items-center justify-center bg-muted/30 text-muted-foreground">
           <div className="text-center">
-            <Mail className="h-20 w-20 mx-auto mb-4" />
+            <Mail className="h-20 w-20 mx-auto mb-4 opacity-50" />
             <p className="text-lg font-medium">Select an email to read</p>
           </div>
         </div>

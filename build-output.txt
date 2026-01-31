@@ -1,0 +1,451 @@
+
+> easemail-the-future@1.0.0 build C:\dev\EaseMail - The Future
+> next build
+
+ ⚠ Invalid next.config.js options detected: 
+ ⚠     Unrecognized key(s) in object: 'bundleAnalyzer'
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+  ▲ Next.js 14.2.35
+  - Environments: .env.local
+  - Experiments (use with caution):
+    · instrumentationHook
+
+   Creating an optimized production build ...
+[@sentry/nextjs] DEPRECATION WARNING: It is recommended renaming your `sentry.client.config.ts` file, or moving its content to `instrumentation-client.ts`. When using Turbopack `sentry.client.config.ts` will no longer work. Read more about the `instrumentation-client.ts` file: https://nextjs.org/docs/app/api-reference/file-conventions/instrumentation-client
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (189kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (139kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ⚠ Compiled with warnings
+
+./node_modules/.pnpm/bullmq@5.67.2/node_modules/bullmq/dist/esm/classes/child-processor.js
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./node_modules/.pnpm/bullmq@5.67.2/node_modules/bullmq/dist/esm/classes/child-processor.js
+./node_modules/.pnpm/bullmq@5.67.2/node_modules/bullmq/dist/esm/classes/index.js
+./node_modules/.pnpm/bullmq@5.67.2/node_modules/bullmq/dist/esm/index.js
+./lib/sms/retry-queue.ts
+./lib/sms/init-retry-worker.ts
+
+./node_modules/.pnpm/bullmq@5.67.2/node_modules/bullmq/dist/esm/classes/child-processor.js
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./node_modules/.pnpm/bullmq@5.67.2/node_modules/bullmq/dist/esm/classes/child-processor.js
+./node_modules/.pnpm/bullmq@5.67.2/node_modules/bullmq/dist/esm/classes/index.js
+./node_modules/.pnpm/bullmq@5.67.2/node_modules/bullmq/dist/esm/index.js
+./lib/queue/client.ts
+./app/api/cron/scheduled-emails/route.ts
+
+   Skipping validation of types
+   Linting ...
+   Collecting page data ...
+   Generating static pages (0/117) ...
+   Generating static pages (29/117) 
+   Generating static pages (58/117) 
+Error getting user context: Q [Error]: Dynamic server usage: Route /api/user/billing couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at e (C:\dev\EaseMail - The Future\.next\server\chunks\704.js:27:157165)
+    at f (C:\dev\EaseMail - The Future\.next\server\chunks\72.js:1:2138)
+    at C:\dev\EaseMail - The Future\.next\server\app\api\admin\billing\process\route.js:3:2823
+    at C:\dev\EaseMail - The Future\node_modules\.pnpm\next@14.2.35_@babel+core@7.28.6_@opentelemetry+api@1.9.0_@playwright+test@1.58.1_react-dom@18_pzucd2oharji57dar4q2yuttsm\node_modules\next\dist\compiled\next-server\app-page.runtime.prod.js:12:186044
+    at a (C:\dev\EaseMail - The Future\.next\server\app\api\team\alerts\[id]\route.js:1:5355)
+    at u (C:\dev\EaseMail - The Future\.next\server\app\api\team\alerts\[id]\route.js:1:5961)
+    at h (C:\dev\EaseMail - The Future\.next\server\app\api\user\billing\route.js:1:2852)
+    at C:\dev\EaseMail - The Future\node_modules\.pnpm\next@14.2.35_@babel+core@7.28.6_@opentelemetry+api@1.9.0_@playwright+test@1.58.1_react-dom@18_pzucd2oharji57dar4q2yuttsm\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:38417
+    at C:\dev\EaseMail - The Future\node_modules\.pnpm\next@14.2.35_@babel+core@7.28.6_@opentelemetry+api@1.9.0_@playwright+test@1.58.1_react-dom@18_pzucd2oharji57dar4q2yuttsm\node_modules\next\dist\server\lib\trace\tracer.js:140:36
+    at NoopContextManager.with (C:\dev\EaseMail - The Future\node_modules\.pnpm\@opentelemetry+api@1.9.0\node_modules\@opentelemetry\api\build\src\context\NoopContextManager.js:25:19) {
+  description: "Route /api/user/billing couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+Failed to fetch user billing: Error: Unauthorized
+    at u (C:\dev\EaseMail - The Future\.next\server\app\api\team\alerts\[id]\route.js:1:5977)
+    at async h (C:\dev\EaseMail - The Future\.next\server\app\api\user\billing\route.js:1:2838)
+    at async C:\dev\EaseMail - The Future\node_modules\.pnpm\next@14.2.35_@babel+core@7.28.6_@opentelemetry+api@1.9.0_@playwright+test@1.58.1_react-dom@18_pzucd2oharji57dar4q2yuttsm\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:38411
+    at async e_.execute (C:\dev\EaseMail - The Future\node_modules\.pnpm\next@14.2.35_@babel+core@7.28.6_@opentelemetry+api@1.9.0_@playwright+test@1.58.1_react-dom@18_pzucd2oharji57dar4q2yuttsm\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:27880)
+    at async e_.handle (C:\dev\EaseMail - The Future\node_modules\.pnpm\next@14.2.35_@babel+core@7.28.6_@opentelemetry+api@1.9.0_@playwright+test@1.58.1_react-dom@18_pzucd2oharji57dar4q2yuttsm\node_modules\next\dist\compiled\next-server\app-route.runtime.prod.js:6:39943)
+    at async exportAppRoute (C:\dev\EaseMail - The Future\node_modules\.pnpm\next@14.2.35_@babel+core@7.28.6_@opentelemetry+api@1.9.0_@playwright+test@1.58.1_react-dom@18_pzucd2oharji57dar4q2yuttsm\node_modules\next\dist\export\routes\app-route.js:77:26)
+    at async exportPageImpl (C:\dev\EaseMail - The Future\node_modules\.pnpm\next@14.2.35_@babel+core@7.28.6_@opentelemetry+api@1.9.0_@playwright+test@1.58.1_react-dom@18_pzucd2oharji57dar4q2yuttsm\node_modules\next\dist\export\worker.js:175:20)
+    at async Span.traceAsyncFn (C:\dev\EaseMail - The Future\node_modules\.pnpm\next@14.2.35_@babel+core@7.28.6_@opentelemetry+api@1.9.0_@playwright+test@1.58.1_react-dom@18_pzucd2oharji57dar4q2yuttsm\node_modules\next\dist\trace\trace.js:154:20)
+    at async Object.exportPage (C:\dev\EaseMail - The Future\node_modules\.pnpm\next@14.2.35_@babel+core@7.28.6_@opentelemetry+api@1.9.0_@playwright+test@1.58.1_react-dom@18_pzucd2oharji57dar4q2yuttsm\node_modules\next\dist\export\worker.js:237:20)
+   Generating static pages (87/117) 
+ ✓ Generating static pages (117/117)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                     Size     First Load JS
+┌ ○ /                                                           6.27 kB         216 kB
+├ ○ /_not-found                                                 1.04 kB         198 kB
+├ ○ /about                                                      333 B           198 kB
+├ ○ /accept-invitation                                          7.76 kB         266 kB
+├ ○ /accounts                                                   519 B           198 kB
+├ ○ /accounts-v3                                                14.6 kB         243 kB
+├ ƒ /admin                                                      5.28 kB         266 kB
+├ ○ /admin-setup                                                5.3 kB          210 kB
+├ ƒ /admin/api-keys                                             8.53 kB         269 kB
+├ ƒ /admin/billing-config                                       12.7 kB         303 kB
+├ ƒ /admin/email-templates                                      10.1 kB         214 kB
+├ ƒ /admin/expenses                                             10.3 kB         252 kB
+├ ƒ /admin/financial                                            10.6 kB         246 kB
+├ ƒ /admin/organizations                                        7.91 kB         313 kB
+├ ƒ /admin/organizations/create                                 8.31 kB         243 kB
+├ ƒ /admin/pricing                                              12 kB           286 kB
+├ ƒ /admin/settings                                             11.5 kB         216 kB
+├ ƒ /admin/sync-monitor                                         7.68 kB         212 kB
+├ ƒ /admin/usage-analytics                                      113 kB          407 kB
+├ ƒ /admin/users                                                13.1 kB         318 kB
+├ ƒ /admin/users/[userId]                                       11.5 kB         276 kB
+├ ○ /ai-features                                                9.78 kB         216 kB
+├ ○ /ai-security                                                9.09 kB         216 kB
+├ ƒ /api/admin/api-keys                                         0 B                0 B
+├ ƒ /api/admin/billing/config                                   0 B                0 B
+├ ƒ /api/admin/billing/expenses                                 0 B                0 B
+├ ƒ /api/admin/billing/financial-report                         0 B                0 B
+├ ƒ /api/admin/billing/history                                  0 B                0 B
+├ ƒ /api/admin/billing/pending                                  0 B                0 B
+├ ƒ /api/admin/billing/process                                  0 B                0 B
+├ ƒ /api/admin/billing/retry                                    0 B                0 B
+├ ƒ /api/admin/check-all-accounts                               0 B                0 B
+├ ƒ /api/admin/cleanup/emails                                   0 B                0 B
+├ ƒ /api/admin/cleanup/tags                                     0 B                0 B
+├ ƒ /api/admin/cost-center                                      0 B                0 B
+├ ƒ /api/admin/cost-center/export                               0 B                0 B
+├ ƒ /api/admin/email-templates                                  0 B                0 B
+├ ƒ /api/admin/email-templates/[templateId]                     0 B                0 B
+├ ƒ /api/admin/email-templates/[templateId]/test                0 B                0 B
+├ ƒ /api/admin/fix-folders                                      0 B                0 B
+├ ƒ /api/admin/fix-gmail-accounts                               0 B                0 B
+├ ƒ /api/admin/impersonate/exit                                 0 B                0 B
+├ ƒ /api/admin/organizations                                    0 B                0 B
+├ ƒ /api/admin/organizations/[orgId]                            0 B                0 B
+├ ƒ /api/admin/organizations/[orgId]/ai-usage                   0 B                0 B
+├ ƒ /api/admin/organizations/[orgId]/members                    0 B                0 B
+├ ƒ /api/admin/organizations/[orgId]/users                      0 B                0 B
+├ ƒ /api/admin/organizations/onboard                            0 B                0 B
+├ ƒ /api/admin/pricing/feature-limits                           0 B                0 B
+├ ƒ /api/admin/pricing/overrides                                0 B                0 B
+├ ƒ /api/admin/pricing/overrides/[overrideId]                   0 B                0 B
+├ ƒ /api/admin/pricing/plans                                    0 B                0 B
+├ ƒ /api/admin/pricing/plans/[planId]                           0 B                0 B
+├ ƒ /api/admin/pricing/plans/direct                             0 B                0 B
+├ ƒ /api/admin/pricing/settings                                 0 B                0 B
+├ ƒ /api/admin/pricing/tiers                                    0 B                0 B
+├ ƒ /api/admin/pricing/tiers/[tierId]                           0 B                0 B
+├ ƒ /api/admin/pricing/usage                                    0 B                0 B
+├ ƒ /api/admin/pricing/usage/[usageId]                          0 B                0 B
+├ ƒ /api/admin/pricing/usage/direct                             0 B                0 B
+├ ƒ /api/admin/run-migration                                    0 B                0 B
+├ ƒ /api/admin/settings                                         0 B                0 B
+├ ƒ /api/admin/setup                                            0 B                0 B
+├ ƒ /api/admin/stats                                            0 B                0 B
+├ ƒ /api/admin/usage                                            0 B                0 B
+├ ƒ /api/admin/usage/trends                                     0 B                0 B
+├ ƒ /api/admin/usage/users                                      0 B                0 B
+├ ƒ /api/admin/users                                            0 B                0 B
+├ ƒ /api/admin/users/[userId]                                   0 B                0 B
+├ ƒ /api/admin/users/[userId]/activity                          0 B                0 B
+├ ƒ /api/admin/users/[userId]/activity/[activityId]             0 B                0 B
+├ ƒ /api/admin/users/[userId]/impersonate                       0 B                0 B
+├ ƒ /api/admin/users/[userId]/resend-invitation                 0 B                0 B
+├ ƒ /api/admin/users/[userId]/reset-password                    0 B                0 B
+├ ƒ /api/admin/users/[userId]/usage                             0 B                0 B
+├ ƒ /api/ai/assistant                                           0 B                0 B
+├ ƒ /api/ai/dictation-polish                                    0 B                0 B
+├ ƒ /api/ai/generate-reply                                      0 B                0 B
+├ ƒ /api/ai/grammar-check                                       0 B                0 B
+├ ƒ /api/ai/learn-style                                         0 B                0 B
+├ ƒ /api/ai/remix                                               0 B                0 B
+├ ƒ /api/ai/summarize                                           0 B                0 B
+├ ƒ /api/ai/transcribe                                          0 B                0 B
+├ ƒ /api/ai/write                                               0 B                0 B
+├ ƒ /api/attachments                                            0 B                0 B
+├ ƒ /api/attachments/[id]                                       0 B                0 B
+├ ƒ /api/attachments/[id]/download                              0 B                0 B
+├ ƒ /api/attachments/[id]/preview                               0 B                0 B
+├ ƒ /api/attachments/cleanup                                    0 B                0 B
+├ ƒ /api/attachments/process                                    0 B                0 B
+├ ƒ /api/attachments/smart-filters                              0 B                0 B
+├ ○ /api/attachments/stats                                      0 B                0 B
+├ ƒ /api/attachments/upload                                     0 B                0 B
+├ ○ /api/attachments/usage                                      0 B                0 B
+├ ƒ /api/auth/password-changed                                  0 B                0 B
+├ ƒ /api/auth/request-password-reset                            0 B                0 B
+├ ƒ /api/auth/reset-password-with-token                         0 B                0 B
+├ ƒ /api/auth/validate-reset-token                              0 B                0 B
+├ ƒ /api/billing/invoices                                       0 B                0 B
+├ ƒ /api/billing/payment-methods                                0 B                0 B
+├ ƒ /api/billing/payment-methods/[id]                           0 B                0 B
+├ ƒ /api/billing/sms-usage                                      0 B                0 B
+├ ƒ /api/billing/subscription                                   0 B                0 B
+├ ƒ /api/billing/usage                                          0 B                0 B
+├ ƒ /api/calcom/bookings                                        0 B                0 B
+├ ƒ /api/calcom/connection                                      0 B                0 B
+├ ƒ /api/calcom/webhook                                         0 B                0 B
+├ ƒ /api/calendar/assistant                                     0 B                0 B
+├ ƒ /api/calendar/events                                        0 B                0 B
+├ ƒ /api/calendar/events/[eventId]                              0 B                0 B
+├ ƒ /api/calendar/events/[eventId]/rsvp                         0 B                0 B
+├ ƒ /api/calendar/events/[eventId]/send-invitations             0 B                0 B
+├ ƒ /api/calendar/events/bulk-delete                            0 B                0 B
+├ ƒ /api/calendar/events/preview-invitation                     0 B                0 B
+├ ƒ /api/calendar/parse-event                                   0 B                0 B
+├ ƒ /api/calendar/parse-ics                                     0 B                0 B
+├ ƒ /api/calendar/reminders/cron                                0 B                0 B
+├ ƒ /api/calendar/sync/google                                   0 B                0 B
+├ ƒ /api/calendar/sync/microsoft                                0 B                0 B
+├ ƒ /api/calendar/sync/nylas                                    0 B                0 B
+├ ƒ /api/cleanup-duplicate-attachments                          0 B                0 B
+├ ƒ /api/cleanup-inline-attachments                             0 B                0 B
+├ ƒ /api/contacts                                               0 B                0 B
+├ ƒ /api/contacts-v4                                            0 B                0 B
+├ ƒ /api/contacts-v4/[id]                                       0 B                0 B
+├ ƒ /api/contacts-v4/all-ids                                    0 B                0 B
+├ ƒ /api/contacts-v4/bulk-delete                                0 B                0 B
+├ ƒ /api/contacts-v4/import                                     0 B                0 B
+├ ƒ /api/contacts-v4/search                                     0 B                0 B
+├ ƒ /api/contacts-v4/sync/[accountId]                           0 B                0 B
+├ ƒ /api/contacts/[contactId]                                   0 B                0 B
+├ ƒ /api/contacts/[contactId]/notes                             0 B                0 B
+├ ƒ /api/contacts/[contactId]/timeline                          0 B                0 B
+├ ƒ /api/contacts/bulk-delete                                   0 B                0 B
+├ ƒ /api/contacts/enrich                                        0 B                0 B
+├ ƒ /api/contacts/enrich-background                             0 B                0 B
+├ ƒ /api/contacts/export                                        0 B                0 B
+├ ƒ /api/contacts/groups                                        0 B                0 B
+├ ƒ /api/contacts/groups/[id]                                   0 B                0 B
+├ ƒ /api/contacts/groups/assign                                 0 B                0 B
+├ ƒ /api/contacts/import                                        0 B                0 B
+├ ƒ /api/contacts/sync                                          0 B                0 B
+├ ƒ /api/contacts/sync/nylas                                    0 B                0 B
+├ ƒ /api/contacts/tags                                          0 B                0 B
+├ ƒ /api/contacts/tags/[id]                                     0 B                0 B
+├ ƒ /api/contacts/tags/assign                                   0 B                0 B
+├ ƒ /api/cron/billing                                           0 B                0 B
+├ ƒ /api/cron/cleanup-deactivated-users                         0 B                0 B
+├ ƒ /api/cron/cleanup-sms                                       0 B                0 B
+├ ƒ /api/cron/cleanup-sms-conversations                         0 B                0 B
+├ ƒ /api/cron/cleanup-webhook-events                            0 B                0 B
+├ ƒ /api/cron/monitor-billing                                   0 B                0 B
+├ ƒ /api/cron/monitor-grace-periods                             0 B                0 B
+├ ƒ /api/cron/monthly-billing                                   0 B                0 B
+├ ƒ /api/cron/process-scheduled-emails                          0 B                0 B
+├ ƒ /api/cron/recognize-revenue                                 0 B                0 B
+├ ƒ /api/cron/reconcile-teams-unread                            0 B                0 B
+├ ƒ /api/cron/refresh-account-tokens                            0 B                0 B
+├ ƒ /api/cron/renew-teams-webhooks                              0 B                0 B
+├ ƒ /api/cron/restart-stalled-syncs                             0 B                0 B
+├ ƒ /api/cron/retry-payments                                    0 B                0 B
+├ ƒ /api/cron/scheduled-emails                                  0 B                0 B
+├ ƒ /api/cron/sync-calendars                                    0 B                0 B
+├ ƒ /api/cron/sync-contacts                                     0 B                0 B
+├ ƒ /api/cron/sync-inactive-accounts                            0 B                0 B
+├ ƒ /api/cron/track-usage                                       0 B                0 B
+├ ƒ /api/debug/account-scopes                                   0 B                0 B
+├ ƒ /api/debug/attachments                                      0 B                0 B
+├ ƒ /api/debug/check-user                                       0 B                0 B
+├ ƒ /api/debug/emails                                           0 B                0 B
+├ ƒ /api/debug/my-role                                          0 B                0 B
+├ ƒ /api/debug/user-auth-status                                 0 B                0 B
+├ ƒ /api/debug/verification                                     0 B                0 B
+├ ƒ /api/email-summaries                                        0 B                0 B
+├ ƒ /api/email/block-sender                                     0 B                0 B
+├ ƒ /api/email/download-eml                                     0 B                0 B
+├ ƒ /api/email/mute-conversation                                0 B                0 B
+├ ƒ /api/email/templates                                        0 B                0 B
+├ ƒ /api/email/templates/[id]                                   0 B                0 B
+├ ƒ /api/email/templates/[id]/use                               0 B                0 B
+├ ƒ /api/email/unsubscribe                                      0 B                0 B
+├ ƒ /api/emails/scheduled                                       0 B                0 B
+├ ƒ /api/emails/scheduled/[id]                                  0 B                0 B
+├ ƒ /api/emails/snooze                                          0 B                0 B
+├ ƒ /api/emails/spam                                            0 B                0 B
+├ ƒ /api/emails/suggestions                                     0 B                0 B
+├ ƒ /api/emails/thread/[threadId]/summary                       0 B                0 B
+├ ƒ /api/fix-attachments                                        0 B                0 B
+├ ƒ /api/fix-sent-emails                                        0 B                0 B
+├ ƒ /api/gdpr/delete                                            0 B                0 B
+├ ƒ /api/gdpr/export                                            0 B                0 B
+├ ƒ /api/health                                                 0 B                0 B
+├ ƒ /api/help/feedback                                          0 B                0 B
+├ ƒ /api/imap/connect                                           0 B                0 B
+├ ƒ /api/imap/sync                                              0 B                0 B
+├ ƒ /api/invitations/accept                                     0 B                0 B
+├ ƒ /api/jmap/auto-sync                                         0 B                0 B
+├ ƒ /api/jmap/connect                                           0 B                0 B
+├ ƒ /api/jmap/oauth/authorize                                   0 B                0 B
+├ ƒ /api/jmap/oauth/callback                                    0 B                0 B
+├ ƒ /api/jmap/sync                                              0 B                0 B
+├ ƒ /api/labels                                                 0 B                0 B
+├ ƒ /api/labels/[id]                                            0 B                0 B
+├ ƒ /api/labels/apply                                           0 B                0 B
+├ ƒ /api/migrations/027                                         0 B                0 B
+├ ƒ /api/migrations/028                                         0 B                0 B
+├ ƒ /api/migrations/029                                         0 B                0 B
+├ ƒ /api/migrations/030                                         0 B                0 B
+├ ƒ /api/migrations/031                                         0 B                0 B
+├ ƒ /api/migrations/032                                         0 B                0 B
+├ ƒ /api/migrations/034                                         0 B                0 B
+├ ƒ /api/nylas-v3/attachments/download                          0 B                0 B
+├ ƒ /api/nylas-v3/calendars                                     0 B                0 B
+├ ƒ /api/nylas-v3/calendars/events                              0 B                0 B
+├ ƒ /api/nylas-v3/calendars/events/[eventId]                    0 B                0 B
+├ ƒ /api/nylas-v3/drafts                                        0 B                0 B
+├ ƒ /api/nylas-v3/folders                                       0 B                0 B
+├ ƒ /api/nylas-v3/messages                                      0 B                0 B
+├ ƒ /api/nylas-v3/messages/[messageId]                          0 B                0 B
+├ ƒ /api/nylas-v3/messages/bulk                                 0 B                0 B
+├ ƒ /api/nylas-v3/messages/download/attachment                  0 B                0 B
+├ ƒ /api/nylas-v3/messages/send                                 0 B                0 B
+├ ƒ /api/nylas-v3/search                                        0 B                0 B
+├ ƒ /api/nylas-v3/webhooks                                      0 B                0 B
+├ ƒ /api/nylas-v3/webhooks/setup                                0 B                0 B
+├ ƒ /api/nylas/accounts                                         0 B                0 B
+├ ƒ /api/nylas/accounts/[accountId]                             0 B                0 B
+├ ƒ /api/nylas/accounts/[accountId]/settings                    0 B                0 B
+├ ƒ /api/nylas/accounts/[accountId]/stats                       0 B                0 B
+├ ƒ /api/nylas/accounts/[accountId]/sync                        0 B                0 B
+├ ƒ /api/nylas/accounts/[accountId]/webhooks/activate           0 B                0 B
+├ ƒ /api/nylas/auth                                             0 B                0 B
+├ ƒ /api/nylas/callback                                         0 B                0 B
+├ ƒ /api/nylas/drafts                                           0 B                0 B
+├ ƒ /api/nylas/folders/counts                                   0 B                0 B
+├ ƒ /api/nylas/folders/sync                                     0 B                0 B
+├ ƒ /api/nylas/messages                                         0 B                0 B
+├ ƒ /api/nylas/messages/[messageId]                             0 B                0 B
+├ ƒ /api/nylas/messages/[messageId]/attachments/[attachmentId]  0 B                0 B
+├ ƒ /api/nylas/messages/action                                  0 B                0 B
+├ ƒ /api/nylas/messages/bulk                                    0 B                0 B
+├ ƒ /api/nylas/messages/search                                  0 B                0 B
+├ ƒ /api/nylas/messages/send                                    0 B                0 B
+├ ƒ /api/nylas/sync/auto-resume                                 0 B                0 B
+├ ƒ /api/nylas/sync/background                                  0 B                0 B
+├ ƒ /api/nylas/sync/diagnostic                                  0 B                0 B
+├ ƒ /api/nylas/sync/diagnostics                                 0 B                0 B
+├ ƒ /api/nylas/sync/force-restart                               0 B                0 B
+├ ƒ /api/nylas/sync/metrics                                     0 B                0 B
+├ ƒ /api/nylas/sync/pause                                       0 B                0 B
+├ ƒ /api/nylas/sync/resume                                      0 B                0 B
+├ ƒ /api/nylas/sync/stop                                        0 B                0 B
+├ ƒ /api/nylas/token-refresh                                    0 B                0 B
+├ ƒ /api/paypal/create-subscription                             0 B                0 B
+├ ƒ /api/paypal/manage-subscription                             0 B                0 B
+├ ƒ /api/paypal/webhook                                         0 B                0 B
+├ ƒ /api/recipients/history                                     0 B                0 B
+├ ƒ /api/rules                                                  0 B                0 B
+├ ƒ /api/rules/[ruleId]                                         0 B                0 B
+├ ƒ /api/rules/[ruleId]/execute                                 0 B                0 B
+├ ƒ /api/rules/analytics                                        0 B                0 B
+├ ƒ /api/rules/run-all                                          0 B                0 B
+├ ƒ /api/rules/templates                                        0 B                0 B
+├ ƒ /api/rules/test                                             0 B                0 B
+├ ƒ /api/search/attachments                                     0 B                0 B
+├ ƒ /api/search/emails                                          0 B                0 B
+├ ƒ /api/search/emails-db                                       0 B                0 B
+├ ƒ /api/search/events                                          0 B                0 B
+├ ƒ /api/search/unified                                         0 B                0 B
+├ ƒ /api/signatures                                             0 B                0 B
+├ ƒ /api/signatures/[signatureId]                               0 B                0 B
+├ ƒ /api/sms/history                                            0 B                0 B
+├ ƒ /api/sms/inbox                                              0 B                0 B
+├ ƒ /api/sms/mark-read                                          0 B                0 B
+├ ƒ /api/sms/send                                               0 B                0 B
+├ ƒ /api/sms/unread-count                                       0 B                0 B
+├ ƒ /api/sse/emails                                             0 B                0 B
+├ ƒ /api/sse/test                                               0 B                0 B
+├ ƒ /api/stripe/create-checkout-session                         0 B                0 B
+├ ƒ /api/stripe/customer-portal                                 0 B                0 B
+├ ƒ /api/stripe/webhook                                         0 B                0 B
+├ ƒ /api/sync-status                                            0 B                0 B
+├ ƒ /api/sync/health                                            0 B                0 B
+├ ƒ /api/sync/logs                                              0 B                0 B
+├ ƒ /api/sync/status                                            0 B                0 B
+├ ƒ /api/team/accept-invite                                     0 B                0 B
+├ ƒ /api/team/alerts                                            0 B                0 B
+├ ƒ /api/team/alerts/[id]                                       0 B                0 B
+├ ƒ /api/team/audit-logs                                        0 B                0 B
+├ ƒ /api/team/billing/invoices                                  0 B                0 B
+├ ƒ /api/team/billing/invoices/[id]                             0 B                0 B
+├ ƒ /api/team/billing/payment-methods                           0 B                0 B
+├ ƒ /api/team/members                                           0 B                0 B
+├ ƒ /api/team/members/[memberId]                                0 B                0 B
+├ ƒ /api/team/reports                                           0 B                0 B
+├ ƒ /api/team/usage                                             0 B                0 B
+├ ƒ /api/teams/accounts                                         0 B                0 B
+├ ƒ /api/teams/auth                                             0 B                0 B
+├ ƒ /api/teams/calendar                                         0 B                0 B
+├ ƒ /api/teams/callback                                         0 B                0 B
+├ ƒ /api/teams/chats                                            0 B                0 B
+├ ƒ /api/teams/chats/[chatId]/messages                          0 B                0 B
+├ ƒ /api/teams/chats/[chatId]/messages/[messageId]/reactions    0 B                0 B
+├ ƒ /api/teams/chats/[chatId]/settings                          0 B                0 B
+├ ƒ /api/teams/chats/create                                     0 B                0 B
+├ ƒ /api/teams/meetings                                         0 B                0 B
+├ ƒ /api/teams/presence                                         0 B                0 B
+├ ƒ /api/teams/sync                                             0 B                0 B
+├ ƒ /api/teams/users/search                                     0 B                0 B
+├ ƒ /api/templates                                              0 B                0 B
+├ ƒ /api/templates/[templateId]                                 0 B                0 B
+├ ƒ /api/test-sentry                                            0 B                0 B
+├ ƒ /api/threads/[threadId]                                     0 B                0 B
+├ ƒ /api/threads/[threadId]/summarize                           0 B                0 B
+├ ƒ /api/tracking/click/[trackingId]                            0 B                0 B
+├ ƒ /api/tracking/pixel/[trackingId]                            0 B                0 B
+├ ƒ /api/tracking/stats/[trackingId]                            0 B                0 B
+├ ƒ /api/user/[userId]                                          0 B                0 B
+├ ƒ /api/user/[userId]/last-login                               0 B                0 B
+├ ƒ /api/user/billing                                           0 B                0 B
+├ ƒ /api/user/onboarding/complete                               0 B                0 B
+├ ƒ /api/user/onboarding/progress                               0 B                0 B
+├ ƒ /api/user/onboarding/reset                                  0 B                0 B
+├ ƒ /api/user/onboarding/skip                                   0 B                0 B
+├ ƒ /api/user/onboarding/start                                  0 B                0 B
+├ ƒ /api/user/onboarding/status                                 0 B                0 B
+├ ƒ /api/user/preferences                                       0 B                0 B
+├ ƒ /api/user/role                                              0 B                0 B
+├ ƒ /api/voice-message/upload                                   0 B                0 B
+├ ƒ /api/webhooks/nylas                                         0 B                0 B
+├ ƒ /api/webhooks/nylas/calendar                                0 B                0 B
+├ ƒ /api/webhooks/nylas/contacts                                0 B                0 B
+├ ƒ /api/webhooks/resend                                        0 B                0 B
+├ ƒ /api/webhooks/teams                                         0 B                0 B
+├ ƒ /api/webhooks/twilio                                        0 B                0 B
+├ ƒ /api/webhooks/twilio/inbound                                0 B                0 B
+├ ○ /attachments                                                13.8 kB         251 kB
+├ ƒ /auth/callback                                              0 B                0 B
+├ ○ /calendar                                                   40.6 kB         313 kB
+├ ○ /calendar-pro                                               16.6 kB         263 kB
+├ ○ /change-password                                            6.97 kB         265 kB
+├ ○ /contact                                                    6.38 kB         213 kB
+├ ○ /contacts                                                   4.08 kB         208 kB
+├ ○ /contacts-v4                                                141 kB          422 kB
+├ ○ /dashboard                                                  8.66 kB         220 kB
+├ ○ /faq                                                        8.5 kB          215 kB
+├ ○ /features                                                   7.39 kB         217 kB
+├ ○ /help                                                       24 kB           244 kB
+├ ○ /inbox                                                      220 kB          621 kB
+├ ○ /legal/privacy                                              333 B           198 kB
+├ ○ /legal/terms                                                334 B           198 kB
+├ ○ /login                                                      7.36 kB         268 kB
+├ ○ /pricing                                                    11.3 kB         223 kB
+├ ○ /rules                                                      15.6 kB         258 kB
+├ ○ /settings                                                   26.9 kB         292 kB
+├ ○ /settings/billing                                           6.01 kB         252 kB
+├ ○ /settings/utilities                                         2.91 kB         211 kB
+├ ○ /signup                                                     7.33 kB         268 kB
+├ ○ /sms                                                        8.6 kB          221 kB
+├ ƒ /sync-status                                                5.39 kB         220 kB
+├ ○ /team                                                       6.45 kB         258 kB
+├ ○ /team/accept-invite                                         4.85 kB         209 kB
+├ ○ /team/admin                                                 15.2 kB         237 kB
+├ ○ /teams                                                      1.47 kB         285 kB
+└ ○ /use-cases                                                  8.6 kB          215 kB
++ First Load JS shared by all                                   197 kB
+  ├ chunks/398c2018-d36bf1facc239224.js                         53.8 kB
+  ├ chunks/9910-ca37781a927f8089.js                             103 kB
+  ├ chunks/f60664a3-1872ed8139296ab0.js                         37.2 kB
+  └ other shared chunks (total)                                 3.27 kB
+
+
+ƒ Middleware                                                    81.4 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

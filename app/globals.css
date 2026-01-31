@@ -7,72 +7,97 @@
 
 @layer base {
   :root {
-    /* EaseMail Brand Colors - Purple/Blue Theme */
-    --background: 0 0% 100%;
-    --foreground: 224 15% 15%;
-    --card: 0 0% 100%;
-    --card-foreground: 224 15% 15%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 15% 15%;
+    /* ✨ Professional Light Theme - Clean & Modern */
+    --background: 0 0% 100%;           /* Pure white */
+    --foreground: 222 47% 11%;          /* Near black #0F172A */
 
-    /* Primary: Purple/Blue (#667eea) */
-    --primary: 239 84% 67%;
+    --card: 210 40% 98%;                /* Subtle off-white #F8FAFC */
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Primary: Professional Blue #3B82F6 */
+    --primary: 217 91% 60%;
+    --primary-hover: 217 91% 52%;       /* Darker on hover #2563EB */
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary/Muted */
-    --secondary: 220 13% 95%;
-    --secondary-foreground: 224 15% 15%;
-    --muted: 220 13% 95%;
-    --muted-foreground: 220 9% 46%;
+    /* Secondary/Surface */
+    --secondary: 214 32% 91%;           /* Light gray #E2E8F0 */
+    --secondary-foreground: 222 47% 11%;
 
-    /* Accent: Green (#48bb78) */
-    --accent: 145 63% 49%;
+    --muted: 210 40% 96%;               /* Very light gray #F1F5F9 */
+    --muted-foreground: 215 16% 47%;    /* Medium gray #64748B */
+
+    /* Accent: Success green for positive actions */
+    --accent: 142 71% 45%;              /* #10B981 */
     --accent-foreground: 0 0% 100%;
 
-    /* Destructive: Red (#f56565) */
-    --destructive: 0 84% 60%;
+    /* Destructive: Danger red */
+    --destructive: 0 84% 60%;           /* #EF4444 */
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders and inputs */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 239 84% 67%;
+    /* Borders */
+    --border: 214 32% 91%;              /* Soft gray #E2E8F0 */
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
 
-    /* Border radius */
-    --radius: 0.5rem;
+    /* Border radius - More modern */
+    --radius: 0.5rem;                   /* 8px */
 
-    /* Custom spacing variables */
-    --spacing-header: 4rem;
-    --spacing-section: 1.5rem;
-    --sidebar-width: 16rem;
+    /* ✨ Professional Spacing System (8px base) */
+    --space-1: 0.25rem;   /* 4px */
+    --space-2: 0.5rem;    /* 8px */
+    --space-3: 0.75rem;   /* 12px */
+    --space-4: 1rem;      /* 16px */
+    --space-6: 1.5rem;    /* 24px */
+    --space-8: 2rem;      /* 32px */
 
-    /* Shadows */
+    --sidebar-width: 13.75rem;          /* 220px - More compact */
+    --email-list-width: 25rem;          /* 400px min */
+
+    /* ✨ Professional Shadows */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   }
 
   .dark {
-    /* Charcoal Dark */
-    --background: 220 8% 18%;
-    --foreground: 220 8% 95%;
-    --card: 220 8% 22%;
-    --card-foreground: 220 8% 95%;
-    --popover: 220 8% 22%;
-    --popover-foreground: 220 8% 95%;
-    --primary: 215 50% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 8% 26%;
-    --secondary-foreground: 220 8% 95%;
-    --muted: 220 8% 26%;
-    --muted-foreground: 220 8% 65%;
-    --accent: 220 8% 28%;
-    --accent-foreground: 220 8% 95%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 8% 30%;
-    --input: 220 8% 30%;
-    --ring: 215 50% 55%;
+    /* ✨ Professional Dark Theme - Deep Navy (not pure black) */
+    --background: 222 47% 11%;          /* Deep navy #0F172A */
+    --foreground: 210 40% 98%;          /* Off-white #F8FAFC */
+
+    --card: 217 33% 17%;                /* Slightly lighter #1E293B */
+    --card-foreground: 210 40% 98%;
+
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Primary: Brighter blue for dark mode #60A5FA */
+    --primary: 213 97% 87%;
+    --primary-hover: 213 94% 68%;
+    --primary-foreground: 222 47% 11%;
+
+    /* Secondary/Surface */
+    --secondary: 215 25% 27%;           /* #334155 */
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;    /* #94A3B8 */
+
+    /* Accent */
+    --accent: 142 76% 36%;              /* Darker green #059669 */
+    --accent-foreground: 210 40% 98%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Borders - More visible in dark mode */
+    --border: 215 25% 27%;              /* #334155 */
+    --input: 215 25% 27%;
+    --ring: 213 97% 87%;
   }
 }
 
@@ -80,21 +105,59 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Inter, sans-serif;
     font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
+  /* ✨ Professional Typography Scale */
   h1 {
-    font-size: 1.625rem;
-    line-height: 2rem;
+    font-size: 1.5rem;      /* 24px */
+    line-height: 2rem;      /* 32px */
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
+
   h2 {
-    font-size: 1.375rem;
-    line-height: 1.75rem;
+    font-size: 1.125rem;    /* 18px */
+    line-height: 1.75rem;   /* 28px */
+    font-weight: 600;
   }
+
   h3 {
-    font-size: 1.125rem;
-    line-height: 1.5rem;
+    font-size: 1rem;        /* 16px */
+    line-height: 1.5rem;    /* 24px */
+    font-weight: 600;
+  }
+
+  /* Email-specific typography */
+  .email-sender {
+    font-size: 0.875rem;    /* 14px */
+    line-height: 1.25rem;   /* 20px */
+    font-weight: 600;
+  }
+
+  .email-subject {
+    font-size: 0.875rem;    /* 14px */
+    line-height: 1.25rem;   /* 20px */
+    font-weight: 500;
+  }
+
+  .email-snippet {
+    font-size: 0.8125rem;   /* 13px */
+    line-height: 1.125rem;  /* 18px */
+    font-weight: 400;
+  }
+
+  .email-timestamp {
+    font-size: 0.75rem;     /* 12px */
+    line-height: 1rem;      /* 16px */
+    font-weight: 400;
   }
 }
 
@@ -600,3 +663,126 @@ button, a {
   @apply fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card shadow-xl;
 }
 
+
+/* ✨ Professional Utilities & Animations */
+@layer utilities {
+  /* Smooth transitions for all interactive elements */
+  .transition-smooth {
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .transition-fast {
+    transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Professional hover states */
+  .hover-lift {
+    @apply transition-smooth;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Button press effect */
+  .press-effect:active {
+    transform: scale(0.98);
+  }
+
+  /* Email card utilities */
+  .email-card {
+    @apply border-b border-border px-4 py-3 transition-smooth hover:bg-muted/50 cursor-pointer;
+  }
+
+  .email-card-unread {
+    @apply bg-primary/5 border-l-2 border-l-primary;
+  }
+
+  /* Clean focus states */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+
+  /* Loading shimmer effect */
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .skeleton-shimmer {
+    animation: shimmer 2s infinite linear;
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted) / 0.5) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 1000px 100%;
+  }
+
+  /* Slide in animations */
+  @keyframes slideInFromRight {
+    from {
+      opacity: 0;
+      transform: translateX(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-slide-in {
+    animation: slideInFromRight 200ms ease-out;
+  }
+
+  /* Fade in */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 150ms ease-out;
+  }
+}
+
+/* ✨ Professional Scrollbar Styling */
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

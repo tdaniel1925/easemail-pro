@@ -22,6 +22,9 @@ import {
   AlertCircle,
   Tag,
   Settings,
+  Mail,
+  AtSign,
+  Server,
 } from 'lucide-react';
 
 type FolderType = 'inbox' | 'sent' | 'drafts' | 'trash' | 'archive' | 'starred';
@@ -64,25 +67,26 @@ export default function FolderNav({
   onAccountChange,
 }: FolderNavProps) {
   const getProviderIcon = (provider: string | null | undefined) => {
+    const iconClass = 'h-4 w-4';
     switch (provider?.toLowerCase()) {
       case 'google':
       case 'gmail':
-        return '📧';
+        return <Mail className={cn(iconClass, 'text-primary')} />;
       case 'microsoft':
       case 'outlook':
-        return '📨';
+        return <AtSign className={cn(iconClass, 'text-primary')} />;
       case 'imap':
-        return '📮';
+        return <Server className={cn(iconClass, 'text-muted-foreground')} />;
       default:
-        return '✉️';
+        return <Mail className={cn(iconClass, 'text-muted-foreground')} />;
     }
   };
 
   return (
-    <div className="w-64 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
+    <div className="w-[var(--sidebar-width)] border-r border-border bg-background flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+      <div className="p-4 border-b border-border">
+        <h1 className="text-xl font-bold text-foreground mb-4">
           EaseMail V4
         </h1>
 
@@ -93,11 +97,9 @@ export default function FolderNav({
               <SelectValue placeholder="Select account">
                 {selectedAccount && (
                   <span className="flex items-center gap-2">
-                    <span>
-                      {getProviderIcon(
-                        accounts.find(a => a.id === selectedAccount)?.emailProvider
-                      )}
-                    </span>
+                    {getProviderIcon(
+                      accounts.find(a => a.id === selectedAccount)?.emailProvider
+                    )}
                     <span className="truncate">
                       {accounts.find(a => a.id === selectedAccount)?.emailAddress}
                     </span>
@@ -109,7 +111,7 @@ export default function FolderNav({
               {accounts.map(account => (
                 <SelectItem key={account.id} value={account.id}>
                   <div className="flex items-center gap-2">
-                    <span>{getProviderIcon(account.emailProvider ?? null)}</span>
+                    {getProviderIcon(account.emailProvider ?? null)}
                     <span className="truncate">{account.emailAddress}</span>
                   </div>
                 </SelectItem>
@@ -131,15 +133,15 @@ export default function FolderNav({
                 key={folder.id}
                 variant={isActive ? 'secondary' : 'ghost'}
                 className={cn(
-                  'w-full justify-start',
-                  isActive && 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                  'w-full justify-start transition-smooth',
+                  isActive && 'bg-primary/10 text-primary font-medium'
                 )}
                 onClick={() => onFolderChange(folder.id)}
               >
                 <Icon
                   className={cn(
                     'h-4 w-4 mr-3',
-                    folder.color || (isActive ? 'text-blue-600 dark:text-blue-400' : '')
+                    folder.color || (isActive ? 'text-primary' : 'text-muted-foreground')
                   )}
                 />
                 <span className="flex-1 text-left">{folder.label}</span>
@@ -151,7 +153,7 @@ export default function FolderNav({
 
         {/* Labels Section (Future Enhancement) */}
         <div className="mt-6 px-2">
-          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             Labels
           </h3>
           <div className="space-y-1">
@@ -160,16 +162,16 @@ export default function FolderNav({
               className="w-full justify-start text-sm"
               disabled
             >
-              <Tag className="h-4 w-4 mr-3 text-gray-400" />
-              <span className="text-gray-400">No labels yet</span>
+              <Tag className="h-4 w-4 mr-3 text-muted-foreground" />
+              <span className="text-muted-foreground">No labels yet</span>
             </Button>
           </div>
         </div>
       </ScrollArea>
 
       {/* Footer */}
-      <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-        <Button variant="outline" className="w-full justify-start" asChild>
+      <div className="border-t border-border p-4">
+        <Button variant="outline" className="w-full justify-start transition-smooth" asChild>
           <a href="/settings">
             <Settings className="h-4 w-4 mr-3" />
             Settings
@@ -177,14 +179,14 @@ export default function FolderNav({
         </Button>
 
         {/* Storage Info (Optional) */}
-        <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+        <div className="mt-3 text-xs text-muted-foreground">
           <div className="flex justify-between mb-1">
             <span>Storage</span>
             <span>2.5 GB / 15 GB</span>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
+          <div className="w-full bg-muted rounded-full h-1">
             <div
-              className="bg-blue-500 h-1 rounded-full"
+              className="bg-primary h-1 rounded-full transition-smooth"
               style={{ width: '16.7%' }}
             />
           </div>
