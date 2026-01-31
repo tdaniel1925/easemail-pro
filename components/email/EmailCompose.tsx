@@ -797,10 +797,16 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       if (data.success) {
         console.log('[Email] Email sent successfully:', data.emailId);
 
-        // Show success message
+        // HIGH PRIORITY FIX: Enhanced send confirmation with more details
+        const recipientCount = to.length + cc.length + bcc.length;
+        const recipientText = recipientCount === 1
+          ? to[0]?.email || `${recipientCount} recipient`
+          : `${recipientCount} recipients`;
+
+        // Show enhanced success message with recipient info and email ID
         toast({
-          title: 'Email Sent',
-          description: 'Your email has been sent successfully.',
+          title: '✅ Email Sent Successfully',
+          description: `Sent to ${recipientText}${subject ? ` • "${subject.substring(0, 40)}${subject.length > 40 ? '...' : ''}"` : ''}`,
         });
 
         // Reset form state before closing
@@ -811,17 +817,35 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         window.dispatchEvent(new CustomEvent('refreshEmails'));
       } else {
         console.error('❌ Failed to send email:', data.error);
+
+        // HIGH PRIORITY FIX: Better error messages with recovery suggestions
+        const errorMessage = data.error || 'Unknown error';
+        let userFriendlyError = errorMessage;
+        let retryable = false;
+
+        // Provide specific guidance based on error type
+        if (errorMessage.toLowerCase().includes('network') || errorMessage.toLowerCase().includes('timeout')) {
+          userFriendlyError = 'Network connection issue. Your email will be sent when connection is restored.';
+          retryable = true;
+        } else if (errorMessage.toLowerCase().includes('quota') || errorMessage.toLowerCase().includes('limit')) {
+          userFriendlyError = 'Daily send limit reached. Try again tomorrow or upgrade your plan.';
+        } else if (errorMessage.toLowerCase().includes('invalid') || errorMessage.toLowerCase().includes('recipient')) {
+          userFriendlyError = `Invalid recipient address. Please check: ${to.map(r => r.email).join(', ')}`;
+        } else if (errorMessage.toLowerCase().includes('auth') || errorMessage.toLowerCase().includes('permission')) {
+          userFriendlyError = 'Email account needs to be reconnected. Go to Settings → Sync to reconnect.';
+        }
+
         toast({
-          title: 'Failed to Send Email',
-          description: data.error || 'Unknown error',
+          title: '❌ Failed to Send Email',
+          description: userFriendlyError + (retryable ? ' Click Send to retry.' : ''),
           variant: 'destructive',
         });
       }
     } catch (error) {
       console.error('❌ Send error:', error);
       toast({
-        title: 'Send Error',
-        description: 'Failed to send email. Please check your connection and try again.',
+        title: '❌ Send Error',
+        description: 'Network error. Your email was not sent. Please check your connection and try again.',
         variant: 'destructive',
       });
     } finally {
