@@ -110,8 +110,9 @@ export async function POST(req: NextRequest) {
     // 7. Append signature to body
     let finalBody = result.body;
     if (signature) {
-      // Add signature with proper spacing
-      finalBody = `${result.body}\n\n${signature}`;
+      // Add signature with proper HTML spacing (blank paragraph for visual separation)
+      // This matches the composer's signature insertion pattern
+      finalBody = `${result.body}<p><br></p>${signature}`;
       console.log('✅ Appended signature to AI-generated email');
     }
 
