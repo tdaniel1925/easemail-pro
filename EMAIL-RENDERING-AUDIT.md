@@ -63,14 +63,17 @@ Can distribute malware through email system
 ## 3. EMAIL CARDS ISSUES
 
 ### Found Components:
-- `components/ui/EmailCard.tsx` - Used in inbox
-- `components/inbox/EmailCard.tsx` - Duplicate, unused
-- `components/email/EmailListItem.tsx` - Different styling
+- `components/inbox/EmailCard.tsx` - **ACTIVE** - Used in InboxV4
+- `components/ui/email-card.tsx` - **UNUSED** - Not imported anywhere (only in docs)
 
-### Issues:
-1. **Duplicate components** - Features scattered
-2. **Snippets include HTML tags** - Shows `<p>` in preview
-3. **No attachment count** - Just shows icon
+### ✅ FIXED Issues:
+1. ~~**Snippets include HTML tags**~~ - Fixed with stripHtml() function in both components
+2. ~~**No attachment count**~~ - Fixed, now shows count with icon (e.g., "📎 3")
+
+### Recommendation:
+- Keep `components/inbox/EmailCard.tsx` (actively used, fully functional)
+- Consider removing `components/ui/email-card.tsx` (unused duplicate)
+- Both components now have same improvements, safe to delete unused one
 
 ---
 

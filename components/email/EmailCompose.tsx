@@ -139,6 +139,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   const [subject, setSubject] = useState(replyTo?.subject || '');
   const [body, setBody] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -663,62 +664,114 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       console.log('📎 Current attachments array:', attachments);
       console.log('📎 Attachments length:', attachments.length);
 
-      // Upload attachments first if any
+      // ✅ IMPROVED: Upload attachments in parallel with progress tracking
       const uploadedAttachments = [];
       if (attachments.length > 0) {
-        console.log(`📎 Uploading ${attachments.length} attachment(s)...`);
+        console.log(`📎 Uploading ${attachments.length} attachment(s) in parallel...`);
 
-        for (const file of attachments) {
+        // Upload all files in parallel
+        const uploadPromises = attachments.map(async (file) => {
           console.log('📎 Processing file:', file.name, file.size, 'bytes');
           const formData = new FormData();
           formData.append('file', file);
 
-          console.log('📎 About to call /api/attachments/upload for:', file.name);
+          // Initialize progress
+          setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
 
           try {
-            // Add timeout wrapper (60 seconds max per attachment)
-            const uploadPromise = fetch('/api/attachments/upload', {
-              method: 'POST',
-              body: formData,
+            // Create XHR for progress tracking
+            const xhr = new XMLHttpRequest();
+
+            const uploadPromise = new Promise<{ ok: boolean; data?: any; error?: string }>((resolve) => {
+              xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                  const percentComplete = Math.round((e.loaded / e.total) * 100);
+                  setUploadProgress(prev => ({ ...prev, [file.name]: percentComplete }));
+                }
+              });
+
+              xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                  try {
+                    const data = JSON.parse(xhr.responseText);
+                    resolve({ ok: true, data });
+                  } catch (e) {
+                    resolve({ ok: false, error: 'Invalid response' });
+                  }
+                } else {
+                  resolve({ ok: false, error: xhr.responseText });
+                }
+              });
+
+              xhr.addEventListener('error', () => {
+                resolve({ ok: false, error: 'Network error' });
+              });
+
+              xhr.addEventListener('timeout', () => {
+                resolve({ ok: false, error: 'Upload timeout' });
+              });
+
+              xhr.open('POST', '/api/attachments/upload');
+              xhr.timeout = 60000; // 60 second timeout
+              xhr.send(formData);
             });
 
-            const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Upload timeout')), 60000)
-            );
+            const result = await uploadPromise;
 
-            const uploadResponse = await Promise.race([uploadPromise, timeoutPromise]) as Response;
-
-            console.log('📎 Upload response status:', uploadResponse.status);
-
-            if (uploadResponse.ok) {
-              const uploadData = await uploadResponse.json();
-              console.log('📎 Upload successful:', uploadData);
-              uploadedAttachments.push({
-                filename: file.name,
-                url: uploadData.attachment.storageUrl,
-                contentType: file.type,
-                size: file.size,
-              });
+            if (result.ok && result.data) {
+              console.log('📎 Upload successful:', result.data);
+              setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+              return {
+                success: true,
+                attachment: {
+                  filename: file.name,
+                  url: result.data.attachment.storageUrl,
+                  contentType: file.type,
+                  size: file.size,
+                }
+              };
             } else {
-              const errorText = await uploadResponse.text();
-              console.error('Failed to upload attachment:', file.name, errorText);
-              toast({
-                title: 'Attachment Upload Failed',
-                description: `Failed to upload ${file.name}. Continuing without this attachment.`,
-                variant: 'destructive',
+              console.error('Failed to upload attachment:', file.name, result.error);
+              setUploadProgress(prev => {
+                const newProgress = { ...prev };
+                delete newProgress[file.name];
+                return newProgress;
               });
+              return { success: false, filename: file.name, error: result.error };
             }
           } catch (error) {
-            console.error('❌ Attachment upload error/timeout:', file.name, error);
-            toast({
-              title: 'Attachment Upload Error',
-              description: `Failed to upload ${file.name} (timeout or error). Continuing without this attachment.`,
-              variant: 'destructive',
+            console.error('❌ Attachment upload error:', file.name, error);
+            setUploadProgress(prev => {
+              const newProgress = { ...prev };
+              delete newProgress[file.name];
+              return newProgress;
             });
+            return { success: false, filename: file.name, error: String(error) };
           }
+        });
+
+        // Wait for all uploads to complete
+        const results = await Promise.all(uploadPromises);
+
+        // Collect successful uploads
+        const successfulUploads = results.filter(r => r.success);
+        uploadedAttachments.push(...successfulUploads.map(r => r.attachment!));
+
+        // Show errors for failed uploads
+        const failedUploads = results.filter(r => !r.success);
+        if (failedUploads.length > 0) {
+          const failedNames = failedUploads.map(r => r.filename).join(', ');
+          toast({
+            title: 'Some Attachments Failed',
+            description: `Failed to upload: ${failedNames}. Continuing with successful uploads.`,
+            variant: 'destructive',
+          });
         }
 
         console.log(`[Attach] Uploaded ${uploadedAttachments.length}/${attachments.length} attachment(s)`);
+
+        // Clear progress after send
+        setUploadProgress({});
       }
 
       const response = await fetch('/api/nylas/messages/send', {
@@ -1743,24 +1796,49 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                   Attachments ({attachments.length})
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {attachments.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md text-xs"
-                    >
-                      <Paperclip className="h-3 w-3" />
-                      <span className="max-w-[150px] truncate">{file.name}</span>
-                      <span className="text-muted-foreground">
-                        ({formatFileSize(file.size)})
-                      </span>
-                      <button
-                        onClick={() => removeAttachment(index)}
-                        className="text-muted-foreground hover:text-foreground"
+                  {attachments.map((file, index) => {
+                    const progress = uploadProgress[file.name];
+                    const isUploading = progress !== undefined && progress < 100;
+
+                    return (
+                      <div
+                        key={index}
+                        className="relative flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md text-xs min-w-[200px]"
                       >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
+                        <Paperclip className="h-3 w-3 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate">{file.name}</span>
+                            <span className="text-muted-foreground whitespace-nowrap">
+                              ({formatFileSize(file.size)})
+                            </span>
+                          </div>
+                          {/* Upload Progress Bar */}
+                          {isUploading && (
+                            <div className="mt-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
+                              <div
+                                className="bg-blue-600 h-1 rounded-full transition-all duration-300"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        {!isUploading && (
+                          <button
+                            onClick={() => removeAttachment(index)}
+                            className="text-muted-foreground hover:text-foreground flex-shrink-0"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                        {isUploading && (
+                          <span className="text-xs text-blue-600 dark:text-blue-400 flex-shrink-0">
+                            {progress}%
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
