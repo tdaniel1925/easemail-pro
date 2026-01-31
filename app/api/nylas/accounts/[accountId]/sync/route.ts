@@ -86,31 +86,53 @@ export async function POST(
       nylasGrantId: account.nylasGrantId?.substring(0, 15) + '...',
     });
 
-    // ✅ FIXED: Call background sync with retry logic for transient failures
-    // Background sync will handle unlimited email syncing with pagination
-    console.log('[Manual Sync] 🔄 Starting unlimited background sync with retry logic...');
+    // ✅ FIXED: Sequential sync - folders BEFORE emails to ensure correct folder assignment
+    console.log('[Manual Sync] 📁 Step 1/2: Syncing folders first...');
 
-    const results = await Promise.allSettled([
-      // Sync folders with retry
-      retryFetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${accountId}`, {
+    // STEP 1: Sync folders first (MUST complete before email sync)
+    const folderResponse = await retryFetch(
+      `${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${accountId}`,
+      {
         method: 'POST',
-      }, {
+      },
+      {
         maxRetries: 3,
         initialDelayMs: 1000,
-      }).then(async (res) => await res.json()),
+      }
+    );
 
-      // ✅ Trigger background sync (unlimited syncing) with retry
-      retryFetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
+    const folderResult: any = { status: 'fulfilled', value: await folderResponse.json() };
+
+    // Check if folder sync succeeded
+    if (folderResponse.status !== 200 || !folderResult.value?.success) {
+      console.error('[Manual Sync] ❌ Folder sync failed, aborting email sync');
+      return NextResponse.json({
+        success: false,
+        error: 'Folder sync failed',
+        details: folderResult.value?.error || 'Unknown error',
+        accountId,
+      }, { status: 500 });
+    }
+
+    console.log('[Manual Sync] ✅ Folders synced successfully');
+    console.log('[Manual Sync] 📧 Step 2/2: Starting email sync...');
+
+    // STEP 2: Now sync emails (folders are guaranteed to exist in DB)
+    const backgroundSyncResponse = await retryFetch(
+      `${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`,
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId }),
-      }, {
+      },
+      {
         maxRetries: 3,
         initialDelayMs: 1000,
-      }).then(async (res) => await res.json()),
-    ]);
+      }
+    );
 
-    const [folderResult, backgroundSyncResult] = results;
+    const backgroundSyncResult: any = { status: 'fulfilled', value: await backgroundSyncResponse.json() };
+    const results = [folderResult, backgroundSyncResult];
 
     const response: any = {
       success: true,

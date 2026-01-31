@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 import { nylas } from '@/lib/email/nylas-client';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emailFolders, syncLogs } from '@/lib/db/schema';
@@ -11,8 +12,29 @@ export async function GET(request: NextRequest) {
   if (!accountId) {
     return NextResponse.json({ error: 'Account ID required' }, { status: 400 });
   }
-  
+
   try {
+    // Verify authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify account ownership
+    const account = await db.query.emailAccounts.findFirst({
+      where: eq(emailAccounts.id, accountId),
+    });
+
+    if (!account) {
+      return NextResponse.json({ error: 'Account not found' }, { status: 404 });
+    }
+
+    if (account.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Get folders from database
     const foldersRaw = await db.query.emailFolders.findMany({
       where: eq(emailFolders.accountId, accountId),

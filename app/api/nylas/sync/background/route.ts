@@ -273,6 +273,25 @@ async function performBackgroundSync(
   const delayMs = providerConfig.delayMs;
   console.log(`📊 Using provider config for ${provider || 'unknown'}: ${delayMs}ms delay, ${providerConfig.maxRetries} max retries`);
 
+  // ✅ FIX: Load folders for Microsoft ID resolution
+  // Microsoft folder IDs are base64 strings - we need to map them to display names
+  console.log(`📁 Loading folders for account ${accountId}...`);
+  const { emailFolders } = await import('@/lib/db/schema');
+  const accountFolders = await db.query.emailFolders.findMany({
+    where: eq(emailFolders.accountId, accountId),
+  });
+
+  // Build lookup map: nylasFolderId → displayName
+  const folderLookupMap = new Map<string, string>();
+  for (const folder of accountFolders) {
+    folderLookupMap.set(folder.nylasFolderId, folder.displayName);
+  }
+
+  console.log(`📁 Loaded ${accountFolders.length} folders for lookup`);
+  if (accountFolders.length > 0) {
+    console.log(`📁 Sample folders:`, accountFolders.slice(0, 5).map(f => `${f.nylasFolderId.substring(0, 15)}... → ${f.displayName}`));
+  }
+
   try {
     // Get current synced count and continuation count
     const account = await db.query.emailAccounts.findFirst({
@@ -534,7 +553,8 @@ async function performBackgroundSync(
             // Use returning() to check if the insert actually happened (not a duplicate)
 
             // SAFE folder assignment - prevents the bug where everything goes to inbox
-            let assignedFolder = assignEmailFolder(message.folders);
+            // ✅ Pass folder lookup map for Microsoft folder ID resolution
+            let assignedFolder = assignEmailFolder(message.folders, 'inbox', folderLookupMap);
 
             // ✅ FIX: Check if this is a sent message (from account owner)
             // This handles emails sent from external clients that may not be in the Sent folder
@@ -867,6 +887,13 @@ async function performBackgroundSync(
       // Sync each folder individually
       for (const folder of allFolders) {
         const folderName = folder.name || 'Unnamed';
+
+        // ✅ Validate folder ID before querying
+        if (!folder.id || typeof folder.id !== 'string' || folder.id.trim() === '') {
+          console.warn(`⚠️ Skipping folder "${folderName}" - invalid or missing folder ID:`, folder.id);
+          continue;
+        }
+
         console.log(`\n📥 Deep syncing folder: "${folderName}" (ID: ${folder.id})`);
 
         let folderPageToken: string | undefined = undefined;
@@ -883,7 +910,7 @@ async function performBackgroundSync(
               identifier: grantId,
               queryParams: {
                 limit: 200,
-                in: [folder.id], // ✅ Query specific folder only
+                in: [folder.id], // ✅ Query specific folder only (validated above)
                 pageToken: folderPageToken,
               },
             });
@@ -915,7 +942,8 @@ async function performBackgroundSync(
                 const sentDate = message.date ? new Date(message.date * 1000) : new Date();
 
                 // Determine folder
-                let assignedFolder = assignEmailFolder(message.folders);
+                // ✅ Pass folder lookup map for Microsoft folder ID resolution
+                let assignedFolder = assignEmailFolder(message.folders, 'inbox', folderLookupMap);
 
                 // Check if sent by account owner
                 const isFromAccountOwner = accountEmail && message.from?.[0]?.email?.toLowerCase() === accountEmail.toLowerCase();

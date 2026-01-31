@@ -8,13 +8,15 @@ import { sanitizeText } from '../utils/text-sanitizer';
 /**
  * SAFE folder assignment that prevents the sanitizeText || bug
  *
- * @param folders - Array of folder names from provider
+ * @param folders - Array of folder names/IDs from provider
  * @param defaultFolder - Default folder if none provided
+ * @param folderLookupMap - Optional map of folder IDs to display names (for Microsoft accounts)
  * @returns Normalized canonical folder name
  */
 export function assignEmailFolder(
   folders: string[] | undefined | null,
-  defaultFolder: string = 'inbox'
+  defaultFolder: string = 'inbox',
+  folderLookupMap?: Map<string, string>
 ): string {
   // Check if folder exists BEFORE sanitizing
   const firstFolder = folders?.[0];
@@ -23,8 +25,17 @@ export function assignEmailFolder(
     return defaultFolder;
   }
 
+  // ✅ NEW: If we have a folder lookup map (for Microsoft accounts), resolve the ID first
+  let folderToNormalize = firstFolder;
+
+  if (folderLookupMap && folderLookupMap.has(firstFolder)) {
+    // Replace the folder ID with its display name
+    folderToNormalize = folderLookupMap.get(firstFolder)!;
+    console.log(`🔍 Resolved Microsoft folder ID "${firstFolder.substring(0, 15)}..." → "${folderToNormalize}"`);
+  }
+
   // ✅ Use comprehensive normalization for consistent folder names
-  return normalizeFolderToCanonical(firstFolder);
+  return normalizeFolderToCanonical(folderToNormalize);
 }
 
 /**

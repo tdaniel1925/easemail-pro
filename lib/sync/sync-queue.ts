@@ -10,10 +10,53 @@ import { eq, inArray, or } from 'drizzle-orm';
 const MAX_CONCURRENT_SYNCS = 5;
 const activeSyncs = new Set<string>();
 
+// ✅ FIX: Track initialization state to rebuild queue from database on first use
+let isInitialized = false;
+
+/**
+ * Initialize active syncs from database on first use
+ * This ensures we don't lose track of running syncs on server restart
+ */
+async function initializeActiveSyncs(): Promise<void> {
+  if (isInitialized) return;
+
+  try {
+    console.log('🔄 Initializing sync queue from database...');
+
+    // Find all accounts currently syncing according to database
+    const syncingAccounts = await db.query.emailAccounts.findMany({
+      where: or(
+        eq(emailAccounts.syncStatus, 'syncing'),
+        eq(emailAccounts.syncStatus, 'background_syncing')
+      ),
+    });
+
+    // Rebuild active syncs set from database state
+    activeSyncs.clear();
+    for (const account of syncingAccounts) {
+      activeSyncs.add(account.id);
+    }
+
+    isInitialized = true;
+    console.log(`✅ Sync queue initialized: ${activeSyncs.size} active syncs recovered from database`);
+
+    // If we recovered syncs, clean them up immediately to verify they're still running
+    if (activeSyncs.size > 0) {
+      await cleanupActiveSyncs();
+    }
+  } catch (error) {
+    console.error('❌ Error initializing sync queue:', error);
+    isInitialized = true; // Set anyway to avoid repeated failures
+  }
+}
+
 /**
  * Check if sync can start immediately or needs to be queued
  */
 export async function canStartSync(accountId: string): Promise<boolean> {
+  // ✅ Initialize on first use (rebuilds from database after restart)
+  await initializeActiveSyncs();
+
   // Remove completed syncs from active set
   await cleanupActiveSyncs();
 
@@ -126,6 +169,9 @@ export async function getQueueStats(): Promise<{
   queued: number;
   availableSlots: number;
 }> {
+  // ✅ Initialize on first use (rebuilds from database after restart)
+  await initializeActiveSyncs();
+
   await cleanupActiveSyncs();
 
   const queuedAccounts = await db.query.emailAccounts.findMany({

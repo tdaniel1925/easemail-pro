@@ -328,7 +328,19 @@ export async function POST(request: NextRequest) {
       sentAt: now, // ✅ Sent date
       receivedAt: now, // Same as sent for sent emails
       providerData: sentMessage as any,
-    }).returning();
+    })
+    .onConflictDoUpdate({
+      target: emails.providerMessageId,
+      set: {
+        // Update with send API data if webhook inserted first
+        folder: 'sent',
+        folders: ['sent'],
+        isRead: true,
+        sentAt: now,
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
 
     console.log('✅ Email saved to database in Sent folder:', savedEmail.id);
 
