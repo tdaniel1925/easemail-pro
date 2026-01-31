@@ -122,7 +122,7 @@ export default function CalcomSettings() {
         setConnection(data.connection);
         setApiKey('');
         setLabel('');
-        // Keep webhook secret for display
+        setWebhookSecret(''); // Clear secret from memory for security
 
         // Fetch bookings
         await syncBookings();
@@ -483,26 +483,14 @@ export default function CalcomSettings() {
                 </div>
               </div>
 
-              {webhookSecret && (
-                <div className="space-y-2">
-                  <Label>Webhook Secret</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={webhookSecret}
-                      readOnly
-                      type={showApiKey ? 'text' : 'password'}
-                      className="font-mono text-sm"
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                    >
-                      {showApiKey ? 'Hide' : 'Show'}
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <Alert className="bg-muted/50">
+                <Key className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  <strong>Webhook Security:</strong> If you configured a webhook secret during setup, use that same
+                  secret when creating webhooks in Cal.com. For security, secrets are never displayed after initial setup.
+                  To change your secret, disconnect and reconnect your Cal.com account.
+                </AlertDescription>
+              </Alert>
 
               <div className="text-sm text-muted-foreground space-y-2">
                 <p className="font-medium">Setup Instructions:</p>

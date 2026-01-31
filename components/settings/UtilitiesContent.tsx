@@ -49,6 +49,15 @@ interface DuplicateCleanupResult {
 }
 
 export function UtilitiesContent() {
+  // ⚠️ UTILITIES TEMPORARILY DISABLED
+  // These utility endpoints need to be implemented in /app/api/
+  // Required endpoints:
+  // - /api/fix-attachments
+  // - /api/fix-sent-emails
+  // - /api/cleanup-inline-attachments
+  // - /api/cleanup-duplicate-attachments
+  const UTILITIES_ENABLED = false;
+
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [sentEmailsLoading, setSentEmailsLoading] = useState(false);
   const [inlineCleanupLoading, setInlineCleanupLoading] = useState(false);
@@ -61,6 +70,8 @@ export function UtilitiesContent() {
   const [duplicateCleanupResult, setDuplicateCleanupResult] = useState<DuplicateCleanupResult | null>(null);
 
   const fixAttachments = async () => {
+    if (!UTILITIES_ENABLED) return;
+
     setAttachmentsLoading(true);
     setAttachmentsResult(null);
 
@@ -92,6 +103,8 @@ export function UtilitiesContent() {
   };
 
   const fixSentEmails = async () => {
+    if (!UTILITIES_ENABLED) return;
+
     setSentEmailsLoading(true);
     setSentEmailsResult(null);
 
@@ -123,6 +136,8 @@ export function UtilitiesContent() {
   };
 
   const previewInlineCleanup = async () => {
+    if (!UTILITIES_ENABLED) return;
+
     setInlinePreviewLoading(true);
     setInlineCleanupResult(null);
 
@@ -141,6 +156,8 @@ export function UtilitiesContent() {
   };
 
   const cleanupInlineAttachments = async () => {
+    if (!UTILITIES_ENABLED) return;
+
     setInlineCleanupLoading(true);
     setInlineCleanupResult(null);
 
@@ -161,6 +178,8 @@ export function UtilitiesContent() {
   };
 
   const previewDuplicateCleanup = async () => {
+    if (!UTILITIES_ENABLED) return;
+
     setDuplicatePreviewLoading(true);
     setDuplicateCleanupResult(null);
 
@@ -179,6 +198,8 @@ export function UtilitiesContent() {
   };
 
   const cleanupDuplicateAttachments = async () => {
+    if (!UTILITIES_ENABLED) return;
+
     setDuplicateCleanupLoading(true);
     setDuplicateCleanupResult(null);
 
@@ -207,6 +228,19 @@ export function UtilitiesContent() {
         </p>
       </div>
 
+      {!UTILITIES_ENABLED && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <p className="font-medium mb-1">Utilities Temporarily Disabled</p>
+            <p className="text-sm">
+              These utility endpoints are currently being implemented. If you need data maintenance,
+              please contact support.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="space-y-6">
         {/* Fix Attachments */}
         <Card>
@@ -223,7 +257,7 @@ export function UtilitiesContent() {
           <CardContent className="space-y-4">
             <Button
               onClick={fixAttachments}
-              disabled={attachmentsLoading}
+              disabled={!UTILITIES_ENABLED || attachmentsLoading}
               className="w-full sm:w-auto"
             >
               {attachmentsLoading ? (
@@ -283,7 +317,7 @@ export function UtilitiesContent() {
             <div className="flex gap-2">
               <Button
                 onClick={previewInlineCleanup}
-                disabled={inlinePreviewLoading || inlineCleanupLoading}
+                disabled={!UTILITIES_ENABLED || inlinePreviewLoading || inlineCleanupLoading}
                 variant="outline"
                 className="sm:w-auto"
               >
@@ -301,7 +335,7 @@ export function UtilitiesContent() {
               </Button>
               <Button
                 onClick={cleanupInlineAttachments}
-                disabled={inlineCleanupLoading || inlinePreviewLoading}
+                disabled={!UTILITIES_ENABLED || inlineCleanupLoading || inlinePreviewLoading}
                 variant="destructive"
                 className="sm:w-auto"
               >
@@ -367,7 +401,7 @@ export function UtilitiesContent() {
             <div className="flex gap-2">
               <Button
                 onClick={previewDuplicateCleanup}
-                disabled={duplicatePreviewLoading || duplicateCleanupLoading}
+                disabled={!UTILITIES_ENABLED || duplicatePreviewLoading || duplicateCleanupLoading}
                 variant="outline"
                 className="sm:w-auto"
               >
@@ -385,7 +419,7 @@ export function UtilitiesContent() {
               </Button>
               <Button
                 onClick={cleanupDuplicateAttachments}
-                disabled={duplicateCleanupLoading || duplicatePreviewLoading}
+                disabled={!UTILITIES_ENABLED || duplicateCleanupLoading || duplicatePreviewLoading}
                 variant="destructive"
                 className="sm:w-auto"
               >
@@ -449,7 +483,7 @@ export function UtilitiesContent() {
           <CardContent className="space-y-4">
             <Button
               onClick={fixSentEmails}
-              disabled={sentEmailsLoading}
+              disabled={!UTILITIES_ENABLED || sentEmailsLoading}
               className="w-full sm:w-auto"
             >
               {sentEmailsLoading ? (
