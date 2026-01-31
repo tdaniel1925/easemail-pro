@@ -318,6 +318,7 @@ CRITICAL:
    *
    * The AI returns text with double newlines (\n\n) between paragraphs.
    * We split by double newlines and wrap each paragraph in <p> tags.
+   * Single newlines within paragraphs are converted to spaces for cleaner HTML.
    * The CSS in RichTextEditor handles spacing between paragraphs with margin.
    * NO explicit empty <p> tags needed - the CSS provides proper spacing.
    */
@@ -334,7 +335,8 @@ CRITICAL:
       .filter(para => para.length > 0);
 
     // Wrap each paragraph in <p> tags
-    return paragraphs.map(para => `<p>${para}</p>`).join('');
+    // Replace single newlines within paragraphs with spaces for cleaner HTML
+    return paragraphs.map(para => `<p>${para.replace(/\n/g, ' ')}</p>`).join('');
   }
 
   /**
