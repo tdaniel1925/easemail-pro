@@ -110,8 +110,8 @@ export default function UserBillingPage() {
       
       params.append('periodStart', startDate.toISOString());
       params.append('periodEnd', endDate.toISOString());
-      
-      const response = await fetch(`/api/user/billing/usage?${params}`);
+
+      const response = await fetch(`/api/billing/usage?${params}`);
       const result = await response.json();
       
       if (result.success) {
