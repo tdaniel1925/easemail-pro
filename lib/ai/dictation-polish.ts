@@ -121,8 +121,11 @@ CRITICAL:
 
 /**
  * Format plain text email to HTML with proper paragraph spacing
- * Each line becomes its own paragraph for proper email formatting
- * TipTap's paragraph spacing handles the visual separation
+ *
+ * The AI returns text with double newlines (\n\n) between paragraphs.
+ * We split by double newlines and wrap each paragraph in <p> tags.
+ * The CSS in RichTextEditor handles spacing between paragraphs with margin.
+ * NO explicit empty <p> tags needed - the CSS provides proper spacing.
  */
 function formatEmailBody(body: string): string {
   // If already has HTML tags, return as-is
@@ -130,23 +133,13 @@ function formatEmailBody(body: string): string {
     return body;
   }
 
-  // For emails: each line becomes its own paragraph
-  // This ensures proper visual separation between greeting, body, signature
-  const lines = body
-    .split(/\n/)
-    .map(line => line.trim());
+  // Split by double newlines (paragraph breaks) and filter out empty strings
+  const paragraphs = body
+    .split(/\n\n+/)
+    .map(para => para.trim())
+    .filter(para => para.length > 0);
 
-  const result: string[] = [];
-
-  for (const line of lines) {
-    if (line.length > 0) {
-      result.push(`<p>${line}</p>`);
-    } else {
-      // Empty line = empty paragraph for spacing
-      result.push('<p></p>');
-    }
-  }
-
-  return result.join('');
+  // Wrap each paragraph in <p> tags
+  return paragraphs.map(para => `<p>${para}</p>`).join('');
 }
 

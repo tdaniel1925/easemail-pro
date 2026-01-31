@@ -316,14 +316,10 @@ CRITICAL:
   /**
    * Format plain text email to HTML with proper paragraph spacing
    *
-   * Structure:
-   * - Greeting (its own paragraph)
-   * - Blank line (rendered with &nbsp; to ensure visibility)
-   * - Body paragraphs (separated by blank lines)
-   * - Blank line
-   * - Salutation (its own paragraph)
-   * - Blank line
-   * - Signature block (single-spaced using <br> tags, wrapped in signature div)
+   * The AI returns text with double newlines (\n\n) between paragraphs.
+   * We split by double newlines and wrap each paragraph in <p> tags.
+   * The CSS in RichTextEditor handles spacing between paragraphs with margin.
+   * NO explicit empty <p> tags needed - the CSS provides proper spacing.
    */
   private formatEmailBody(body: string): string {
     // If already has HTML tags, return as-is
@@ -331,60 +327,14 @@ CRITICAL:
       return body;
     }
 
-    const lines = body.split(/\n/);
-    const result: string[] = [];
+    // Split by double newlines (paragraph breaks) and filter out empty strings
+    const paragraphs = body
+      .split(/\n\n+/)
+      .map(para => para.trim())
+      .filter(para => para.length > 0);
 
-    // Salutation patterns that indicate end of main content
-    const salutationPatterns = [
-      /^(thank you|thanks|best|regards|sincerely|cheers|warm regards|best regards|kind regards|best wishes|take care)/i,
-    ];
-
-    // Find the salutation line index
-    let salutationIndex = -1;
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i].trim();
-      if (line && salutationPatterns.some(pattern => pattern.test(line))) {
-        salutationIndex = i;
-        break;
-      }
-    }
-
-    // Process lines
-    let inSignatureBlock = false;
-    let signatureLines: string[] = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-
-      // Check if we've passed the salutation and hit the signature block
-      if (salutationIndex !== -1 && i > salutationIndex && line.length > 0) {
-        inSignatureBlock = true;
-      }
-
-      if (inSignatureBlock) {
-        // Collect signature lines
-        if (line.length > 0) {
-          signatureLines.push(line);
-        }
-      } else {
-        // Normal processing for greeting, body, salutation
-        if (line.length > 0) {
-          result.push(`<p>${line}</p>`);
-        } else {
-          // Empty line = blank paragraph for spacing (use &nbsp; to ensure it renders)
-          result.push('<p>&nbsp;</p>');
-        }
-      }
-    }
-
-    // Add signature block as single paragraph with <br> tags (single-spaced)
-    // Wrap in a div with data-signature attribute for styling
-    if (signatureLines.length > 0) {
-      result.push('<p>&nbsp;</p>'); // Blank line before signature
-      result.push(`<div class="email-signature" data-signature="true"><p>${signatureLines.join('<br>')}</p></div>`);
-    }
-
-    return result.join('');
+    // Wrap each paragraph in <p> tags
+    return paragraphs.map(para => `<p>${para}</p>`).join('');
   }
 
   /**
