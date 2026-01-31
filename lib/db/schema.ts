@@ -859,7 +859,8 @@ export const contactNotes = pgTable('contact_notes', {
 export const calendarEvents = pgTable('calendar_events', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  
+  calendarId: uuid('calendar_id').references(() => calendars.id, { onDelete: 'cascade' }),
+
   // Event Details
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
@@ -917,6 +918,7 @@ export const calendarEvents = pgTable('calendar_events', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   userIdIdx: index('calendar_events_user_id_idx').on(table.userId),
+  calendarIdIdx: index('calendar_events_calendar_id_idx').on(table.calendarId),
   startTimeIdx: index('calendar_events_start_time_idx').on(table.startTime),
   endTimeIdx: index('calendar_events_end_time_idx').on(table.endTime),
   googleIdIdx: index('calendar_events_google_id_idx').on(table.googleEventId),

@@ -123,13 +123,20 @@ export async function POST(request: NextRequest) {
     if (!data.title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
-    
+
     if (!data.startTime) {
       return NextResponse.json({ error: 'Start time is required' }, { status: 400 });
     }
-    
+
     if (!data.endTime) {
       return NextResponse.json({ error: 'End time is required' }, { status: 400 });
+    }
+
+    // ✅ FIX: Require calendar_id to prevent orphaned events
+    if (!data.calendarId) {
+      return NextResponse.json({
+        error: 'Calendar ID is required. Please select a calendar for this event.'
+      }, { status: 400 });
     }
     
     // Validate: Cannot create events in the past
@@ -178,6 +185,7 @@ export async function POST(request: NextRequest) {
     // Create event locally
     const [event] = await db.insert(calendarEvents).values({
       userId: user.id,
+      calendarId: data.calendarId, // ✅ FIX: Include calendar_id to prevent orphaned events
       title: data.title,
       description: data.description || null,
       location: data.location || null,

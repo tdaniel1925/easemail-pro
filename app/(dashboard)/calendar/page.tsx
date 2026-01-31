@@ -209,8 +209,31 @@ function CalendarContent() {
           setSelectedCalendarIds([]);
         }
       } else {
-        // No saved selection for this account, reset to empty
-        setSelectedCalendarIds([]);
+        // ✅ FIX: No saved selection - default to all calendars instead of empty
+        // Fetch calendars for this account and select all by default
+        const fetchAndSelectAllCalendars = async () => {
+          try {
+            const response = await fetch(
+              `/api/nylas-v3/calendars?accountId=${selectedAccount.id}`
+            );
+            if (response.ok) {
+              const data = await response.json();
+              const allCalendarIds = data.calendars?.map((cal: any) => cal.id) || [];
+              setSelectedCalendarIds(allCalendarIds);
+              console.log('[Calendar] Auto-selected all calendars for new account:', {
+                accountId: selectedAccount.nylasGrantId,
+                calendarCount: allCalendarIds.length,
+              });
+            } else {
+              // Fallback to empty if fetch fails
+              setSelectedCalendarIds([]);
+            }
+          } catch (error) {
+            console.error('[Calendar] Failed to fetch calendars for auto-selection:', error);
+            setSelectedCalendarIds([]);
+          }
+        };
+        fetchAndSelectAllCalendars();
       }
     }
   }, [selectedAccount?.nylasGrantId]);
