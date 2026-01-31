@@ -137,6 +137,7 @@ function ContactInfoTab({ email, avatarColor }: { email: Email; avatarColor: str
   const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
   const [savedContact, setSavedContact] = useState<any>(null);
   const [infoTab, setInfoTab] = useState<'details' | 'timeline' | 'notes'>('details');
+  const [isLoadingContact, setIsLoadingContact] = useState(false); // HIGH PRIORITY FIX: Add loading state
 
   // Check if this email is from a saved contact
   useEffect(() => {
@@ -145,7 +146,8 @@ function ContactInfoTab({ email, avatarColor }: { email: Email; avatarColor: str
 
   const fetchContact = async () => {
     if (!email.fromEmail) return;
-    
+
+    setIsLoadingContact(true); // HIGH PRIORITY FIX: Show loading
     try {
       const response = await fetch(`/api/contacts?email=${encodeURIComponent(email.fromEmail)}`);
       const data = await response.json();
@@ -156,6 +158,8 @@ function ContactInfoTab({ email, avatarColor }: { email: Email; avatarColor: str
       }
     } catch (error) {
       console.error('Failed to fetch contact:', error);
+    } finally {
+      setIsLoadingContact(false); // HIGH PRIORITY FIX: Hide loading
     }
   };
 
@@ -182,11 +186,17 @@ function ContactInfoTab({ email, avatarColor }: { email: Email; avatarColor: str
             </div>
             <h3 className="font-semibold text-lg break-words px-2">{email.fromName || email.fromEmail || 'Unknown'}</h3>
             <p className="text-sm text-muted-foreground break-all px-2">{email.fromEmail}</p>
-            {savedContact && (
+            {/* HIGH PRIORITY FIX: Show loading state or saved contact status */}
+            {isLoadingContact ? (
+              <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
+                <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+                Loading...
+              </p>
+            ) : savedContact ? (
               <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                 ✓ Saved Contact
               </p>
-            )}
+            ) : null}
           </div>
 
           {/* Action Buttons */}
