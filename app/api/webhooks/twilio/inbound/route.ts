@@ -10,6 +10,7 @@ import { db } from '@/lib/db/drizzle';
 import { smsMessages, contactCommunications, smsConversations, contacts } from '@/lib/db/schema';
 import { eq, and, or, desc, sql } from 'drizzle-orm';
 import { logSMSAudit } from '@/lib/sms/audit-service';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -29,6 +30,16 @@ export async function POST(request: NextRequest) {
       fromState: formData.get('FromState') as string,
       fromCountry: formData.get('FromCountry') as string,
     };
+
+    // ✅ Verify Twilio signature for security
+    const signature = request.headers.get('x-twilio-signature');
+    const url = request.url;
+    const params = Object.fromEntries(formData.entries());
+
+    if (!verifyTwilioSignature(url, params, signature)) {
+      console.error('❌ Invalid Twilio signature for inbound SMS');
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
+    }
 
     console.log('📥 Inbound SMS received:', {
       sid: inboundData.messageSid,
@@ -212,5 +223,61 @@ export async function GET() {
     endpoint: '/api/webhooks/twilio/inbound',
     instructions: 'Configure this URL in Twilio Console under Phone Numbers > Manage > Active Numbers > [Your Number] > Messaging Configuration',
   });
+}
+
+/**
+ * Verify Twilio webhook signature using HMAC-SHA1
+ * Prevents webhook spoofing attacks
+ *
+ * @see https://www.twilio.com/docs/usage/security#validating-requests
+ */
+function verifyTwilioSignature(
+  url: string,
+  params: Record<string, any>,
+  signature: string | null
+): boolean {
+  if (!signature) {
+    console.warn('⚠️ No X-Twilio-Signature header found');
+    return false;
+  }
+
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!authToken) {
+    console.error('❌ TWILIO_AUTH_TOKEN not configured');
+    return false;
+  }
+
+  try {
+    // 1. Sort parameters alphabetically by key
+    const sortedKeys = Object.keys(params).sort();
+
+    // 2. Concatenate key-value pairs (URL + key1value1 + key2value2 + ...)
+    let data = url;
+    for (const key of sortedKeys) {
+      data += key + params[key];
+    }
+
+    // 3. Compute HMAC-SHA1 hash with auth token as key
+    const hmac = crypto
+      .createHmac('sha1', authToken)
+      .update(Buffer.from(data, 'utf-8'))
+      .digest('base64');
+
+    // 4. Compare computed signature with received signature
+    const isValid = hmac === signature;
+
+    if (!isValid) {
+      console.error('❌ Signature mismatch:', {
+        expected: hmac,
+        received: signature,
+        url,
+      });
+    }
+
+    return isValid;
+  } catch (error) {
+    console.error('❌ Signature verification error:', error);
+    return false;
+  }
 }
 

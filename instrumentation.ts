@@ -13,6 +13,15 @@ export async function register() {
 
     // Initialize Sentry
     await import('./sentry.server.config');
+
+    // ✅ Initialize SMS Retry Worker (persistent queue with BullMQ)
+    try {
+      const { initSMSRetrySystem } = await import('./lib/sms/init-retry-worker');
+      initSMSRetrySystem();
+    } catch (error) {
+      console.error('⚠️ Failed to initialize SMS Retry System:', error);
+      // Don't crash app if retry system fails
+    }
   }
 
   if (process.env.NEXT_RUNTIME === 'edge') {

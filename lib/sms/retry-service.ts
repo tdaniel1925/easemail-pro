@@ -93,15 +93,24 @@ export async function retrySMS(smsId: string, attempt: number = 1): Promise<bool
 }
 
 /**
- * Schedule a retry (in production, use a job queue like Bull/BullMQ)
+ * Schedule a retry using BullMQ persistent queue
  */
-function scheduleRetry(smsId: string, attempt: number, delay: number) {
-  // For now, use setTimeout (will be lost on server restart)
-  // In production, replace with a persistent queue system
-  setTimeout(() => {
-    retrySMS(smsId, attempt);
-  }, delay);
-  
+async function scheduleRetry(smsId: string, attempt: number, delay: number) {
+  // ✅ Use BullMQ persistent queue (survives server restarts)
+  const { addSMSRetry } = await import('./retry-queue');
+
+  // Get SMS details for queue job
+  const sms = await db.query.smsMessages.findFirst({
+    where: eq(smsMessages.id, smsId),
+  });
+
+  if (!sms) {
+    console.error('SMS not found for scheduling retry:', smsId);
+    return;
+  }
+
+  await addSMSRetry(smsId, attempt, sms.toPhone, sms.messageBody, delay);
+
   console.log(`⏰ Scheduled retry ${attempt} for SMS ${smsId} in ${delay}ms (${Math.round(delay / 60000)} minutes)`);
 }
 
