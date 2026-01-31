@@ -59,7 +59,8 @@
       "Bash(if [ ! -f \"C:\\dev\\EaseMail - The Future\\components\\ui\\celebration.tsx\" ])",
       "Bash(then echo \"File does not exist\")",
       "Bash(else echo \"File exists\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(copy \"C:\\dev\\EaseMail - The Future\\public\\favicon.svg\" \"C:\\dev\\EaseMail - The Future\\public\\favicon.ico\")"
     ],
     "deny": [],
     "ask": []

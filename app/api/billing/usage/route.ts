@@ -82,9 +82,51 @@ export async function GET(request: NextRequest) {
 
     // Calculate total cost
     const totalCost = Number(smsData.cost) + Number(aiData.cost) + Number(storageData.cost);
+    const totalTransactions = Number(smsData.count) + Number(aiData.count);
 
     return NextResponse.json({
       success: true,
+      summary: {
+        totalCost: totalCost,
+        totalTransactions: totalTransactions,
+        averageCostPerTransaction: totalTransactions > 0 ? totalCost / totalTransactions : 0,
+        billedToOrganization: dbUser.organizationId ? true : false,
+      },
+      byService: {
+        sms: {
+          count: Number(smsData.count),
+          cost: Number(smsData.cost),
+        },
+        openai: {
+          count: Number(aiData.count),
+          cost: Number(aiData.cost),
+        },
+        storage: {
+          count: 1,
+          cost: Number(storageData.cost),
+        },
+      },
+      byFeature: {
+        sms_messaging: {
+          count: Number(smsData.count),
+          cost: Number(smsData.cost),
+        },
+        ai_summarization: {
+          count: Number(aiData.count),
+          cost: Number(aiData.cost),
+        },
+        file_storage: {
+          count: 1,
+          cost: Number(storageData.cost),
+        },
+      },
+      dailyBreakdown: {},
+      recentTransactions: [],
+      period: {
+        start: periodStart.toISOString(),
+        end: now.toISOString(),
+      },
+      // Legacy fields for backward compatibility
       sms: {
         count: Number(smsData.count),
         cost: Number(smsData.cost),
