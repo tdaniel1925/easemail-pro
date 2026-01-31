@@ -53,7 +53,14 @@ export default function SignupPage() {
       if (error) throw error;
 
       if (data.user) {
-        router.push('/inbox');
+        // CRITICAL FIX #4: Enforce email verification before allowing access
+        if (!data.user.email_confirmed_at) {
+          // Email verification required - redirect to verification page
+          router.push('/verify-email?email=' + encodeURIComponent(email));
+        } else {
+          // Email already verified (shouldn't happen on signup, but just in case)
+          router.push('/inbox');
+        }
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred during signup');

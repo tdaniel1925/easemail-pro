@@ -308,7 +308,10 @@ async function performBackgroundSync(
     const continuationCount = account?.continuationCount || 0;
     
     // ✅ SAFETY: Prevent infinite continuation loops
-    const MAX_CONTINUATIONS = Infinity; // ✅ UNLIMITED: No limit on continuations - sync ALL emails until complete
+    // CRITICAL FIX #2: Changed from Infinity to 100 to prevent runaway syncs
+    // 100 continuations × ~200 emails/page × 4 seconds/page = ~8,000-20,000 emails in ~7-13 minutes
+    // For extremely large mailboxes (500K+ emails), users should use manual sync or contact support
+    const MAX_CONTINUATIONS = 100;
 
     if (continuationCount >= MAX_CONTINUATIONS) {
       console.error(`❌ Max continuations reached (${MAX_CONTINUATIONS}) for account ${accountId} - stopping sync`);

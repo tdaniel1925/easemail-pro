@@ -7,8 +7,26 @@ import { normalizeFolderToCanonical } from '@/lib/email/folder-utils';
 import { verifyWebhookSignature } from '@/lib/nylas-v3/webhooks';
 import * as Sentry from '@sentry/nextjs';
 import { broadcastToAccount, type EmailSyncEvent } from '@/lib/sync/sse-broadcaster';
+import { checkRateLimit } from '@/lib/middleware/rate-limit';
 
 export async function POST(request: NextRequest) {
+  // ✅ CRITICAL FIX #1: Rate limit webhooks to prevent database overload
+  // Use grant ID from webhook payload for per-account limiting (will extract after parsing)
+  // For now, rate limit by IP to prevent floods before we can parse the payload
+  const ipIdentifier = request.headers.get('x-forwarded-for') ||
+                       request.headers.get('x-real-ip') ||
+                       'anonymous';
+
+  const rateLimitResult = await checkRateLimit('webhook', ipIdentifier);
+
+  if (!rateLimitResult.allowed) {
+    console.warn('⚠️ Webhook rate limit exceeded:', {
+      ip: ipIdentifier,
+      limit: rateLimitResult.limit,
+      reset: new Date(rateLimitResult.reset).toISOString(),
+    });
+    return rateLimitResult.response!;
+  }
   // Get signature from header (case-insensitive)
   const signature = request.headers.get('x-nylas-signature') || 
                     request.headers.get('X-Nylas-Signature') || '';
@@ -23,8 +41,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
   
-  // ✅ SECURITY: Verify signature (only allow bypass in development)
-  const skipVerification = process.env.NODE_ENV !== 'production' &&
+  // ✅ SECURITY: Verify signature (only allow bypass in local development, never staging/production)
+  const skipVerification = process.env.NODE_ENV === 'development' &&
                            process.env.DISABLE_WEBHOOK_VERIFICATION === 'true';
 
   if (skipVerification) {

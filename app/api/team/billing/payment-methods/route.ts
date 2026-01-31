@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const context = await requireAuth();
+    // CRITICAL FIX #3: Billing operations require admin privileges
+    const context = await requireOrgAdmin();
     const body = await request.json();
     
     const {
@@ -106,7 +107,8 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const context = await requireAuth();
+    // CRITICAL FIX #3: Billing operations require admin privileges
+    const context = await requireOrgAdmin();
     const { searchParams } = new URL(request.url);
     const methodId = searchParams.get('id');
     
@@ -157,7 +159,8 @@ export async function DELETE(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const context = await requireAuth();
+    // CRITICAL FIX #3: Billing operations require admin privileges
+    const context = await requireOrgAdmin();
     const body = await request.json();
     const { id, isDefault } = body;
     

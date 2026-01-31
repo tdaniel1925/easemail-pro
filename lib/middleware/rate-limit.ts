@@ -71,6 +71,14 @@ const limiters = {
     analytics: true,
     prefix: 'ratelimit:api',
   }),
+
+  // Webhooks - prevent flood attacks and database overload
+  webhook: new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(100, '1 m'), // 100 webhooks per minute per account
+    analytics: true,
+    prefix: 'ratelimit:webhook',
+  }),
 };
 
 export type RateLimitType = keyof typeof limiters;
