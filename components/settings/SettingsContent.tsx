@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker, Search, Calendar, X } from 'lucide-react';
+import { Settings, Mail, PenTool, Sliders, Bell, Shield, Plug, Sparkles, HelpCircle, RefreshCw, Database, CheckCircle, Clock, AlertCircle, Wrench, Beaker, Search, Calendar, X, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { SignatureEditorModal } from '@/components/signatures/SignatureEditorModal';
+import { SyncLogsModal } from '@/components/sync/SyncLogsModal';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import ThemeSelector from '@/components/theme/ThemeSelector';
 import { UtilitiesContent } from '@/components/settings/UtilitiesContent';
@@ -203,17 +204,39 @@ function SyncStatusSettings() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [resyncingAccount, setResyncingAccount] = useState<string | null>(null);
+  const [syncLogsModal, setSyncLogsModal] = useState<{ isOpen: boolean; accountId: string; accountEmail: string }>({
+    isOpen: false,
+    accountId: '',
+    accountEmail: '',
+  });
 
   useEffect(() => {
     loadAccounts();
 
-    // Auto-refresh every 5 seconds
+    // ✅ Smart polling: Only poll when syncing, pause when idle
     const interval = setInterval(() => {
-      loadAccounts();
-    }, 5000);
+      // Check if any account is actively syncing
+      const hasActiveSyncs = accounts.some(
+        acc => acc.syncStatus === 'syncing' || acc.syncStatus === 'background_syncing'
+      );
+
+      if (hasActiveSyncs) {
+        // Poll every 3 seconds when syncing (faster updates)
+        loadAccounts();
+      } else {
+        // Poll every 30 seconds when idle (just to catch webhook updates)
+        // Skip most polls to reduce server load
+        const now = Date.now();
+        const lastPoll = (window as any).__lastAccountPoll || 0;
+        if (now - lastPoll > 30000) {
+          loadAccounts();
+          (window as any).__lastAccountPoll = now;
+        }
+      }
+    }, 3000); // Check every 3 seconds, but only poll based on sync status
 
     return () => clearInterval(interval);
-  }, []);
+  }, [accounts]); // Re-run when accounts change
 
   const loadAccounts = async () => {
     try {
@@ -554,16 +577,27 @@ function SyncStatusSettings() {
 
                       {/* Refresh All Emails Button */}
                       <div className="pt-4 border-t">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleForceResync(account.id)}
-                          disabled={resyncingAccount === account.id || account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing'}
-                          className="w-full sm:w-auto"
-                        >
-                          <RefreshCw className={cn("h-4 w-4 mr-2", resyncingAccount === account.id && "animate-spin")} />
-                          {resyncingAccount === account.id ? 'Refreshing...' : 'Refresh All Emails'}
-                        </Button>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleForceResync(account.id)}
+                            disabled={resyncingAccount === account.id || account.syncStatus === 'syncing' || account.syncStatus === 'background_syncing'}
+                            className="w-full sm:w-auto"
+                          >
+                            <RefreshCw className={cn("h-4 w-4 mr-2", resyncingAccount === account.id && "animate-spin")} />
+                            {resyncingAccount === account.id ? 'Refreshing...' : 'Refresh All Emails'}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSyncLogsModal({ isOpen: true, accountId: account.id, accountEmail: account.emailAddress })}
+                            className="w-full sm:w-auto"
+                          >
+                            <History className="h-4 w-4 mr-2" />
+                            View Sync History
+                          </Button>
+                        </div>
                         <p className="text-xs text-muted-foreground mt-2">
                           Start a fresh sync if emails seem to be missing.
                         </p>
@@ -609,6 +643,14 @@ function SyncStatusSettings() {
           </Card>
         </div>
       </div>
+
+      {/* Sync Logs Modal */}
+      <SyncLogsModal
+        isOpen={syncLogsModal.isOpen}
+        onClose={() => setSyncLogsModal({ isOpen: false, accountId: '', accountEmail: '' })}
+        accountId={syncLogsModal.accountId}
+        accountEmail={syncLogsModal.accountEmail}
+      />
     </>
   );
 }

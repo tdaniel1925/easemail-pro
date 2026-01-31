@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { retryFetch } from '@/lib/sync/retry-logic';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,34 +86,28 @@ export async function POST(
       nylasGrantId: account.nylasGrantId?.substring(0, 15) + '...',
     });
 
-    // ✅ FIXED: Call background sync directly instead of broken messages endpoint
+    // ✅ FIXED: Call background sync with retry logic for transient failures
     // Background sync will handle unlimited email syncing with pagination
-    console.log('[Manual Sync] 🔄 Starting unlimited background sync...');
+    console.log('[Manual Sync] 🔄 Starting unlimited background sync with retry logic...');
 
     const results = await Promise.allSettled([
-      // Sync folders
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${accountId}`, {
+      // Sync folders with retry
+      retryFetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/folders/sync?accountId=${accountId}`, {
         method: 'POST',
-      }).then(async (res) => {
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(`Folder sync failed: ${error.error || res.statusText}`);
-        }
-        return await res.json();
-      }),
+      }, {
+        maxRetries: 3,
+        initialDelayMs: 1000,
+      }).then(async (res) => await res.json()),
 
-      // ✅ FIXED: Trigger background sync (unlimited syncing)
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
+      // ✅ Trigger background sync (unlimited syncing) with retry
+      retryFetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/nylas/sync/background`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId }),
-      }).then(async (res) => {
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(`Background sync failed: ${error.error || res.statusText}`);
-        }
-        return await res.json();
-      }),
+      }, {
+        maxRetries: 3,
+        initialDelayMs: 1000,
+      }).then(async (res) => await res.json()),
     ]);
 
     const [folderResult, backgroundSyncResult] = results;
