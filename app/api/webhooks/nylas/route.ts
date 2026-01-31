@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { webhookEvents, emailAccounts, emails } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { webhookEvents, emailAccounts, emails, emailFolders } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { sanitizeText, sanitizeParticipants } from '@/lib/utils/text-sanitizer';
 import { normalizeFolderToCanonical } from '@/lib/email/folder-utils';
 import { verifyWebhookSignature } from '@/lib/nylas-v3/webhooks';
@@ -188,20 +188,24 @@ async function processWebhookEvent(event: any) {
         case 'message.created':
           await handleMessageCreated(data.object);
           break;
-          
+
         case 'message.updated':
           await handleMessageUpdated(data.object);
           break;
-          
+
         case 'message.deleted':
           await handleMessageDeleted(data.object);
           break;
-          
+
         case 'folder.created':
         case 'folder.updated':
           await handleFolderUpdate(data.object);
           break;
-          
+
+        case 'folder.deleted':
+          await handleFolderDeleted(data.object);
+          break;
+
         default:
           console.log('Unhandled webhook event type:', type);
       }
@@ -331,38 +335,59 @@ async function handleMessageCreated(message: any) {
 
 async function handleMessageUpdated(message: any) {
   try {
-    // Find account for SSE broadcast
+    // Find account for SSE broadcast and folder normalization
     const account = await db.query.emailAccounts.findFirst({
       where: eq(emailAccounts.nylasGrantId, message.grant_id),
-      columns: { id: true },
+      columns: { id: true, emailAddress: true },
     });
+
+    if (!account) {
+      console.error('❌ Account not found for message update:', message.grant_id);
+      return;
+    }
+
+    // ✅ FIX: Normalize folder using same logic as handleMessageCreated
+    const folders = message.folders || [];
+    const rawFolder = folders[0] || 'inbox';
+    const normalizedFolder = normalizeFolderToCanonical(rawFolder);
+
+    // ✅ FIX: Check if this is from account owner (sent email detection)
+    const isFromAccountOwner = message.from?.[0]?.email?.toLowerCase() === account.emailAddress?.toLowerCase();
+
+    // Override folder to 'sent' if email is from account owner
+    let finalFolder = normalizedFolder;
+    if (isFromAccountOwner && normalizedFolder !== 'sent' && normalizedFolder !== 'drafts') {
+      console.log(`📤 Update webhook: Overriding folder "${normalizedFolder}" → "sent" for email from account owner`);
+      finalFolder = 'sent';
+    }
 
     // Update message in database
     await db.update(emails)
       .set({
         isRead: message.unread === false,
         isStarred: message.starred === true,
-        folder: message.folders?.[0],
+        folder: finalFolder, // ✅ Now normalized (was: message.folders?.[0])
+        folders: folders,    // Keep original provider folders for reference
         updatedAt: new Date(),
       })
       .where(eq(emails.providerMessageId, message.id));
 
-    console.log(`✅ Updated message ${message.id}`);
+    console.log(`✅ Updated message ${message.id} - folder: ${finalFolder} (raw: ${rawFolder})`);
 
     // ✅ NEW: Broadcast real-time update via SSE
-    if (account) {
-      const sseEvent: EmailSyncEvent = {
-        type: 'message.updated',
-        accountId: account.id,
-        messageId: message.id,
-        timestamp: Date.now(),
-        data: {
-          isRead: message.unread === false,
-          isStarred: message.starred === true,
-        },
-      };
-      broadcastToAccount(account.id, sseEvent);
-    }
+    const sseEvent: EmailSyncEvent = {
+      type: 'message.updated',
+      accountId: account.id,
+      messageId: message.id,
+      folder: finalFolder, // Include folder in broadcast
+      timestamp: Date.now(),
+      data: {
+        isRead: message.unread === false,
+        isStarred: message.starred === true,
+        folder: finalFolder,
+      },
+    };
+    broadcastToAccount(account.id, sseEvent);
   } catch (error: any) {
     console.error(`❌ Failed to update message ${message.id}:`, error.message || error);
     throw error;
@@ -402,9 +427,167 @@ async function handleMessageDeleted(message: any) {
 }
 
 async function handleFolderUpdate(folder: any) {
-  // Update folder in database
-  console.log('Folder update:', folder);
-  // Implementation depends on folder structure
+  try {
+    // Find account by grant ID
+    const account = await db.query.emailAccounts.findFirst({
+      where: eq(emailAccounts.nylasGrantId, folder.grant_id),
+      columns: { id: true },
+    });
+
+    if (!account) {
+      console.error('❌ Account not found for folder webhook:', folder.grant_id);
+      return;
+    }
+
+    // Normalize folder name to canonical type
+    const normalizedType = normalizeFolderToCanonical(folder.name);
+
+    // Determine folder type (system folder vs custom)
+    const folderType = ['inbox', 'sent', 'drafts', 'trash', 'spam', 'archive', 'all'].includes(normalizedType)
+      ? normalizedType
+      : 'custom';
+
+    console.log(`📁 Folder webhook: ${folder.name} (type: ${folderType})`);
+
+    // ✅ FIX: Insert or update folder in database (idempotent)
+    await db.insert(emailFolders)
+      .values({
+        accountId: account.id,
+        nylasFolderId: folder.id,
+        displayName: folder.name,
+        folderType: folderType,
+        providerAttributes: folder.attributes || {},
+        unreadCount: 0, // Will be calculated from emails table
+        totalCount: 0,  // Will be calculated from emails table
+        syncEnabled: true,
+        lastSyncedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [emailFolders.accountId, emailFolders.nylasFolderId],
+        set: {
+          displayName: folder.name,
+          folderType: folderType,
+          providerAttributes: folder.attributes || {},
+          updatedAt: new Date(),
+        },
+      });
+
+    console.log(`✅ Folder ${folder.name} (ID: ${folder.id}) synced for account ${account.id}`);
+
+    // Broadcast real-time update
+    const sseEvent: EmailSyncEvent = {
+      type: 'folder.updated',
+      accountId: account.id,
+      timestamp: Date.now(),
+      data: {
+        folderId: folder.id,
+        folderName: folder.name,
+        folderType: folderType,
+      },
+    };
+    broadcastToAccount(account.id, sseEvent);
+  } catch (error: any) {
+    console.error(`❌ Failed to handle folder update for ${folder.id}:`, error.message || error);
+
+    // Capture in Sentry
+    Sentry.captureException(error, {
+      tags: {
+        component: 'webhook',
+        operation: 'folder_update',
+      },
+      extra: {
+        folderId: folder.id,
+        folderName: folder.name,
+        grantId: folder.grant_id,
+      },
+    });
+
+    throw error;
+  }
+}
+
+async function handleFolderDeleted(folder: any) {
+  try {
+    // Find account by grant ID
+    const account = await db.query.emailAccounts.findFirst({
+      where: eq(emailAccounts.nylasGrantId, folder.grant_id),
+      columns: { id: true },
+    });
+
+    if (!account) {
+      console.error('❌ Account not found for folder deletion webhook:', folder.grant_id);
+      return;
+    }
+
+    console.log(`🗑️ Folder deleted webhook: ${folder.name} (ID: ${folder.id})`);
+
+    // Find the folder in database
+    const folderRecord = await db.query.emailFolders.findFirst({
+      where: and(
+        eq(emailFolders.accountId, account.id),
+        eq(emailFolders.nylasFolderId, folder.id)
+      ),
+    });
+
+    if (!folderRecord) {
+      console.log(`⏭️ Folder ${folder.id} not found in database (already deleted or never synced)`);
+      return;
+    }
+
+    // ✅ FIX: Move orphaned emails to inbox before deleting folder
+    // This prevents emails from disappearing when folders are deleted
+    const normalizedFolderName = normalizeFolderToCanonical(folderRecord.displayName);
+
+    const movedEmailsResult = await db.update(emails)
+      .set({
+        folder: 'inbox', // Move to inbox as safe default
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(emails.accountId, account.id),
+        eq(emails.folder, normalizedFolderName)
+      ));
+
+    console.log(`📥 Moved emails from deleted folder "${folderRecord.displayName}" to inbox`);
+
+    // Delete the folder record
+    await db.delete(emailFolders)
+      .where(and(
+        eq(emailFolders.accountId, account.id),
+        eq(emailFolders.nylasFolderId, folder.id)
+      ));
+
+    console.log(`✅ Deleted folder ${folder.name} (ID: ${folder.id}) from database`);
+
+    // Broadcast real-time update
+    const sseEvent: EmailSyncEvent = {
+      type: 'folder.deleted',
+      accountId: account.id,
+      timestamp: Date.now(),
+      data: {
+        folderId: folder.id,
+        folderName: folder.name,
+      },
+    };
+    broadcastToAccount(account.id, sseEvent);
+  } catch (error: any) {
+    console.error(`❌ Failed to handle folder deletion for ${folder.id}:`, error.message || error);
+
+    // Capture in Sentry
+    Sentry.captureException(error, {
+      tags: {
+        component: 'webhook',
+        operation: 'folder_delete',
+      },
+      extra: {
+        folderId: folder.id,
+        folderName: folder.name,
+        grantId: folder.grant_id,
+      },
+    });
+
+    throw error;
+  }
 }
 
 // Handle Nylas webhook challenges for webhook verification

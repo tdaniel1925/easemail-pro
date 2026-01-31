@@ -20,8 +20,8 @@ describe('Token Refresh Cron Job', () => {
     });
 
     test('rejects requests with incorrect secret', () => {
-      const authHeader = 'Bearer wrong-secret';
-      const cronSecret = 'test-secret';
+      const authHeader: string = 'Bearer wrong-secret';
+      const cronSecret: string = 'test-secret';
 
       const isAuthorized = cronSecret && authHeader === `Bearer ${cronSecret}`;
       expect(isAuthorized).toBe(false);
@@ -86,13 +86,13 @@ describe('Token Refresh Cron Job', () => {
       const now = Date.now();
 
       // Null expiresAt - should not refresh (can't determine expiry)
-      const expiresAt1 = null;
+      const expiresAt1 = null as Date | null;
       const needsRefresh1 = expiresAt1 ? expiresAt1.getTime() <= now + (5 * 60 * 1000) : false;
       expect(needsRefresh1).toBe(false);
 
       // Undefined expiresAt - should not refresh
-      const expiresAt2 = undefined;
-      const needsRefresh2 = expiresAt2 ? new Date(expiresAt2).getTime() <= now + (5 * 60 * 1000) : false;
+      const expiresAt2 = undefined as Date | undefined;
+      const needsRefresh2 = expiresAt2 ? expiresAt2.getTime() <= now + (5 * 60 * 1000) : false;
       expect(needsRefresh2).toBe(false);
     });
   });

@@ -11,7 +11,7 @@ const activeConnections = new Map<string, Set<ReadableStreamDefaultController>>(
 
 // Types
 export interface EmailSyncEvent {
-  type: 'message.created' | 'message.updated' | 'message.deleted' | 'folder.updated' | 'sync.started' | 'sync.completed' | 'sync.progress';
+  type: 'message.created' | 'message.updated' | 'message.deleted' | 'folder.created' | 'folder.updated' | 'folder.deleted' | 'sync.started' | 'sync.completed' | 'sync.progress';
   accountId: string;
   messageId?: string;
   folderId?: string;
@@ -24,6 +24,10 @@ export interface EmailSyncEvent {
     snippet?: string;
     isRead?: boolean;
     isStarred?: boolean;
+    folder?: string;
+    folderId?: string;
+    folderName?: string;
+    folderType?: string;
     syncProgress?: number;
     syncedCount?: number;
     totalCount?: number;

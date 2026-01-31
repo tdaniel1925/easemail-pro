@@ -1,7 +1,7 @@
 /**
  * Bulk Actions API
  * POST /api/nylas/messages/bulk
- * 
+ *
  * Perform actions on multiple emails at once
  */
 
@@ -10,6 +10,7 @@ import { nylas } from '@/lib/email/nylas-client';
 import { db } from '@/lib/db/drizzle';
 import { emails } from '@/lib/db/schema';
 import { eq, inArray } from 'drizzle-orm';
+import { normalizeFolderToCanonical } from '@/lib/email/folder-utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -168,20 +169,26 @@ export async function POST(request: NextRequest) {
             case 'move':
               // Move to different folder
               if (value) {
+                // ✅ FIX: Normalize folder name to prevent sync issues
+                // value could be a display name ("Sent Items"), provider ID, or raw folder name
+                const normalizedFolder = normalizeFolderToCanonical(value);
+
+                console.log(`📁 Bulk move: "${value}" → "${normalizedFolder}"`);
+
                 await db.update(emails)
                   .set({
-                    folder: value,
+                    folder: normalizedFolder, // ✅ Now normalized (was: value)
                     updatedAt: new Date(),
                   })
                   .where(eq(emails.id, message.id));
 
-                // Update in Nylas
+                // Update in Nylas (use original value for provider API)
                 try {
                   await nylas.messages.update({
                     identifier: grantId,
                     messageId: message.providerMessageId,
                     requestBody: {
-                      folders: [value],
+                      folders: [value], // Nylas expects the raw folder ID/name
                     },
                   });
                 } catch (nylasError) {
