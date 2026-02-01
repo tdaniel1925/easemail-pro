@@ -11,7 +11,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createHash, randomBytes } from 'crypto';
 
 // CSRF token cookie name
 const CSRF_COOKIE_NAME = 'csrf-token';
@@ -30,39 +29,52 @@ const COOKIE_OPTIONS = {
 };
 
 /**
+ * Generate random bytes using Web Crypto API (Edge Runtime compatible)
+ */
+function generateRandomHex(length: number): string {
+  const buffer = new Uint8Array(length);
+  crypto.getRandomValues(buffer);
+  return Array.from(buffer)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/**
  * Generate a random CSRF token
  */
 export function generateCsrfToken(): { token: string; secret: string } {
   // Generate secret (stored in httpOnly cookie)
-  const secret = randomBytes(32).toString('hex');
+  const secret = generateRandomHex(32);
 
   // Generate token (sent to client)
-  const token = randomBytes(32).toString('hex');
+  const token = generateRandomHex(32);
 
   return { token, secret };
 }
 
 /**
- * Hash token with secret to verify authenticity
+ * Hash token with secret to verify authenticity (Edge Runtime compatible)
  */
-function hashToken(token: string, secret: string): string {
-  return createHash('sha256')
-    .update(`${token}.${secret}`)
-    .digest('hex');
+async function hashToken(token: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`${token}.${secret}`);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
  * Verify CSRF token matches the secret
  */
-function verifyCsrfToken(token: string, secret: string): boolean {
+async function verifyCsrfToken(token: string, secret: string): Promise<boolean> {
   if (!token || !secret) {
     return false;
   }
 
   try {
     // For simplicity, we use constant-time comparison via hashing
-    const expected = hashToken(token, secret);
-    const actual = hashToken(token, secret);
+    const expected = await hashToken(token, secret);
+    const actual = await hashToken(token, secret);
 
     // Constant-time comparison
     return expected === actual;
@@ -122,7 +134,7 @@ export function getCsrfTokenFromCookie(request: NextRequest): string | null {
 /**
  * Validate CSRF token on state-changing requests
  */
-export function validateCsrfToken(request: NextRequest): boolean {
+export async function validateCsrfToken(request: NextRequest): Promise<boolean> {
   const method = request.method;
 
   // Only validate on state-changing methods
@@ -145,7 +157,7 @@ export function validateCsrfToken(request: NextRequest): boolean {
   }
 
   // Verify token
-  const isValid = verifyCsrfToken(token, secret);
+  const isValid = await verifyCsrfToken(token, secret);
 
   if (!isValid) {
     console.warn('CSRF: Token verification failed');
@@ -189,7 +201,7 @@ export function withCsrfProtection<TContext = any>(
 ) {
   return async (request: NextRequest, context?: TContext): Promise<NextResponse> => {
     // Validate CSRF token
-    const isValid = validateCsrfToken(request);
+    const isValid = await validateCsrfToken(request);
 
     if (!isValid) {
       return NextResponse.json(
