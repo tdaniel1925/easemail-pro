@@ -3,13 +3,15 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, smsUsage, aiUsage, storageUsage, paymentMethods } from '@/lib/db/schema';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
+import { successResponse, unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
  * GET /api/admin/usage/users
- * 
+ *
  * Returns per-user usage breakdown
  * Query params:
  * - startDate: ISO date string
@@ -24,7 +26,8 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized user usage access');
+      return unauthorized();
     }
 
     // Check if user is admin
@@ -33,7 +36,12 @@ export async function GET(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to access user usage', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Admin access required');
     }
 
     // Parse query parameters
@@ -175,12 +183,20 @@ export async function GET(request: NextRequest) {
         end: end.toISOString(),
       },
     });
+
+    logger.admin.info('User usage data fetched', {
+      requestedBy: dbUser?.email || 'unknown',
+      userCount: userUsage.length,
+      limit,
+      offset,
+      startDate: start.toISOString(),
+      endDate: end.toISOString()
+    });
+
+    // Return using existing NextResponse.json since this has complex nested structure
   } catch (error: any) {
-    console.error('Admin user usage API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch user usage data', details: error.message },
-      { status: 500 }
-    );
+    logger.api.error('Error fetching user usage data', error);
+    return internalError();
   }
 }
 

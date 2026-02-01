@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, emailAccounts, emails, contacts } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { successResponse, unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 // Force dynamic rendering - this route uses cookies
 export const dynamic = 'force-dynamic';
@@ -14,7 +16,8 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized stats access');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -23,7 +26,12 @@ export async function GET() {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to access stats', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Fetch stats
@@ -46,10 +54,15 @@ export async function GET() {
       totalContacts: totalContactsResult[0]?.count || 0,
     };
 
-    return NextResponse.json({ success: true, stats });
+    logger.admin.info('Admin stats fetched', {
+      requestedBy: dbUser.email,
+      ...stats
+    });
+
+    return successResponse({ stats });
   } catch (error) {
-    console.error('Admin stats error:', error);
-    return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
+    logger.api.error('Error fetching admin stats', error);
+    return internalError();
   }
 }
 
