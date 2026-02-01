@@ -45,6 +45,16 @@
     /* Border radius - More modern */
     --radius: 0.5rem;                   /* 8px */
 
+    /* ✨ Terminal Blue Theme - Split-Pane Redesign */
+    --terminal-blue: 207 75% 60%;       /* #4A90E2 - Main accent */
+    --terminal-blue-hover: 207 75% 52%; /* Darker on hover */
+    --terminal-blue-light: 207 75% 90%; /* Light tint */
+
+    /* Sidebar Colors (Light Mode) */
+    --sidebar-background: 210 40% 98%;  /* Light gray #F8FAFC */
+    --sidebar-foreground: 222 47% 11%;  /* Dark text */
+    --sidebar-border: 214 32% 91%;      /* Subtle border */
+
     /* ✨ Professional Spacing System (8px base) */
     --space-1: 0.25rem;   /* 4px */
     --space-2: 0.5rem;    /* 8px */
@@ -98,6 +108,16 @@
     --border: 215 25% 27%;              /* #334155 */
     --input: 215 25% 27%;
     --ring: 213 97% 87%;
+
+    /* ✨ Terminal Blue Theme - Split-Pane Redesign (Dark Mode) */
+    --terminal-blue: 207 75% 65%;       /* Brighter #4A90E2 for dark mode */
+    --terminal-blue-hover: 207 75% 75%; /* Even brighter on hover */
+    --terminal-blue-light: 207 75% 25%; /* Darker tint */
+
+    /* Sidebar Colors (Dark Mode) - Terminal-inspired */
+    --sidebar-background: 222 47% 13%;  /* Slightly lighter than bg #1A2332 */
+    --sidebar-foreground: 210 40% 98%;  /* Light text */
+    --sidebar-border: 215 25% 20%;      /* Darker border #2D3748 */
   }
 }
 
@@ -823,5 +843,80 @@ button, a {
     .text-mobile-lg {
       font-size: 18px;
     }
+  }
+}
+
+/* ==========================================
+   TERMINAL BLUE THEME - Split-Pane Redesign
+   Added: February 1, 2026
+   ========================================== */
+
+@layer utilities {
+  /* Terminal Blue Color Classes */
+  .text-terminal-blue {
+    color: hsl(var(--terminal-blue));
+  }
+
+  .bg-terminal-blue {
+    background-color: hsl(var(--terminal-blue));
+  }
+
+  .border-terminal-blue {
+    border-color: hsl(var(--terminal-blue));
+  }
+
+  /* Sidebar Styling */
+  .bg-sidebar-background {
+    background-color: hsl(var(--sidebar-background));
+  }
+
+  .text-sidebar-foreground {
+    color: hsl(var(--sidebar-foreground));
+  }
+
+  .border-sidebar-border {
+    border-color: hsl(var(--sidebar-border));
+  }
+
+  /* Panel Transitions */
+  .panel-transition {
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  /* Resizable panel handle glow effect */
+  .panel-handle-glow {
+    @apply relative;
+  }
+
+  .panel-handle-glow::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: hsl(var(--terminal-blue) / 0.1);
+    opacity: 0;
+    transition: opacity 200ms ease-in-out;
+  }
+
+  .panel-handle-glow:hover::after {
+    opacity: 1;
+  }
+
+  /* Tab Navigation Styles */
+  .tab-nav-minimal {
+    @apply border-b border-terminal-blue/20 bg-transparent;
+  }
+
+  /* Terminal-style focus ring */
+  .focus-terminal {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terminal-blue focus-visible:ring-offset-2;
+  }
+
+  /* Split-pane layout helpers */
+  .split-pane-container {
+    @apply h-screen w-full overflow-hidden;
+  }
+
+  .split-pane-panel {
+    @apply relative flex flex-col overflow-hidden;
   }
 }

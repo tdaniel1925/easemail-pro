@@ -70,7 +70,14 @@
       "Bash(done)",
       "Bash(pnpm migrate:*)",
       "Bash(timeout /t 10)",
-      "Bash(npm run generate:pdf:*)"
+      "Bash(npm run generate:pdf:*)",
+      "Bash(if [ ! -d \".github/workflows\" ])",
+      "Bash(then mkdir -p .github/workflows)",
+      "Bash(vercel --prod --yes:*)",
+      "Bash(git rm:*)",
+      "Bash(git checkout:*)",
+      "WebFetch(domain:ui.shadcn.com)",
+      "Bash(pnpm dlx:*)"
     ],
     "deny": [],
     "ask": []

@@ -52,6 +52,16 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        "terminal-blue": {
+          DEFAULT: "hsl(var(--terminal-blue))",
+          hover: "hsl(var(--terminal-blue-hover))",
+          light: "hsl(var(--terminal-blue-light))",
+        },
+        sidebar: {
+          background: "hsl(var(--sidebar-background))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          border: "hsl(var(--sidebar-border))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

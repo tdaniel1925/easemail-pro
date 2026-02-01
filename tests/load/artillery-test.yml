@@ -1,0 +1,142 @@
+# Artillery Load Test Configuration
+#
+# Artillery is a simpler alternative to k6 (npm-based)
+#
+# Installation:
+#   npm install -g artillery
+#
+# Run test:
+#   artillery run tests/load/artillery-test.yml
+#
+# Run against specific URL:
+#   artillery run --target https://your-domain.com tests/load/artillery-test.yml
+#
+# Generate HTML report:
+#   artillery run --output report.json tests/load/artillery-test.yml
+#   artillery report report.json
+
+config:
+  target: "http://localhost:3001"
+  phases:
+    # Phase 1: Warm up
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up - 5 users/sec"
+
+    # Phase 2: Ramp up
+    - duration: 120
+      arrivalRate: 5
+      rampTo: 25
+      name: "Ramp up - 5 to 25 users/sec"
+
+    # Phase 3: Sustained load
+    - duration: 180
+      arrivalRate: 25
+      name: "Sustained load - 25 users/sec"
+
+    # Phase 4: Spike
+    - duration: 60
+      arrivalRate: 50
+      name: "Spike - 50 users/sec"
+
+    # Phase 5: Cool down
+    - duration: 60
+      arrivalRate: 10
+      name: "Cool down - 10 users/sec"
+
+  # Performance thresholds
+  ensure:
+    maxErrorRate: 1              # Max 1% error rate
+    p95: 2000                    # 95% of requests < 2000ms
+    p99: 5000                    # 99% of requests < 5000ms
+
+  # Custom variables
+  variables:
+    test_email: "test@example.com"
+    test_password: "test123"
+
+  # HTTP defaults
+  defaults:
+    headers:
+      User-Agent: "Artillery-Load-Test"
+
+scenarios:
+  # Scenario 1: Health check monitoring
+  - name: "Health Check"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/health"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: status
+
+  # Scenario 2: Public pages
+  - name: "Browse Public Pages"
+    weight: 30
+    flow:
+      - get:
+          url: "/"
+          expect:
+            - statusCode: 200
+
+      - think: 2  # Wait 2 seconds (simulating user reading)
+
+      - get:
+          url: "/features"
+          expect:
+            - statusCode:
+                - 200
+                - 404  # May not exist
+
+      - think: 3
+
+  # Scenario 3: API requests (unauthenticated)
+  - name: "API Calls"
+    weight: 30
+    flow:
+      - get:
+          url: "/api/emails"
+          expect:
+            - statusCode:
+                - 200  # If public
+                - 401  # If auth required
+                - 403  # If forbidden
+
+      - think: 1
+
+      - get:
+          url: "/api/contacts"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+                - 403
+
+  # Scenario 4: Static assets
+  - name: "Static Assets"
+    weight: 20
+    flow:
+      - get:
+          url: "/favicon.ico"
+          expect:
+            - statusCode:
+                - 200
+                - 404
+
+      - get:
+          url: "/_next/static/css/app.css"
+          expect:
+            - statusCode:
+                - 200
+                - 404
+
+# Plugins for enhanced reporting
+plugins:
+  # Ensure plugin validates thresholds
+  ensure: {}
+
+  # Metrics by endpoint plugin (optional)
+  # Uncomment if installed: npm install -g artillery-plugin-metrics-by-endpoint
+  # metrics-by-endpoint: {}
