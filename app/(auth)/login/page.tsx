@@ -145,9 +145,9 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex h-screen w-full overflow-hidden">
       {/* Left Panel - Marketing */}
-      <div className="hidden lg:flex lg:w-1/2 relative p-12 xl:p-16 flex-col justify-between bg-primary">
+      <div className="hidden lg:flex lg:w-1/2 relative p-8 xl:p-12 flex-col justify-between bg-primary overflow-y-auto">
         {/* Decorative subtle pattern */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0" style={{
@@ -253,10 +253,10 @@ function LoginForm() {
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 lg:p-12 bg-background">
-        <div className="w-full max-w-md space-y-6">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-background overflow-y-auto">
+        <div className="w-full max-w-md space-y-4 my-auto">
           {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-8 animate-in fade-in duration-500">
+          <div className="lg:hidden flex items-center justify-center gap-3 mb-4 animate-in fade-in duration-500">
             <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg">
               <Mail className="w-7 h-7 text-primary-foreground" />
             </div>
@@ -264,11 +264,11 @@ function LoginForm() {
           </div>
 
           {/* Form Header */}
-          <div className="text-center space-y-3 animate-in fade-in slide-in-from-bottom duration-700">
-            <h2 className="text-3xl xl:text-4xl font-bold">
+          <div className="text-center space-y-2 animate-in fade-in slide-in-from-bottom duration-700">
+            <h2 className="text-2xl xl:text-3xl font-bold">
               {showForgotPassword ? 'Reset Password' : 'Welcome Back'}
             </h2>
-            <p className="text-base text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {showForgotPassword
                 ? 'Enter your email to receive a password reset link'
                 : 'Sign in to your EaseMail account to continue'
@@ -277,10 +277,10 @@ function LoginForm() {
           </div>
 
           {/* Form Card */}
-          <Card className="p-8 shadow-xl border-border/50 animate-in fade-in slide-in-from-bottom duration-700 delay-150">
+          <Card className="p-6 shadow-xl border-border/50 animate-in fade-in slide-in-from-bottom duration-700 delay-150">
             {showForgotPassword ? (
               // Forgot Password Form
-              <form onSubmit={handleForgotPassword} className="space-y-5">
+              <form onSubmit={handleForgotPassword} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="reset-email" className="text-sm font-medium">Email Address</Label>
                   <Input
@@ -334,7 +334,7 @@ function LoginForm() {
               </form>
             ) : (
               // Login Form
-              <form onSubmit={handleLogin} className="space-y-5">
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
                   <Input
@@ -413,7 +413,7 @@ function LoginForm() {
           )}
 
           {/* Trust Badges */}
-          <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground pt-4 animate-in fade-in duration-700 delay-500">
+          <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground pt-2 animate-in fade-in duration-700 delay-500">
             <div className="flex items-center gap-1.5">
               <Shield className="h-4 w-4" />
               <span>Bank-level security</span>
