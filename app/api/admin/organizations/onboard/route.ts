@@ -6,21 +6,25 @@ import { eq } from 'drizzle-orm';
 import { sendEmail } from '@/lib/email/send';
 import { getNewUserCredentialsSubject, getNewUserCredentialsTemplate } from '@/lib/email/templates/new-user-credentials';
 import crypto from 'crypto';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
  * POST /api/admin/organizations/onboard
- * Comprehensive organization onboarding with user account creation
+ * Comprehensive organization onboarding with user account creation (CSRF Protected)
  */
-export async function POST(request: NextRequest) {
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized organization onboarding attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -29,7 +33,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-platform-admin attempted organization onboarding', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
     const body = await request.json();
@@ -80,15 +89,26 @@ export async function POST(request: NextRequest) {
 
     // Validation
     if (!name || !slug) {
-      return NextResponse.json({ error: 'Name and slug are required' }, { status: 400 });
+      logger.admin.warn('Missing required fields for organization onboarding', {
+        hasName: !!name,
+        hasSlug: !!slug,
+        requestedBy: dbUser.email
+      });
+      return badRequest('Name and slug are required');
     }
 
     if (!primaryContactName || !primaryContactEmail || !primaryContactPhone) {
-      return NextResponse.json({ error: 'Primary contact information is required' }, { status: 400 });
+      logger.admin.warn('Missing primary contact information', {
+        requestedBy: dbUser.email
+      });
+      return badRequest('Primary contact information is required');
     }
 
     if (!addressLine1 || !city || !state || !zipCode || !country) {
-      return NextResponse.json({ error: 'Complete business address is required' }, { status: 400 });
+      logger.admin.warn('Missing business address information', {
+        requestedBy: dbUser.email
+      });
+      return badRequest('Complete business address is required');
     }
 
     // Check if slug is already taken
@@ -97,7 +117,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingOrg) {
-      return NextResponse.json({ error: 'Slug already in use' }, { status: 400 });
+      logger.admin.warn('Slug already in use for organization onboarding', {
+        slug,
+        requestedBy: dbUser.email
+      });
+      return badRequest('Slug already in use');
     }
 
     // Check if primary contact email already exists
@@ -106,9 +130,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
-      return NextResponse.json({ 
-        error: 'Primary contact email already has an account. Please use a different email or invite them to the organization instead.' 
-      }, { status: 400 });
+      logger.admin.warn('Primary contact email already exists', {
+        email: primaryContactEmail,
+        requestedBy: dbUser.email
+      });
+      return badRequest('Primary contact email already has an account. Please use a different email or invite them to the organization instead.');
     }
 
     // Generate secure temporary password
@@ -128,11 +154,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (authError || !newAuthUser.user) {
-      console.error('Failed to create Supabase user:', authError);
-      return NextResponse.json({ 
-        error: 'Failed to create user account',
-        details: authError?.message 
-      }, { status: 500 });
+      logger.api.error('Failed to create Supabase user for organization onboarding', {
+        error: authError,
+        email: primaryContactEmail,
+        orgName: name,
+        requestedBy: dbUser.email
+      });
+      return internalError('Failed to create user account');
     }
 
     // Create organization record
@@ -199,51 +227,53 @@ export async function POST(request: NextRequest) {
         }),
       });
 
-      console.log(`✅ Welcome email sent to ${primaryContactEmail}`);
+      logger.admin.info('Welcome email sent to primary contact', {
+        email: primaryContactEmail,
+        orgName: name,
+        requestedBy: dbUser.email
+      });
     } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError);
+      logger.api.error('Failed to send welcome email', {
+        error: emailError,
+        email: primaryContactEmail,
+        orgName: name,
+        requestedBy: dbUser.email
+      });
       // Don't fail the entire request if email fails
     }
 
-    console.log(`✅ Organization onboarded: ${name} by admin ${dbUser.email}`);
-    console.log(`✅ Primary contact user created: ${primaryContactEmail}`);
-    
-    // Log comprehensive onboarding data for reference
-    console.log('📋 Onboarding Details:', {
-      organization: { id: newOrg.id, name, slug, planType },
-      primaryContact: { 
-        id: newAuthUser.user.id,
-        name: primaryContactName, 
-        email: primaryContactEmail, 
-        phone: primaryContactPhone, 
-        title: primaryContactTitle 
-      },
-      company: { website, industry, companySize, description },
-      address: { addressLine1, addressLine2, city, state, zipCode, country },
-      contacts: {
-        billing: { name: billingContactName, email: billingContactEmail, phone: billingContactPhone },
-        technical: { name: techContactName, email: techContactEmail, phone: techContactPhone },
-      },
-      billing: { cycle: billingCycle, taxId, purchaseOrderNumber },
-      notes,
+    logger.admin.info('Organization onboarding complete', {
+      orgId: newOrg.id,
+      orgName: name,
+      slug,
+      planType,
+      primaryContactId: newAuthUser.user.id,
+      primaryContactEmail,
+      requestedBy: dbUser.email,
+      details: {
+        company: { website, industry, companySize, description },
+        address: { addressLine1, addressLine2, city, state, zipCode, country },
+        contacts: {
+          primary: { name: primaryContactName, email: primaryContactEmail, phone: primaryContactPhone, title: primaryContactTitle },
+          billing: { name: billingContactName, email: billingContactEmail, phone: billingContactPhone },
+          technical: { name: techContactName, email: techContactEmail, phone: techContactPhone },
+        },
+        billing: { cycle: billingCycle, taxId, purchaseOrderNumber },
+        notes,
+      }
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      message: `Organization created successfully! Welcome email sent to ${primaryContactEmail}`,
+    return successResponse({
       organization: newOrg,
       primaryContact: {
         email: primaryContactEmail,
         name: primaryContactName,
       }
-    });
+    }, `Organization created successfully! Welcome email sent to ${primaryContactEmail}`, 201);
   } catch (error: any) {
-    console.error('Organization onboarding error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to create organization',
-      details: error.message 
-    }, { status: 500 });
+    logger.api.error('Error onboarding organization', error);
+    return internalError();
   }
-}
+});
 
 

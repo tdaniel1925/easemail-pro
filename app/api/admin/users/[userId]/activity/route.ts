@@ -3,20 +3,29 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, userActivityLogs } from '@/lib/db/schema';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-// GET: Fetch user activity logs with filters
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { userId: string } }
-) {
+type RouteContext = {
+  params: Promise<{ userId: string }>;
+};
+
+/**
+ * GET /api/admin/users/[userId]/activity
+ * Fetch user activity logs with filters
+ */
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized user activity access');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -25,10 +34,15 @@ export async function GET(
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-platform-admin attempted to access user activity', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
-    const { userId } = params;
+    const { userId } = await context.params;
     const { searchParams } = new URL(request.url);
 
     // Parse query parameters
@@ -98,8 +112,15 @@ export async function GET(
       .where(eq(userActivityLogs.userId, userId))
       .groupBy(userActivityLogs.status);
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('User activity logs fetched', {
+      requestedBy: dbUser.email,
+      userId,
+      filters: { activityType, status, isFlagged, startDate, endDate },
+      resultCount: activities.length,
+      totalCount: count
+    });
+
+    return successResponse({
       activities,
       pagination: {
         total: count,
@@ -112,26 +133,41 @@ export async function GET(
         byStatus: errorSummary,
       },
     });
-  } catch (error) {
-    console.error('Activity logs fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch activity logs' }, { status: 500 });
+  } catch (error: any) {
+    logger.api.error('Error fetching user activity logs', error);
+    return internalError();
   }
 }
 
-// POST: Log a new activity
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { userId: string } }
-) {
+/**
+ * POST /api/admin/users/[userId]/activity
+ * Log a new activity (CSRF Protected)
+ */
+export const POST = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized activity log creation attempt');
+      return unauthorized();
     }
 
-    const { userId } = params;
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to create activity log', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
+
+    const { userId } = await context.params;
     const body = await request.json();
 
     const {
@@ -152,10 +188,12 @@ export async function POST(
     } = body;
 
     if (!activityType || !activityName) {
-      return NextResponse.json(
-        { error: 'activityType and activityName are required' },
-        { status: 400 }
-      );
+      logger.admin.warn('Missing required fields for activity log creation', {
+        hasActivityType: !!activityType,
+        hasActivityName: !!activityName,
+        requestedBy: dbUser.email
+      });
+      return badRequest('activityType and activityName are required');
     }
 
     // Create activity log
@@ -178,9 +216,18 @@ export async function POST(
       device,
     }).returning();
 
-    return NextResponse.json({ success: true, activity });
-  } catch (error) {
-    console.error('Activity log creation error:', error);
-    return NextResponse.json({ error: 'Failed to create activity log' }, { status: 500 });
+    logger.admin.info('Activity log created', {
+      activityId: activity.id,
+      userId,
+      activityType,
+      activityName,
+      status,
+      createdBy: dbUser.email
+    });
+
+    return successResponse({ activity }, 'Activity log created successfully', 201);
+  } catch (error: any) {
+    logger.api.error('Error creating activity log', error);
+    return internalError();
   }
-}
+});

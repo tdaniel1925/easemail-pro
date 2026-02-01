@@ -10,12 +10,15 @@ import {
   emailAccounts,
 } from '@/lib/db/schema';
 import { eq, gte, lte, sql, and, desc } from 'drizzle-orm';
+import { successResponse, unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 /**
  * GET /api/admin/cost-center
- * Get platform-wide cost metrics (admin only)
+ * Get platform-wide cost metrics (Platform Admin Only)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +26,8 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized cost center access');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -32,7 +36,12 @@ export async function GET(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      logger.security.warn('Non-platform-admin attempted to access cost center', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Get date range from query params
@@ -201,8 +210,16 @@ export async function GET(request: NextRequest) {
       },
     }));
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('Cost center data fetched', {
+      requestedBy: dbUser.email,
+      range,
+      totalRevenue,
+      totalCosts,
+      netProfit,
+      totalUsers
+    });
+
+    return successResponse({
       metrics: {
         totalRevenue,
         totalCosts,
@@ -249,11 +266,8 @@ export async function GET(request: NextRequest) {
       },
       topSpenders,
     });
-  } catch (error) {
-    console.error('Error fetching cost center data:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch cost center data' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logger.api.error('Error fetching cost center data', error);
+    return internalError();
   }
 }

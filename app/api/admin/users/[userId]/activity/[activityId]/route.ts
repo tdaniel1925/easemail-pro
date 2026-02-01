@@ -3,20 +3,29 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, userActivityLogs } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-// PATCH: Update activity log (mainly for flagging/unflagging)
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { userId: string; activityId: string } }
-) {
+type RouteContext = {
+  params: Promise<{ userId: string; activityId: string }>;
+};
+
+/**
+ * PATCH /api/admin/users/[userId]/activity/[activityId]
+ * Update activity log (mainly for flagging/unflagging) (CSRF Protected)
+ */
+export const PATCH = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized activity log update attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -25,10 +34,15 @@ export async function PATCH(
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-platform-admin attempted to update activity log', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
-    const { userId, activityId } = params;
+    const { userId, activityId } = await context.params;
     const body = await request.json();
 
     const { isFlagged } = body;
@@ -46,12 +60,24 @@ export async function PATCH(
       .returning();
 
     if (!updated) {
-      return NextResponse.json({ error: 'Activity log not found' }, { status: 404 });
+      logger.admin.warn('Activity log not found for update', {
+        activityId,
+        userId,
+        requestedBy: dbUser.email
+      });
+      return notFound('Activity log not found');
     }
 
-    return NextResponse.json({ success: true, activity: updated });
-  } catch (error) {
-    console.error('Activity log update error:', error);
-    return NextResponse.json({ error: 'Failed to update activity log' }, { status: 500 });
+    logger.admin.info('Activity log updated', {
+      activityId,
+      userId,
+      isFlagged,
+      updatedBy: dbUser.email
+    });
+
+    return successResponse({ activity: updated }, 'Activity log updated successfully');
+  } catch (error: any) {
+    logger.api.error('Error updating activity log', error);
+    return internalError();
   }
-}
+});

@@ -3,20 +3,28 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, smsUsage, aiUsage, storageUsage, emailAccounts, emails } from '@/lib/db/schema';
 import { eq, sql, and, gte } from 'drizzle-orm';
+import { successResponse, unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-// GET: Fetch user usage statistics
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { userId: string } }
-) {
+type RouteContext = {
+  params: Promise<{ userId: string }>;
+};
+
+/**
+ * GET /api/admin/users/[userId]/usage
+ * Fetch user usage statistics (SMS, AI, storage, email)
+ */
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized user usage access');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -25,10 +33,15 @@ export async function GET(
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-platform-admin attempted to access user usage', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
-    const { userId } = params;
+    const { userId } = await context.params;
     const { searchParams } = new URL(request.url);
     const days = parseInt(searchParams.get('days') || '30');
 
@@ -113,8 +126,13 @@ export async function GET(
       .groupBy(sql`date_trunc('day', period_start)`)
       .orderBy(sql`date_trunc('day', period_start)`);
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('User usage statistics fetched', {
+      requestedBy: dbUser.email,
+      targetUserId: userId,
+      periodDays: days
+    });
+
+    return successResponse({
       usage: {
         sms: {
           totalMessages: smsStats[0]?.totalMessages || 0,
@@ -141,8 +159,8 @@ export async function GET(
         endDate: new Date().toISOString(),
       },
     });
-  } catch (error) {
-    console.error('Usage stats fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch usage stats' }, { status: 500 });
+  } catch (error: any) {
+    logger.api.error('Error fetching user usage statistics', error);
+    return internalError();
   }
 }

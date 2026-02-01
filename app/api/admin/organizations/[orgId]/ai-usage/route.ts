@@ -3,20 +3,28 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, organizations, aiUsage } from '@/lib/db/schema';
 import { eq, sql, and, gte, inArray } from 'drizzle-orm';
+import { successResponse, unauthorized, forbidden, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-// GET: Fetch organization AI usage statistics
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { orgId: string } }
-) {
+type RouteContext = {
+  params: Promise<{ orgId: string }>;
+};
+
+/**
+ * GET /api/admin/organizations/[orgId]/ai-usage
+ * Fetch organization AI usage statistics
+ */
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized organization AI usage access');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -25,10 +33,15 @@ export async function GET(
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-platform-admin attempted to access organization AI usage', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
-    const { orgId } = params;
+    const { orgId } = await context.params;
     const { searchParams } = new URL(request.url);
     const days = parseInt(searchParams.get('days') || '30');
 
@@ -41,7 +54,11 @@ export async function GET(
     });
 
     if (!org) {
-      return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
+      logger.admin.warn('Organization not found for AI usage query', {
+        orgId,
+        requestedBy: dbUser.email
+      });
+      return notFound('Organization not found');
     }
 
     // Get all users in this organization
@@ -53,8 +70,14 @@ export async function GET(
     const userIds = orgUsers.map(u => u.id);
 
     if (userIds.length === 0) {
-      return NextResponse.json({
-        success: true,
+      logger.admin.info('Organization AI usage fetched (no users)', {
+        orgId,
+        orgName: org.name,
+        requestedBy: dbUser.email,
+        periodDays: days
+      });
+
+      return successResponse({
         organization: org,
         usage: {
           total: { requests: 0, cost: 0 },
@@ -134,8 +157,16 @@ export async function GET(
     // Get top 10 users
     const topUsers = byUser.slice(0, 10);
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('Organization AI usage fetched', {
+      orgId,
+      orgName: org.name,
+      requestedBy: dbUser.email,
+      periodDays: days,
+      totalUsers: userIds.length,
+      totalRequests: totalStats[0]?.totalRequests || 0
+    });
+
+    return successResponse({
       organization: {
         id: org.id,
         name: org.name,
@@ -157,8 +188,8 @@ export async function GET(
         endDate: new Date().toISOString(),
       },
     });
-  } catch (error) {
-    console.error('Organization AI usage fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch organization AI usage' }, { status: 500 });
+  } catch (error: any) {
+    logger.api.error('Error fetching organization AI usage', error);
+    return internalError();
   }
 }

@@ -6,22 +6,30 @@ import { eq } from 'drizzle-orm';
 import { generateSecurePassword, hashPassword, generatePasswordExpiry } from '@/lib/auth/password-utils';
 import { sendEmail } from '@/lib/email/send';
 import { getPasswordResetCredentialsTemplate, getPasswordResetCredentialsSubject } from '@/lib/email/templates/password-reset-credentials';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 type RouteContext = {
   params: Promise<{ userId: string }>;
 };
 
-// POST: Generate and send new temporary password (admin only)
-export async function POST(request: NextRequest, context: RouteContext) {
+/**
+ * POST /api/admin/users/[userId]/reset-password
+ * Generate and send new temporary password (CSRF Protected)
+ */
+export const POST = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
     const { userId } = await context.params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized password reset attempt');
+      return unauthorized();
     }
 
     // Check if requesting user is platform admin
@@ -30,7 +38,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!adminUser || adminUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-platform-admin attempted password reset', {
+        userId: user.id,
+        email: user.email,
+        role: adminUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Get target user
@@ -39,15 +52,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!targetUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      logger.admin.warn('Password reset attempted for non-existent user', {
+        targetUserId: userId,
+        requestedBy: adminUser.email
+      });
+      return notFound('User not found');
     }
 
     // Generate NEW temporary password
     const newTempPassword = generateSecurePassword(16);
     const tempPasswordExpiry = generatePasswordExpiry();
 
-    console.log(`🔐 Generated new temporary password for ${targetUser.email} by admin ${adminUser.email}`);
-    console.log(`🔑 Password: ${newTempPassword}`); // Log it for debugging
+    logger.admin.info('Generated new temporary password', {
+      targetUser: targetUser.email,
+      requestedBy: adminUser.email
+    });
 
     // Update password in Supabase Auth FIRST
     const adminClient = await createAdminClient();
@@ -58,14 +77,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (authError) {
-      console.error('❌ Failed to update password in Supabase Auth:', authError);
-      return NextResponse.json({ 
-        error: 'Failed to update password',
-        details: authError.message 
-      }, { status: 500 });
+      logger.api.error('Failed to update password in Supabase Auth', {
+        error: authError,
+        targetUser: targetUser.email,
+        requestedBy: adminUser.email
+      });
+      return internalError('Failed to update password');
     }
 
-    console.log(`✅ Updated password in Supabase Auth for ${targetUser.email}`);
+    logger.admin.info('Updated password in Supabase Auth', {
+      targetUser: targetUser.email,
+      requestedBy: adminUser.email
+    });
 
     // Update user record in database (store plain password temporarily for reference)
     await db.update(users)
@@ -78,7 +101,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       })
       .where(eq(users.id, userId));
 
-    console.log(`📝 Updated user record in database`);
+    logger.admin.info('Updated user record in database', {
+      targetUser: targetUser.email,
+      requestedBy: adminUser.email
+    });
 
     // Send password reset credentials email
     const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL}/login`;
@@ -100,25 +126,27 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!result.success) {
-      console.error('⚠️ Failed to send password reset email:', result.error);
-      return NextResponse.json({ 
-        error: 'Password was updated but failed to send email',
-        details: result.error 
-      }, { status: 500 });
+      logger.api.error('Failed to send password reset email', {
+        error: result.error,
+        targetUser: targetUser.email,
+        requestedBy: adminUser.email
+      });
+      return internalError('Password was updated but failed to send email');
     }
 
-    console.log(`✅ Password reset email sent to ${targetUser.email}`);
-
-    return NextResponse.json({ 
-      success: true, 
-      message: `New temporary password generated and sent to ${targetUser.email}` 
+    logger.admin.info('Password reset completed successfully', {
+      targetUser: targetUser.email,
+      requestedBy: adminUser.email,
+      emailSent: true
     });
+
+    return successResponse(
+      { message: `New temporary password generated and sent to ${targetUser.email}` },
+      'Password reset successful'
+    );
   } catch (error: any) {
-    console.error('❌ Password reset error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to reset password',
-      details: error.message 
-    }, { status: 500 });
+    logger.api.error('Error resetting password', error);
+    return internalError();
   }
-}
+});
 

@@ -4,28 +4,36 @@ import { db } from '@/lib/db/drizzle';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { sendEmail } from '@/lib/email/send';
-import { 
-  getInvitationEmailTemplate, 
+import {
+  getInvitationEmailTemplate,
   getInvitationEmailSubject,
   generateInvitationToken,
   generateInvitationExpiry
 } from '@/lib/email/templates/invitation-email';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, notFound, badRequest, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
-interface RouteContext {
+type RouteContext = {
   params: Promise<{ userId: string }>;
-}
+};
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-// POST: Resend invitation to user
-export async function POST(request: NextRequest, context: RouteContext) {
+/**
+ * POST /api/admin/users/[userId]/resend-invitation
+ * Resend invitation to user (CSRF Protected)
+ */
+export const POST = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
     const { userId } = await context.params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized resend invitation attempt');
+      return unauthorized();
     }
 
     // Check if current user is admin
@@ -34,9 +42,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!currentUser || currentUser.role !== 'platform_admin') {
-      return NextResponse.json({ 
-        error: 'Forbidden - Platform admin access required' 
-      }, { status: 403 });
+      logger.security.warn('Non-platform-admin attempted to resend invitation', {
+        userId: user.id,
+        email: user.email,
+        role: currentUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Get the target user
@@ -45,14 +56,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!targetUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      logger.admin.warn('Resend invitation attempted for non-existent user', {
+        targetUserId: userId,
+        requestedBy: currentUser.email
+      });
+      return notFound('User not found');
     }
 
     // Check if user has already accepted invitation
     if (targetUser.invitationAcceptedAt) {
-      return NextResponse.json({ 
-        error: 'User has already accepted their invitation and is active' 
-      }, { status: 400 });
+      logger.admin.warn('Resend invitation attempted for already-active user', {
+        targetUser: targetUser.email,
+        requestedBy: currentUser.email
+      });
+      return badRequest('User has already accepted their invitation and is active');
     }
 
     // Generate new invitation token
@@ -86,25 +103,27 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!emailResult.success) {
-      console.error('⚠️ Failed to send invitation email:', emailResult.error);
-      return NextResponse.json({ 
-        error: 'Failed to send invitation email',
-        details: emailResult.error 
-      }, { status: 500 });
+      logger.api.error('Failed to send invitation email', {
+        error: emailResult.error,
+        targetUser: targetUser.email,
+        requestedBy: currentUser.email
+      });
+      return internalError('Failed to send invitation email');
     }
 
-    console.log(`✅ Invitation resent to ${targetUser.email}`);
-
-    return NextResponse.json({
-      success: true,
-      message: `Invitation resent to ${targetUser.email}`,
+    logger.admin.info('Invitation resent successfully', {
+      targetUser: targetUser.email,
+      requestedBy: currentUser.email,
+      emailSent: true
     });
+
+    return successResponse(
+      { message: `Invitation resent to ${targetUser.email}` },
+      'Invitation resent successfully'
+    );
   } catch (error: any) {
-    console.error('❌ Resend invitation error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to resend invitation',
-      details: error.message 
-    }, { status: 500 });
+    logger.api.error('Error resending invitation', error);
+    return internalError();
   }
-}
+});
 

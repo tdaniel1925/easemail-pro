@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
       where: eq(emailAccounts.emailProvider, 'gmail'),
     });
 
-    console.log(`[Gmail Fix] Found ${allGmailAccounts.length} Gmail accounts`);
+    logger.admin.info('Found Gmail accounts for check', {
+      userId: user.id,
+      gmailAccountCount: allGmailAccounts.length
+    });
 
     // 3. Find Gmail accounts with issues
     const problemAccounts = allGmailAccounts.filter(acc =>
@@ -90,7 +93,11 @@ export const POST = withCsrfProtection(async (request: NextRequest) => {
       where: eq(emailAccounts.emailAddress, user.email || ''),
     });
 
-    console.log(`[Gmail Fix] Found ${gmailAccountsToFix.length} accounts with email:`, user.email);
+    logger.admin.info('Found Gmail accounts to fix', {
+      userId: user.id,
+      email: user.email,
+      accountsToCheck: gmailAccountsToFix.length
+    });
 
     const fixed = [];
     const errors = [];
@@ -99,7 +106,11 @@ export const POST = withCsrfProtection(async (request: NextRequest) => {
     for (const account of gmailAccountsToFix) {
       if (!account.userId || account.userId !== user.id) {
         try {
-          console.log('[Gmail Fix] Fixing account:', account.id, account.emailAddress);
+          logger.admin.info('Fixing Gmail account', {
+            accountId: account.id,
+            emailAddress: account.emailAddress,
+            userId: user.id
+          });
 
           await db.update(emailAccounts)
             .set({
@@ -115,9 +126,16 @@ export const POST = withCsrfProtection(async (request: NextRequest) => {
             newUserId: user.id,
           });
 
-          console.log('[Gmail Fix] ✅ Fixed account:', account.id);
+          logger.admin.info('Fixed Gmail account', {
+            accountId: account.id,
+            userId: user.id
+          });
         } catch (error) {
-          console.error('[Gmail Fix] ❌ Failed to fix account:', account.id, error);
+          logger.api.error('Failed to fix Gmail account', {
+            error,
+            accountId: account.id,
+            userId: user.id
+          });
           errors.push({
             id: account.id,
             emailAddress: account.emailAddress,

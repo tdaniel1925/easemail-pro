@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
       where: eq(emailAccounts.userId, user.id),
     });
 
-    console.log(`[Account Check] Found ${allUserAccounts.length} accounts`);
+    logger.admin.info('Found user accounts for check', {
+      userId: user.id,
+      accountCount: allUserAccounts.length
+    });
 
     // Group by provider
     const byProvider: Record<string, any[]> = {};

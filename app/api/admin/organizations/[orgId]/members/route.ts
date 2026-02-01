@@ -3,14 +3,20 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, organizationMembers } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { successResponse, unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 type RouteContext = {
   params: Promise<{ orgId: string }>;
 };
 
-// GET: Fetch organization members
+/**
+ * GET /api/admin/organizations/[orgId]/members
+ * Fetch organization members
+ */
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { orgId } = await context.params;
@@ -18,7 +24,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized organization members access');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -27,7 +34,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-platform-admin attempted to access organization members', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Fetch organization members with user details
@@ -44,10 +56,16 @@ export async function GET(request: NextRequest, context: RouteContext) {
       },
     });
 
-    return NextResponse.json({ success: true, members });
-  } catch (error) {
-    console.error('Organization members fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch members' }, { status: 500 });
+    logger.admin.info('Organization members fetched', {
+      orgId,
+      requestedBy: dbUser.email,
+      memberCount: members.length
+    });
+
+    return successResponse({ members });
+  } catch (error: any) {
+    logger.api.error('Error fetching organization members', error);
+    return internalError();
   }
 }
 

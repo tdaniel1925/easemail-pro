@@ -3,20 +3,25 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, sms_usage, ai_usage, storage_usage } from '@/lib/db/schema';
 import { eq, gte, and } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 /**
  * POST /api/admin/cost-center/export
- * Export cost center data as CSV (admin only)
+ * Export cost center data as CSV (CSRF Protected, Platform Admin Only)
  */
-export async function POST(request: NextRequest) {
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized cost center export attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -25,7 +30,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      logger.security.warn('Non-platform-admin attempted cost center export', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
     const body = await request.json();
@@ -137,6 +147,15 @@ export async function POST(request: NextRequest) {
 
     const csv = csvRows.join('\n');
 
+    logger.admin.info('Cost center data exported', {
+      requestedBy: dbUser.email,
+      dateRange,
+      totalRecords: csvRows.length - 1,
+      smsRecords: smsUsageData.length,
+      aiRecords: aiUsageData.length,
+      storageRecords: storageUsageData.length
+    });
+
     // Return CSV file
     return new NextResponse(csv, {
       headers: {
@@ -144,11 +163,8 @@ export async function POST(request: NextRequest) {
         'Content-Disposition': `attachment; filename="cost-center-${dateRange}-${Date.now()}.csv"`,
       },
     });
-  } catch (error) {
-    console.error('Error exporting cost center data:', error);
-    return NextResponse.json(
-      { error: 'Failed to export cost center data' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    logger.api.error('Error exporting cost center data', error);
+    return internalError();
   }
-}
+});

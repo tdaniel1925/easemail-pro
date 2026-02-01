@@ -66,14 +66,22 @@ export const POST = withCsrfProtection(async (request: NextRequest) => {
     });
 
     for (const account of accounts) {
-      console.log(`\n📬 Account: ${account.emailAddress}`);
+      logger.admin.info('Processing account for folder fix', {
+        accountId: account.id,
+        emailAddress: account.emailAddress,
+        userId: user.id
+      });
 
       // Get all emails for this account
       const accountEmails = await db.query.emails.findMany({
         where: eq(emails.accountId, account.id),
       });
 
-      console.log(`   Total emails: ${accountEmails.length}`);
+      logger.admin.info('Found emails for account', {
+        accountId: account.id,
+        emailCount: accountEmails.length,
+        userId: user.id
+      });
       stats.totalEmails += accountEmails.length;
 
       for (const email of accountEmails) {
@@ -92,30 +100,43 @@ export const POST = withCsrfProtection(async (request: NextRequest) => {
           // Check if it's incorrect
           if (currentFolder !== correctFolder) {
             stats.incorrectlyAssigned++;
-            
+
             // Track by folder type
             stats.byFolder[correctFolder] = (stats.byFolder[correctFolder] || 0) + 1;
 
-            console.log(`   🔄 Mismatch:`);
-            console.log(`      "${currentFolder}" → "${correctFolder}"`);
+            logger.admin.info('Found folder mismatch', {
+              emailId: email.id,
+              currentFolder,
+              correctFolder,
+              dryRun,
+              userId: user.id
+            });
 
             if (!dryRun) {
               // Update the email
               await db.update(emails)
-                .set({ 
+                .set({
                   folder: correctFolder,
                   updatedAt: new Date(),
                 })
                 .where(eq(emails.id, email.id));
 
-              console.log(`      ✅ Fixed!`);
+              logger.admin.info('Fixed email folder', {
+                emailId: email.id,
+                newFolder: correctFolder,
+                userId: user.id
+              });
               stats.fixed++;
             } else {
               stats.fixed++; // Count as "would fix" in dry run
             }
           }
         } catch (error: any) {
-          console.error(`   ❌ Error processing email ${email.id}:`, error.message);
+          logger.api.error('Error processing email for folder fix', {
+            error,
+            emailId: email.id,
+            userId: user.id
+          });
           stats.errors++;
         }
       }
