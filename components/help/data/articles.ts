@@ -38,7 +38,7 @@ export const helpCategories: HelpCategory[] = [
     description: 'Compose, organize, and manage emails',
     icon: 'Mail',
     color: 'bg-purple-500',
-    articleCount: 12
+    articleCount: 13
   },
   {
     id: 'ai-features',
@@ -78,7 +78,7 @@ export const helpCategories: HelpCategory[] = [
     description: 'Customize your experience',
     icon: 'Settings',
     color: 'bg-gray-500',
-    articleCount: 9
+    articleCount: 11
   },
   {
     id: 'troubleshooting',
@@ -102,6 +102,45 @@ export const helpArticles: HelpArticle[] = [
     readTime: '3 min',
     lastUpdated: '2024-01-20',
     views: 1250,
+    helpful: 98,
+  },
+  {
+    id: 'organization-admin',
+    title: 'Organization Administration Guide',
+    description: 'Complete guide for IT managers managing EaseMail for their organization',
+    category: 'settings',
+    tags: ['admin', 'organization', 'management', 'enterprise', 'it-manager'],
+    featured: true,
+    difficulty: 'advanced',
+    readTime: '45 min',
+    lastUpdated: '2026-02-01',
+    views: 456,
+    helpful: 99,
+  },
+  {
+    id: 'security-privacy',
+    title: 'Security & Privacy Guide',
+    description: 'Understanding 2FA, encryption, data privacy, and security best practices',
+    category: 'settings',
+    tags: ['security', '2fa', 'encryption', 'privacy', 'gdpr'],
+    featured: true,
+    difficulty: 'intermediate',
+    readTime: '20 min',
+    lastUpdated: '2026-02-01',
+    views: 1876,
+    helpful: 97,
+  },
+  {
+    id: 'email-features',
+    title: 'Complete Email Features Guide',
+    description: 'Master composing, organizing, searching, and managing emails with advanced features',
+    category: 'email',
+    tags: ['email', 'compose', 'folders', 'labels', 'search', 'rules'],
+    featured: true,
+    difficulty: 'beginner',
+    readTime: '30 min',
+    lastUpdated: '2026-02-01',
+    views: 3245,
     helpful: 98,
   },
   {

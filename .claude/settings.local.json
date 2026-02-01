@@ -68,7 +68,8 @@
       "Bash(head:*)",
       "Bash(/tmp/pricing_start.txt)",
       "Bash(done)",
-      "Bash(pnpm migrate:*)"
+      "Bash(pnpm migrate:*)",
+      "Bash(timeout /t 10)"
     ],
     "deny": [],
     "ask": []

@@ -18,6 +18,9 @@ import AIWriteArticle from './articles/AIWriteArticle';
 import VoiceDictationArticle from './articles/VoiceDictationArticle';
 import EmailRulesArticle from './articles/EmailRulesArticle';
 import TroubleshootingArticle from './articles/TroubleshootingArticle';
+import OrganizationAdminArticle from './articles/OrganizationAdminArticle';
+import SecurityPrivacyArticle from './articles/SecurityPrivacyArticle';
+import EmailFeaturesArticle from './articles/EmailFeaturesArticle';
 import QuickStartGuide from './QuickStartGuide';
 import FAQSection from './FAQSection';
 import InteractiveSetupWizard from './InteractiveSetupWizard';
@@ -279,6 +282,9 @@ function getArticleComponent(articleId: string) {
     'voice-dictation': VoiceDictationArticle,
     'email-rules-guide': EmailRulesArticle,
     'troubleshooting-guide': TroubleshootingArticle,
+    'organization-admin': OrganizationAdminArticle,
+    'security-privacy': SecurityPrivacyArticle,
+    'email-features': EmailFeaturesArticle,
     'quick-start': QuickStartGuide,
     'faq': FAQSection,
   };
