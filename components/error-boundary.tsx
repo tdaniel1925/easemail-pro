@@ -2,6 +2,7 @@
 
 import { Component, ReactNode } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface Props {
   children: ReactNode;
@@ -37,22 +38,14 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log error to error reporting service
-    console.error('Error Boundary caught error:', error, errorInfo);
+    // Log error to logging service
+    logger.error('Error Boundary caught error', error, {
+      component: 'ErrorBoundary',
+      componentStack: errorInfo.componentStack,
+    });
 
     // Call custom error handler if provided
     this.props.onError?.(error, errorInfo);
-
-    // Send to Sentry (if configured)
-    if (typeof window !== 'undefined' && (window as any).Sentry) {
-      (window as any).Sentry.captureException(error, {
-        contexts: {
-          react: {
-            componentStack: errorInfo.componentStack,
-          },
-        },
-      });
-    }
   }
 
   render() {
