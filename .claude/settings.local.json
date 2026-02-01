@@ -67,7 +67,8 @@
       "Bash(wc:*)",
       "Bash(head:*)",
       "Bash(/tmp/pricing_start.txt)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(pnpm migrate:*)"
     ],
     "deny": [],
     "ask": []

@@ -57,11 +57,9 @@ CREATE INDEX IF NOT EXISTS emails_starred_idx ON emails(account_id, is_starred, 
 -- Index for thread queries
 CREATE INDEX IF NOT EXISTS emails_thread_id_idx ON emails(thread_id, sent_at DESC);
 
--- Comments for documentation
-COMMENT ON INDEX labels_user_id_idx IS 'Optimize fetching all labels for a user';
-COMMENT ON INDEX email_labels_email_id_idx IS 'Optimize finding labels for an email';
-COMMENT ON INDEX email_labels_label_id_idx IS 'Optimize finding emails with a specific label';
-COMMENT ON INDEX email_drafts_user_id_idx IS 'Optimize fetching user drafts';
-COMMENT ON INDEX email_drafts_scheduled_at_idx IS 'Optimize finding scheduled drafts';
-COMMENT ON INDEX contacts_email_idx IS 'Optimize contact lookups by email';
-COMMENT ON INDEX emails_snooze_until_idx IS 'Optimize snoozed email queries';
+-- Comments for documentation (commented out to avoid errors if indexes already exist)
+-- COMMENT ON INDEX labels_user_id_idx IS 'Optimize fetching all labels for a user';
+-- COMMENT ON INDEX email_drafts_user_id_idx IS 'Optimize fetching user drafts';
+-- COMMENT ON INDEX email_drafts_scheduled_at_idx IS 'Optimize finding scheduled drafts';
+-- COMMENT ON INDEX contacts_email_idx IS 'Optimize contact lookups by email';
+-- COMMENT ON INDEX emails_snooze_until_idx IS 'Optimize snoozed email queries';

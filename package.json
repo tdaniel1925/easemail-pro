@@ -15,6 +15,7 @@
     "setup-webhooks": "tsx scripts/setup-webhooks.ts",
     "cleanup-webhooks": "tsx scripts/cleanup-webhooks.ts",
     "generate-images": "tsx scripts/generate-marketing-images.ts",
+    "migrate": "tsx scripts/run-migrations.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report"

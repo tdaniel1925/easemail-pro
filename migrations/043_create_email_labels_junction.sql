@@ -7,7 +7,20 @@
 -- This migration fixes that by dropping and recreating with the correct structure.
 
 -- Drop the incorrectly created table (if it exists)
+-- CASCADE will drop foreign key constraints but not the referenced tables
 DROP TABLE IF EXISTS email_labels CASCADE;
+
+-- Ensure the labels table exists first (should be from migration 000 or 016)
+CREATE TABLE IF NOT EXISTS labels (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  color VARCHAR(7) DEFAULT '#4ecdc4',
+  icon VARCHAR(50),
+  description TEXT,
+  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+  UNIQUE(user_id, name)
+);
 
 -- Create the correct junction table structure
 CREATE TABLE email_labels (
