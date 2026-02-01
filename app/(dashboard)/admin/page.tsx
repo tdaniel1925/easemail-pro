@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Settings, Database, Activity, Mail, Zap, Key, Building2, DollarSign, BarChart3, CreditCard } from 'lucide-react';
+import { Users, Settings, Database, Activity, Mail, Zap, Key, Building2, DollarSign, BarChart3, CreditCard, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 interface AdminStats {
   totalUsers: number;
@@ -21,33 +22,70 @@ export default function AdminDashboard() {
     totalContacts: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
+  const fetchStats = async (isRefresh = false) => {
     try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       const response = await fetch('/api/admin/stats');
       const data = await response.json();
       if (data.success) {
         setStats(data.stats);
+        setLastUpdated(new Date());
       }
     } catch (error) {
       console.error('Failed to fetch admin stats:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  useEffect(() => {
+    fetchStats();
+
+    // Auto-refresh every 60 seconds
+    const interval = setInterval(() => {
+      fetchStats(true);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <AdminLayout>
       <div className="p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage users, settings, and system configuration
-          </p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+            <p className="text-muted-foreground mt-2">
+              Manage users, settings, and system configuration
+            </p>
+          </div>
+          <div className="flex flex-col items-start md:items-end gap-2">
+            <div className="text-sm text-muted-foreground">
+              {lastUpdated && (
+                <div>Last updated: {lastUpdated.toLocaleTimeString()}</div>
+              )}
+              <div className="text-xs mt-1">Auto-refreshes every 60s</div>
+            </div>
+            <Button
+              onClick={() => fetchStats(true)}
+              disabled={refreshing}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Refresh Now'}
+            </Button>
+          </div>
         </div>
 
         {/* Stats Grid */}
