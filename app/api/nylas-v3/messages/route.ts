@@ -1,6 +1,7 @@
 /**
  * Nylas v3 Messages API Route
  * On-demand message fetching with cursor-based pagination
+ * Includes Redis caching for performance
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,6 +10,8 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emails } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
+import { cache } from '@/lib/redis/client';
+import { trackCacheKey } from '@/lib/redis/cache-invalidation';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,6 +73,23 @@ export async function GET(request: NextRequest) {
         { status: 403 }
       );
     }
+
+    // Generate cache key for this request
+    const cacheKey = `messages:${user.id}:${accountId}:${folderId || 'null'}:${folderName || 'null'}:${cursor || 'null'}:${limit}:${unread || 'null'}`;
+
+    // Try to get from cache first (30 second TTL)
+    const cachedResponse = await cache.get<any>(cacheKey);
+    if (cachedResponse) {
+      console.log(`[Cache HIT] Messages for ${accountId}, folder ${folderName || folderId}`);
+      return NextResponse.json(cachedResponse, {
+        headers: {
+          'X-Cache': 'HIT',
+          'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
+        },
+      });
+    }
+
+    console.log(`[Cache MISS] Messages for ${accountId}, folder ${folderName || folderId}`);
 
     const isIMAPAccount = account.provider === 'imap';
     const isJMAPAccount = account.provider === 'jmap';
@@ -223,14 +243,24 @@ export async function GET(request: NextRequest) {
       threadEmailCount: message.threadEmailCount || 1, // Default to 1
     }));
 
-    // Return with cache headers for instant subsequent loads
-    return NextResponse.json({
+    // Prepare response
+    const responseData = {
       success: true,
       messages: enrichedMessages,
       nextCursor: result.nextCursor,
       hasMore: result.hasMore,
-    }, {
+    };
+
+    // Store in cache with 30 second TTL
+    await cache.set(cacheKey, responseData, 30);
+
+    // Track this cache key for invalidation purposes
+    await trackCacheKey(cacheKey, user.id, accountId, 30);
+
+    // Return with cache headers for instant subsequent loads
+    return NextResponse.json(responseData, {
       headers: {
+        'X-Cache': 'MISS',
         // Cache for 30 seconds, serve stale while revalidating for 60 seconds
         'Cache-Control': 'private, max-age=30, stale-while-revalidate=60',
       }

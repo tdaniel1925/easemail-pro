@@ -1,6 +1,7 @@
 /**
  * Nylas v3 Folders API Route
  * Fetch and manage folders
+ * Includes Redis caching (5 minute TTL)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,6 +10,7 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emailFolders } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { cache } from '@/lib/redis/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +69,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Check cache first (5 minute TTL for folders - they don't change often)
+    const cacheKey = `folders:${user.id}:${accountId}:${hierarchy}`;
+    const cachedFolders = await cache.get<any>(cacheKey);
+    if (cachedFolders) {
+      console.log(`[Cache HIT] Folders for account ${accountId}`);
+      return NextResponse.json(cachedFolders, {
+        headers: { 'X-Cache': 'HIT' },
+      });
+    }
+
+    console.log(`[Cache MISS] Folders for account ${accountId}`);
+
     const isIMAPAccount = account.provider === 'imap';
     const isJMAPAccount = account.provider === 'jmap';
     const isDirectAccount = isIMAPAccount || isJMAPAccount;
@@ -116,9 +130,17 @@ export async function GET(request: NextRequest) {
       folders = buildFolderHierarchy(folders);
     }
 
-    return NextResponse.json({
+    // Prepare response
+    const responseData = {
       success: true,
       folders,
+    };
+
+    // Store in cache with 5 minute TTL (folders don't change often)
+    await cache.set(cacheKey, responseData, 300);
+
+    return NextResponse.json(responseData, {
+      headers: { 'X-Cache': 'MISS' },
     });
   } catch (error) {
     console.error('❌ Folders API error:', error);

@@ -1,6 +1,7 @@
 /**
  * Nylas v3 - Bulk Message Actions
  * Handle bulk operations on multiple messages
+ * Includes cache invalidation
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,6 +11,7 @@ import { emailAccounts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getNylasClient } from '@/lib/nylas-v3/config';
 import { handleNylasError } from '@/lib/nylas-v3/errors';
+import { invalidateMessagesCache } from '@/lib/redis/cache-invalidation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -157,6 +159,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[Bulk] Completed ${action} on ${results.success.length}/${messageIds.length} messages`);
+
+    // Invalidate message cache for this account (all folders) if any operations succeeded
+    if (results.success.length > 0) {
+      await invalidateMessagesCache(user.id, accountId);
+    }
 
     return NextResponse.json({
       success: true,
