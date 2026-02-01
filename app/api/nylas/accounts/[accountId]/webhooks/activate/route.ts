@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { WEBHOOK_EVENTS } from '@/lib/nylas-v3/config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -69,6 +70,9 @@ export async function POST(
       }, { status: 400 });
     }
 
+    // ✅ FIX: Use all webhook events from config (includes calendar events)
+    const triggerTypes = Object.values(WEBHOOK_EVENTS);
+
     // Create webhook destination in Nylas
     const nylasApiUrl = process.env.NYLAS_API_URI || 'https://api.us.nylas.com';
     const response = await fetch(`${nylasApiUrl}/v3/webhooks`, {
@@ -81,16 +85,7 @@ export async function POST(
       body: JSON.stringify({
         webhook_url: webhookUrl,
         description: `EaseMail webhooks for ${account.emailAddress}`,
-        trigger_types: [
-          'message.created',
-          'message.updated',
-          'message.deleted',
-          'folder.created',
-          'folder.updated',
-          'folder.deleted',
-          'grant.expired',
-          'grant.deleted',
-        ],
+        trigger_types: triggerTypes, // ✅ Now includes calendar events from config
         notification_email_addresses: [],
       }),
     });

@@ -366,6 +366,12 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
     // Prevent double submission
     if (loading) return;
 
+    // ✅ FIX: Require calendar selection before creating event
+    if (!selectedCalendarId) {
+      setError('Please select a calendar for this event');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -400,7 +406,7 @@ export default function QuickAdd({ isOpen, onClose, onEventCreated }: QuickAddPr
               timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
               busy: true,
               color: 'blue',
-              calendarId: selectedCalendarId || null,
+              calendarId: selectedCalendarId,  // ✅ FIX: Always defined due to validation above
               reminders: [{ type: 'popup', minutesBefore: 15 }],
             }),
           });

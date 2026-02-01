@@ -2,7 +2,7 @@
  * Tests for Email Encryption at Rest
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   encrypt,
   decrypt,
@@ -17,7 +17,11 @@ import {
 describe('Encryption', () => {
   // Set a test encryption key
   beforeEach(() => {
-    process.env.EMAIL_ENCRYPTION_KEY = generateEncryptionKey();
+    vi.stubEnv('EMAIL_ENCRYPTION_KEY', generateEncryptionKey());
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   describe('encrypt() and decrypt()', () => {
@@ -191,40 +195,32 @@ describe('Encryption', () => {
 
   describe('isEncryptionConfigured()', () => {
     it('should return true when key is configured', () => {
-      process.env.EMAIL_ENCRYPTION_KEY = generateEncryptionKey();
+      vi.stubEnv('EMAIL_ENCRYPTION_KEY', generateEncryptionKey());
       expect(isEncryptionConfigured()).toBe(true);
     });
 
     it('should return false when key is not configured', () => {
-      delete process.env.EMAIL_ENCRYPTION_KEY;
+      vi.unstubAllEnvs();
       expect(isEncryptionConfigured()).toBe(false);
     });
 
     it('should return false when key is invalid length', () => {
-      process.env.EMAIL_ENCRYPTION_KEY = 'tooshort';
+      vi.stubEnv('EMAIL_ENCRYPTION_KEY', 'tooshort');
       expect(isEncryptionConfigured()).toBe(false);
     });
   });
 
   describe('Error Handling', () => {
     it('should throw error when encrypting without key', () => {
-      const originalKey = process.env.EMAIL_ENCRYPTION_KEY;
-      delete process.env.EMAIL_ENCRYPTION_KEY;
+      vi.unstubAllEnvs();
 
       expect(() => encrypt('test')).toThrow('EMAIL_ENCRYPTION_KEY not configured');
-
-      // Restore key for other tests
-      process.env.EMAIL_ENCRYPTION_KEY = originalKey;
     });
 
     it('should throw error for invalid key length', () => {
-      const originalKey = process.env.EMAIL_ENCRYPTION_KEY;
-      process.env.EMAIL_ENCRYPTION_KEY = 'invalid_key';
+      vi.stubEnv('EMAIL_ENCRYPTION_KEY', 'invalid_key');
 
       expect(() => encrypt('test')).toThrow('must be 32 bytes');
-
-      // Restore key for other tests
-      process.env.EMAIL_ENCRYPTION_KEY = originalKey;
     });
   });
 
@@ -233,7 +229,7 @@ describe('Encryption', () => {
       const plaintext = 'SECRET_PASSWORD_12345';
 
       try {
-        delete process.env.EMAIL_ENCRYPTION_KEY;
+        vi.unstubAllEnvs();
         encrypt(plaintext);
       } catch (error) {
         const errorMessage = (error as Error).message;

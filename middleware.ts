@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { ensureCsrfToken } from '@/lib/security/csrf';
+import { globalRateLimitMiddleware } from '@/lib/middleware/global-rate-limit';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -34,6 +35,13 @@ export async function middleware(request: NextRequest) {
   if (exploitPaths.some(path => pathname.includes(path))) {
     console.warn(`🚫 Blocked exploit attempt: ${pathname} from ${request.headers.get('x-forwarded-for') || 'unknown'}`);
     return new NextResponse(null, { status: 403 });
+  }
+
+  // PRODUCTION SECURITY: Global Rate Limiting
+  // Apply rate limiting to all API routes
+  const rateLimitResponse = await globalRateLimitMiddleware(request);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
   }
 
   // HIGH PRIORITY FIX #1: Authentication Middleware

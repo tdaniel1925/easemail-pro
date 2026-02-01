@@ -1,11 +1,8 @@
 /**
  * Health Check Endpoint
- * GET /api/health
  *
- * Production-ready health check for:
- * - Load balancers
- * - Uptime monitoring (UptimeRobot, Pingdom, etc.)
- * - Container orchestration (Kubernetes liveness/readiness probes)
+ * Used for monitoring, load balancers, and uptime checks
+ * Returns application health status and basic metrics
  */
 
 import { NextResponse } from 'next/server';
@@ -18,88 +15,119 @@ export const dynamic = 'force-dynamic';
 interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
   timestamp: string;
-  uptime: number;
   version: string;
+  uptime: number;
   checks: {
-    database: HealthCheck;
-    redis?: HealthCheck;
+    database: {
+      status: 'ok' | 'error';
+      latency?: number;
+      error?: string;
+    };
+    environment: {
+      status: 'ok' | 'warning';
+      missing?: string[];
+    };
   };
 }
 
-interface HealthCheck {
-  status: 'ok' | 'error';
-  message?: string;
-  responseTime?: number;
-}
+// Required environment variables for production
+const REQUIRED_ENV_VARS = [
+  'DATABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'NYLAS_API_KEY',
+  'NYLAS_CLIENT_ID',
+  'NYLAS_CLIENT_SECRET',
+];
 
+/**
+ * GET /api/health
+ *
+ * Returns health status of the application
+ * Used by monitoring services and load balancers
+ */
 export async function GET() {
   const startTime = Date.now();
 
-  // Check database connectivity
-  const dbCheck = await checkDatabase();
-
-  // Determine overall health status
-  const overallStatus =
-    dbCheck.status === 'ok'
-      ? 'healthy'
-      : 'unhealthy';
-
-  const healthStatus: HealthStatus = {
-    status: overallStatus,
+  const health: HealthStatus = {
+    status: 'healthy',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
     version: process.env.npm_package_version || '1.0.0',
+    uptime: process.uptime(),
     checks: {
-      database: dbCheck,
-    },
+      database: {
+        status: 'ok'
+      },
+      environment: {
+        status: 'ok'
+      }
+    }
   };
 
-  // Return appropriate status code
-  const statusCode = overallStatus === 'healthy' ? 200 : 503;
-
-  return NextResponse.json(healthStatus, {
-    status: statusCode,
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-    },
-  });
-}
-
-/**
- * Check database connectivity
- */
-async function checkDatabase(): Promise<HealthCheck> {
-  const startTime = Date.now();
-
+  // Check database connectivity
   try {
-    // Simple ping query
-    await db.execute(sql`SELECT 1`);
+    const dbStart = Date.now();
+    await db.execute(sql`SELECT 1 as health_check`);
+    const dbLatency = Date.now() - dbStart;
 
-    return {
+    health.checks.database = {
       status: 'ok',
-      responseTime: Date.now() - startTime,
+      latency: dbLatency
     };
-  } catch (error) {
-    console.error('[Health Check] Database error:', error);
 
-    return {
+    // Warn if database is slow
+    if (dbLatency > 1000) {
+      health.status = 'degraded';
+    }
+  } catch (error) {
+    health.status = 'unhealthy';
+    health.checks.database = {
       status: 'error',
-      message: 'Database connection failed',
-      responseTime: Date.now() - startTime,
+      error: error instanceof Error ? error.message : 'Unknown database error'
     };
   }
+
+  // Check required environment variables
+  const missingVars = REQUIRED_ENV_VARS.filter(varName => !process.env[varName]);
+
+  if (missingVars.length > 0) {
+    health.status = 'degraded';
+    health.checks.environment = {
+      status: 'warning',
+      missing: missingVars
+    };
+  }
+
+  // Return appropriate status code
+  const statusCode =
+    health.status === 'healthy' ? 200 :
+    health.status === 'degraded' ? 200 : // Still return 200 for degraded
+    503; // Unhealthy
+
+  return NextResponse.json(health, { status: statusCode });
 }
 
 /**
- * Detailed health check endpoint (for admin/monitoring)
- * GET /api/health?detailed=true
+ * HEAD /api/health
+ *
+ * Lightweight health check (no body)
+ * Returns 200 if healthy, 503 if unhealthy
  */
 export async function HEAD() {
-  // Lightweight check for load balancers
   try {
+    // Quick database ping
     await db.execute(sql`SELECT 1`);
+
+    // Check critical env vars
+    const hasCriticalVars = ['DATABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL'].every(
+      v => !!process.env[v]
+    );
+
+    if (!hasCriticalVars) {
+      return new NextResponse(null, { status: 503 });
+    }
+
     return new NextResponse(null, { status: 200 });
   } catch (error) {
     return new NextResponse(null, { status: 503 });

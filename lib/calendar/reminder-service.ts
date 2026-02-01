@@ -4,7 +4,7 @@
  */
 
 import { db } from '@/lib/db/drizzle';
-import { calendarEvents } from '@/lib/db/schema';
+import { calendarEvents, contacts, users } from '@/lib/db/schema';
 import { gte, lte, eq, and } from 'drizzle-orm';
 
 interface ReminderToSend {
@@ -146,31 +146,61 @@ export async function sendEmailReminder(reminder: ReminderToSend): Promise<boole
 
 /**
  * Send SMS reminder
+ * ✅ FIXED: Now actually sends SMS via Twilio
  */
 export async function sendSMSReminder(reminder: ReminderToSend): Promise<boolean> {
   try {
-    // Get user phone from contacts or profile
-    // For now, we'll skip this if no phone number
-    // You can extend this to lookup from contacts table
-    
+    // ✅ Get user's email to look up their contact
+    const userResult = await db.query.users.findFirst({
+      where: eq(users.id, reminder.userId)
+    });
+
+    if (!userResult || !userResult.email) {
+      console.warn(`❌ No user found for ${reminder.userId}`);
+      return false;
+    }
+
+    // Look up user's phone in contacts table (user's own contact)
+    const userContact = await db.query.contacts.findFirst({
+      where: and(
+        eq(contacts.userId, reminder.userId),
+        eq(contacts.email, userResult.email)
+      )
+    });
+
+    if (!userContact || !userContact.phone) {
+      console.warn(`📱 SMS reminder skipped - no phone number for user ${reminder.userId} (email: ${userResult.email})`);
+      console.warn(`ℹ️  To enable SMS reminders, user must add themselves as a contact with a phone number`);
+      // Don't mark as sent since it wasn't actually sent
+      return false;
+    }
+
+    // Format reminder message
     const timeStr = reminder.startTime.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
     });
-    
-    const message = `Reminder: ${reminder.title} at ${timeStr}${reminder.location ? ` (${reminder.location})` : ''}`;
-    
-    // Send via Twilio (you already have SMS API)
-    // Note: You'll need to have user's phone number stored
-    // This is a placeholder - extend based on your needs
-    
-    console.log(`📱 SMS reminder (not sent - no phone): ${message}`);
-    await markReminderSent(reminder.eventId, reminder.reminderType, reminder.minutesBefore);
-    
-    return true;
-    
+
+    const message = `📅 Reminder: ${reminder.title} at ${timeStr}${reminder.location ? ` at ${reminder.location}` : ''}`;
+
+    // ✅ Send via Twilio
+    const { sendSMS } = await import('@/lib/sms/twilio-client-v2');
+    const result = await sendSMS({
+      to: userContact.phone,
+      message,
+    });
+
+    if (result.success) {
+      await markReminderSent(reminder.eventId, reminder.reminderType, reminder.minutesBefore);
+      console.log(`✅ SMS reminder sent to ${userContact.phone} for event ${reminder.eventId} (SID: ${result.sid})`);
+      return true;
+    } else {
+      console.error(`❌ SMS reminder failed: ${result.error}`);
+      return false;
+    }
+
   } catch (error) {
     console.error('❌ SMS reminder error:', error);
     return false;

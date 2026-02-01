@@ -24,9 +24,8 @@ import { AccountCardSkeleton, StatsCardSkeleton } from '@/components/ui/skeleton
 interface EmailAccount {
   id: string;
   emailAddress: string;
-  provider?: string; // 'nylas', 'aurinko', or 'imap'
-  emailProvider?: string;
-  nylasProvider?: string;
+  // ✅ NORMALIZED: Single provider field (consolidated from nylasProvider/emailProvider)
+  provider: string; // 'google', 'microsoft', 'imap', etc.
   syncStatus?: string;
   syncProgress?: number;
   syncedEmailCount?: number;
@@ -34,8 +33,9 @@ interface EmailAccount {
   initialSyncCompleted?: boolean;
   lastSyncedAt?: string;
   lastError?: string;
-  folderCount?: number;
-  emailCount?: number;
+  // ✅ NORMALIZED: Consistent naming for counts
+  folderCount: number;
+  emailCount: number;
   autoSync?: boolean;
   syncStopped?: boolean;
   isActive?: boolean;
@@ -75,6 +75,7 @@ export default function AccountsV3Page() {
   const [accounts, setAccounts] = useState<EmailAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<Record<string, boolean>>({});
+  const [activatingWebhooks, setActivatingWebhooks] = useState<Record<string, boolean>>({}); // ✅ NEW: Track webhook activation loading
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [isProviderSelectorOpen, setIsProviderSelectorOpen] = useState(false);
@@ -219,18 +220,9 @@ export default function AccountsV3Page() {
       console.log('Accounts data:', data);
 
       if (data.success) {
-        const accountsWithStats = await Promise.all(
-          data.accounts.map(async (account: EmailAccount) => {
-            try {
-              const statsResponse = await fetch(`/api/nylas/accounts/${account.id}/stats`);
-              const stats = await statsResponse.json();
-              return { ...account, folderCount: stats.folderCount || 0, emailCount: stats.emailCount || 0 };
-            } catch {
-              return { ...account, folderCount: 0, emailCount: 0 };
-            }
-          })
-        );
-        setAccounts(accountsWithStats);
+        // ✅ FIX: Stats now included in main response, no need for separate calls
+        setAccounts(data.accounts);
+        console.log(`✅ Loaded ${data.accounts.length} accounts with stats in 1 API call`);
       } else {
         console.error('Accounts fetch failed:', data);
         setAccounts([]);
@@ -409,6 +401,8 @@ export default function AccountsV3Page() {
   };
 
   const handleActivateWebhooks = async (accountId: string) => {
+    // ✅ FIX: Add loading state
+    setActivatingWebhooks(prev => ({ ...prev, [accountId]: true }));
     setMessage({ type: 'info', text: 'Activating webhooks...' });
     try {
       const response = await fetch(`/api/nylas/accounts/${accountId}/webhooks/activate`, {
@@ -430,6 +424,9 @@ export default function AccountsV3Page() {
     } catch (error: any) {
       console.error('Webhook activation failed:', error);
       setMessage({ type: 'error', text: error.message || 'Failed to activate webhooks' });
+    } finally {
+      // ✅ FIX: Clear loading state
+      setActivatingWebhooks(prev => ({ ...prev, [accountId]: false }));
     }
   };
 
@@ -651,10 +648,6 @@ export default function AccountsV3Page() {
             <Eye className="h-4 w-4 mr-2" />
             Detailed View
           </TabsTrigger>
-          <TabsTrigger value="activity">
-            <Activity className="h-4 w-4 mr-2" />
-            Activity Log
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -861,7 +854,7 @@ export default function AccountsV3Page() {
                       <ErrorResolutionCard
                         errorMessage={account.lastError}
                         accountId={account.id}
-                        provider={account.nylasProvider || account.emailProvider}
+                        provider={account.provider}
                         onRetry={() => handleSyncAccount(account.id)}
                       />
                     )}
@@ -920,9 +913,19 @@ export default function AccountsV3Page() {
                             onClick={() => handleActivateWebhooks(account.id)}
                             size="sm"
                             className="ml-2"
+                            disabled={activatingWebhooks[account.id]}
                           >
-                            <Wifi className="h-3 w-3 mr-1" />
-                            Activate
+                            {activatingWebhooks[account.id] ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                Activating...
+                              </>
+                            ) : (
+                              <>
+                                <Wifi className="h-3 w-3 mr-1" />
+                                Activate
+                              </>
+                            )}
                           </Button>
                         </AlertDescription>
                       </Alert>
@@ -1028,7 +1031,7 @@ export default function AccountsV3Page() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
                         <div className="text-muted-foreground">Provider</div>
-                        <div className="font-medium">{account.nylasProvider || account.emailProvider || 'N/A'}</div>
+                        <div className="font-medium capitalize">{account.provider || 'N/A'}</div>
                       </div>
                       <div>
                         <div className="text-muted-foreground">Sync Progress</div>
@@ -1080,22 +1083,6 @@ export default function AccountsV3Page() {
                     </div>
                   </div>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="activity">
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Activity</CardTitle>
-              <CardDescription>Recent sync history and account events</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Activity logging coming soon</p>
-                <p className="text-sm mt-2">Track sync history, errors, and account changes</p>
               </div>
             </CardContent>
           </Card>

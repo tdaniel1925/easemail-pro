@@ -86,8 +86,8 @@ async function handleCalendarEventWebhook(type: string, data: any) {
             },
           });
 
-          // Upsert event to database
-          await upsertCalendarEvent(account.userId, event.data);
+          // Upsert event to database with provider info
+          await upsertCalendarEvent(account.userId, account.provider, event.data);
           console.log('[Calendar Webhook] Event synced:', object.id);
         } catch (error) {
           console.error('[Calendar Webhook] Error fetching event:', error);
@@ -95,11 +95,15 @@ async function handleCalendarEventWebhook(type: string, data: any) {
         break;
 
       case 'calendar.event.deleted':
-        // Delete event from database
+        // Delete event from database using provider-specific ID
+        // ✅ FIX: Use googleEventId/microsoftEventId instead of local UUID
+        const provider = account.provider;
+        const idField = provider === 'google' ? 'googleEventId' : 'microsoftEventId';
+
         await db.delete(calendarEvents).where(
           and(
             eq(calendarEvents.userId, account.userId),
-            eq(calendarEvents.id, object.id)
+            eq(calendarEvents[idField], object.id)
           )
         );
         console.log('[Calendar Webhook] Event deleted:', object.id);
@@ -113,11 +117,10 @@ async function handleCalendarEventWebhook(type: string, data: any) {
   }
 }
 
-async function upsertCalendarEvent(userId: string, event: any) {
+async function upsertCalendarEvent(userId: string, provider: string, event: any) {
   try {
-    // Prepare event data for database
-    const eventData: any = {
-      id: event.id,
+    // Prepare base event data for database
+    const baseEventData: any = {
       userId: userId,
       title: event.title || 'Untitled Event',
       description: event.description || null,
@@ -136,23 +139,39 @@ async function upsertCalendarEvent(userId: string, event: any) {
     // Handle event timing
     if (event.when) {
       if (event.when.start_time) {
-        eventData.startTime = new Date(event.when.start_time * 1000);
+        baseEventData.startTime = new Date(event.when.start_time * 1000);
       }
       if (event.when.end_time) {
-        eventData.endTime = new Date(event.when.end_time * 1000);
+        baseEventData.endTime = new Date(event.when.end_time * 1000);
       }
       if (event.when.date) {
         // All-day event
-        eventData.startTime = new Date(event.when.date);
-        eventData.endTime = new Date(event.when.date);
-        eventData.isAllDay = true;
+        baseEventData.startTime = new Date(event.when.date);
+        baseEventData.endTime = new Date(event.when.date);
+        baseEventData.allDay = true;
       }
     }
 
-    // Check if event exists
+    // ✅ FIX: Add provider-specific ID fields (matches calendar-sync-service.ts pattern)
+    const providerFields = provider === 'google' ? {
+      googleEventId: event.id,
+      googleCalendarId: event.calendar_id,
+      googleSyncStatus: 'synced' as const,
+      googleLastSyncedAt: new Date(),
+    } : {
+      microsoftEventId: event.id,
+      microsoftCalendarId: event.calendar_id,
+      microsoftSyncStatus: 'synced' as const,
+      microsoftLastSyncedAt: new Date(),
+    };
+
+    const eventData = { ...baseEventData, ...providerFields };
+
+    // ✅ FIX: Check if event exists using provider-specific ID
+    const idField = provider === 'google' ? 'googleEventId' : 'microsoftEventId';
     const existingEvent = await db.query.calendarEvents.findFirst({
       where: and(
-        eq(calendarEvents.id, event.id),
+        eq(calendarEvents[idField], event.id),
         eq(calendarEvents.userId, userId)
       ),
     });
@@ -164,12 +183,7 @@ async function upsertCalendarEvent(userId: string, event: any) {
           ...eventData,
           updatedAt: new Date(),
         })
-        .where(
-          and(
-            eq(calendarEvents.id, event.id),
-            eq(calendarEvents.userId, userId)
-          )
-        );
+        .where(eq(calendarEvents.id, existingEvent.id));
     } else {
       // Insert new event
       await db.insert(calendarEvents).values({

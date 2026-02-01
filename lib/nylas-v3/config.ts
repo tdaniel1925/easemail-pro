@@ -34,6 +34,8 @@ export const OAUTH_SCOPES = [
   'email.folders',
   'email.modify',
   'email.drafts',
+  'calendar',
+  'calendar.read_only',
 ];
 
 // Pagination defaults
@@ -64,6 +66,10 @@ export const WEBHOOK_EVENTS = {
   FOLDER_CREATED: 'folder.created',
   FOLDER_UPDATED: 'folder.updated',
   FOLDER_DELETED: 'folder.deleted',
+  // ✅ Calendar webhook events
+  CALENDAR_EVENT_CREATED: 'calendar.event.created',
+  CALENDAR_EVENT_UPDATED: 'calendar.event.updated',
+  CALENDAR_EVENT_DELETED: 'calendar.event.deleted',
 } as const;
 
 export type WebhookEventType = typeof WEBHOOK_EVENTS[keyof typeof WEBHOOK_EVENTS];

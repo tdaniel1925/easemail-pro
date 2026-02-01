@@ -19,11 +19,12 @@ describe('Logger', () => {
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     // Set to development mode
-    process.env.NODE_ENV = 'development';
+    vi.stubEnv('NODE_ENV', 'development');
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   describe('Log Levels', () => {
@@ -123,7 +124,7 @@ describe('Logger', () => {
 
   describe('Environment-based Behavior', () => {
     it('should not log debug messages in production', () => {
-      process.env.NODE_ENV = 'production';
+      vi.stubEnv('NODE_ENV', 'production');
 
       // Create new logger instance with production config
       const prodLogger = new Logger();
@@ -134,7 +135,7 @@ describe('Logger', () => {
     });
 
     it('should log error messages in production', () => {
-      process.env.NODE_ENV = 'production';
+      vi.stubEnv('NODE_ENV', 'production');
 
       const prodLogger = new Logger();
       prodLogger.error('Error message');
@@ -143,7 +144,7 @@ describe('Logger', () => {
     });
 
     it('should only log errors in test environment', () => {
-      process.env.NODE_ENV = 'test';
+      vi.stubEnv('NODE_ENV', 'test');
 
       const testLogger = new Logger();
       testLogger.info('Info message');
