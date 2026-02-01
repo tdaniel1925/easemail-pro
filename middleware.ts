@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { ensureCsrfToken } from '@/lib/security/csrf';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -125,10 +126,23 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
 
+    // HIGH PRIORITY FIX #4: CSRF Protection
+    // Ensure CSRF token exists for authenticated users on GET requests
+    if (request.method === 'GET') {
+      ensureCsrfToken(request, response);
+    }
+
     return response;
   }
 
-  return NextResponse.next();
+  // HIGH PRIORITY FIX #4: CSRF Protection
+  // Ensure CSRF token exists for public routes on GET requests
+  const response = NextResponse.next();
+  if (request.method === 'GET') {
+    ensureCsrfToken(request, response);
+  }
+
+  return response;
 }
 
 export const config = {
