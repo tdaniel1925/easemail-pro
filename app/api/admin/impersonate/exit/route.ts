@@ -3,24 +3,28 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, userAuditLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, badRequest, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * POST /api/admin/impersonate/exit
+ * POST /api/admin/impersonate/exit (CSRF Protected)
  *
  * Exit impersonation mode and restore admin session
  */
-export async function POST(request: NextRequest) {
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { adminUserId } = body;
 
     if (!adminUserId) {
-      return NextResponse.json({ error: 'Missing admin user ID' }, { status: 400 });
+      logger.security.warn('Exit impersonation missing admin user ID');
+      return badRequest('Missing admin user ID');
     }
 
-    console.log(`🔙 Exiting impersonation, returning to admin: ${adminUserId}`);
+    logger.security.info('Exiting impersonation', { adminUserId });
 
     // Get admin user details
     const adminUser = await db.query.users.findFirst({
@@ -28,7 +32,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!adminUser || adminUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Invalid admin user' }, { status: 403 });
+      logger.security.warn('Invalid admin user attempting to exit impersonation', {
+        adminUserId,
+        role: adminUser?.role
+      });
+      return forbidden('Invalid admin user');
     }
 
     // Log the exit action
@@ -43,17 +51,14 @@ export async function POST(request: NextRequest) {
       userAgent: request.headers.get('user-agent') || 'unknown',
     });
 
-    console.log(`✅ Impersonation exit logged`);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Exited impersonation mode',
+    logger.security.info('Impersonation exit logged', {
+      adminUserId,
+      adminEmail: adminUser.email
     });
+
+    return successResponse({ exited: true }, 'Exited impersonation mode');
   } catch (error) {
-    console.error('❌ Exit impersonation error:', error);
-    return NextResponse.json({
-      error: 'Failed to exit impersonation',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    logger.api.error('Exit impersonation error', error);
+    return internalError();
   }
-}
+});

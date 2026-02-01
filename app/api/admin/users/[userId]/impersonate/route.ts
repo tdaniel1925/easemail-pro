@@ -3,6 +3,9 @@ import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, userAuditLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,19 +14,20 @@ type RouteContext = {
 };
 
 /**
- * POST /api/admin/users/[userId]/impersonate
+ * POST /api/admin/users/[userId]/impersonate (CSRF Protected)
  *
  * Allow platform admins to impersonate (log in as) another user for troubleshooting.
  * This creates a temporary session for the target user and logs the impersonation.
  */
-export async function POST(request: NextRequest, context: RouteContext) {
+export const POST = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
     const { userId: targetUserId } = await context.params;
     const supabase = await createClient();
     const { data: { user: adminUser } } = await supabase.auth.getUser();
 
     if (!adminUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.security.warn('Unauthorized impersonation attempt');
+      return unauthorized();
     }
 
     // Check if requesting user is platform admin
@@ -32,12 +36,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!dbAdmin || dbAdmin.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted impersonation', {
+        userId: adminUser.id,
+        email: adminUser.email,
+        role: dbAdmin?.role,
+        targetUserId
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Prevent self-impersonation (no real benefit, could cause confusion)
     if (targetUserId === adminUser.id) {
-      return NextResponse.json({ error: 'Cannot impersonate yourself' }, { status: 400 });
+      logger.security.warn('Admin attempted self-impersonation', {
+        adminEmail: dbAdmin.email,
+        adminId: adminUser.id
+      });
+      return badRequest('Cannot impersonate yourself');
     }
 
     // Get target user details
@@ -46,24 +60,39 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!targetUser) {
-      return NextResponse.json({ error: 'Target user not found' }, { status: 404 });
+      logger.security.warn('Impersonation target user not found', {
+        adminEmail: dbAdmin.email,
+        targetUserId
+      });
+      return notFound('Target user not found');
     }
 
     // Check if target user is suspended
     if (targetUser.suspended) {
-      return NextResponse.json({
-        error: 'Cannot impersonate suspended user',
-        details: 'The target user account is currently suspended'
-      }, { status: 400 });
+      logger.security.warn('Attempted to impersonate suspended user', {
+        adminEmail: dbAdmin.email,
+        targetUserId,
+        targetEmail: targetUser.email
+      });
+      return badRequest('Cannot impersonate suspended user');
     }
 
-    console.log(`🎭 Admin ${dbAdmin.email} (${adminUser.id}) impersonating user ${targetUser.email} (${targetUserId})`);
+    logger.security.info('Starting user impersonation', {
+      adminEmail: dbAdmin.email,
+      adminId: adminUser.id,
+      targetEmail: targetUser.email,
+      targetUserId
+    });
 
     // Create impersonation session using Supabase Admin Client
     const adminClient = await createAdminClient();
 
     // Generate a magic link and extract the OTP token
-    console.log('[Impersonate] Generating OTP for user:', targetUserId);
+    logger.auth.debug('Generating OTP for impersonation', {
+      targetUserId,
+      targetEmail: targetUser.email,
+      adminEmail: dbAdmin.email
+    });
 
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
       type: 'magiclink',
@@ -71,22 +100,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (linkError || !linkData) {
-      console.error('[Impersonate] Failed to generate link:', linkError);
-      return NextResponse.json({
-        error: 'Failed to create impersonation session',
-        details: linkError?.message || 'Link generation failed'
-      }, { status: 500 });
+      logger.auth.error('Failed to generate impersonation link', {
+        error: linkError,
+        targetUserId,
+        adminEmail: dbAdmin.email
+      });
+      return internalError();
     }
 
     // Extract the OTP from the generated link
     const emailOtp = linkData.properties.email_otp;
 
     if (!emailOtp) {
-      console.error('[Impersonate] No OTP in response');
-      return NextResponse.json({
-        error: 'Failed to create impersonation session',
-        details: 'No OTP generated'
-      }, { status: 500 });
+      logger.auth.error('No OTP in impersonation response', {
+        targetUserId,
+        adminEmail: dbAdmin.email
+      });
+      return internalError();
     }
 
     // Verify the OTP using the regular client to get a session
@@ -98,21 +128,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (verifyError || !verifyData?.session) {
-      console.error('[Impersonate] Failed to verify OTP:', verifyError);
-      return NextResponse.json({
-        error: 'Failed to create impersonation session',
-        details: verifyError?.message || 'OTP verification failed'
-      }, { status: 500 });
+      logger.auth.error('Failed to verify impersonation OTP', {
+        error: verifyError,
+        targetUserId,
+        adminEmail: dbAdmin.email
+      });
+      return internalError();
     }
 
     const accessToken = verifyData.session?.access_token;
     const refreshToken = verifyData.session?.refresh_token;
 
-    console.log('[Impersonate] Session created successfully:', {
+    logger.auth.info('Impersonation session created successfully', {
       hasAccessToken: !!accessToken,
       hasRefreshToken: !!refreshToken,
-      accessTokenLength: accessToken?.length || 0,
-      refreshTokenLength: refreshToken?.length || 0
+      targetUserId,
+      adminEmail: dbAdmin.email
     });
 
     // Log the impersonation action in audit logs
@@ -144,11 +175,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
       userAgent: request.headers.get('user-agent') || 'unknown',
     });
 
-    console.log(`✅ Impersonation tokens generated successfully`);
+    logger.security.info('Impersonation completed successfully', {
+      adminId: adminUser.id,
+      adminEmail: dbAdmin.email,
+      targetUserId,
+      targetEmail: targetUser.email
+    });
 
     // Create response with impersonation metadata
-    const response = NextResponse.json({
-      success: true,
+    return successResponse({
       session: {
         access_token: accessToken,
         refresh_token: refreshToken,
@@ -166,14 +201,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
         targetEmail: targetUser.email,
         startedAt: new Date().toISOString(),
       },
-    });
-
-    return response;
+    }, 'Impersonation session created');
   } catch (error) {
-    console.error('❌ User impersonation error:', error);
-    return NextResponse.json({
-      error: 'Failed to impersonate user',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    logger.api.error('User impersonation error', error);
+    return internalError();
   }
-}
+});
