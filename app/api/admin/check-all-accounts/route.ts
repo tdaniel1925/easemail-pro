@@ -9,6 +9,8 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
 import { emailAccounts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { successResponse, unauthorized, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,10 +19,11 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized account check attempt');
+      return unauthorized();
     }
 
-    console.log('[Account Check] Checking all accounts for user:', user.id);
+    logger.admin.info('Checking accounts', { userId: user.id });
 
     // 2. Find all user's accounts
     const allUserAccounts = await db.query.emailAccounts.findMany({
@@ -47,8 +50,12 @@ export async function GET(request: NextRequest) {
       });
     });
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('Accounts checked', {
+      userId: user.id,
+      totalAccounts: allUserAccounts.length
+    });
+
+    return successResponse({
       userId: user.id,
       userEmail: user.email,
       totalAccounts: allUserAccounts.length,
@@ -60,15 +67,12 @@ export async function GET(request: NextRequest) {
         emailProvider: acc.emailProvider,
         nylasProvider: acc.nylasProvider,
         nylasGrantId: acc.nylasGrantId,
-        userId: acc.userId,
-      })),
+        userId: acc.userId
+      }))
     });
 
   } catch (error) {
-    console.error('[Account Check] Error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to check accounts',
-    }, { status: 500 });
+    logger.api.error('Error checking accounts', error);
+    return internalError();
   }
 }

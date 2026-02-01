@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { sql } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
-export async function POST(request: NextRequest) {
+// NOTE: This route lacks authentication - should require admin auth before production use
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
-    console.log('🔄 Running webhook suppression migration...');
+    logger.admin.info('Running webhook suppression migration');
 
     // Add suppress_webhooks column
     await db.execute(sql`
@@ -28,17 +32,11 @@ export async function POST(request: NextRequest) {
       COMMENT ON COLUMN email_accounts.suppress_webhooks IS 'Temporary flag to suppress webhook processing during initial sync to prevent race conditions'
     `);
 
-    console.log('✅ Migration completed successfully!');
+    logger.admin.info('Webhook suppression migration completed');
 
-    return NextResponse.json({
-      success: true,
-      message: 'Webhook suppression migration completed'
-    });
+    return successResponse({}, 'Webhook suppression migration completed');
   } catch (error: any) {
-    console.error('❌ Migration failed:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message
-    }, { status: 500 });
+    logger.api.error('Migration failed', error);
+    return internalError();
   }
-}
+});

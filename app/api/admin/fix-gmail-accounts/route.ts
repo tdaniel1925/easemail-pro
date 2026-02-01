@@ -7,6 +7,9 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
 import { emailAccounts } from '@/lib/db/schema';
 import { eq, isNull, or } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,10 +18,11 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized Gmail fix check attempt');
+      return unauthorized();
     }
 
-    console.log('[Gmail Fix] Checking Gmail accounts for user:', user.id);
+    logger.admin.info('Checking Gmail accounts', { userId: user.id });
 
     // 2. Find all Gmail accounts
     const allGmailAccounts = await db.query.emailAccounts.findMany({
@@ -32,15 +36,19 @@ export async function GET(request: NextRequest) {
       !acc.userId || acc.userId !== user.id
     );
 
-    console.log(`[Gmail Fix] Found ${problemAccounts.length} Gmail accounts with userId issues`);
-
     // 4. Find user's Gmail accounts specifically
     const userGmailAccounts = allGmailAccounts.filter(acc =>
       acc.userId === user.id
     );
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('Gmail accounts checked', {
+      userId: user.id,
+      totalGmailAccounts: allGmailAccounts.length,
+      userGmailAccounts: userGmailAccounts.length,
+      problemAccounts: problemAccounts.length
+    });
+
+    return successResponse({
       userId: user.id,
       userEmail: user.email,
       totalGmailAccounts: allGmailAccounts.length,
@@ -52,29 +60,30 @@ export async function GET(request: NextRequest) {
         userId: acc.userId,
         hasIssue: !acc.userId || acc.userId !== user.id,
         nylasGrantId: acc.nylasGrantId,
-      })),
+      }))
     });
 
   } catch (error) {
-    console.error('[Gmail Fix] Error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to check Gmail accounts',
-    }, { status: 500 });
+    logger.api.error('Error checking Gmail accounts', error);
+    return internalError();
   }
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
     // 1. Verify user authentication
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized Gmail fix attempt');
+      return unauthorized();
     }
 
-    console.log('[Gmail Fix] Fixing Gmail accounts for user:', user.id, user.email);
+    logger.admin.info('Fixing Gmail accounts', {
+      userId: user.id,
+      userEmail: user.email
+    });
 
     // 2. Find Gmail accounts that match user's email but have wrong/null userId
     const gmailAccountsToFix = await db.query.emailAccounts.findMany({
@@ -118,21 +127,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('Gmail accounts fixed', {
+      userId: user.id,
+      fixed: fixed.length,
+      errors: errors.length
+    });
+
+    return successResponse({
       fixed: fixed.length,
       errors: errors.length,
       details: {
         fixed,
-        errors,
-      },
-    });
+        errors
+      }
+    }, `Successfully fixed ${fixed.length} Gmail account(s)`);
 
   } catch (error) {
-    console.error('[Gmail Fix] Error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to fix Gmail accounts',
-    }, { status: 500 });
+    logger.api.error('Error fixing Gmail accounts', error);
+    return internalError();
   }
-}
+});

@@ -3,27 +3,32 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { emailAccounts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, badRequest, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * POST /api/admin/force-reauth-account
+ * POST /api/admin/force-reauth-account (CSRF Protected)
  * Force an email account to require re-authentication
  * This clears tokens and marks the account for re-auth
  */
-export async function POST(request: NextRequest) {
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized force reauth attempt');
+      return unauthorized();
     }
 
     const { email } = await request.json();
 
     if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+      logger.admin.warn('Force reauth missing email', { userId: user.id });
+      return badRequest('Email is required');
     }
 
     // Find the account
@@ -32,10 +37,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (!account) {
-      return NextResponse.json(
-        { error: `No account found for ${email}` },
-        { status: 404 }
-      );
+      logger.admin.warn('Account not found for force reauth', { userId: user.id, email });
+      return notFound(`No account found for ${email}`);
     }
 
     // Clear tokens and force re-auth
@@ -51,17 +54,19 @@ export async function POST(request: NextRequest) {
       })
       .where(eq(emailAccounts.id, account.id));
 
-    return NextResponse.json({
-      success: true,
-      message: `Account ${email} marked for re-authentication`,
+    logger.admin.info('Account marked for re-authentication', {
+      userId: user.id,
+      email,
       accountId: account.id,
-      grantId: account.nylasGrantId,
+      grantId: account.nylasGrantId
     });
+
+    return successResponse({
+      accountId: account.id,
+      grantId: account.nylasGrantId
+    }, `Account ${email} marked for re-authentication`);
   } catch (error: any) {
-    console.error('Force reauth error:', error);
-    return NextResponse.json(
-      { error: 'Failed to force re-auth' },
-      { status: 500 }
-    );
+    logger.api.error('Force reauth error', error);
+    return internalError();
   }
-}
+});

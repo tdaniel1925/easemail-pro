@@ -8,6 +8,9 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { contacts, users } from '@/lib/db/schema';
 import { sql, eq } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes max
@@ -22,7 +25,7 @@ const TAGS_TO_REMOVE = [
   'All Contacts',
 ];
 
-export async function POST(request: NextRequest) {
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   const startTime = Date.now();
 
   try {
@@ -31,7 +34,8 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized tag cleanup attempt');
+      return unauthorized();
     }
 
     // Check if user is admin
@@ -40,10 +44,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted tag cleanup', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
-    console.log('🧹 Starting tag cleanup (admin)...');
+    logger.admin.info('Starting tag cleanup', {
+      triggeredBy: dbUser.email
+    });
 
     // Get all contacts with tags
     const allContacts = await db.select().from(contacts);
@@ -78,25 +89,22 @@ export async function POST(request: NextRequest) {
 
     const duration = Date.now() - startTime;
 
-    console.log('✅ Tag cleanup complete!');
-    console.log(`   - Contacts updated: ${updatedCount}`);
-    console.log(`   - Total tags removed: ${totalTagsRemoved}`);
-
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('Tag cleanup complete', {
+      triggeredBy: dbUser.email,
       contactsUpdated: updatedCount,
       tagsRemoved: totalTagsRemoved,
       totalContacts: allContacts.length,
-      duration,
+      durationMs: duration
     });
-  } catch (error) {
-    console.error('❌ Tag cleanup failed:', error);
 
-    return NextResponse.json({
-      success: false,
-      error: 'Tag cleanup failed',
-      details: error instanceof Error ? error.message : 'Unknown error',
-      duration: Date.now() - startTime,
-    }, { status: 500 });
+    return successResponse({
+      contactsUpdated: updatedCount,
+      tagsRemoved: totalTagsRemoved,
+      totalContacts: allContacts.length,
+      duration
+    }, 'Tag cleanup completed successfully');
+  } catch (error) {
+    logger.api.error('Tag cleanup failed', error);
+    return internalError();
   }
-}
+});

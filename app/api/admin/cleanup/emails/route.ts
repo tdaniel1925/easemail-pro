@@ -8,6 +8,9 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { contacts, users } from '@/lib/db/schema';
 import { sql, eq } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes max
@@ -32,7 +35,7 @@ const PLACEHOLDER_PATTERNS = [
   '@test',
 ];
 
-export async function POST(request: NextRequest) {
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   const startTime = Date.now();
 
   try {
@@ -41,7 +44,8 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized email cleanup attempt');
+      return unauthorized();
     }
 
     // Check if user is admin
@@ -50,10 +54,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted email cleanup', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
-    console.log('🧹 Starting placeholder email cleanup (admin)...');
+    logger.admin.info('Starting placeholder email cleanup', {
+      triggeredBy: dbUser.email
+    });
 
     // Get all contacts
     const allContacts = await db.select().from(contacts);
@@ -93,25 +104,22 @@ export async function POST(request: NextRequest) {
 
     const duration = Date.now() - startTime;
 
-    console.log('✅ Placeholder email cleanup complete!');
-    console.log(`   - Emails removed (contacts kept): ${updatedCount}`);
-    console.log(`   - Contacts deleted: ${deletedCount}`);
-
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('Placeholder email cleanup complete', {
+      triggeredBy: dbUser.email,
       emailsRemoved: updatedCount,
       contactsDeleted: deletedCount,
       totalContacts: allContacts.length,
-      duration,
+      durationMs: duration
     });
-  } catch (error) {
-    console.error('❌ Placeholder email cleanup failed:', error);
 
-    return NextResponse.json({
-      success: false,
-      error: 'Email cleanup failed',
-      details: error instanceof Error ? error.message : 'Unknown error',
-      duration: Date.now() - startTime,
-    }, { status: 500 });
+    return successResponse({
+      emailsRemoved: updatedCount,
+      contactsDeleted: deletedCount,
+      totalContacts: allContacts.length,
+      duration
+    }, 'Email cleanup completed successfully');
+  } catch (error) {
+    logger.api.error('Email cleanup failed', error);
+    return internalError();
   }
-}
+});

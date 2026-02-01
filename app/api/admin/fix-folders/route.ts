@@ -10,26 +10,33 @@ import { emails, emailAccounts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { assignEmailFolder } from '@/lib/email/folder-utils';
 import { createClient } from '@/lib/supabase/server';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 // Force dynamic rendering - this route uses cookies
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function POST(request: NextRequest) {
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
     // Authenticate
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized folder fix attempt');
+      return unauthorized();
     }
 
     const body = await request.json();
     const { accountId, dryRun = true } = body;
 
-    console.log('🔧 Starting Folder Assignment Fix');
-    console.log(`Mode: ${dryRun ? 'DRY RUN' : 'LIVE'}`);
+    logger.admin.info('Starting folder assignment fix', {
+      userId: user.id,
+      accountId,
+      mode: dryRun ? 'dry-run' : 'live'
+    });
 
     const stats = {
       totalEmails: 0,
@@ -49,13 +56,14 @@ export async function POST(request: NextRequest) {
         });
 
     if (accounts.length === 0) {
-      return NextResponse.json({ 
-        error: 'No accounts found',
-        stats 
-      }, { status: 404 });
+      logger.admin.warn('No accounts found for folder fix', { userId: user.id, accountId });
+      return notFound('No accounts found');
     }
 
-    console.log(`📧 Processing ${accounts.length} account(s)...`);
+    logger.admin.info(`Processing accounts for folder fix`, {
+      userId: user.id,
+      accountCount: accounts.length
+    });
 
     for (const account of accounts) {
       console.log(`\n📬 Account: ${account.emailAddress}`);
@@ -113,27 +121,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('\n📊 Summary:');
-    console.log(`Total emails: ${stats.totalEmails}`);
-    console.log(`Incorrectly assigned: ${stats.incorrectlyAssigned}`);
-    console.log(`${dryRun ? 'Would fix' : 'Fixed'}: ${stats.fixed}`);
-    console.log(`Errors: ${stats.errors}`);
-
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('Folder assignment fix complete', {
+      userId: user.id,
       mode: dryRun ? 'dry-run' : 'live',
-      stats,
-      message: dryRun 
-        ? `Found ${stats.incorrectlyAssigned} emails that need fixing. Call again with dryRun=false to fix them.`
-        : `Successfully fixed ${stats.fixed} emails!`,
+      totalEmails: stats.totalEmails,
+      incorrectlyAssigned: stats.incorrectlyAssigned,
+      fixed: stats.fixed,
+      errors: stats.errors
     });
 
+    return successResponse({
+      mode: dryRun ? 'dry-run' : 'live',
+      stats
+    }, dryRun
+      ? `Found ${stats.incorrectlyAssigned} emails that need fixing. Call again with dryRun=false to fix them.`
+      : `Successfully fixed ${stats.fixed} emails!`
+    );
+
   } catch (error: any) {
-    console.error('❌ Fix failed:', error);
-    return NextResponse.json({ 
-      error: 'Migration failed', 
-      details: error.message 
-    }, { status: 500 });
+    logger.api.error('Folder fix failed', error);
+    return internalError();
   }
-}
+});
 

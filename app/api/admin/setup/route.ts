@@ -15,6 +15,8 @@ import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { checkPlatformAdminExists } from '@/lib/auth/admin-check';
 import { authRateLimit, enforceRateLimit } from '@/lib/security/rate-limiter';
+import { successResponse, badRequest, forbidden, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,10 +39,15 @@ export async function POST(request: NextRequest) {
     // 2. Check if admin already exists
     const adminExists = await checkPlatformAdminExists();
     if (adminExists) {
-      console.warn('⚠️ Admin setup attempted but platform admin already exists');
+      logger.security.warn('Admin setup attempted but platform admin already exists', {
+        clientIp
+      });
       return NextResponse.json({
+        success: false,
         error: 'Setup already completed. Platform admin already exists.',
+        code: 'SETUP_ALREADY_COMPLETED',
         hint: 'If you need to add additional admins, please use the admin panel.',
+        timestamp: new Date().toISOString()
       }, { status: 403 });
     }
 
@@ -49,25 +56,25 @@ export async function POST(request: NextRequest) {
 
     const expectedToken = process.env.ADMIN_SETUP_TOKEN;
     if (!expectedToken) {
-      console.error('❌ ADMIN_SETUP_TOKEN not configured in environment');
+      logger.security.error('ADMIN_SETUP_TOKEN not configured in environment');
       return NextResponse.json({
+        success: false,
         error: 'Admin setup is not properly configured',
+        code: 'SETUP_NOT_CONFIGURED',
         hint: 'Please set ADMIN_SETUP_TOKEN in environment variables',
+        timestamp: new Date().toISOString()
       }, { status: 500 });
     }
 
     if (!setupToken || setupToken !== expectedToken) {
-      console.warn('⚠️ Invalid setup token provided');
-      return NextResponse.json({
-        error: 'Invalid setup token',
-      }, { status: 403 });
+      logger.security.warn('Invalid setup token provided', { clientIp });
+      return forbidden('Invalid setup token');
     }
 
     // 4. Validate email
     if (!email || typeof email !== 'string') {
-      return NextResponse.json({
-        error: 'Valid email is required'
-      }, { status: 400 });
+      logger.security.warn('Invalid email in setup request', { clientIp });
+      return badRequest('Valid email is required');
     }
 
     // 5. Find user by email
@@ -76,9 +83,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json({
-        error: 'User not found. Please create an account first.'
-      }, { status: 404 });
+      logger.security.warn('Setup attempted for non-existent user', {
+        email,
+        clientIp
+      });
+      return notFound('User not found. Please create an account first.');
     }
 
     // 6. Update user role to platform_admin
@@ -89,19 +98,19 @@ export async function POST(request: NextRequest) {
       })
       .where(eq(users.id, user.id));
 
-    console.log(`✅ Platform admin created: ${email} (${user.id})`);
-
-    return NextResponse.json({
-      success: true,
-      message: `User ${email} is now a platform admin`,
+    logger.security.info('Platform admin created', {
+      email,
       userId: user.id,
+      clientIp
     });
+
+    return successResponse({
+      userId: user.id,
+      email
+    }, `User ${email} is now a platform admin`);
   } catch (error) {
-    console.error('❌ Admin setup error:', error);
-    return NextResponse.json({
-      error: 'Failed to complete admin setup',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    }, { status: 500 });
+    logger.security.error('Admin setup error', error);
+    return internalError();
   }
 }
 
