@@ -295,9 +295,78 @@ export function EmailViewerV3({
     return (
       <>
         <Dialog />
-        <div className="flex flex-col h-full items-center justify-center bg-card">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="mt-4 text-sm text-muted-foreground">Loading message...</p>
+        <div className="flex flex-col h-full bg-card overflow-hidden">
+          {/* Header Skeleton */}
+          <div className="flex-shrink-0 min-h-14 px-2 py-1.5 border-b border-border">
+            <div className="flex items-center justify-between gap-1.5">
+              {/* Subject skeleton */}
+              <div className="h-4 bg-muted rounded animate-pulse w-2/3"></div>
+              {/* Action buttons skeleton */}
+              <div className="flex gap-0 flex-shrink-0">
+                <div className="h-5 w-5 bg-muted rounded animate-pulse"></div>
+                <div className="h-5 w-5 bg-muted rounded animate-pulse ml-1"></div>
+                <div className="h-5 w-5 bg-muted rounded animate-pulse ml-1"></div>
+                <div className="h-5 w-5 bg-muted rounded animate-pulse ml-1"></div>
+              </div>
+            </div>
+
+            {/* Sender Info Skeleton */}
+            <div className="flex items-center justify-between gap-1.5 mt-2">
+              <div className="flex items-center gap-1.5">
+                {/* Avatar skeleton */}
+                <div className="w-5 h-5 rounded-full bg-muted animate-pulse"></div>
+                <div className="space-y-1">
+                  {/* Name skeleton */}
+                  <div className="h-3 bg-muted rounded animate-pulse w-32"></div>
+                  {/* Date skeleton */}
+                  <div className="h-2 bg-muted rounded animate-pulse w-24"></div>
+                </div>
+              </div>
+
+              {/* Action buttons skeleton (desktop) */}
+              <div className="hidden md:flex gap-0.5">
+                <div className="h-5 w-16 bg-muted rounded animate-pulse"></div>
+                <div className="h-5 w-12 bg-muted rounded animate-pulse ml-1"></div>
+                <div className="h-5 w-12 bg-muted rounded animate-pulse ml-1"></div>
+              </div>
+            </div>
+
+            {/* Recipients Skeleton */}
+            <div className="mt-2 space-y-1">
+              <div className="h-2 bg-muted rounded animate-pulse w-48"></div>
+              <div className="h-2 bg-muted rounded animate-pulse w-40"></div>
+            </div>
+          </div>
+
+          {/* Body Skeleton */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {/* Text lines skeleton */}
+            <div className="h-3 bg-muted rounded animate-pulse w-full"></div>
+            <div className="h-3 bg-muted rounded animate-pulse w-11/12"></div>
+            <div className="h-3 bg-muted rounded animate-pulse w-full"></div>
+            <div className="h-3 bg-muted rounded animate-pulse w-10/12"></div>
+            <div className="h-3 bg-muted rounded animate-pulse w-full"></div>
+            <div className="h-3 bg-muted rounded animate-pulse w-9/12"></div>
+
+            <div className="h-3 bg-muted rounded animate-pulse w-full mt-4"></div>
+            <div className="h-3 bg-muted rounded animate-pulse w-full"></div>
+            <div className="h-3 bg-muted rounded animate-pulse w-8/12"></div>
+
+            {/* Attachments skeleton */}
+            <div className="mt-6 space-y-2">
+              <div className="h-16 bg-muted rounded animate-pulse w-48"></div>
+              <div className="h-16 bg-muted rounded animate-pulse w-48"></div>
+            </div>
+          </div>
+
+          {/* Mobile Actions Skeleton */}
+          <div className="md:hidden flex-shrink-0 border-t border-border p-2">
+            <div className="flex gap-2 justify-around">
+              <div className="h-8 w-20 bg-muted rounded animate-pulse"></div>
+              <div className="h-8 w-20 bg-muted rounded animate-pulse"></div>
+              <div className="h-8 w-20 bg-muted rounded animate-pulse"></div>
+            </div>
+          </div>
         </div>
       </>
     );
