@@ -261,7 +261,7 @@ export function EmailListEnhancedV3({
     setExpandedEmailId(null);
     setSelectedEmailId(null);
     loadMessages(true);
-  }, [accountId, folderId]);
+  }, [accountId, folderId, folderName]);
 
   // Fetch SMS unread count on mount and poll every 60 seconds (consolidated - was duplicate)
   useEffect(() => {
@@ -372,6 +372,11 @@ export function EmailListEnhancedV3({
 
       if (folderId) {
         params.append('folderId', folderId);
+      }
+
+      // Always pass folderName for special folders (starred, archive, etc.)
+      if (folderName) {
+        params.append('folderName', folderName);
       }
 
       if (!reset && nextCursor) {

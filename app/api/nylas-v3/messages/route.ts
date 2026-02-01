@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get('accountId');
     const folderId = searchParams.get('folderId');
+    const folderName = searchParams.get('folderName');
     const limit = parseInt(searchParams.get('limit') || '50');
     const cursor = searchParams.get('cursor');
     const unread = searchParams.get('unread');
@@ -89,12 +90,12 @@ export async function GET(request: NextRequest) {
 
     if (useLocalDatabase) {
       // Determine folder name (normalized)
-      let folderName: string;
+      let resolvedFolderName: string;
 
       if (isVirtualFolder) {
         // Parse folder name from virtual folder format: v0:accountId:folderName
         const parts = folderId!.split(':');
-        folderName = parts[2]?.toLowerCase() || 'inbox';
+        resolvedFolderName = parts[2]?.toLowerCase() || 'inbox';
       } else if (folderId) {
         // For IMAP accounts, folderId is the database folder ID (UUID)
         // Look up the folder to get the normalized folderType
@@ -111,17 +112,21 @@ export async function GET(request: NextRequest) {
         }
 
         // Use folderType (normalized: inbox, sent, trash, etc.)
-        folderName = folder.folderType || 'inbox';
-        console.log(`[Messages] Folder lookup: ID=${folderId} → Type=${folderName}, Display=${folder.displayName}`);
+        resolvedFolderName = folder.folderType || 'inbox';
+        console.log(`[Messages] Folder lookup: ID=${folderId} → Type=${resolvedFolderName}, Display=${folder.displayName}`);
+      } else if (folderName) {
+        // Use the passed folderName parameter (for special folders like starred, archive, etc.)
+        resolvedFolderName = folderName.toLowerCase();
+        console.log(`[Messages] Using passed folderName: ${resolvedFolderName}`);
       } else {
         // No folder specified, default to inbox
-        folderName = 'inbox';
+        resolvedFolderName = 'inbox';
       }
 
       // Parse cursor for offset-based pagination (cursor is the offset number as string)
       const offset = cursor ? parseInt(cursor, 10) : 0;
 
-      console.log('[Messages] Fetching from local database - Folder:', folderName, 'Account:', account.emailProvider, 'Provider:', account.provider, 'Offset:', offset, 'Limit:', limit);
+      console.log('[Messages] Fetching from local database - Folder:', resolvedFolderName, 'Account:', account.emailProvider, 'Provider:', account.provider, 'Offset:', offset, 'Limit:', limit);
 
       // Query local database - OPTIMIZED: Don't fetch body for list view (save bandwidth)
       // Body is fetched separately when user opens an email
@@ -150,7 +155,7 @@ export async function GET(request: NextRequest) {
         .from(emails)
         .where(and(
           eq(emails.accountId, account.id),
-          eq(emails.folder, folderName)
+          eq(emails.folder, resolvedFolderName)
         ))
         .orderBy(desc(emails.sentAt))
         .limit(limit + 1) // Fetch one extra to check if there are more
@@ -161,7 +166,7 @@ export async function GET(request: NextRequest) {
       const messagesToReturn = hasMore ? dbMessages.slice(0, limit) : dbMessages;
       const nextOffset = hasMore ? offset + limit : null;
 
-      console.log(`[Messages] Found ${messagesToReturn.length} emails in local database for folder: ${folderName}, hasMore: ${hasMore}`);
+      console.log(`[Messages] Found ${messagesToReturn.length} emails in local database for folder: ${resolvedFolderName}, hasMore: ${hasMore}`);
 
       // Transform database messages to Nylas format
       result = {
@@ -191,7 +196,7 @@ export async function GET(request: NextRequest) {
             starred: msg.isStarred || false,
             snippet: msg.snippet || '',
             // body excluded from list view for performance - fetch via /messages/[id]
-            folders: Array.isArray(msg.folders) ? msg.folders : [folderName],
+            folders: Array.isArray(msg.folders) ? msg.folders : [resolvedFolderName],
             attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
             hasAttachments: Array.isArray(msg.attachments) && msg.attachments.length > 0,
           };
