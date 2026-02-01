@@ -65,6 +65,7 @@ import { printEmail } from '@/components/email/PrintEmail';
 import { downloadEml } from '@/lib/utils/downloadEml';
 import { HoverQuickActions } from '@/components/email/HoverQuickActions';
 import { TrainAIButton } from '@/components/inbox/TrainAIButton';
+import { SnoozePicker } from '@/components/email/SnoozePicker';
 
 interface EmailMessage {
   id: string;
@@ -142,6 +143,10 @@ export function EmailListEnhancedV3({
     isOpen: boolean;
     email: EmailMessage | null;
   }>({ isOpen: false, email: null });
+  const [snoozeDialog, setSnoozeDialog] = useState<{
+    isOpen: boolean;
+    emailId: string | null;
+  }>({ isOpen: false, emailId: null });
   const [hoveredEmailId, setHoveredEmailId] = useState<string | null>(null);
 
   // Advanced search state
@@ -521,6 +526,49 @@ export function EmailListEnhancedV3({
     }
   };
 
+  const handleSnooze = async (until: Date) => {
+    if (!snoozeDialog.emailId) return;
+
+    try {
+      // Optimistically remove from UI
+      setLocallyRemovedEmails((prev) => new Set(prev).add(snoozeDialog.emailId!));
+
+      const response = await fetch('/api/nylas-v3/messages/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId,
+          messageIds: [snoozeDialog.emailId],
+          action: 'snooze',
+          value: until.toISOString(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        // Revert on failure
+        setLocallyRemovedEmails((prev) => {
+          const next = new Set(prev);
+          next.delete(snoozeDialog.emailId!);
+          return next;
+        });
+        console.error('Failed to snooze email');
+      }
+
+      // Close dialog
+      setSnoozeDialog({ isOpen: false, emailId: null });
+    } catch (error) {
+      console.error('Snooze error:', error);
+      // Revert on error
+      setLocallyRemovedEmails((prev) => {
+        const next = new Set(prev);
+        next.delete(snoozeDialog.emailId!);
+        return next;
+      });
+    }
+  };
+
   const handleUndo = () => {
     if (!undoStack) return;
 
@@ -744,8 +792,7 @@ export function EmailListEnhancedV3({
                     message.starred = false;
                   }}
                   onSnooze={() => {
-                    // Snooze functionality would open a snooze dialog
-                    console.log('Snooze email:', message.id);
+                    setSnoozeDialog({ isOpen: true, emailId: message.id });
                   }}
                   onMoveToFolder={() => {
                     // Move to folder functionality
@@ -818,7 +865,7 @@ export function EmailListEnhancedV3({
                           body: JSON.stringify({ accountId, messageIds: [message.id], action: 'delete' }),
                         });
                       }}
-                      onSnooze={() => console.log('Snooze:', message.id)}
+                      onSnooze={() => setSnoozeDialog({ isOpen: true, emailId: message.id })}
                       onToggleRead={async () => {
                         const action = message.unread ? 'markRead' : 'markUnread';
                         await fetch('/api/nylas-v3/messages/bulk', {
@@ -1125,6 +1172,13 @@ export function EmailListEnhancedV3({
           }}
         />
       )}
+
+      {/* Snooze Picker Dialog */}
+      <SnoozePicker
+        open={snoozeDialog.isOpen}
+        onClose={() => setSnoozeDialog({ isOpen: false, emailId: null })}
+        onSnooze={handleSnooze}
+      />
     </div>
   );
 }
