@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
       subject,
       body: emailBody,
       replyToMessageId,
-      attachments
+      attachments,
+      scheduledAt // Scheduled send time
     } = body;
 
     // 1. Verify user authentication
@@ -136,6 +137,7 @@ export async function POST(request: NextRequest) {
           subject: subject || '(No Subject)',
           bodyHtml: emailBody || '',
           attachments: attachments || [],
+          scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
           updatedAt: new Date(),
         })
         .where(
@@ -163,6 +165,7 @@ export async function POST(request: NextRequest) {
           subject: subject || '(No Subject)',
           bodyHtml: emailBody || '',
           attachments: attachments || [],
+          scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         })
         .returning();
 

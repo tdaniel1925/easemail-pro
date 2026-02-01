@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
-import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code, Sparkles, Plus, ChevronDown, Loader2 } from 'lucide-react';
+import { X, Minimize2, Maximize2, Paperclip, Send, Image, Link2, List, PenTool, Check, Heading1, Heading2, Heading3, Code, Sparkles, Plus, ChevronDown, Loader2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,7 @@ import { URLInputDialog } from '@/components/ui/url-input-dialog';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { SignaturePromptModal } from '@/components/email/SignaturePromptModal';
 import { SignatureEditorModal, SignatureFormData } from '@/components/signatures/SignatureEditorModal';
+import { ScheduledSendPicker } from '@/components/email/ScheduledSendPicker';
 import { useAccount } from '@/contexts/AccountContext';
 import { formatDistanceToNow } from 'date-fns';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -176,6 +177,10 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
 
   // Progressive disclosure - hide advanced features by default
   const [showAdvancedFeatures, setShowAdvancedFeatures] = useState(false);
+
+  // Scheduled send state
+  const [showSchedulePicker, setShowSchedulePicker] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
 
   // ✅ FIX: Reset recipients when replyTo changes (when modal reopens with new email)
   useEffect(() => {
@@ -907,6 +912,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         attachments: [],
         replyToEmailId: replyTo?.messageId, // Provider message ID or database UUID
         replyType: type,
+        scheduledAt: scheduledAt ? scheduledAt.toISOString() : undefined, // Scheduled send time
       };
 
       // Add draft ID if updating an existing draft
@@ -1917,6 +1923,35 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 </div>
               )}
 
+              {/* Scheduled Send Indicator */}
+              {scheduledAt && (
+                <div className="border-t border-border px-3 py-2 bg-muted/30">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-muted-foreground">
+                        Scheduled for: <span className="font-medium text-foreground">{scheduledAt.toLocaleString()}</span>
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setScheduledAt(null);
+                        setIsDirty(true);
+                        toast({
+                          title: 'Schedule Cleared',
+                          description: 'Email will no longer be sent automatically',
+                        });
+                      }}
+                      className="h-6 px-2 text-xs"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-between p-2">
                 <div className="flex items-center gap-1.5">
                   {/* Send Button - Simple or with Dropdown based on advanced features */}
@@ -2025,6 +2060,18 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                     </Button>
                   )}
 
+                  {/* Schedule Send Button */}
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowSchedulePicker(true)}
+                    className="gap-1.5 h-7 px-3 text-xs btn-press"
+                    disabled={isSending || !selectedAccountId}
+                    title={scheduledAt ? `Scheduled for ${scheduledAt.toLocaleString()}` : 'Schedule send'}
+                  >
+                    <Clock className="h-3 w-3" />
+                    {scheduledAt ? 'Scheduled' : 'Schedule'}
+                  </Button>
+
                   {/* Manual Save Draft Button - Only visible with advanced features */}
                   {showAdvancedFeatures && (
                     <Button
@@ -2083,6 +2130,22 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
       onClose={() => setShowSignatureEditor(false)}
       onSave={handleSaveNewSignature}
       accounts={accounts || []}
+    />
+
+    {/* Scheduled Send Picker */}
+    <ScheduledSendPicker
+      open={showSchedulePicker}
+      onClose={() => setShowSchedulePicker(false)}
+      onSchedule={(scheduledDate) => {
+        setScheduledAt(scheduledDate);
+        setIsDirty(true);
+        toast({
+          title: 'Send Scheduled',
+          description: `Email will be sent on ${scheduledDate.toLocaleString()}`,
+        });
+        // Auto-save the draft with scheduled time
+        handleSaveDraft(true);
+      }}
     />
 
     {/* Confirm Dialog */}
