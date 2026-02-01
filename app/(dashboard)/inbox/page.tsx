@@ -10,8 +10,9 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Pencil, MessageSquare, Users, Calendar, Paperclip, Loader2, Video } from 'lucide-react';
+import { Pencil, MessageSquare, Users, Calendar, Paperclip, Loader2, Video, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { FolderSidebarV3 } from '@/components/nylas-v3/folder-sidebar-v3';
 import { EmailListEnhancedV3 } from '@/components/nylas-v3/email-list-enhanced-v3';
 import EmailCompose from '@/components/email/EmailCompose';
@@ -69,6 +70,7 @@ function InboxV3Content() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedFolderName, setSelectedFolderName] = useState<string>('inbox');
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [selectedMessage, setSelectedMessage] = useState<any>(null);
   const [composeReplyTo, setComposeReplyTo] = useState<any>(null);
@@ -106,6 +108,7 @@ function InboxV3Content() {
     setSelectedFolderId(folderId);
     setSelectedFolderName(folderName);
     setSelectedMessageId(null); // Close email viewer when switching folders
+    setIsMobileSidebarOpen(false); // Close mobile sidebar after folder selection
   };
 
   const handleMessageSelect = (messageId: string) => {
@@ -225,90 +228,125 @@ function InboxV3Content() {
     setIsComposeOpen(true);
   };
 
+  // Sidebar content (reusable for both desktop and mobile)
+  const SidebarContent = () => (
+    <>
+      {/* Sidebar Header - Fixed */}
+      <div className="flex-shrink-0 h-14 px-5 flex items-center justify-center border-b border-border">
+        <EaseMailLogoFull className="h-8" />
+      </div>
+
+      {/* Action Buttons - Fixed */}
+      <div className="flex-shrink-0 p-3 border-b border-border space-y-2">
+        <Button
+          onClick={() => {
+            console.log('[Inbox] Compose clicked. selectedDbAccountId:', selectedDbAccountId);
+            setIsComposeOpen(true);
+            setIsMobileSidebarOpen(false); // Close mobile sidebar when opening compose
+          }}
+          className="w-full gap-2"
+          disabled={!selectedAccountId}
+        >
+          <Pencil className="h-4 w-4" />
+          Compose
+        </Button>
+      </div>
+
+      {/* Account Selector - Fixed */}
+      <div className="flex-shrink-0 p-3 border-b border-border">
+        <AccountSwitcher />
+      </div>
+
+      {/* Folders - Scrollable */}
+      <div className="flex-1 overflow-y-auto">
+        {selectedAccountId && (
+          <FolderSidebarV3
+            accountId={selectedAccountId}
+            selectedFolderId={selectedFolderId}
+            onFolderSelect={handleFolderSelect}
+          />
+        )}
+      </div>
+
+      {/* Quick Links - Fixed at bottom */}
+      <div className="flex-shrink-0 border-t border-border">
+        <div className="p-1.5 space-y-0.5">
+          <a
+            href="/teams"
+            className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          >
+            <Video className="h-3 w-3" />
+            MS Teams
+          </a>
+          <a
+            href="/contacts-v4"
+            className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          >
+            <Users className="h-3 w-3" />
+            Contacts
+          </a>
+          <a
+            href="/calendar"
+            className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          >
+            <Calendar className="h-3 w-3" />
+            Calendar
+          </a>
+          <a
+            href="/attachments"
+            className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          >
+            <Paperclip className="h-3 w-3" />
+            Attachments
+          </a>
+
+          {/* Settings Menu */}
+          <SettingsMenuNew
+            onLogout={handleLogout}
+            onNavigate={(path) => router.push(path)}
+          />
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <>
     <div className="flex h-screen bg-background overflow-hidden">
-      {/* Folder Sidebar - Fixed width with independent scroll */}
-      <div className="w-64 border-r border-border flex flex-col overflow-hidden">
-        {/* Sidebar Header - Fixed */}
-        <div className="flex-shrink-0 h-14 px-5 flex items-center justify-center border-b border-border">
-          <EaseMailLogoFull className="h-8" />
-        </div>
-
-        {/* Action Buttons - Fixed */}
-        <div className="flex-shrink-0 p-3 border-b border-border space-y-2">
-          <Button
-            onClick={() => {
-              console.log('[Inbox] Compose clicked. selectedDbAccountId:', selectedDbAccountId);
-              setIsComposeOpen(true);
-            }}
-            className="w-full gap-2"
-            disabled={!selectedAccountId}
-          >
-            <Pencil className="h-4 w-4" />
-            Compose
-          </Button>
-        </div>
-
-        {/* Account Selector - Fixed */}
-        <div className="flex-shrink-0 p-3 border-b border-border">
-          <AccountSwitcher />
-        </div>
-
-        {/* Folders - Scrollable */}
-        <div className="flex-1 overflow-y-auto">
-          {selectedAccountId && (
-            <FolderSidebarV3
-              accountId={selectedAccountId}
-              selectedFolderId={selectedFolderId}
-              onFolderSelect={handleFolderSelect}
-            />
-          )}
-        </div>
-
-        {/* Quick Links - Fixed at bottom */}
-        <div className="flex-shrink-0 border-t border-border">
-          <div className="p-1.5 space-y-0.5">
-            <a
-              href="/teams"
-              className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"
-            >
-              <Video className="h-3 w-3" />
-              MS Teams
-            </a>
-            <a
-              href="/contacts-v4"
-              className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"
-            >
-              <Users className="h-3 w-3" />
-              Contacts
-            </a>
-            <a
-              href="/calendar"
-              className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"
-            >
-              <Calendar className="h-3 w-3" />
-              Calendar
-            </a>
-            <a
-              href="/attachments"
-              className="flex items-center gap-1.5 px-2 py-1.5 text-xs hover:bg-accent rounded-md transition-colors"
-            >
-              <Paperclip className="h-3 w-3" />
-              Attachments
-            </a>
-
-            {/* Settings Menu */}
-            <SettingsMenuNew
-              onLogout={handleLogout}
-              onNavigate={(path) => router.push(path)}
-            />
-          </div>
-        </div>
+      {/* Desktop Sidebar - Hidden on mobile */}
+      <div className="hidden md:flex w-64 border-r border-border flex-col overflow-hidden">
+        <SidebarContent />
       </div>
+
+      {/* Mobile Sidebar Sheet */}
+      <Sheet open={isMobileSidebarOpen} onOpenChange={setIsMobileSidebarOpen}>
+        <SheetContent side="left" className="w-64 p-0 flex flex-col">
+          <SidebarContent />
+        </SheetContent>
+      </Sheet>
 
       {/* Main Content Area - Email List/Viewer/SMS/Drafts */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Mobile Header with Menu Button */}
+        <div className="md:hidden flex-shrink-0 h-14 border-b border-border flex items-center px-4 gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="flex-shrink-0"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <div className="flex-1 flex items-center justify-center">
+            <EaseMailLogoFull className="h-6" />
+          </div>
+          <div className="w-10" /> {/* Spacer for centering */}
+        </div>
+
         {selectedFolderName === 'sms' ? (
           <SMSInboxV3 />
         ) : (selectedFolderName?.toLowerCase() === 'drafts' || selectedFolderName?.toLowerCase() === 'draft') && selectedDbAccountId ? (
