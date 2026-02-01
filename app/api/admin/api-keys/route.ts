@@ -3,8 +3,28 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, systemSettings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { logger } from '@/lib/utils/logger';
+import { successResponse, unauthorized, forbidden, internalError, badRequest } from '@/lib/api/error-response';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Mask API key for secure display
+ * Shows first 4 and last 4 characters, masks the middle
+ */
+function maskApiKey(key: string): string {
+  if (!key || key.length < 8) {
+    return '••••••••'; // If too short, fully mask
+  }
+
+  const visibleChars = 4;
+  const start = key.substring(0, visibleChars);
+  const end = key.substring(key.length - visibleChars);
+  const maskedLength = key.length - (visibleChars * 2);
+  const masked = '•'.repeat(Math.max(maskedLength, 8)); // At least 8 dots
+
+  return `${start}${masked}${end}`;
+}
 
 // GET: Fetch all API keys (masked for security)
 export async function GET(request: NextRequest) {
@@ -13,7 +33,8 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.security.warn('Unauthorized API key access attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -22,7 +43,12 @@ export async function GET(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to access API keys', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Fetch API keys from system_settings table
@@ -31,18 +57,19 @@ export async function GET(request: NextRequest) {
     // Convert array to object and mask sensitive values
     const keys: Record<string, string> = {};
     settings.forEach((setting) => {
-      // Return masked version (showing only last 4 chars for security)
-      if (setting.value && setting.value.length > 8) {
-        keys[setting.key] = setting.value;
-      } else {
-        keys[setting.key] = setting.value || '';
-      }
+      // ✅ SECURITY FIX: Always mask API keys before returning
+      keys[setting.key] = maskApiKey(setting.value || '');
     });
 
-    return NextResponse.json({ success: true, keys });
+    logger.admin.info('API keys fetched (masked)', {
+      adminEmail: dbUser.email,
+      keyCount: settings.length,
+    });
+
+    return successResponse({ keys });
   } catch (error) {
-    console.error('API keys fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch API keys' }, { status: 500 });
+    logger.api.error('API keys fetch error', error);
+    return internalError();
   }
 }
 
@@ -53,7 +80,8 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.security.warn('Unauthorized API key update attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -62,19 +90,28 @@ export async function POST(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to update API keys', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     const body = await request.json();
     const { keys } = body;
 
     if (!keys || typeof keys !== 'object') {
-      return NextResponse.json({ error: 'Invalid keys data' }, { status: 400 });
+      logger.admin.warn('Invalid API keys data submitted', { adminEmail: dbUser.email });
+      return badRequest('Invalid keys data');
     }
+
+    const updatedKeys: string[] = [];
+    const newKeys: string[] = [];
 
     // Update or insert each API key
     for (const [key, value] of Object.entries(keys)) {
-      if (typeof value === 'string') {
+      if (typeof value === 'string' && value.trim()) {
         // Check if setting exists
         const existing = await db.query.systemSettings.findFirst({
           where: eq(systemSettings.key, key),
@@ -88,6 +125,7 @@ export async function POST(request: NextRequest) {
               updatedAt: new Date(),
             })
             .where(eq(systemSettings.key, key));
+          updatedKeys.push(key);
         } else {
           // Insert new
           await db.insert(systemSettings).values({
@@ -95,16 +133,26 @@ export async function POST(request: NextRequest) {
             value: value,
             description: `API key for ${key}`,
           });
+          newKeys.push(key);
         }
       }
     }
 
-    console.log(`✅ API keys updated by admin ${dbUser.email}`);
+    logger.security.info('API keys updated by admin', {
+      adminEmail: dbUser.email,
+      adminId: dbUser.id,
+      updatedKeys,
+      newKeys,
+      totalKeys: updatedKeys.length + newKeys.length,
+    });
 
-    return NextResponse.json({ success: true });
+    return successResponse(
+      { updatedCount: updatedKeys.length, newCount: newKeys.length },
+      'API keys updated successfully'
+    );
   } catch (error) {
-    console.error('API keys save error:', error);
-    return NextResponse.json({ error: 'Failed to save API keys' }, { status: 500 });
+    logger.api.error('API keys save error', error);
+    return internalError();
   }
 }
 

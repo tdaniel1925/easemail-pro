@@ -89,9 +89,12 @@ export default function ApiKeysManagement() {
     try {
       const response = await fetch('/api/admin/api-keys');
       const data = await response.json();
-      
+
       if (data.success) {
-        setApiKeys(data.keys);
+        // Backend now returns masked keys in data.data.keys format
+        setApiKeys(data.data?.keys || data.keys || {});
+      } else {
+        showToast('error', data.error || 'Failed to load API keys');
       }
     } catch (error) {
       console.error('Failed to fetch API keys:', error);
@@ -113,7 +116,10 @@ export default function ApiKeysManagement() {
       const data = await response.json();
 
       if (data.success) {
-        showToast('success', 'API keys saved successfully');
+        const message = data.message || 'API keys saved successfully';
+        showToast('success', message);
+        // Refresh keys to get masked versions
+        await fetchApiKeys();
       } else {
         showToast('error', data.error || 'Failed to save API keys');
       }
@@ -177,11 +183,11 @@ export default function ApiKeysManagement() {
         {/* Warning Banner */}
         <div className="bg-muted border border-border p-4 rounded-lg mb-6">
           <div className="flex items-start gap-3">
-            <Ban className="h-5 w-5 flex-shrink-0 mt-0.5 text-primary" />
+            <Key className="h-5 w-5 flex-shrink-0 mt-0.5 text-primary" />
             <div>
-              <p className="font-semibold mb-1 text-foreground">Security Warning</p>
+              <p className="font-semibold mb-1 text-foreground">Security Notice</p>
               <p className="text-sm text-muted-foreground">
-                These API keys are sensitive. Never share them publicly. They are stored securely and encrypted in the database.
+                API keys are masked for security. Keys are stored encrypted in the database and only visible when you enter or update them. All access is logged for audit purposes.
               </p>
             </div>
           </div>
