@@ -26,6 +26,7 @@ import {
   AtSign,
   Server,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 type FolderType = 'inbox' | 'sent' | 'drafts' | 'trash' | 'archive' | 'starred';
 
@@ -66,6 +67,19 @@ export default function FolderNav({
   selectedAccount,
   onAccountChange,
 }: FolderNavProps) {
+  const router = useRouter();
+
+  const handleFolderClick = (folderId: FolderType) => {
+    // Navigate to dedicated pages for certain folders
+    if (folderId === 'drafts') {
+      router.push('/drafts');
+      return;
+    }
+
+    // For other folders, use the callback (inbox filtering)
+    onFolderChange(folderId);
+  };
+
   const getProviderIcon = (provider: string | null | undefined) => {
     const iconClass = 'h-4 w-4';
     switch (provider?.toLowerCase()) {
@@ -136,7 +150,7 @@ export default function FolderNav({
                   'w-full justify-start transition-smooth',
                   isActive && 'bg-primary/10 text-primary font-medium'
                 )}
-                onClick={() => onFolderChange(folder.id)}
+                onClick={() => handleFolderClick(folder.id)}
               >
                 <Icon
                   className={cn(

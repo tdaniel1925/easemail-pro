@@ -61,7 +61,13 @@
       "Bash(else echo \"File exists\")",
       "Bash(fi)",
       "Bash(copy \"C:\\dev\\EaseMail - The Future\\public\\favicon.svg\" \"C:\\dev\\EaseMail - The Future\\public\\favicon.ico\")",
-      "Bash(powershell -Command \"Stop-Process -Id 22936 -Force\")"
+      "Bash(powershell -Command \"Stop-Process -Id 22936 -Force\")",
+      "Bash(npx tsx:*)",
+      "Bash(echo:*)",
+      "Bash(wc:*)",
+      "Bash(head:*)",
+      "Bash(/tmp/pricing_start.txt)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []
