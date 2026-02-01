@@ -1,14 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { planFeatureLimits } from '@/lib/db/schema';
+import { planFeatureLimits, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { requirePlatformAdmin } from '@/lib/auth/permissions';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
-// GET /api/admin/pricing/feature-limits - Get feature limits (optionally by planId)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+/**
+ * GET /api/admin/pricing/feature-limits
+ * Get feature limits (optionally by planId)
+ */
 export async function GET(request: NextRequest) {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      logger.admin.warn('Unauthorized feature limits access');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to access feature limits', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
 
     const { searchParams } = new URL(request.url);
     const planId = searchParams.get('planId');
@@ -23,29 +52,59 @@ export async function GET(request: NextRequest) {
       limits = await db.select().from(planFeatureLimits);
     }
 
-    return NextResponse.json(limits);
+    logger.admin.info('Feature limits fetched', {
+      requestedBy: dbUser.email,
+      planId: planId || 'all',
+      limitCount: limits.length
+    });
+
+    return successResponse({ limits });
   } catch (error: any) {
-    console.error('Error fetching feature limits:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch feature limits' },
-      { status: error.message?.includes('Unauthorized') ? 403 : 500 }
-    );
+    logger.api.error('Error fetching feature limits', error);
+    return internalError();
   }
 }
 
-// POST /api/admin/pricing/feature-limits - Create feature limit
-export async function POST(request: NextRequest) {
+/**
+ * POST /api/admin/pricing/feature-limits
+ * Create feature limit (CSRF Protected)
+ */
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      logger.admin.warn('Unauthorized feature limit creation attempt');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to create feature limit', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
 
     const body = await request.json();
     const { planId, featureKey, limitValue, description } = body;
 
     if (!planId || !featureKey || limitValue === undefined) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      logger.admin.warn('Missing required fields for feature limit creation', {
+        hasPlanId: !!planId,
+        hasFeatureKey: !!featureKey,
+        hasLimitValue: limitValue !== undefined,
+        requestedBy: dbUser.email
+      });
+      return badRequest('planId, featureKey, and limitValue are required');
     }
 
     const [newLimit] = await db.insert(planFeatureLimits).values({
@@ -55,26 +114,59 @@ export async function POST(request: NextRequest) {
       description: description || null,
     }).returning();
 
-    return NextResponse.json(newLimit, { status: 201 });
-  } catch (error: any) {
-    console.error('Error creating feature limit:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to create feature limit' },
-      { status: 500 }
-    );
-  }
-}
+    logger.admin.info('Feature limit created', {
+      limitId: newLimit.id,
+      planId,
+      featureKey,
+      limitValue,
+      createdBy: dbUser.email
+    });
 
-// PATCH /api/admin/pricing/feature-limits/[limitId] - Update feature limit
-export async function PATCH(request: NextRequest) {
+    return successResponse({ limit: newLimit }, 'Feature limit created successfully', 201);
+  } catch (error: any) {
+    logger.api.error('Error creating feature limit', error);
+    return internalError();
+  }
+});
+
+/**
+ * PATCH /api/admin/pricing/feature-limits
+ * Update feature limit (CSRF Protected)
+ * Note: limitId passed as query param
+ */
+export const PATCH = withCsrfProtection(async (request: NextRequest) => {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      logger.admin.warn('Unauthorized feature limit update attempt');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to update feature limit', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
 
     const { searchParams } = new URL(request.url);
     const limitId = searchParams.get('limitId');
 
     if (!limitId) {
-      return NextResponse.json({ error: 'Limit ID is required' }, { status: 400 });
+      logger.admin.warn('Missing limitId for feature limit update', {
+        requestedBy: dbUser.email
+      });
+      return badRequest('limitId query parameter is required');
     }
 
     const body = await request.json();
@@ -91,40 +183,77 @@ export async function PATCH(request: NextRequest) {
       .returning();
 
     if (!updatedLimit) {
-      return NextResponse.json({ error: 'Feature limit not found' }, { status: 404 });
+      logger.admin.warn('Feature limit not found for update', {
+        limitId,
+        requestedBy: dbUser.email
+      });
+      return notFound('Feature limit not found');
     }
 
-    return NextResponse.json(updatedLimit);
-  } catch (error: any) {
-    console.error('Error updating feature limit:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to update feature limit' },
-      { status: 500 }
-    );
-  }
-}
+    logger.admin.info('Feature limit updated', {
+      limitId,
+      updates: Object.keys(updateData),
+      updatedBy: dbUser.email
+    });
 
-// DELETE /api/admin/pricing/feature-limits - Delete feature limit
-export async function DELETE(request: NextRequest) {
+    return successResponse({ limit: updatedLimit }, 'Feature limit updated successfully');
+  } catch (error: any) {
+    logger.api.error('Error updating feature limit', error);
+    return internalError();
+  }
+});
+
+/**
+ * DELETE /api/admin/pricing/feature-limits
+ * Delete feature limit (CSRF Protected)
+ * Note: limitId passed as query param
+ */
+export const DELETE = withCsrfProtection(async (request: NextRequest) => {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      logger.admin.warn('Unauthorized feature limit deletion attempt');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to delete feature limit', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
 
     const { searchParams } = new URL(request.url);
     const limitId = searchParams.get('limitId');
 
     if (!limitId) {
-      return NextResponse.json({ error: 'Limit ID is required' }, { status: 400 });
+      logger.admin.warn('Missing limitId for feature limit deletion', {
+        requestedBy: dbUser.email
+      });
+      return badRequest('limitId query parameter is required');
     }
 
     await db.delete(planFeatureLimits).where(eq(planFeatureLimits.id, limitId));
 
-    return NextResponse.json({ success: true });
+    logger.admin.info('Feature limit deleted', {
+      limitId,
+      deletedBy: dbUser.email
+    });
+
+    return successResponse({ deleted: true }, 'Feature limit deleted successfully');
   } catch (error: any) {
-    console.error('Error deleting feature limit:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to delete feature limit' },
-      { status: 500 }
-    );
+    logger.api.error('Error deleting feature limit', error);
+    return internalError();
   }
-}
+});
 

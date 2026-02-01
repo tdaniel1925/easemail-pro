@@ -1,18 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { pricingTiers } from '@/lib/db/schema';
+import { pricingTiers, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { requirePlatformAdmin } from '@/lib/auth/permissions';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
-// PATCH /api/admin/pricing/tiers/[tierId] - Update pricing tier
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { tierId: string } }
-) {
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+type RouteContext = {
+  params: Promise<{ tierId: string }>;
+};
+
+/**
+ * PATCH /api/admin/pricing/tiers/[tierId]
+ * Update pricing tier (CSRF Protected)
+ */
+export const PATCH = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
+    if (!user) {
+      logger.admin.warn('Unauthorized pricing tier update attempt');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to update pricing tier', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
+
+    const { tierId } = await context.params;
     const body = await request.json();
     const { tierName, minQuantity, maxQuantity, ratePerUnit } = body;
 
@@ -26,40 +57,72 @@ export async function PATCH(
     const [updatedTier] = await db
       .update(pricingTiers)
       .set(updateData)
-      .where(eq(pricingTiers.id, params.tierId))
+      .where(eq(pricingTiers.id, tierId))
       .returning();
 
     if (!updatedTier) {
-      return NextResponse.json({ error: 'Tier not found' }, { status: 404 });
+      logger.admin.warn('Pricing tier not found for update', {
+        tierId,
+        requestedBy: dbUser.email
+      });
+      return notFound('Pricing tier not found');
     }
 
-    return NextResponse.json(updatedTier);
-  } catch (error: any) {
-    console.error('Error updating pricing tier:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to update pricing tier' },
-      { status: 500 }
-    );
-  }
-}
+    logger.admin.info('Pricing tier updated', {
+      tierId,
+      updates: Object.keys(updateData),
+      updatedBy: dbUser.email
+    });
 
-// DELETE /api/admin/pricing/tiers/[tierId] - Delete pricing tier
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { tierId: string } }
-) {
+    return successResponse({ tier: updatedTier }, 'Pricing tier updated successfully');
+  } catch (error: any) {
+    logger.api.error('Error updating pricing tier', error);
+    return internalError();
+  }
+});
+
+/**
+ * DELETE /api/admin/pricing/tiers/[tierId]
+ * Delete pricing tier (CSRF Protected)
+ */
+export const DELETE = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    await db.delete(pricingTiers).where(eq(pricingTiers.id, params.tierId));
+    if (!user) {
+      logger.admin.warn('Unauthorized pricing tier deletion attempt');
+      return unauthorized();
+    }
 
-    return NextResponse.json({ success: true });
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to delete pricing tier', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
+
+    const { tierId } = await context.params;
+
+    await db.delete(pricingTiers).where(eq(pricingTiers.id, tierId));
+
+    logger.admin.info('Pricing tier deleted', {
+      tierId,
+      deletedBy: dbUser.email
+    });
+
+    return successResponse({ deleted: true }, 'Pricing tier deleted successfully');
   } catch (error: any) {
-    console.error('Error deleting pricing tier:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to delete pricing tier' },
-      { status: 500 }
-    );
+    logger.api.error('Error deleting pricing tier', error);
+    return internalError();
   }
-}
+});
 

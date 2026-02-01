@@ -1,40 +1,98 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { pricingTiers } from '@/lib/db/schema';
+import { pricingTiers, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { requirePlatformAdmin } from '@/lib/auth/permissions';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
-// GET /api/admin/pricing/tiers - List all pricing tiers
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+/**
+ * GET /api/admin/pricing/tiers
+ * List all pricing tiers
+ */
 export async function GET(request: NextRequest) {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      logger.admin.warn('Unauthorized pricing tiers access');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to access pricing tiers', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
 
     const tiers = await db.select().from(pricingTiers).orderBy(pricingTiers.minQuantity);
 
-    return NextResponse.json({ success: true, tiers });
+    logger.admin.info('Pricing tiers fetched', {
+      requestedBy: dbUser.email,
+      tierCount: tiers.length
+    });
+
+    return successResponse({ tiers });
   } catch (error: any) {
-    console.error('Error fetching pricing tiers:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to fetch pricing tiers' },
-      { status: error.message?.includes('Unauthorized') ? 403 : 500 }
-    );
+    logger.api.error('Error fetching pricing tiers', error);
+    return internalError();
   }
 }
 
-// POST /api/admin/pricing/tiers - Create new pricing tier
-export async function POST(request: NextRequest) {
+/**
+ * POST /api/admin/pricing/tiers
+ * Create new pricing tier (CSRF Protected)
+ */
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      logger.admin.warn('Unauthorized pricing tier creation attempt');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to create pricing tier', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
 
     const body = await request.json();
     const { usagePricingId, tierName, minQuantity, maxQuantity, ratePerUnit } = body;
 
     if (!usagePricingId || minQuantity === undefined || ratePerUnit === undefined) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      logger.admin.warn('Missing required fields for pricing tier creation', {
+        hasUsagePricingId: !!usagePricingId,
+        hasMinQuantity: minQuantity !== undefined,
+        hasRatePerUnit: ratePerUnit !== undefined,
+        requestedBy: dbUser.email
+      });
+      return badRequest('usagePricingId, minQuantity, and ratePerUnit are required');
     }
 
     const [newTier] = await db.insert(pricingTiers).values({
@@ -45,13 +103,20 @@ export async function POST(request: NextRequest) {
       ratePerUnit: ratePerUnit.toString(),
     }).returning();
 
-    return NextResponse.json(newTier, { status: 201 });
+    logger.admin.info('Pricing tier created', {
+      tierId: newTier.id,
+      usagePricingId,
+      tierName,
+      minQuantity,
+      maxQuantity,
+      ratePerUnit,
+      createdBy: dbUser.email
+    });
+
+    return successResponse({ tier: newTier }, 'Pricing tier created successfully', 201);
   } catch (error: any) {
-    console.error('Error creating pricing tier:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to create pricing tier' },
-      { status: 500 }
-    );
+    logger.api.error('Error creating pricing tier', error);
+    return internalError();
   }
-}
+});
 

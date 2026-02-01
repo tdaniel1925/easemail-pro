@@ -1,27 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-// GET /api/admin/pricing/plans/direct - Direct SQL query (no Drizzle)
+/**
+ * GET /api/admin/pricing/plans/direct
+ * Direct SQL query (no Drizzle) - for debugging/comparison
+ */
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized direct pricing plans access');
+      return unauthorized();
     }
 
     // Check if user is platform_admin using direct SQL
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('role')
+      .select('role, email')
       .eq('id', user.id)
       .single();
 
     if (userError || !userData || userData.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden: Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-platform-admin attempted to access direct pricing plans', {
+        userId: user.id,
+        email: user.email,
+        role: userData?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Fetch pricing plans using direct SQL
@@ -32,35 +45,46 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, plans: plans || [] });
+    logger.admin.info('Direct pricing plans fetched', {
+      requestedBy: userData.email,
+      planCount: plans?.length || 0
+    });
+
+    return successResponse({ plans: plans || [] });
   } catch (error: any) {
-    console.error('Error fetching pricing plans:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch pricing plans' },
-      { status: 500 }
-    );
+    logger.api.error('Error fetching pricing plans (direct)', error);
+    return internalError();
   }
 }
 
-// PUT /api/admin/pricing/plans/direct - Update plan
-export async function PUT(request: NextRequest) {
+/**
+ * PUT /api/admin/pricing/plans/direct
+ * Update plan via direct SQL (CSRF Protected)
+ */
+export const PUT = withCsrfProtection(async (request: NextRequest) => {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized direct pricing plan update attempt');
+      return unauthorized();
     }
 
     // Check if user is platform_admin
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('role')
+      .select('role, email')
       .eq('id', user.id)
       .single();
 
     if (userError || !userData || userData.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      logger.security.warn('Non-platform-admin attempted to update direct pricing plan', {
+        userId: user.id,
+        email: user.email,
+        role: userData?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
     const body = await request.json();
@@ -81,13 +105,15 @@ export async function PUT(request: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, plan: data });
+    logger.admin.info('Direct pricing plan updated', {
+      planId: id,
+      updatedBy: userData.email
+    });
+
+    return successResponse({ plan: data }, 'Pricing plan updated successfully');
   } catch (error: any) {
-    console.error('Error updating plan:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to update plan' },
-      { status: 500 }
-    );
+    logger.api.error('Error updating plan (direct)', error);
+    return internalError();
   }
-}
+});
 

@@ -1,27 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { organizationPricingOverrides } from '@/lib/db/schema';
+import { organizationPricingOverrides, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { requirePlatformAdmin } from '@/lib/auth/permissions';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
-// PATCH /api/admin/pricing/overrides/[overrideId] - Update organization override
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { overrideId: string } }
-) {
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+type RouteContext = {
+  params: Promise<{ overrideId: string }>;
+};
+
+/**
+ * PATCH /api/admin/pricing/overrides/[overrideId]
+ * Update organization pricing override (CSRF Protected)
+ */
+export const PATCH = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
+    if (!user) {
+      logger.admin.warn('Unauthorized pricing override update attempt');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to update pricing override', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
+
+    const { overrideId } = await context.params;
     const body = await request.json();
-    const { 
-      planId, 
-      customMonthlyRate, 
-      customAnnualRate, 
-      customSmsRate, 
-      customAiRate, 
-      customStorageRate, 
-      notes 
+    const {
+      planId,
+      customMonthlyRate,
+      customAnnualRate,
+      customSmsRate,
+      customAiRate,
+      customStorageRate,
+      notes
     } = body;
 
     const updateData: any = {
@@ -39,40 +70,72 @@ export async function PATCH(
     const [updatedOverride] = await db
       .update(organizationPricingOverrides)
       .set(updateData)
-      .where(eq(organizationPricingOverrides.id, params.overrideId))
+      .where(eq(organizationPricingOverrides.id, overrideId))
       .returning();
 
     if (!updatedOverride) {
-      return NextResponse.json({ error: 'Override not found' }, { status: 404 });
+      logger.admin.warn('Pricing override not found for update', {
+        overrideId,
+        requestedBy: dbUser.email
+      });
+      return notFound('Pricing override not found');
     }
 
-    return NextResponse.json(updatedOverride);
-  } catch (error: any) {
-    console.error('Error updating organization override:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to update organization override' },
-      { status: 500 }
-    );
-  }
-}
+    logger.admin.info('Pricing override updated', {
+      overrideId,
+      updates: Object.keys(updateData).filter(k => k !== 'updatedAt'),
+      updatedBy: dbUser.email
+    });
 
-// DELETE /api/admin/pricing/overrides/[overrideId] - Delete organization override
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { overrideId: string } }
-) {
+    return successResponse({ override: updatedOverride }, 'Pricing override updated successfully');
+  } catch (error: any) {
+    logger.api.error('Error updating organization override', error);
+    return internalError();
+  }
+});
+
+/**
+ * DELETE /api/admin/pricing/overrides/[overrideId]
+ * Delete organization pricing override (CSRF Protected)
+ */
+export const DELETE = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    await db.delete(organizationPricingOverrides).where(eq(organizationPricingOverrides.id, params.overrideId));
+    if (!user) {
+      logger.admin.warn('Unauthorized pricing override deletion attempt');
+      return unauthorized();
+    }
 
-    return NextResponse.json({ success: true });
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to delete pricing override', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
+
+    const { overrideId } = await context.params;
+
+    await db.delete(organizationPricingOverrides).where(eq(organizationPricingOverrides.id, overrideId));
+
+    logger.admin.info('Pricing override deleted', {
+      overrideId,
+      deletedBy: dbUser.email
+    });
+
+    return successResponse({ deleted: true }, 'Pricing override deleted successfully');
   } catch (error: any) {
-    console.error('Error deleting organization override:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to delete organization override' },
-      { status: 500 }
-    );
+    logger.api.error('Error deleting organization override', error);
+    return internalError();
   }
-}
+});
 

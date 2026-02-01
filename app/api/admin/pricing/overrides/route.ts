@@ -1,14 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { organizationPricingOverrides, organizations } from '@/lib/db/schema';
+import { organizationPricingOverrides, organizations, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { requirePlatformAdmin } from '@/lib/auth/permissions';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
-// GET /api/admin/pricing/overrides - List all organization overrides
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+/**
+ * GET /api/admin/pricing/overrides
+ * List all organization pricing overrides
+ */
 export async function GET(request: NextRequest) {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      logger.admin.warn('Unauthorized pricing overrides access');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to access pricing overrides', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
 
     // Fetch overrides with organization names
     const overrides = await db
@@ -27,38 +56,64 @@ export async function GET(request: NextRequest) {
       .from(organizationPricingOverrides)
       .leftJoin(organizations, eq(organizationPricingOverrides.organizationId, organizations.id));
 
-    return NextResponse.json(overrides);
+    logger.admin.info('Pricing overrides fetched', {
+      requestedBy: dbUser.email,
+      overrideCount: overrides.length
+    });
+
+    return successResponse({ overrides });
   } catch (error: any) {
-    console.error('Error fetching organization overrides:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch organization overrides' },
-      { status: error.message?.includes('Unauthorized') ? 403 : 500 }
-    );
+    logger.api.error('Error fetching organization overrides', error);
+    return internalError();
   }
 }
 
-// POST /api/admin/pricing/overrides - Create new organization override
-export async function POST(request: NextRequest) {
+/**
+ * POST /api/admin/pricing/overrides
+ * Create new organization pricing override (CSRF Protected)
+ */
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      logger.admin.warn('Unauthorized pricing override creation attempt');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to create pricing override', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
 
     const body = await request.json();
-    const { 
-      organizationId, 
-      planId, 
-      customMonthlyRate, 
-      customAnnualRate, 
-      customSmsRate, 
-      customAiRate, 
-      customStorageRate, 
-      notes 
+    const {
+      organizationId,
+      planId,
+      customMonthlyRate,
+      customAnnualRate,
+      customSmsRate,
+      customAiRate,
+      customStorageRate,
+      notes
     } = body;
 
     if (!organizationId) {
-      return NextResponse.json(
-        { error: 'Organization ID is required' },
-        { status: 400 }
-      );
+      logger.admin.warn('Missing organizationId for pricing override creation', {
+        requestedBy: dbUser.email
+      });
+      return badRequest('organizationId is required');
     }
 
     const [newOverride] = await db.insert(organizationPricingOverrides).values({
@@ -73,13 +128,17 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     }).returning();
 
-    return NextResponse.json(newOverride, { status: 201 });
+    logger.admin.info('Pricing override created', {
+      overrideId: newOverride.id,
+      organizationId,
+      planId,
+      createdBy: dbUser.email
+    });
+
+    return successResponse({ override: newOverride }, 'Pricing override created successfully', 201);
   } catch (error: any) {
-    console.error('Error creating organization override:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to create organization override' },
-      { status: 500 }
-    );
+    logger.api.error('Error creating organization override', error);
+    return internalError();
   }
-}
+});
 

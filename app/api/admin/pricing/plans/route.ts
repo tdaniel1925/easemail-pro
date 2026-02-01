@@ -1,43 +1,99 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { pricingPlans } from '@/lib/db/schema';
+import { pricingPlans, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { requirePlatformAdmin } from '@/lib/auth/permissions';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
-// GET /api/admin/pricing/plans - List all pricing plans
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+/**
+ * GET /api/admin/pricing/plans
+ * List all pricing plans
+ */
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Pricing Plans API - Starting auth check...');
-    const context = await requirePlatformAdmin();
-    console.log('✅ Auth passed:', { userId: context.userId, email: context.email, role: context.userRole, isPlatformAdmin: context.isPlatformAdmin });
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      logger.admin.warn('Unauthorized pricing plans access');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to access pricing plans', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
 
     const plans = await db.select().from(pricingPlans).orderBy(pricingPlans.name);
-    console.log('📊 Fetched plans:', plans.length);
 
-    return NextResponse.json({ success: true, plans });
+    logger.admin.info('Pricing plans fetched', {
+      requestedBy: dbUser.email,
+      planCount: plans.length
+    });
+
+    return successResponse({ plans });
   } catch (error: any) {
-    console.error('❌ Error fetching pricing plans:', error.message);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Failed to fetch pricing plans' },
-      { status: error.message?.includes('Unauthorized') || error.message?.includes('Forbidden') ? 403 : 500 }
-    );
+    logger.api.error('Error fetching pricing plans', error);
+    return internalError();
   }
 }
 
-// POST /api/admin/pricing/plans - Create a new pricing plan
-export async function POST(request: NextRequest) {
+/**
+ * POST /api/admin/pricing/plans
+ * Create a new pricing plan (CSRF Protected)
+ */
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      logger.admin.warn('Unauthorized pricing plan creation attempt');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to create pricing plan', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
 
     const body = await request.json();
     const { name, displayName, description, basePriceMonthly, basePriceAnnual, minSeats, maxSeats } = body;
 
     if (!name || !displayName || basePriceMonthly === undefined || basePriceAnnual === undefined) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      logger.admin.warn('Missing required fields for pricing plan creation', {
+        hasName: !!name,
+        hasDisplayName: !!displayName,
+        hasBasePriceMonthly: basePriceMonthly !== undefined,
+        hasBasePriceAnnual: basePriceAnnual !== undefined,
+        requestedBy: dbUser.email
+      });
+      return badRequest('name, displayName, basePriceMonthly, and basePriceAnnual are required');
     }
 
     const [newPlan] = await db.insert(pricingPlans).values({
@@ -52,13 +108,19 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     }).returning();
 
-    return NextResponse.json(newPlan, { status: 201 });
+    logger.admin.info('Pricing plan created', {
+      planId: newPlan.id,
+      planName: name,
+      displayName,
+      basePriceMonthly,
+      basePriceAnnual,
+      createdBy: dbUser.email
+    });
+
+    return successResponse({ plan: newPlan }, 'Pricing plan created successfully', 201);
   } catch (error: any) {
-    console.error('Error creating pricing plan:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to create pricing plan' },
-      { status: 500 }
-    );
+    logger.api.error('Error creating pricing plan', error);
+    return internalError();
   }
-}
+});
 

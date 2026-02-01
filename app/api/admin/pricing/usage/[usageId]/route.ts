@@ -1,18 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { usagePricing } from '@/lib/db/schema';
+import { usagePricing, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { requirePlatformAdmin } from '@/lib/auth/permissions';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
-// PATCH /api/admin/pricing/usage/[usageId] - Update usage pricing
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { usageId: string } }
-) {
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+type RouteContext = {
+  params: Promise<{ usageId: string }>;
+};
+
+/**
+ * PATCH /api/admin/pricing/usage/[usageId]
+ * Update usage pricing (CSRF Protected)
+ */
+export const PATCH = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
+    if (!user) {
+      logger.admin.warn('Unauthorized usage pricing update attempt');
+      return unauthorized();
+    }
+
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to update usage pricing', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
+
+    const { usageId } = await context.params;
     const body = await request.json();
     const { pricingModel, baseRate, unit, description, isActive } = body;
 
@@ -29,40 +60,72 @@ export async function PATCH(
     const [updatedUsage] = await db
       .update(usagePricing)
       .set(updateData)
-      .where(eq(usagePricing.id, params.usageId))
+      .where(eq(usagePricing.id, usageId))
       .returning();
 
     if (!updatedUsage) {
-      return NextResponse.json({ error: 'Usage pricing not found' }, { status: 404 });
+      logger.admin.warn('Usage pricing not found for update', {
+        usageId,
+        requestedBy: dbUser.email
+      });
+      return notFound('Usage pricing not found');
     }
 
-    return NextResponse.json(updatedUsage);
-  } catch (error: any) {
-    console.error('Error updating usage pricing:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to update usage pricing' },
-      { status: 500 }
-    );
-  }
-}
+    logger.admin.info('Usage pricing updated', {
+      usageId,
+      updates: Object.keys(updateData).filter(k => k !== 'updatedAt'),
+      updatedBy: dbUser.email
+    });
 
-// DELETE /api/admin/pricing/usage/[usageId] - Delete usage pricing
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { usageId: string } }
-) {
+    return successResponse({ usage: updatedUsage }, 'Usage pricing updated successfully');
+  } catch (error: any) {
+    logger.api.error('Error updating usage pricing', error);
+    return internalError();
+  }
+});
+
+/**
+ * DELETE /api/admin/pricing/usage/[usageId]
+ * Delete usage pricing (CSRF Protected)
+ */
+export const DELETE = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
-    await requirePlatformAdmin();
+    // Check authentication
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    await db.delete(usagePricing).where(eq(usagePricing.id, params.usageId));
+    if (!user) {
+      logger.admin.warn('Unauthorized usage pricing deletion attempt');
+      return unauthorized();
+    }
 
-    return NextResponse.json({ success: true });
+    // Check if user is platform admin
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    if (!dbUser || dbUser.role !== 'platform_admin') {
+      logger.security.warn('Non-platform-admin attempted to delete usage pricing', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
+    }
+
+    const { usageId } = await context.params;
+
+    await db.delete(usagePricing).where(eq(usagePricing.id, usageId));
+
+    logger.admin.info('Usage pricing deleted', {
+      usageId,
+      deletedBy: dbUser.email
+    });
+
+    return successResponse({ deleted: true }, 'Usage pricing deleted successfully');
   } catch (error: any) {
-    console.error('Error deleting usage pricing:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to delete usage pricing' },
-      { status: 500 }
-    );
+    logger.api.error('Error deleting usage pricing', error);
+    return internalError();
   }
-}
+});
 
