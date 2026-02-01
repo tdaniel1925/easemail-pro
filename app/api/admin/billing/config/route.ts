@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { 
-  billingConfig as billingConfigSchema 
+import {
+  billingConfig as billingConfigSchema
 } from '@/lib/db/schema';
-import { 
-  getBillingConfig, 
-  updateBillingConfig, 
-  BillingConfig 
+import {
+  getBillingConfig,
+  updateBillingConfig,
+  BillingConfig
 } from '@/lib/billing/automated-billing';
 import { eq } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -26,7 +29,8 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized billing config access');
+      return unauthorized();
     }
 
     // Check if user is admin
@@ -35,13 +39,22 @@ export async function GET(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to access billing config', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Admin access required');
     }
 
     const config = await getBillingConfig();
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('Billing config fetched', {
+      requestedBy: dbUser.email,
+      enabled: config?.enabled ?? false
+    });
+
+    return successResponse({
       config: config || {
         enabled: false,
         frequency: 'monthly',
@@ -56,30 +69,28 @@ export async function GET(request: NextRequest) {
         aiChargeThresholdUsd: 5.00,
         minimumChargeUsd: 0.50,
         gracePeriodDays: 3,
-      },
+      }
     });
   } catch (error: any) {
-    console.error('Get billing config API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to get billing configuration', details: error.message },
-      { status: 500 }
-    );
+    logger.api.error('Error fetching billing config', error);
+    return internalError();
   }
 }
 
 /**
- * PUT /api/admin/billing/config
- * 
+ * PUT /api/admin/billing/config (CSRF Protected)
+ *
  * Update billing configuration
  */
-export async function PUT(request: NextRequest) {
+export const PUT = withCsrfProtection(async (request: NextRequest) => {
   try {
     // Check authentication
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized billing config update attempt');
+      return unauthorized();
     }
 
     // Check if user is admin
@@ -88,7 +99,12 @@ export async function PUT(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to update billing config', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Admin access required');
     }
 
     const body = await request.json();
@@ -114,17 +130,18 @@ export async function PUT(request: NextRequest) {
 
     await updateBillingConfig(config);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Billing configuration updated successfully',
-      config,
+    logger.admin.info('Billing config updated', {
+      updatedBy: dbUser.email,
+      enabled: config.enabled,
+      frequency: config.frequency
     });
+
+    return successResponse({
+      config
+    }, 'Billing configuration updated successfully');
   } catch (error: any) {
-    console.error('Update billing config API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to update billing configuration', details: error.message },
-      { status: 500 }
-    );
+    logger.api.error('Error updating billing config', error);
+    return internalError();
   }
-}
+});
 

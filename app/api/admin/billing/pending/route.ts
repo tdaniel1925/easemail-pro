@@ -4,13 +4,15 @@ import { db } from '@/lib/db/drizzle';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getAccountsWithPendingCharges } from '@/lib/billing/automated-billing';
+import { successResponse, unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
  * GET /api/admin/billing/pending
- * 
+ *
  * Get preview of upcoming charges
  */
 export async function GET(request: NextRequest) {
@@ -20,7 +22,8 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized pending charges access');
+      return unauthorized();
     }
 
     // Check if user is admin
@@ -29,7 +32,12 @@ export async function GET(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to access pending charges', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Admin access required');
     }
 
     // Get pending charges
@@ -47,8 +55,13 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('Pending charges fetched', {
+      requestedBy: dbUser.email,
+      totalAccounts: summary.totalAccounts,
+      totalCharges: summary.totalCharges
+    });
+
+    return successResponse({
       summary,
       pendingCharges: pendingCharges.map(p => ({
         userId: p.userId,
@@ -61,14 +74,11 @@ export async function GET(request: NextRequest) {
         },
         hasPaymentMethod: p.hasPaymentMethod,
         isPromoUser: p.isPromoUser,
-      })),
+      }))
     });
   } catch (error: any) {
-    console.error('Get pending charges API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to get pending charges', details: error.message },
-      { status: 500 }
-    );
+    logger.api.error('Error fetching pending charges', error);
+    return internalError();
   }
 }
 

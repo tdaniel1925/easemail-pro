@@ -3,13 +3,15 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, billingRuns } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { successResponse, unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
  * GET /api/admin/billing/history
- * 
+ *
  * Get billing run history
  * Query params:
  * - limit: number (default: 50)
@@ -22,7 +24,8 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized billing history access');
+      return unauthorized();
     }
 
     // Check if user is admin
@@ -31,7 +34,12 @@ export async function GET(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to access billing history', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Admin access required');
     }
 
     // Parse query parameters
@@ -51,8 +59,14 @@ export async function GET(request: NextRequest) {
       count: db.$count(billingRuns),
     }).from(billingRuns);
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('Billing history fetched', {
+      requestedBy: dbUser.email,
+      runsCount: runs.length,
+      limit,
+      offset
+    });
+
+    return successResponse({
       runs: runs.map(r => ({
         id: r.id,
         startedAt: r.startedAt,
@@ -69,14 +83,11 @@ export async function GET(request: NextRequest) {
         limit,
         offset,
         total: totalCount[0]?.count || 0,
-      },
+      }
     });
   } catch (error: any) {
-    console.error('Get billing history API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to get billing history', details: error.message },
-      { status: 500 }
-    );
+    logger.api.error('Error fetching billing history', error);
+    return internalError();
   }
 }
 

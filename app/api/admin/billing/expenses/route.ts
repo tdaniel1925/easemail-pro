@@ -10,6 +10,8 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db';
 import { costEntries, users, organizations } from '@/lib/db/schema';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
+import { successResponse, unauthorized, forbidden, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +21,8 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized expenses access');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -30,7 +33,12 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to access expenses', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Parse query parameters
@@ -140,8 +148,15 @@ export async function GET(request: NextRequest) {
       return acc;
     }, {} as Record<string, number>);
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('Expenses fetched', {
+      requestedBy: dbUser.email,
+      periodStart: startDate.toISOString(),
+      periodEnd: endDate.toISOString(),
+      totalCost,
+      totalTransactions: costs.length
+    });
+
+    return successResponse({
       period: {
         start: startDate.toISOString(),
         end: endDate.toISOString(),
@@ -170,11 +185,8 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error: any) {
-    console.error('[Admin] Expenses API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch expenses', details: error.message },
-      { status: 500 }
-    );
+    logger.api.error('Error fetching expenses', error);
+    return internalError();
   }
 }
 
