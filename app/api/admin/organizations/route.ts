@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, organizations, organizationMembers } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +16,8 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized organizations list access');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -22,7 +26,12 @@ export async function GET(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to list organizations', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Fetch all organizations
@@ -60,21 +69,27 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    return NextResponse.json({ success: true, organizations: orgsWithCounts });
+    logger.admin.info('Organizations list fetched', {
+      requestedBy: dbUser.email,
+      organizationCount: orgsWithCounts.length
+    });
+
+    return successResponse({ organizations: orgsWithCounts });
   } catch (error) {
-    console.error('Organizations fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch organizations' }, { status: 500 });
+    logger.api.error('Organizations fetch error', error);
+    return internalError();
   }
 }
 
-// POST: Create new organization
-export async function POST(request: NextRequest) {
+// POST: Create new organization (CSRF Protected)
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized organization creation attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -83,14 +98,24 @@ export async function POST(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to create organization', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     const body = await request.json();
     const { name, slug, planType, billingEmail, maxSeats } = body;
 
     if (!name || !slug) {
-      return NextResponse.json({ error: 'Name and slug are required' }, { status: 400 });
+      logger.admin.warn('Missing required fields for organization creation', {
+        hasName: !!name,
+        hasSlug: !!slug,
+        requestedBy: dbUser.email
+      });
+      return badRequest('Name and slug are required');
     }
 
     // Check if slug is already taken
@@ -99,7 +124,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing) {
-      return NextResponse.json({ error: 'Slug already in use' }, { status: 400 });
+      logger.admin.warn('Attempted to create organization with duplicate slug', {
+        slug,
+        requestedBy: dbUser.email
+      });
+      return badRequest('Slug already in use');
     }
 
     // Create organization
@@ -113,12 +142,18 @@ export async function POST(request: NextRequest) {
       isActive: true,
     }).returning();
 
-    console.log(`✅ Organization created: ${name} by admin ${dbUser.email}`);
+    logger.admin.info('Organization created', {
+      organizationId: newOrg.id,
+      name: newOrg.name,
+      slug: newOrg.slug,
+      planType: newOrg.planType,
+      createdBy: dbUser.email
+    });
 
-    return NextResponse.json({ success: true, organization: newOrg });
+    return successResponse({ organization: newOrg }, 'Organization created successfully');
   } catch (error) {
-    console.error('Organization create error:', error);
-    return NextResponse.json({ error: 'Failed to create organization' }, { status: 500 });
+    logger.api.error('Organization create error', error);
+    return internalError();
   }
-}
+});
 

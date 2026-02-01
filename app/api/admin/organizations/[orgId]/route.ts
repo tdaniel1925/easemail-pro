@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, organizations, organizationMembers } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,15 +13,16 @@ type RouteContext = {
   params: Promise<{ orgId: string }>;
 };
 
-// PATCH: Update organization
-export async function PATCH(request: NextRequest, context: RouteContext) {
+// PATCH: Update organization (CSRF Protected)
+export const PATCH = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
     const { orgId } = await context.params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized organization update attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -27,7 +31,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to update organization', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+        orgId
+      });
+      return forbidden('Platform admin access required');
     }
 
     const body = await request.json();
@@ -49,24 +59,29 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       .set(updateData)
       .where(eq(organizations.id, orgId));
 
-    console.log(`✅ Organization ${orgId} updated by admin ${dbUser.email}`);
+    logger.admin.info('Organization updated', {
+      organizationId: orgId,
+      updatedFields: Object.keys(updateData).filter(k => k !== 'updatedAt'),
+      updatedBy: dbUser.email
+    });
 
-    return NextResponse.json({ success: true });
+    return successResponse({ updated: true }, 'Organization updated successfully');
   } catch (error) {
-    console.error('Organization update error:', error);
-    return NextResponse.json({ error: 'Failed to update organization' }, { status: 500 });
+    logger.api.error('Organization update error', error);
+    return internalError();
   }
-}
+});
 
-// DELETE: Delete organization
-export async function DELETE(request: NextRequest, context: RouteContext) {
+// DELETE: Delete organization (CSRF Protected)
+export const DELETE = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
     const { orgId } = await context.params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized organization deletion attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -75,7 +90,26 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to delete organization', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+        orgId
+      });
+      return forbidden('Platform admin access required');
+    }
+
+    // Get organization info before deletion (for logging)
+    const org = await db.query.organizations.findFirst({
+      where: eq(organizations.id, orgId),
+    });
+
+    if (!org) {
+      logger.admin.warn('Organization not found for deletion', {
+        orgId,
+        requestedBy: dbUser.email
+      });
+      return badRequest('Organization not found');
     }
 
     // Check if organization has members (use direct select to avoid relation issues)
@@ -83,24 +117,32 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       .select({ count: sql<number>`count(*)::int` })
       .from(organizationMembers)
       .where(eq(organizationMembers.organizationId, orgId));
-    
+
     const memberCount = Number(memberCountResult[0]?.count || 0);
 
     if (memberCount > 0) {
-      return NextResponse.json({ 
-        error: `Cannot delete organization with ${memberCount} member(s). Remove all members first.` 
-      }, { status: 400 });
+      logger.admin.warn('Attempted to delete organization with members', {
+        orgId,
+        organizationName: org.name,
+        memberCount,
+        requestedBy: dbUser.email
+      });
+      return badRequest(`Cannot delete organization with ${memberCount} member(s). Remove all members first.`);
     }
 
     // Delete organization (cascading deletes will handle related records)
     await db.delete(organizations).where(eq(organizations.id, orgId));
 
-    console.log(`✅ Organization ${orgId} deleted by admin ${dbUser.email}`);
+    logger.security.info('Organization deleted', {
+      organizationId: orgId,
+      organizationName: org.name,
+      deletedBy: dbUser.email
+    });
 
-    return NextResponse.json({ success: true });
+    return successResponse({ deleted: true }, 'Organization deleted successfully');
   } catch (error) {
-    console.error('Organization delete error:', error);
-    return NextResponse.json({ error: 'Failed to delete organization' }, { status: 500 });
+    logger.api.error('Organization delete error', error);
+    return internalError();
   }
-}
+});
 
