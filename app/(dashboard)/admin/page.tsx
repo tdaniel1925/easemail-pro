@@ -233,20 +233,19 @@ export default function AdminDashboard() {
             </Card>
           </Link>
 
-          <Card className="opacity-50 cursor-not-allowed">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5" />
-                System Health
-                <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                  Coming Soon
-                </span>
-              </CardTitle>
-              <CardDescription>
-                View system performance and health metrics
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <Link href="/admin/system-health">
+            <Card className="hover:bg-accent cursor-pointer transition-colors">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  System Health
+                </CardTitle>
+                <CardDescription>
+                  View system performance and health metrics
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
         </div>
       </div>
     </AdminLayout>
