@@ -5,11 +5,8 @@
 -- Labels table: Optimize fetching user's labels
 CREATE INDEX IF NOT EXISTS labels_user_id_idx ON labels(user_id);
 
--- Email Labels junction table: Optimize many-to-many label queries
-CREATE INDEX IF NOT EXISTS email_labels_email_id_idx ON email_labels(email_id);
-CREATE INDEX IF NOT EXISTS email_labels_label_id_idx ON email_labels(label_id);
--- Composite index for finding all labels of an email for a specific user
-CREATE INDEX IF NOT EXISTS email_labels_email_label_idx ON email_labels(email_id, label_id);
+-- Note: Email Labels junction table indexes are created in migration 043
+-- (The junction table itself is created there)
 
 -- Email Drafts: Optimize draft queries
 CREATE INDEX IF NOT EXISTS email_drafts_user_id_idx ON email_drafts(user_id);
