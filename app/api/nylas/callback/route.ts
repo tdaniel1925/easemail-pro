@@ -105,9 +105,12 @@ function validateScopes(grantedScopes: string[] = [], provider: string): { valid
       'https://www.googleapis.com/auth/gmail.send',     // Send emails
       'https://www.googleapis.com/auth/gmail.modify',   // Modify emails (archive, delete, etc)
     ],
+    // ✅ FIX: Accept BOTH legacy outlook.office.com AND new graph.microsoft.com scopes
     microsoft: [
-      'https://outlook.office.com/Mail.ReadWrite', // Read/write emails
-      'https://outlook.office.com/Mail.Send',      // Send emails
+      'https://outlook.office.com/Mail.ReadWrite', // Legacy: Read/write emails
+      'https://outlook.office.com/Mail.Send',      // Legacy: Send emails
+      'https://graph.microsoft.com/Mail.ReadWrite', // Modern Graph API: Read/write emails
+      'https://graph.microsoft.com/Mail.Send',      // Modern Graph API: Send emails
     ],
     imap: [], // IMAP doesn't use OAuth scopes
   };
@@ -120,7 +123,38 @@ function validateScopes(grantedScopes: string[] = [], provider: string): { valid
     return { valid: true, missing: [] };
   }
 
-  // Check for missing scopes
+  // ✅ FIX: For Microsoft, check if EITHER legacy OR modern scopes are granted
+  if (provider === 'microsoft') {
+    const hasLegacyMailReadWrite = grantedScopes.includes('https://outlook.office.com/Mail.ReadWrite');
+    const hasLegacyMailSend = grantedScopes.includes('https://outlook.office.com/Mail.Send');
+    const hasGraphMailReadWrite = grantedScopes.includes('https://graph.microsoft.com/Mail.ReadWrite');
+    const hasGraphMailSend = grantedScopes.includes('https://graph.microsoft.com/Mail.Send');
+    const hasGraphMailRead = grantedScopes.includes('https://graph.microsoft.com/Mail.Read');
+
+    // Need either legacy OR modern read/write scope
+    const hasReadWrite = hasLegacyMailReadWrite || hasGraphMailReadWrite || hasGraphMailRead;
+    // Need either legacy OR modern send scope
+    const hasSend = hasLegacyMailSend || hasGraphMailSend;
+
+    if (!hasReadWrite || !hasSend) {
+      const missing: string[] = [];
+      if (!hasReadWrite) missing.push('Mail.ReadWrite or Mail.Read');
+      if (!hasSend) missing.push('Mail.Send');
+
+      console.warn('⚠️ Missing required OAuth scopes:', missing);
+
+      return {
+        valid: false,
+        missing,
+        message: `Missing required permissions: ${missing.join(', ')}. Please reconnect and grant all requested permissions.`
+      };
+    }
+
+    console.log('✅ All required OAuth scopes granted (Microsoft Graph API):', grantedScopes.filter(s => s.includes('Mail')));
+    return { valid: true, missing: [] };
+  }
+
+  // Check for missing scopes (for other providers)
   const missing = required.filter(scope => !grantedScopes.includes(scope));
 
   if (missing.length > 0) {
