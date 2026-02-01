@@ -11,6 +11,7 @@ import { db } from '@/lib/db/drizzle';
 import { emailAccounts, emailFolders } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { cache } from '@/lib/redis/client';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,13 +74,13 @@ export async function GET(request: NextRequest) {
     const cacheKey = `folders:${user.id}:${accountId}:${hierarchy}`;
     const cachedFolders = await cache.get<any>(cacheKey);
     if (cachedFolders) {
-      console.log(`[Cache HIT] Folders for account ${accountId}`);
+      logger.debug('Cache HIT for folders', { accountId });
       return NextResponse.json(cachedFolders, {
         headers: { 'X-Cache': 'HIT' },
       });
     }
 
-    console.log(`[Cache MISS] Folders for account ${accountId}`);
+    logger.debug('Cache MISS for folders', { accountId });
 
     const isIMAPAccount = account.provider === 'imap';
     const isJMAPAccount = account.provider === 'jmap';
@@ -98,13 +99,19 @@ export async function GET(request: NextRequest) {
 
     if (isDirectAccount) {
       // Fetch from local database for IMAP/JMAP accounts
-      console.log(`[Folders] Fetching ${account.provider?.toUpperCase()} folders from database for account:`, account.emailAddress);
+      logger.info('Fetching folders from database', {
+        provider: account.provider,
+        accountEmail: account.emailAddress,
+      });
 
       const dbFolders = await db.query.emailFolders.findMany({
         where: eq(emailFolders.accountId, account.id),
       });
 
-      console.log(`[Folders] Found ${dbFolders.length} ${account.provider?.toUpperCase()} folders in database`);
+      logger.info('Folders fetched from database', {
+        count: dbFolders.length,
+        provider: account.provider,
+      });
 
       // Transform database folders to Nylas format
       folders = dbFolders.map(f => ({
@@ -143,7 +150,9 @@ export async function GET(request: NextRequest) {
       headers: { 'X-Cache': 'MISS' },
     });
   } catch (error) {
-    console.error('❌ Folders API error:', error);
+    logger.error('Failed to fetch folders', error, {
+      accountId: request.url.includes('accountId') ? new URL(request.url).searchParams.get('accountId') || undefined : undefined,
+    });
     return NextResponse.json(
       {
         error: 'Failed to fetch folders',

@@ -12,6 +12,7 @@ import { emailAccounts, emails } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { cache } from '@/lib/redis/client';
 import { trackCacheKey } from '@/lib/redis/cache-invalidation';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +81,11 @@ export async function GET(request: NextRequest) {
     // Try to get from cache first (30 second TTL)
     const cachedResponse = await cache.get<any>(cacheKey);
     if (cachedResponse) {
-      console.log(`[Cache HIT] Messages for ${accountId}, folder ${folderName || folderId}`);
+      logger.debug('Cache HIT for messages', {
+        accountId,
+        folderId,
+        folderName,
+      });
       return NextResponse.json(cachedResponse, {
         headers: {
           'X-Cache': 'HIT',
@@ -89,7 +94,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`[Cache MISS] Messages for ${accountId}, folder ${folderName || folderId}`);
+    logger.debug('Cache MISS for messages', {
+      accountId,
+      folderId,
+      folderName,
+    });
 
     const isIMAPAccount = account.provider === 'imap';
     const isJMAPAccount = account.provider === 'jmap';
@@ -133,11 +142,15 @@ export async function GET(request: NextRequest) {
 
         // Use folderType (normalized: inbox, sent, trash, etc.)
         resolvedFolderName = folder.folderType || 'inbox';
-        console.log(`[Messages] Folder lookup: ID=${folderId} → Type=${resolvedFolderName}, Display=${folder.displayName}`);
+        logger.debug('Folder lookup resolved', {
+          folderId,
+          folderType: resolvedFolderName,
+          displayName: folder.displayName,
+        });
       } else if (folderName) {
         // Use the passed folderName parameter (for special folders like starred, archive, etc.)
         resolvedFolderName = folderName.toLowerCase();
-        console.log(`[Messages] Using passed folderName: ${resolvedFolderName}`);
+        logger.debug('Using passed folderName', { folderName: resolvedFolderName });
       } else {
         // No folder specified, default to inbox
         resolvedFolderName = 'inbox';
@@ -146,7 +159,13 @@ export async function GET(request: NextRequest) {
       // Parse cursor for offset-based pagination (cursor is the offset number as string)
       const offset = cursor ? parseInt(cursor, 10) : 0;
 
-      console.log('[Messages] Fetching from local database - Folder:', resolvedFolderName, 'Account:', account.emailProvider, 'Provider:', account.provider, 'Offset:', offset, 'Limit:', limit);
+      logger.info('Fetching messages from local database', {
+        folder: resolvedFolderName,
+        accountProvider: account.emailProvider,
+        provider: account.provider,
+        offset,
+        limit,
+      });
 
       // Query local database - OPTIMIZED: Don't fetch body for list view (save bandwidth)
       // Body is fetched separately when user opens an email
@@ -186,7 +205,11 @@ export async function GET(request: NextRequest) {
       const messagesToReturn = hasMore ? dbMessages.slice(0, limit) : dbMessages;
       const nextOffset = hasMore ? offset + limit : null;
 
-      console.log(`[Messages] Found ${messagesToReturn.length} emails in local database for folder: ${resolvedFolderName}, hasMore: ${hasMore}`);
+      logger.info('Messages fetched from local database', {
+        count: messagesToReturn.length,
+        folder: resolvedFolderName,
+        hasMore,
+      });
 
       // Transform database messages to Nylas format
       result = {
@@ -266,7 +289,9 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('❌ Messages API error:', error);
+    logger.error('Failed to fetch messages', error, {
+      accountId: request.url.includes('accountId') ? new URL(request.url).searchParams.get('accountId') || undefined : undefined,
+    });
     return NextResponse.json(
       {
         error: 'Failed to fetch messages',

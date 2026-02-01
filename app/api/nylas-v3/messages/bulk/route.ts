@@ -12,6 +12,7 @@ import { eq } from 'drizzle-orm';
 import { getNylasClient } from '@/lib/nylas-v3/config';
 import { handleNylasError } from '@/lib/nylas-v3/errors';
 import { invalidateMessagesCache } from '@/lib/redis/cache-invalidation';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -150,7 +151,10 @@ export async function POST(request: NextRequest) {
             });
         }
       } catch (error) {
-        console.error(`[Bulk] Error processing message ${messageId}:`, error);
+        logger.error('Bulk action failed for message', error, {
+          messageId,
+          action,
+        });
         results.failed.push({
           id: messageId,
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -158,7 +162,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`[Bulk] Completed ${action} on ${results.success.length}/${messageIds.length} messages`);
+    logger.info('Bulk action completed', {
+      action,
+      total: messageIds.length,
+      succeeded: results.success.length,
+      failed: results.failed.length,
+    });
 
     // Invalidate message cache for this account (all folders) if any operations succeeded
     if (results.success.length > 0) {
@@ -173,7 +182,9 @@ export async function POST(request: NextRequest) {
       failed: results.failed.length,
     });
   } catch (error) {
-    console.error('[Bulk] Error:', error);
+    logger.error('Bulk API error', error, {
+      action: request.url.includes('action') ? 'unknown' : undefined,
+    });
     const nylasError = handleNylasError(error);
 
     return NextResponse.json(
