@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
-import { 
-  emailTemplates, 
-  emailTemplateVersions, 
+import {
+  emailTemplates,
+  emailTemplateVersions,
   emailTemplateTestSends,
-  users 
+  users
 } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { sendEmail } from '@/lib/email/send';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -25,7 +28,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized email template access');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -34,9 +38,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ 
-        error: 'Forbidden - Platform admin access required' 
-      }, { status: 403 });
+      logger.security.warn('Non-admin attempted to access email template', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+        templateId
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Fetch template with versions and test sends
@@ -86,27 +94,36 @@ export async function GET(request: NextRequest, context: RouteContext) {
     });
 
     if (!template) {
-      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+      logger.admin.warn('Email template not found', {
+        templateId,
+        requestedBy: dbUser.email
+      });
+      return notFound('Template not found');
     }
 
-    return NextResponse.json({ success: true, template });
+    logger.admin.info('Email template fetched', {
+      templateId,
+      templateKey: template.templateKey,
+      requestedBy: dbUser.email
+    });
+
+    return successResponse({ template });
   } catch (error) {
-    console.error('❌ Error fetching email template:', error);
-    return NextResponse.json({ 
-      error: 'Failed to fetch email template' 
-    }, { status: 500 });
+    logger.api.error('Error fetching email template', error);
+    return internalError();
   }
 }
 
-// PATCH: Update email template (creates new version)
-export async function PATCH(request: NextRequest, context: RouteContext) {
+// PATCH: Update email template (creates new version - CSRF Protected)
+export const PATCH = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
     const { templateId } = await context.params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized email template update attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -115,9 +132,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ 
-        error: 'Forbidden - Platform admin access required' 
-      }, { status: 403 });
+      logger.security.warn('Non-admin attempted to update email template', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+        templateId
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Get existing template
@@ -126,7 +147,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     });
 
     if (!existingTemplate) {
-      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+      logger.admin.warn('Email template not found for update', {
+        templateId,
+        requestedBy: dbUser.email
+      });
+      return notFound('Template not found');
     }
 
     // Parse request body
@@ -170,7 +195,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         createdBy: user.id,
       });
 
-      console.log(`📝 Created version ${updateData.version} for template ${existingTemplate.templateKey}`);
+      logger.admin.info('Email template version created', {
+        templateId,
+        templateKey: existingTemplate.templateKey,
+        version: updateData.version,
+        changeNotes: changeNotes || 'Template updated',
+        updatedBy: dbUser.email
+      });
     } else {
       // Only metadata changed
       if (subjectTemplate) updateData.subjectTemplate = subjectTemplate;
@@ -191,29 +222,33 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       .where(eq(emailTemplates.id, templateId))
       .returning();
 
-    console.log(`✅ Updated email template: ${existingTemplate.templateKey}`);
-
-    return NextResponse.json({ 
-      success: true, 
-      template: updatedTemplate 
+    logger.admin.info('Email template updated', {
+      templateId,
+      templateKey: existingTemplate.templateKey,
+      version: updatedTemplate.version,
+      contentChanged,
+      updatedBy: dbUser.email
     });
-  } catch (error) {
-    console.error('❌ Error updating email template:', error);
-    return NextResponse.json({ 
-      error: 'Failed to update email template' 
-    }, { status: 500 });
-  }
-}
 
-// DELETE: Delete email template
-export async function DELETE(request: NextRequest, context: RouteContext) {
+    return successResponse({
+      template: updatedTemplate
+    }, 'Email template updated successfully');
+  } catch (error) {
+    logger.api.error('Error updating email template', error);
+    return internalError();
+  }
+});
+
+// DELETE: Delete email template (CSRF Protected)
+export const DELETE = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
     const { templateId } = await context.params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized email template deletion attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -222,9 +257,13 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ 
-        error: 'Forbidden - Platform admin access required' 
-      }, { status: 403 });
+      logger.security.warn('Non-admin attempted to delete email template', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+        templateId
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Get template
@@ -233,30 +272,38 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     });
 
     if (!template) {
-      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+      logger.admin.warn('Email template not found for deletion', {
+        templateId,
+        requestedBy: dbUser.email
+      });
+      return notFound('Template not found');
     }
 
     // Prevent deletion of default templates
     if (template.isDefault) {
-      return NextResponse.json({ 
-        error: 'Cannot delete default system templates' 
-      }, { status: 400 });
+      logger.security.warn('Attempted to delete default system template', {
+        templateId,
+        templateKey: template.templateKey,
+        attemptedBy: dbUser.email
+      });
+      return badRequest('Cannot delete default system templates');
     }
 
     // Delete template (cascades to versions and test sends)
     await db.delete(emailTemplates).where(eq(emailTemplates.id, templateId));
 
-    console.log(`🗑️ Deleted email template: ${template.templateKey}`);
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Template deleted successfully' 
+    logger.security.info('Email template deleted', {
+      templateId,
+      templateKey: template.templateKey,
+      deletedBy: dbUser.email
     });
+
+    return successResponse({
+      deleted: true
+    }, 'Template deleted successfully');
   } catch (error) {
-    console.error('❌ Error deleting email template:', error);
-    return NextResponse.json({ 
-      error: 'Failed to delete email template' 
-    }, { status: 500 });
+    logger.api.error('Error deleting email template', error);
+    return internalError();
   }
-}
+});
 

@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { emailTemplates, emailTemplateVersions, users } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -14,7 +17,8 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized email templates access');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -23,9 +27,12 @@ export async function GET() {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ 
-        error: 'Forbidden - Platform admin access required' 
-      }, { status: 403 });
+      logger.security.warn('Non-admin attempted to access email templates', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Fetch all templates with creator info
@@ -49,23 +56,27 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ success: true, templates });
+    logger.admin.info('Email templates fetched', {
+      requestedBy: dbUser.email,
+      templateCount: templates.length
+    });
+
+    return successResponse({ templates });
   } catch (error) {
-    console.error('❌ Error fetching email templates:', error);
-    return NextResponse.json({ 
-      error: 'Failed to fetch email templates' 
-    }, { status: 500 });
+    logger.api.error('Error fetching email templates', error);
+    return internalError();
   }
 }
 
-// POST: Create a new email template (platform admin only)
-export async function POST(request: NextRequest) {
+// POST: Create a new email template (platform admin only - CSRF Protected)
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized email template creation attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -74,18 +85,21 @@ export async function POST(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ 
-        error: 'Forbidden - Platform admin access required' 
-      }, { status: 403 });
+      logger.security.warn('Non-admin attempted to create email template', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Parse request body
     const body = await request.json();
-    const { 
-      templateKey, 
-      name, 
-      description, 
-      subjectTemplate, 
+    const {
+      templateKey,
+      name,
+      description,
+      subjectTemplate,
       htmlTemplate,
       category,
       triggerEvent,
@@ -94,9 +108,14 @@ export async function POST(request: NextRequest) {
 
     // Validation
     if (!templateKey || !name || !subjectTemplate || !htmlTemplate) {
-      return NextResponse.json({ 
-        error: 'templateKey, name, subjectTemplate, and htmlTemplate are required' 
-      }, { status: 400 });
+      logger.admin.warn('Missing required fields for template creation', {
+        hasTemplateKey: !!templateKey,
+        hasName: !!name,
+        hasSubject: !!subjectTemplate,
+        hasHtml: !!htmlTemplate,
+        requestedBy: dbUser.email
+      });
+      return badRequest('templateKey, name, subjectTemplate, and htmlTemplate are required');
     }
 
     // Check if template key already exists
@@ -105,9 +124,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing) {
-      return NextResponse.json({ 
-        error: 'A template with this key already exists' 
-      }, { status: 400 });
+      logger.admin.warn('Attempted to create duplicate template key', {
+        templateKey,
+        requestedBy: dbUser.email
+      });
+      return badRequest('A template with this key already exists');
     }
 
     // Create new template
@@ -137,17 +158,17 @@ export async function POST(request: NextRequest) {
       createdBy: user.id,
     });
 
-    console.log(`✅ Created email template: ${templateKey}`);
+    logger.admin.info('Email template created', {
+      templateId: newTemplate.id,
+      templateKey,
+      name,
+      createdBy: dbUser.email
+    });
 
-    return NextResponse.json({ 
-      success: true, 
-      template: newTemplate 
-    }, { status: 201 });
+    return successResponse({ template: newTemplate }, 'Email template created successfully', 201);
   } catch (error) {
-    console.error('❌ Error creating email template:', error);
-    return NextResponse.json({ 
-      error: 'Failed to create email template' 
-    }, { status: 500 });
+    logger.api.error('Error creating email template', error);
+    return internalError();
   }
-}
+});
 

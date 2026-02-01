@@ -4,6 +4,9 @@ import { db } from '@/lib/db/drizzle';
 import { emailTemplates, emailTemplateTestSends, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { sendEmail } from '@/lib/email/send';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, notFound, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -12,15 +15,16 @@ type RouteContext = {
   params: Promise<{ templateId: string }>;
 };
 
-// POST: Send test email
-export async function POST(request: NextRequest, context: RouteContext) {
+// POST: Send test email (CSRF Protected)
+export const POST = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
   try {
     const { templateId } = await context.params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized test email send attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -29,9 +33,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ 
-        error: 'Forbidden - Platform admin access required' 
-      }, { status: 403 });
+      logger.security.warn('Non-admin attempted to send test email', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+        templateId
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Get template
@@ -40,7 +48,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!template) {
-      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+      logger.admin.warn('Template not found for test email', {
+        templateId,
+        requestedBy: dbUser.email
+      });
+      return notFound('Template not found');
     }
 
     // Parse request body
@@ -48,9 +60,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { testEmail, testData } = body;
 
     if (!testEmail) {
-      return NextResponse.json({ 
-        error: 'testEmail is required' 
-      }, { status: 400 });
+      logger.admin.warn('Test email missing recipient', {
+        templateId,
+        requestedBy: dbUser.email
+      });
+      return badRequest('testEmail is required');
     }
 
     // Replace variables in subject and HTML
@@ -77,11 +91,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
         html,
       });
 
-      console.log(`✅ Test email sent to ${testEmail} for template ${template.templateKey}`);
+      logger.admin.info('Test email sent successfully', {
+        templateId,
+        templateKey: template.templateKey,
+        testEmail,
+        sentBy: dbUser.email
+      });
     } catch (emailError: any) {
       success = false;
       errorMessage = emailError.message;
-      console.error(`❌ Failed to send test email:`, emailError);
+      logger.admin.error('Failed to send test email', {
+        templateId,
+        templateKey: template.templateKey,
+        testEmail,
+        error: emailError,
+        sentBy: dbUser.email
+      });
     }
 
     // Log test send
@@ -95,21 +120,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
 
     if (!success) {
-      return NextResponse.json({ 
+      return NextResponse.json({
+        success: false,
         error: 'Failed to send test email',
+        code: 'EMAIL_SEND_FAILED',
         details: errorMessage,
+        timestamp: new Date().toISOString()
       }, { status: 500 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: `Test email sent to ${testEmail}` 
-    });
+    return successResponse({
+      testEmailSent: true,
+      sentTo: testEmail
+    }, `Test email sent to ${testEmail}`);
   } catch (error) {
-    console.error('❌ Error sending test email:', error);
-    return NextResponse.json({ 
-      error: 'Failed to send test email' 
-    }, { status: 500 });
+    logger.api.error('Error sending test email', error);
+    return internalError();
   }
-}
+});
 

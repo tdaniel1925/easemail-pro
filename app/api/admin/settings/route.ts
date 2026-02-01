@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users, systemSettings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +42,8 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized system settings access');
+      return unauthorized();
     }
 
     // Check if user is admin
@@ -48,7 +52,12 @@ export async function GET(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to access system settings', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Fetch system settings
@@ -69,13 +78,13 @@ export async function GET(request: NextRequest) {
 
     settings.forEach((setting) => {
       const value = setting.value;
-      
+
       // Skip null values
       if (value === null) {
         settingsObject[setting.key] = null;
         return;
       }
-      
+
       // Try to parse JSON values
       try {
         settingsObject[setting.key] = JSON.parse(value);
@@ -85,24 +94,27 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({ success: true, settings: settingsObject });
+    logger.admin.info('System settings fetched', {
+      requestedBy: dbUser.email,
+      settingCount: settings.length
+    });
+
+    return successResponse({ settings: settingsObject });
   } catch (error) {
-    console.error('Failed to fetch system settings:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch system settings' },
-      { status: 500 }
-    );
+    logger.api.error('Failed to fetch system settings', error);
+    return internalError();
   }
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
     // Check authentication
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized system settings update attempt');
+      return unauthorized();
     }
 
     // Check if user is admin
@@ -111,14 +123,20 @@ export async function POST(request: NextRequest) {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to update system settings', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     const body = await request.json();
     const { settings: settingsToSave } = body;
 
     if (!settingsToSave || typeof settingsToSave !== 'object') {
-      return NextResponse.json({ error: 'Settings object required' }, { status: 400 });
+      logger.admin.warn('Invalid settings object provided', { requestedBy: dbUser.email });
+      return badRequest('Settings object required');
     }
 
     // Validate and save each setting to the database
@@ -137,10 +155,13 @@ export async function POST(request: NextRequest) {
 
       // Validate value length to prevent memory exhaustion
       if (stringValue.length > MAX_VALUE_LENGTH) {
-        return NextResponse.json(
-          { error: `Value for '${key}' exceeds maximum length of ${MAX_VALUE_LENGTH} characters` },
-          { status: 400 }
-        );
+        logger.admin.warn('Setting value exceeds max length', {
+          key,
+          length: stringValue.length,
+          maxLength: MAX_VALUE_LENGTH,
+          requestedBy: dbUser.email
+        });
+        return badRequest(`Value for '${key}' exceeds maximum length of ${MAX_VALUE_LENGTH} characters`);
       }
 
       await db
@@ -162,20 +183,25 @@ export async function POST(request: NextRequest) {
 
     // Log if there were invalid keys (but still succeed for valid ones)
     if (invalidKeys.length > 0) {
-      console.warn(`[Admin Settings] Ignored invalid setting keys: ${invalidKeys.join(', ')}`);
+      logger.admin.warn('Ignored invalid setting keys', {
+        invalidKeys,
+        requestedBy: dbUser.email
+      });
     }
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('System settings updated', {
+      savedKeys,
+      invalidKeys,
+      updatedBy: dbUser.email
+    });
+
+    return successResponse({
       saved: savedKeys,
       ...(invalidKeys.length > 0 ? { ignoredKeys: invalidKeys } : {}),
-    });
+    }, 'System settings updated successfully');
   } catch (error) {
-    console.error('Failed to save system settings:', error);
-    return NextResponse.json(
-      { error: 'Failed to save system settings' },
-      { status: 500 }
-    );
+    logger.api.error('Failed to save system settings', error);
+    return internalError();
   }
-}
+});
 
