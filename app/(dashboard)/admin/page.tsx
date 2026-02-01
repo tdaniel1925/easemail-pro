@@ -219,20 +219,19 @@ export default function AdminDashboard() {
             </Card>
           </Link>
 
-          <Card className="opacity-50 cursor-not-allowed">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Activity Logs
-                <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                  Coming Soon
-                </span>
-              </CardTitle>
-              <CardDescription>
-                Monitor system activity and user actions
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <Link href="/admin/activity-logs">
+            <Card className="hover:bg-accent cursor-pointer transition-colors">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Activity Logs
+                </CardTitle>
+                <CardDescription>
+                  Monitor system activity and user actions
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
 
           <Card className="opacity-50 cursor-not-allowed">
             <CardHeader>
