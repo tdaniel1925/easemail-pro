@@ -21,6 +21,11 @@ export async function GET() {
       orderBy: (accounts, { desc }) => [desc(accounts.isDefault), desc(accounts.createdAt)],
     });
 
+    // ✅ FIX: If no accounts, return early (prevents SQL IN () error)
+    if (accounts.length === 0) {
+      return NextResponse.json({ success: true, accounts: [] });
+    }
+
     // ✅ FIX: Batch all stats queries in ONE database roundtrip
     // Get all email counts for all accounts in a single query
     const allEmailCounts = await db
