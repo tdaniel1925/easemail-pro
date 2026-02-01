@@ -66,6 +66,8 @@ import { downloadEml } from '@/lib/utils/downloadEml';
 import { HoverQuickActions } from '@/components/email/HoverQuickActions';
 import { TrainAIButton } from '@/components/inbox/TrainAIButton';
 import { SnoozePicker } from '@/components/email/SnoozePicker';
+import { LabelManager } from '@/components/email/LabelManager';
+import { LabelPicker } from '@/components/email/LabelPicker';
 
 interface EmailMessage {
   id: string;
@@ -147,6 +149,9 @@ export function EmailListEnhancedV3({
     isOpen: boolean;
     emailId: string | null;
   }>({ isOpen: false, emailId: null });
+  const [labelManagerOpen, setLabelManagerOpen] = useState(false);
+  const [labelPickerOpen, setLabelPickerOpen] = useState(false);
+  const [labelTargetEmails, setLabelTargetEmails] = useState<string[]>([]);
   const [hoveredEmailId, setHoveredEmailId] = useState<string | null>(null);
 
   // Advanced search state
@@ -569,6 +574,36 @@ export function EmailListEnhancedV3({
     }
   };
 
+  const handleApplyLabels = async (labelIds: string[]) => {
+    if (labelTargetEmails.length === 0) return;
+
+    try {
+      const response = await fetch('/api/labels/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailIds: labelTargetEmails,
+          labelIds,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Optionally refresh messages or show success toast
+        console.log('Labels applied successfully');
+      } else {
+        console.error('Failed to apply labels');
+      }
+
+      // Clear state
+      setLabelTargetEmails([]);
+      setLabelPickerOpen(false);
+    } catch (error) {
+      console.error('Apply labels error:', error);
+    }
+  };
+
   const handleUndo = () => {
     if (!undoStack) return;
 
@@ -799,8 +834,8 @@ export function EmailListEnhancedV3({
                     console.log('Move to folder:', message.id);
                   }}
                   onAddLabel={() => {
-                    // Add label functionality
-                    console.log('Add label:', message.id);
+                    setLabelTargetEmails([message.id]);
+                    setLabelPickerOpen(true);
                   }}
                   onBlockSender={() => setBlockSenderDialog({ isOpen: true, email: message })}
                   onUnsubscribe={() => setUnsubscribeDialog({ isOpen: true, email: message })}
@@ -1178,6 +1213,23 @@ export function EmailListEnhancedV3({
         open={snoozeDialog.isOpen}
         onClose={() => setSnoozeDialog({ isOpen: false, emailId: null })}
         onSnooze={handleSnooze}
+      />
+
+      {/* Label Manager Dialog */}
+      <LabelManager
+        open={labelManagerOpen}
+        onClose={() => setLabelManagerOpen(false)}
+      />
+
+      {/* Label Picker Dialog */}
+      <LabelPicker
+        open={labelPickerOpen}
+        onClose={() => {
+          setLabelPickerOpen(false);
+          setLabelTargetEmails([]);
+        }}
+        currentLabels={[]}
+        onApply={handleApplyLabels}
       />
     </div>
   );
