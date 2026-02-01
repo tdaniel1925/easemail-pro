@@ -155,7 +155,7 @@ export function validateCsrfToken(request: NextRequest): boolean {
 }
 
 /**
- * CSRF middleware wrapper for API routes
+ * CSRF middleware wrapper for API routes (without params)
  *
  * Usage:
  * ```typescript
@@ -166,8 +166,28 @@ export function validateCsrfToken(request: NextRequest): boolean {
  */
 export function withCsrfProtection(
   handler: (request: NextRequest) => Promise<NextResponse>
+): (request: NextRequest) => Promise<NextResponse>;
+
+/**
+ * CSRF middleware wrapper for API routes (with params)
+ *
+ * Usage:
+ * ```typescript
+ * export const PATCH = withCsrfProtection(async (request: NextRequest, context: RouteContext) => {
+ *   const { params } = context;
+ *   // Your handler code
+ * });
+ * ```
+ */
+export function withCsrfProtection<TContext = any>(
+  handler: (request: NextRequest, context: TContext) => Promise<NextResponse>
+): (request: NextRequest, context: TContext) => Promise<NextResponse>;
+
+// Implementation
+export function withCsrfProtection<TContext = any>(
+  handler: (request: NextRequest, context?: TContext) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest): Promise<NextResponse> => {
+  return async (request: NextRequest, context?: TContext): Promise<NextResponse> => {
     // Validate CSRF token
     const isValid = validateCsrfToken(request);
 
@@ -183,7 +203,7 @@ export function withCsrfProtection(
     }
 
     // Token is valid, proceed with handler
-    return handler(request);
+    return handler(request, context as TContext);
   };
 }
 

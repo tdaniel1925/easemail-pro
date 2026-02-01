@@ -10,6 +10,9 @@ import {
   generateInvitationToken,
   generateInvitationExpiry
 } from '@/lib/email/templates/invitation-email';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, badRequest, internalError } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +23,8 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized users list access');
+      return unauthorized();
     }
 
     // Check if user is admin
@@ -29,7 +33,12 @@ export async function GET() {
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to list users', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Fetch all users with email account counts
@@ -62,21 +71,27 @@ export async function GET() {
       },
     }));
 
-    return NextResponse.json({ success: true, users: usersWithCounts });
+    logger.admin.info('Users list fetched', {
+      requestedBy: dbUser.email,
+      userCount: usersWithCounts.length
+    });
+
+    return successResponse({ users: usersWithCounts });
   } catch (error) {
-    console.error('Admin users fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+    logger.api.error('Admin users fetch error', error);
+    return internalError();
   }
 }
 
-// POST: Create a new user (platform admin only)
-export async function POST(request: NextRequest) {
+// POST: Create a new user (platform admin only - CSRF Protected)
+export const POST = withCsrfProtection(async (request: NextRequest) => {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized user creation attempt');
+      return unauthorized();
     }
 
     // Get current user from database
@@ -85,9 +100,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!currentUser || currentUser.role !== 'platform_admin') {
-      return NextResponse.json({ 
-        error: 'Forbidden - Platform admin access required' 
-      }, { status: 403 });
+      logger.security.warn('Non-admin attempted to create user', {
+        userId: user.id,
+        email: user.email,
+        role: currentUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     // Parse request body
@@ -103,30 +121,26 @@ export async function POST(request: NextRequest) {
 
     // Validation
     if (!email || !fullName) {
-      return NextResponse.json({
-        error: 'Email and full name are required'
-      }, { status: 400 });
+      logger.admin.warn('Missing required fields for user creation', { requestedBy: currentUser.email });
+      return badRequest('Email and full name are required');
     }
 
     const validRoles = ['platform_admin', 'org_admin', 'org_user', 'individual'];
     if (!validRoles.includes(role)) {
-      return NextResponse.json({
-        error: `Invalid role. Must be one of: ${validRoles.join(', ')}`
-      }, { status: 400 });
+      logger.admin.warn('Invalid role provided', { role, requestedBy: currentUser.email });
+      return badRequest(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
     }
 
     const validTiers = ['free', 'starter', 'pro', 'enterprise', 'beta'];
     if (!validTiers.includes(subscriptionTier)) {
-      return NextResponse.json({
-        error: `Invalid subscription tier. Must be one of: ${validTiers.join(', ')}`
-      }, { status: 400 });
+      logger.admin.warn('Invalid subscription tier', { tier: subscriptionTier, requestedBy: currentUser.email });
+      return badRequest(`Invalid subscription tier. Must be one of: ${validTiers.join(', ')}`);
     }
 
     // If password is provided, validate it
     if (password && password.length < 8) {
-      return NextResponse.json({
-        error: 'Password must be at least 8 characters long'
-      }, { status: 400 });
+      logger.admin.warn('Password too short', { requestedBy: currentUser.email });
+      return badRequest('Password must be at least 8 characters long');
     }
 
     // Check if email is already in use
@@ -135,9 +149,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingUser) {
-      return NextResponse.json({ 
-        error: 'A user with this email address already exists' 
-      }, { status: 400 });
+      logger.admin.warn('Attempted to create duplicate user', {
+        email,
+        requestedBy: currentUser.email
+      });
+      return badRequest('A user with this email address already exists');
     }
 
     // Check if user exists in Supabase Auth (to prevent duplicate auth users)
@@ -159,7 +175,11 @@ export async function POST(request: NextRequest) {
       );
       authUserId = existingAuthUser!.id;
 
-      console.log(`♻️ Reusing existing Supabase Auth user: ${authUserId}`);
+      logger.admin.info('Reusing existing Supabase Auth user', {
+        authUserId,
+        email,
+        createdBy: currentUser.email
+      });
 
       // Update their metadata and password if provided
       const updateData: any = {
@@ -188,15 +208,20 @@ export async function POST(request: NextRequest) {
       });
 
       if (authError || !authData.user) {
-        console.error('❌ Supabase Auth error:', authError);
-        return NextResponse.json({
-          error: 'Failed to create user account',
-          details: authError?.message
-        }, { status: 500 });
+        logger.auth.error('Supabase Auth user creation failed', {
+          error: authError,
+          email,
+          createdBy: currentUser.email
+        });
+        return internalError();
       }
 
       authUserId = authData.user.id;
-      console.log(`✅ Created Supabase Auth user: ${authUserId}`);
+      logger.auth.info('Created Supabase Auth user', {
+        authUserId,
+        email,
+        createdBy: currentUser.email
+      });
     }
 
     // Create user in database
@@ -240,7 +265,12 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
-    console.log(`📝 Created/updated database user record: ${newUser.id}`);
+    logger.db.info('Created/updated database user record', {
+      userId: newUser.id,
+      email: newUser.email,
+      role: newUser.role,
+      createdBy: currentUser.email
+    });
 
     // Log audit event
     await db.insert(userAuditLogs).values({
@@ -256,7 +286,10 @@ export async function POST(request: NextRequest) {
       userAgent: request.headers.get('user-agent') || 'unknown',
     });
 
-    console.log(`📊 Logged audit event`);
+    logger.admin.info('User creation audit event logged', {
+      userId: newUser.id,
+      createdBy: currentUser.email
+    });
 
     // Send invitation email only if using invitation flow
     let emailResult = { success: false };
@@ -278,10 +311,16 @@ export async function POST(request: NextRequest) {
       });
 
       if (!emailResult.success) {
-        console.error('⚠️ Failed to send invitation email');
+        logger.email.error('Failed to send invitation email', {
+          email,
+          userId: newUser.id
+        });
         // Don't fail the request - user was created successfully
       } else {
-        console.log(`✅ Invitation email sent to ${email}`);
+        logger.email.info('Invitation email sent', {
+          email,
+          userId: newUser.id
+        });
       }
     }
 
@@ -289,9 +328,15 @@ export async function POST(request: NextRequest) {
       ? `User created successfully. Invitation email sent to ${email}`
       : `User created successfully with password. User can login immediately.`;
 
-    return NextResponse.json({
-      success: true,
-      message: responseMessage,
+    logger.admin.info('User created successfully', {
+      userId: newUser.id,
+      email: newUser.email,
+      role: newUser.role,
+      useInvitationFlow,
+      createdBy: currentUser.email
+    });
+
+    return successResponse({
       user: {
         id: newUser.id,
         email: newUser.email,
@@ -302,14 +347,11 @@ export async function POST(request: NextRequest) {
       },
       emailSent: emailResult.success,
       requiresInvitation: useInvitationFlow,
-    });
+    }, responseMessage);
 
   } catch (error: any) {
-    console.error('❌ Error creating user:', error);
-    return NextResponse.json({ 
-      error: 'Failed to create user',
-      details: error.message 
-    }, { status: 500 });
+    logger.api.error('Error creating user', error);
+    return internalError();
   }
-}
+});
 

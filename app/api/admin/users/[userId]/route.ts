@@ -3,6 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { db } from '@/lib/db/drizzle';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { withCsrfProtection } from '@/lib/security/csrf';
+import { successResponse, unauthorized, forbidden, notFound, internalError, badRequest } from '@/lib/api/error-response';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +19,8 @@ export async function GET(
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized access to user details');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -25,7 +29,12 @@ export async function GET(
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to view user details', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     const { userId } = params;
@@ -36,11 +45,17 @@ export async function GET(
     });
 
     if (!targetUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      logger.admin.warn('User not found', { targetUserId: userId, requestedBy: dbUser.email });
+      return notFound('User not found');
     }
 
-    return NextResponse.json({
-      success: true,
+    logger.admin.info('User details fetched', {
+      targetUserId: userId,
+      targetEmail: targetUser.email,
+      requestedBy: dbUser.email
+    });
+
+    return successResponse({
       user: {
         id: targetUser.id,
         email: targetUser.email,
@@ -53,22 +68,23 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('User fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
+    logger.api.error('User fetch error', error);
+    return internalError();
   }
 }
 
-// PATCH: Update user details
-export async function PATCH(
+// PATCH: Update user details (CSRF Protected)
+export const PATCH = withCsrfProtection(async (
   request: NextRequest,
   { params }: { params: { userId: string } }
-) {
+) => {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized user update attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -77,7 +93,12 @@ export async function PATCH(
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to update user', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     const { userId } = params;
@@ -85,11 +106,18 @@ export async function PATCH(
 
     const { role, subscriptionTier, fullName } = body;
 
+    // Validate at least one field is being updated
+    if (role === undefined && subscriptionTier === undefined && fullName === undefined) {
+      logger.admin.warn('No fields provided for user update', { targetUserId: userId, requestedBy: dbUser.email });
+      return badRequest('At least one field must be provided');
+    }
+
     // Update user
     const updateData: any = {};
     if (role !== undefined) updateData.role = role;
     if (subscriptionTier !== undefined) updateData.subscriptionTier = subscriptionTier;
     if (fullName !== undefined) updateData.fullName = fullName;
+    updateData.updatedAt = new Date();
 
     const [updated] = await db
       .update(users)
@@ -98,27 +126,36 @@ export async function PATCH(
       .returning();
 
     if (!updated) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      logger.admin.warn('User not found for update', { targetUserId: userId, requestedBy: dbUser.email });
+      return notFound('User not found');
     }
 
-    return NextResponse.json({ success: true, user: updated });
-  } catch (error) {
-    console.error('User update error:', error);
-    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
-  }
-}
+    logger.admin.info('User updated successfully', {
+      targetUserId: userId,
+      targetEmail: updated.email,
+      updatedFields: Object.keys(updateData),
+      updatedBy: dbUser.email
+    });
 
-// DELETE: Delete user
-export async function DELETE(
+    return successResponse({ user: updated }, 'User updated successfully');
+  } catch (error) {
+    logger.api.error('User update error', error);
+    return internalError();
+  }
+});
+
+// DELETE: Delete user (CSRF Protected)
+export const DELETE = withCsrfProtection(async (
   request: NextRequest,
   { params }: { params: { userId: string } }
-) {
+) => {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      logger.admin.warn('Unauthorized user deletion attempt');
+      return unauthorized();
     }
 
     // Check if user is platform admin
@@ -127,22 +164,45 @@ export async function DELETE(
     });
 
     if (!dbUser || dbUser.role !== 'platform_admin') {
-      return NextResponse.json({ error: 'Forbidden - Platform admin access required' }, { status: 403 });
+      logger.security.warn('Non-admin attempted to delete user', {
+        userId: user.id,
+        email: user.email,
+        role: dbUser?.role,
+      });
+      return forbidden('Platform admin access required');
     }
 
     const { userId } = params;
 
     // Prevent deleting yourself
     if (userId === user.id) {
-      return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
+      logger.admin.warn('Admin attempted to delete own account', { adminEmail: dbUser.email });
+      return badRequest('Cannot delete your own account');
+    }
+
+    // Get target user info before deletion (for logging)
+    const targetUser = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+
+    if (!targetUser) {
+      logger.admin.warn('User not found for deletion', { targetUserId: userId, requestedBy: dbUser.email });
+      return notFound('User not found');
     }
 
     // Delete user (cascade will handle related records)
     await db.delete(users).where(eq(users.id, userId));
 
-    return NextResponse.json({ success: true, message: 'User deleted successfully' });
+    logger.security.info('User deleted', {
+      deletedUserId: userId,
+      deletedUserEmail: targetUser.email,
+      deletedBy: dbUser.email,
+      deletedByUserId: dbUser.id
+    });
+
+    return successResponse({ deleted: true }, 'User deleted successfully');
   } catch (error) {
-    console.error('User deletion error:', error);
-    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
+    logger.api.error('User deletion error', error);
+    return internalError();
   }
-}
+});
