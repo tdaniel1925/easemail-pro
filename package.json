@@ -16,6 +16,7 @@
     "cleanup-webhooks": "tsx scripts/cleanup-webhooks.ts",
     "generate-images": "tsx scripts/generate-marketing-images.ts",
     "migrate": "tsx scripts/run-migrations.ts",
+    "generate:pdf": "node scripts/generate-pdf-simple.js",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report"
@@ -147,7 +148,10 @@
     "eslint": "^8.56.0",
     "eslint-config-next": "14.1.0",
     "jsdom": "^27.4.0",
+    "marked": "^17.0.1",
+    "md-to-pdf": "^5.2.5",
     "postcss": "^8.4.49",
+    "puppeteer": "^24.36.1",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.6",
     "typescript": "^5.3.3",
