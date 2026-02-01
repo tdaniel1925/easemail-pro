@@ -1328,10 +1328,10 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
   return (
     <>
       {/* Backdrop overlay */}
-      <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" onClick={handleBackdropClick} />
-      
+      <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm" onClick={handleBackdropClick} aria-hidden="true" />
+
       {/* Centered modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none" role="dialog" aria-modal="true" aria-labelledby="compose-dialog-title">
         <div
           className={cn(
             'bg-card border border-border shadow-2xl rounded-lg flex flex-col pointer-events-auto transition-all duration-300',
@@ -1351,7 +1351,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
         {/* Header */}
         <div className="flex items-center justify-between p-2 border-b border-border bg-muted/30">
           <div className="flex items-center gap-1.5">
-            <h3 className="font-semibold text-xs">
+            <h3 id="compose-dialog-title" className="font-semibold text-xs">
               {type === 'reply' && replyTo && `Re: ${replyTo.subject}`}
               {type === 'reply-all' && replyTo && `Re: ${replyTo.subject}`}
               {type === 'forward' && replyTo && `Fwd: ${replyTo.subject}`}
@@ -1393,18 +1393,20 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                   size="icon"
                   className="h-6 w-6"
                   onClick={() => setIsMinimized(true)}
+                  aria-label="Minimize compose window"
                   title="Minimize"
                 >
-                  <Minimize2 className="h-3 w-3" />
+                  <Minimize2 className="h-3 w-3" aria-hidden="true" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
                   onClick={() => setIsFullscreen(!isFullscreen)}
+                  aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
                   title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
                 >
-                  <Maximize2 className="h-3 w-3" />
+                  <Maximize2 className="h-3 w-3" aria-hidden="true" />
                 </Button>
               </>
             )}
@@ -1414,9 +1416,10 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                 size="icon"
                 className="h-6 w-6"
                 onClick={() => setIsMinimized(false)}
+                aria-label="Restore compose window"
                 title="Restore"
               >
-                <Maximize2 className="h-3 w-3" />
+                <Maximize2 className="h-3 w-3" aria-hidden="true" />
               </Button>
             )}
             <Button
@@ -1424,6 +1427,7 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
               size="icon"
               className="h-6 w-6"
               onClick={handleClose}
+              aria-label="Close compose window"
               title="Close"
             >
               <X className="h-3 w-3" />

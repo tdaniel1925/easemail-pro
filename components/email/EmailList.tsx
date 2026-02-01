@@ -886,13 +886,15 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
   };
 
   return (
-    <div
+    <article
       className={cn(
         'border border-border/50 rounded-lg transition-all bg-card overflow-hidden cursor-pointer',
         'hover:shadow-md hover:-translate-y-0.5',
         !email.isRead && 'bg-accent/30',
         isSelected && 'ring-2 ring-primary ring-offset-1'
       )}
+      aria-label={`Email from ${avatarPerson}: ${email.subject}`}
+      aria-expanded={isExpanded}
     >
       {/* Email Preview - Always Visible */}
       <div
@@ -901,10 +903,18 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
           isExpanded && 'bg-accent/50'
         )}
         onClick={onClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        }}
       >
         <div className="flex gap-3">
           {/* Checkbox - always visible for easy selection */}
-          <div 
+          <div
             className="flex items-start pt-0.5"
             onClick={(e) => {
               e.stopPropagation();
@@ -914,12 +924,15 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
             <button
               className={cn(
                 "h-5 w-5 rounded border-2 flex items-center justify-center transition-all",
-                isChecked 
-                  ? "bg-primary border-primary text-primary-foreground" 
+                isChecked
+                  ? "bg-primary border-primary text-primary-foreground"
                   : "border-border hover:border-primary/50 bg-background"
               )}
+              role="checkbox"
+              aria-checked={isChecked}
+              aria-label={`Select email from ${avatarPerson}`}
             >
-              {isChecked && <CheckSquare className="h-4 w-4" />}
+              {isChecked && <CheckSquare className="h-4 w-4" aria-hidden="true" />}
             </button>
           </div>
 
@@ -949,13 +962,15 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
                     }}
                     className={cn(
                       "flex items-center gap-1 px-2 py-1 rounded-full transition-all",
-                      showThread 
-                        ? "bg-primary text-primary-foreground" 
+                      showThread
+                        ? "bg-primary text-primary-foreground"
                         : "bg-primary/10 hover:bg-primary/20 text-primary"
                     )}
+                    aria-label={`${showThread ? 'Hide' : 'View'} email thread with ${email.threadEmailCount} messages`}
+                    aria-expanded={showThread}
                     title={`View thread (${email.threadEmailCount} emails)`}
                   >
-                    <MessageSquare className="h-3 w-3" />
+                    <MessageSquare className="h-3 w-3" aria-hidden="true" />
                     <span className="text-xs font-medium">
                       {email.threadEmailCount}
                     </span>
@@ -967,9 +982,12 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
                 <button
                   onClick={handleStar}
                   className="text-muted-foreground hover:text-yellow-500 transition-colors"
+                  aria-label={email.isStarred ? "Unstar email" : "Star email"}
+                  aria-pressed={email.isStarred}
                 >
                   <Star
                     className={cn('h-4 w-4', email.isStarred && 'fill-yellow-500 text-yellow-500')}
+                    aria-hidden="true"
                   />
                 </button>
                 {isExpanded ? (
@@ -1248,7 +1266,7 @@ function EmailCard({ email, isExpanded, isSelected, isChecked, selectMode, showI
           onClose={() => setShowThread(false)}
         />
       )}
-    </div>
+    </article>
   );
 }
 
