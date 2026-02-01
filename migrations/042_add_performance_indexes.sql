@@ -24,8 +24,9 @@ CREATE INDEX IF NOT EXISTS contacts_email_idx ON contacts(email);
 CREATE INDEX IF NOT EXISTS contacts_company_idx ON contacts(company);
 -- Composite index for user's contacts by email (prevents duplicate lookups)
 CREATE INDEX IF NOT EXISTS contacts_user_email_idx ON contacts(user_id, email);
--- Optimize contact name searches
-CREATE INDEX IF NOT EXISTS contacts_name_idx ON contacts(name);
+-- Optimize contact name searches (using full_name and display_name columns)
+CREATE INDEX IF NOT EXISTS contacts_full_name_idx ON contacts(full_name);
+CREATE INDEX IF NOT EXISTS contacts_display_name_idx ON contacts(display_name);
 
 -- Snooze functionality: Optimize snoozed email queries
 -- Partial index for active snoozed emails only
