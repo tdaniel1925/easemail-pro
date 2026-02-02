@@ -61,11 +61,13 @@ export default function EmailTemplatesPage() {
   const [showPreview, setShowPreview] = useState(true);
   const [showCode, setShowCode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
   // Form state
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    templateKey: '',
     subjectTemplate: '',
     htmlTemplate: '',
     category: 'general',
@@ -120,11 +122,12 @@ export default function EmailTemplatesPage() {
       if (data.success) {
         setSelectedTemplate(data.template);
         setVersions(data.template.versions || []);
-        
+
         // Initialize form with template data
         setFormData({
           name: data.template.name,
           description: data.template.description || '',
+          templateKey: data.template.templateKey,
           subjectTemplate: data.template.subjectTemplate,
           htmlTemplate: data.template.htmlTemplate,
           category: data.template.category,
@@ -155,6 +158,74 @@ export default function EmailTemplatesPage() {
     setSelectedTemplate(template);
     setIsEditing(false);
     fetchTemplateDetails(template.id);
+  };
+
+  // Handle create new template
+  const handleCreateTemplate = async () => {
+    if (!formData.name || !formData.templateKey || !formData.subjectTemplate || !formData.htmlTemplate) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/email-templates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          templateKey: formData.templateKey,
+          name: formData.name,
+          description: formData.description,
+          subjectTemplate: formData.subjectTemplate,
+          htmlTemplate: formData.htmlTemplate,
+          category: formData.category,
+          triggerEvent: formData.triggerEvent,
+          requiredVariables: formData.requiredVariables,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast({
+          title: 'Success',
+          description: 'Template created successfully',
+        });
+        setShowCreateModal(false);
+        setFormData({
+          name: '',
+          description: '',
+          templateKey: '',
+          subjectTemplate: '',
+          htmlTemplate: '',
+          category: 'general',
+          triggerEvent: '',
+          requiredVariables: [],
+          changeNotes: '',
+        });
+        fetchTemplates();
+        if (data.template) {
+          handleSelectTemplate(data.template);
+        }
+      } else {
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to create template',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error creating template:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create template',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Handle save changes
@@ -343,6 +414,10 @@ export default function EmailTemplatesPage() {
               <Mail className="h-6 w-6 text-primary" />
               Email Templates
             </h1>
+            <Button onClick={() => setShowCreateModal(true)} size="sm">
+              <Plus className="h-4 w-4 mr-1" />
+              New
+            </Button>
           </div>
           <p className="text-sm text-muted-foreground mb-4">
             Manage and customize email templates
@@ -458,7 +533,7 @@ export default function EmailTemplatesPage() {
                 <div className="space-y-6">
                   <Card className="p-6">
                     <h3 className="text-lg font-semibold mb-4">Template Content</h3>
-                    
+
                     <div className="space-y-4">
                       <div>
                         <Label htmlFor="subject">Subject Template</Label>
@@ -619,8 +694,177 @@ export default function EmailTemplatesPage() {
         )}
       </div>
 
+      {/* Create Template Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">Create New Email Template</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setFormData({
+                      name: '',
+                      description: '',
+                      templateKey: '',
+                      subjectTemplate: '',
+                      htmlTemplate: '',
+                      category: 'general',
+                      triggerEvent: '',
+                      requiredVariables: [],
+                      changeNotes: '',
+                    });
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="new-name">Template Name *</Label>
+                    <Input
+                      id="new-name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Welcome Email"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-key">Template Key *</Label>
+                    <Input
+                      id="new-key"
+                      value={formData.templateKey}
+                      onChange={(e) => setFormData({ ...formData, templateKey: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                      placeholder="welcome-email"
+                      className="font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Used in code (lowercase, hyphens only)
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="new-description">Description</Label>
+                  <Textarea
+                    id="new-description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Describe when this template is used..."
+                    rows={2}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="new-category">Category</Label>
+                    <select
+                      id="new-category"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                    >
+                      <option value="general">General</option>
+                      <option value="auth">Authentication</option>
+                      <option value="team">Team Management</option>
+                      <option value="billing">Billing</option>
+                      <option value="notification">Notification</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="new-trigger">Trigger Event</Label>
+                    <Input
+                      id="new-trigger"
+                      value={formData.triggerEvent}
+                      onChange={(e) => setFormData({ ...formData, triggerEvent: e.target.value })}
+                      placeholder="When is this sent?"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="new-subject">Subject Template *</Label>
+                  <Input
+                    id="new-subject"
+                    value={formData.subjectTemplate}
+                    onChange={(e) => setFormData({ ...formData, subjectTemplate: e.target.value })}
+                    placeholder="Welcome to {{organizationName}}"
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Use {`{{variableName}}`} for dynamic content
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="new-html">HTML Template *</Label>
+                  <Textarea
+                    id="new-html"
+                    value={formData.htmlTemplate}
+                    onChange={(e) => setFormData({ ...formData, htmlTemplate: e.target.value })}
+                    placeholder="<!DOCTYPE html><html><body>...</body></html>"
+                    className="font-mono"
+                    rows={15}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Full HTML email template with inline CSS
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="new-variables">Required Variables (comma-separated)</Label>
+                  <Input
+                    id="new-variables"
+                    value={formData.requiredVariables.join(', ')}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      requiredVariables: e.target.value.split(',').map(v => v.trim()).filter(Boolean)
+                    })}
+                    placeholder="userName, organizationName, loginUrl"
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Variables that must be provided when sending
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setFormData({
+                        name: '',
+                        description: '',
+                        templateKey: '',
+                        subjectTemplate: '',
+                        htmlTemplate: '',
+                        category: 'general',
+                        triggerEvent: '',
+                        requiredVariables: [],
+                        changeNotes: '',
+                      });
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreateTemplate}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Template
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       <ConfirmDialog />
     </div>
   );
 }
-
