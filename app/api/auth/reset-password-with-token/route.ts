@@ -19,6 +19,7 @@ import { eq } from 'drizzle-orm';
 import { createAdminClient } from '@/lib/supabase/server';
 import { authRateLimit, enforceRateLimit } from '@/lib/security/rate-limiter';
 import { z } from 'zod';
+import { maskSensitive } from '@/lib/utils/secure-logger';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';

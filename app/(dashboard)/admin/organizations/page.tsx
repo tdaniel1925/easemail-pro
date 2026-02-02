@@ -659,6 +659,7 @@ export default function OrganizationsManagement() {
                   <span className={`text-xs px-2 py-1 rounded ${
                     member.role === 'owner' ? 'bg-primary/20 text-primary' :
                     member.role === 'admin' ? 'bg-accent text-accent-foreground' :
+                    member.role === 'user_admin' ? 'bg-blue-100 text-blue-700' :
                     'bg-muted text-muted-foreground'
                   }`}>
                     {member.role}

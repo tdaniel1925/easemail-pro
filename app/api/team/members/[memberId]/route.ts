@@ -92,8 +92,8 @@ export async function PATCH(
     const body = await request.json();
     const { role } = body;
 
-    if (!['owner', 'admin', 'member'].includes(role)) {
-      return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+    if (!['owner', 'admin', 'user_admin', 'member'].includes(role)) {
+      return NextResponse.json({ error: 'Invalid role. Must be "owner", "admin", "user_admin", or "member"' }, { status: 400 });
     }
 
     // Prevent changing your own role
@@ -126,17 +126,17 @@ export async function PATCH(
       })
       .where(eq(organizationMembers.id, member.id));
 
-    // Update user role if becoming admin/owner
-    if (role === 'owner' || role === 'admin') {
+    // Update user role based on organization role
+    if (role === 'owner' || role === 'admin' || role === 'user_admin') {
       await db.update(users)
-        .set({ 
-          role: 'org_admin',
+        .set({
+          role: 'org_admin', // All org admins have elevated user role
           updatedAt: new Date(),
         })
         .where(eq(users.id, memberId));
     } else {
       await db.update(users)
-        .set({ 
+        .set({
           role: 'org_user',
           updatedAt: new Date(),
         })

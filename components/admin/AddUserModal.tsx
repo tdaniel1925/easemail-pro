@@ -139,11 +139,14 @@ export function AddUserModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="member">Member</SelectItem>
+                <SelectItem value="user_admin">User Admin</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="owner">Owner</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Members can access the app. Admins can also manage other users.
+              <strong>Member:</strong> Standard access. <strong>User Admin:</strong> Can manage users.{' '}
+              <strong>Admin/Owner:</strong> Full organization control.
             </p>
           </div>
 

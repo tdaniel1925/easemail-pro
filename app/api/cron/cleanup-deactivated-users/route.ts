@@ -10,11 +10,21 @@ import { and, eq, lt, sql } from 'drizzle-orm';
  */
 export async function POST(request: NextRequest) {
   try {
+    // ✅ SECURITY: Verify CRON_SECRET is configured
+    if (!process.env.CRON_SECRET) {
+      console.error('❌ CRITICAL: CRON_SECRET not configured in environment');
+      return NextResponse.json(
+        { error: 'Server misconfigured' },
+        { status: 500 }
+      );
+    }
+
     // Verify cron secret to prevent unauthorized access
     const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET || 'your-secret-key-here';
-    
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+
+    if (authHeader !== expectedAuth) {
+      console.error('❌ Unauthorized cron request attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -82,11 +92,21 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
+    // ✅ SECURITY: Verify CRON_SECRET is configured
+    if (!process.env.CRON_SECRET) {
+      console.error('❌ CRITICAL: CRON_SECRET not configured in environment');
+      return NextResponse.json(
+        { error: 'Server misconfigured' },
+        { status: 500 }
+      );
+    }
+
     // Verify cron secret
     const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET || 'your-secret-key-here';
-    
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+
+    if (authHeader !== expectedAuth) {
+      console.error('❌ Unauthorized cron request attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

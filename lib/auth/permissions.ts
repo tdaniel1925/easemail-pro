@@ -9,7 +9,7 @@ import { users, organizationMembers, organizations } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export type UserRole = 'platform_admin' | 'org_admin' | 'org_user' | 'individual';
-export type OrgRole = 'owner' | 'admin' | 'member';
+export type OrgRole = 'owner' | 'admin' | 'user_admin' | 'member';
 
 export interface UserContext {
   userId: string;
@@ -18,7 +18,8 @@ export interface UserContext {
   organizationId: string | null;
   orgRole: OrgRole | null;
   isPlatformAdmin: boolean;
-  isOrgAdmin: boolean;
+  isOrgAdmin: boolean; // Can manage org settings, billing
+  canManageUsers: boolean; // Can invite/remove/manage users
 }
 
 /**
@@ -50,14 +51,19 @@ export async function getUserContext(): Promise<UserContext | null> {
       ),
     });
 
+    const orgRole = orgMembership?.role as OrgRole || null;
+
     return {
       userId: dbUser.id,
       email: dbUser.email,
       userRole: dbUser.role as UserRole,
       organizationId: dbUser.organizationId,
-      orgRole: orgMembership?.role as OrgRole || null,
+      orgRole,
       isPlatformAdmin: dbUser.role === 'platform_admin',
-      isOrgAdmin: orgMembership?.role === 'owner' || orgMembership?.role === 'admin',
+      // isOrgAdmin: Can manage org settings, billing (owner/admin only)
+      isOrgAdmin: orgRole === 'owner' || orgRole === 'admin',
+      // canManageUsers: Can invite/remove users (owner/admin/user_admin)
+      canManageUsers: orgRole === 'owner' || orgRole === 'admin' || orgRole === 'user_admin',
     };
   } catch (error) {
     console.error('Error getting user context:', error);
@@ -189,6 +195,78 @@ export async function requireOrgAdmin(organizationId?: string): Promise<UserCont
 }
 
 /**
+ * Check if user can manage users in their organization
+ * Allows: platform_admin, owner, admin, user_admin
+ */
+export async function canManageOrgUsers(organizationId?: string): Promise<boolean> {
+  const context = await getUserContext();
+
+  if (!context) return false;
+
+  // Platform admins can manage any organization's users
+  if (context.isPlatformAdmin) return true;
+
+  // Check organization membership
+  const targetOrgId = organizationId || context.organizationId;
+
+  if (!targetOrgId || context.organizationId !== targetOrgId) {
+    return false;
+  }
+
+  // User must have user management permissions
+  return context.canManageUsers;
+}
+
+/**
+ * Require user management permissions or throw an error
+ * Less restrictive than requireOrgAdmin - allows user_admin role
+ */
+export async function requireUserManagement(organizationId?: string): Promise<UserContext> {
+  const context = await requireAuth();
+
+  // Platform admins always have access
+  if (context.isPlatformAdmin) {
+    return context;
+  }
+
+  // Check organization membership
+  const targetOrgId = organizationId || context.organizationId;
+
+  if (!targetOrgId || context.organizationId !== targetOrgId) {
+    throw new Error('Forbidden: Not a member of this organization');
+  }
+
+  if (!context.canManageUsers) {
+    throw new Error('Forbidden: User management permissions required');
+  }
+
+  return context;
+}
+
+/**
+ * Check if user can manage org settings and billing
+ * More restrictive - only owner/admin, not user_admin
+ */
+export async function canManageOrgSettings(organizationId?: string): Promise<boolean> {
+  const context = await getUserContext();
+
+  if (!context) return false;
+
+  // Platform admins can manage any organization
+  if (context.isPlatformAdmin) return true;
+
+  // Check organization membership
+  const targetOrgId = organizationId || context.organizationId;
+
+  if (!targetOrgId || context.organizationId !== targetOrgId) {
+    return false;
+  }
+
+  // Must be owner or admin (NOT user_admin)
+  return context.isOrgAdmin;
+}
+
+/**
  * Check if user can perform action on resource
  */
 export interface ResourcePermissions {
@@ -231,8 +309,8 @@ export async function getResourcePermissions(
   
   return {
     canView: isOwner || isOrgResource || false,
-    canEdit: isOwner || (isOrgResource && context.isOrgAdmin) || false,
-    canDelete: isOwner || (isOrgResource && context.isOrgAdmin) || false,
+    canEdit: isOwner || (isOrgResource && context.canManageUsers) || false,
+    canDelete: isOwner || (isOrgResource && context.canManageUsers) || false,
     canManage: (isOwner && context.isOrgAdmin) || false,
   };
 }

@@ -68,8 +68,13 @@ export async function POST(request: NextRequest) {
     // SECURITY: Always return success to prevent email enumeration
     // Don't reveal if email exists or not
     if (!user) {
-      console.log(`🔒 Password reset requested for non-existent email: ${emailLower}`);
-      
+      // ✅ SECURITY: Don't log actual email in production
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔒 Password reset requested for non-existent email: ${emailLower}`);
+      } else {
+        console.log('🔒 Password reset requested for non-existent email (masked for security)');
+      }
+
       // Still return success after a delay (timing attack prevention)
       await new Promise(resolve => setTimeout(resolve, 500));
       
@@ -121,7 +126,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log(`✅ Password reset email sent to: ${user.email}`);
+    // ✅ SECURITY: Don't log actual email in production
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Password reset email sent to: ${user.email}`);
+    } else {
+      console.log('✅ Password reset email sent successfully');
+    }
 
     return NextResponse.json({
       success: true,

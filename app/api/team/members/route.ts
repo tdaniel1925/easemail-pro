@@ -70,8 +70,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    if (!['admin', 'member'].includes(role)) {
-      return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+    if (!['owner', 'admin', 'user_admin', 'member'].includes(role)) {
+      return NextResponse.json({ error: 'Invalid role. Must be "owner", "admin", "user_admin", or "member"' }, { status: 400 });
     }
 
     // Check if user is already a member

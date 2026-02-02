@@ -41,12 +41,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
   
-  // ✅ SECURITY: Verify signature (only allow bypass in local development, never staging/production)
-  const skipVerification = process.env.NODE_ENV === 'development' &&
-                           process.env.DISABLE_WEBHOOK_VERIFICATION === 'true';
+  // ✅ SECURITY: Verify signature (only allow bypass in true local development)
+  // Check for hosting environment variables to ensure we're not in staging/production
+  const isLocalDev = process.env.NODE_ENV === 'development' &&
+                     !process.env.VERCEL &&  // Not on Vercel
+                     !process.env.RAILWAY_STATIC_URL &&  // Not on Railway
+                     !process.env.RENDER &&  // Not on Render
+                     process.env.DISABLE_WEBHOOK_VERIFICATION === 'true';
 
-  if (skipVerification) {
-    console.warn('⚠️ DEV MODE: Webhook signature verification DISABLED');
+  if (isLocalDev) {
+    console.warn('⚠️ LOCAL DEV ONLY: Webhook signature verification DISABLED');
   } else {
     // Enhanced logging for debugging
     if (!signature) {

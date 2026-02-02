@@ -76,6 +76,7 @@ export default function ContactsList() {
 
   // Bulk delete state
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState<{current: number, total: number} | null>(null);
 
   // Confirmation dialog
   const { confirm, Dialog: ConfirmDialog } = useConfirm();
@@ -236,9 +237,11 @@ export default function ContactsList() {
   };
 
   const handleBulkDelete = async () => {
+    const totalToDelete = selectedContactIds.size;
+
     const confirmed = await confirm({
-      title: `Delete ${selectedContactIds.size} Contacts`,
-      message: `Are you sure you want to delete ${selectedContactIds.size} selected contact(s)?`,
+      title: `Delete ${totalToDelete} Contacts`,
+      message: `Are you sure you want to delete ${totalToDelete} selected contact(s)?`,
       confirmText: 'Delete',
       cancelText: 'Cancel',
       variant: 'danger',
@@ -250,26 +253,58 @@ export default function ContactsList() {
       setBulkDeleting(true);
       const contactIds = Array.from(selectedContactIds);
 
-      // Use bulk delete API endpoint - runs on server side in one transaction
-      // This is much faster and can continue even if user navigates away
-      const response = await fetch('/api/contacts/bulk-delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contactIds }),
-      });
+      // ✅ IMPROVEMENT: Show progress for large bulk deletes
+      if (contactIds.length > 10) {
+        // For large batches, delete in chunks to show progress
+        const BATCH_SIZE = 10;
+        let deleted = 0;
 
-      const data = await response.json();
+        for (let i = 0; i < contactIds.length; i += BATCH_SIZE) {
+          const batch = contactIds.slice(i, i + BATCH_SIZE);
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete contacts');
+          const response = await fetch('/api/contacts/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contactIds: batch }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to delete contacts');
+          }
+
+          deleted += data.deletedCount || batch.length;
+          setDeleteProgress({ current: deleted, total: totalToDelete });
+        }
+
+        console.log(`✅ Bulk delete completed: ${deleted} contacts deleted`);
+      } else {
+        // For small batches, use single API call
+        const response = await fetch('/api/contacts/bulk-delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contactIds }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to delete contacts');
+        }
+
+        console.log(`✅ Bulk delete completed: ${data.deletedCount} contacts deleted`);
       }
-
-      console.log(`✅ Bulk delete completed: ${data.deletedCount} contacts deleted`);
 
       // Refresh contacts list
       await fetchContacts();
       setSelectedContactIds(new Set());
       setIsAllSelected(false);
+
+      toast({
+        title: 'Success',
+        description: `Deleted ${totalToDelete} contact(s)`,
+      });
     } catch (error) {
       console.error('Failed to delete contacts:', error);
       toast({
@@ -279,6 +314,7 @@ export default function ContactsList() {
       });
     } finally {
       setBulkDeleting(false);
+      setDeleteProgress(null);
     }
   };
 
@@ -366,11 +402,16 @@ export default function ContactsList() {
   };
 
   const handleSMSClick = (contact: Contact) => {
-    if (!contact.phone) {
-      alert('SMS requires a phone number. Please edit this contact to add a phone number.');
+    // ✅ VALIDATION: Check if contact has a phone number
+    if (!contact.phone || contact.phone.trim() === '') {
+      toast({
+        title: 'Cannot send SMS',
+        description: 'This contact has no phone number. Please edit the contact to add a phone number first.',
+        variant: 'destructive',
+      });
       return;
     }
-    
+
     const contactName = contact.displayName || contact.fullName ||
       `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
       contact.email ||
@@ -496,7 +537,11 @@ export default function ContactsList() {
                 {bulkDeleting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Deleting...
+                    {deleteProgress ? (
+                      `Deleting ${deleteProgress.current} of ${deleteProgress.total}...`
+                    ) : (
+                      'Deleting...'
+                    )}
                   </>
                 ) : (
                   <>

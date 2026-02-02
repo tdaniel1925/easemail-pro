@@ -85,12 +85,12 @@ export const POST = withCsrfProtection(async (request: NextRequest, context: Rou
       return badRequest('Email and full name are required');
     }
 
-    if (!['admin', 'member'].includes(role)) {
+    if (!['owner', 'admin', 'user_admin', 'member'].includes(role)) {
       logger.admin.warn('Invalid role specified', {
         role,
         requestedBy: currentUser.email
       });
-      return badRequest('Invalid role. Must be "admin" or "member"');
+      return badRequest('Invalid role. Must be "owner", "admin", "user_admin", or "member"');
     }
 
     // Check if email is already in use

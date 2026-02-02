@@ -68,20 +68,52 @@ export async function POST(request: NextRequest) {
       provider: account.emailProvider,
     });
 
-    // 4. Parse recipients (convert strings to objects if needed)
-    const parseRecipients = (recipients: any) => {
+    // 4. Parse and validate recipients
+    const MAX_RECIPIENTS_PER_EMAIL = 50;
+
+    // Simple email validation regex (RFC 5322 simplified)
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    const parseRecipients = (recipients: any): Array<{email: string, name?: string}> => {
       if (!recipients) return [];
+
+      let emails: string[] = [];
+
       if (typeof recipients === 'string') {
-        return recipients.split(',').map((email: string) => ({
-          email: email.trim(),
-        }));
+        emails = recipients.split(',').map((e: string) => e.trim()).filter(Boolean);
+      } else if (Array.isArray(recipients)) {
+        emails = recipients.map((r: any) => {
+          if (typeof r === 'string') return r.trim();
+          if (r && typeof r.email === 'string') return r.email.trim();
+          return '';
+        }).filter(Boolean);
       }
-      if (Array.isArray(recipients)) {
-        return recipients.map((r: any) => 
-          typeof r === 'string' ? { email: r } : r
+
+      // ✅ SECURITY: Validate each email address
+      const validated = emails.map(email => {
+        const cleanEmail = email.toLowerCase();
+
+        // Check basic email format
+        if (!EMAIL_REGEX.test(cleanEmail)) {
+          throw new Error(`Invalid email address format: ${email}`);
+        }
+
+        // Check email length (max 320 chars per RFC)
+        if (cleanEmail.length > 320) {
+          throw new Error(`Email address too long: ${email}`);
+        }
+
+        return { email: cleanEmail };
+      });
+
+      // ✅ SECURITY: Enforce recipient limit
+      if (validated.length > MAX_RECIPIENTS_PER_EMAIL) {
+        throw new Error(
+          `Too many recipients (${validated.length}). Maximum ${MAX_RECIPIENTS_PER_EMAIL} allowed per email.`
         );
       }
-      return [];
+
+      return validated;
     };
 
     const parsedTo = parseRecipients(to);
@@ -137,20 +169,32 @@ export async function POST(request: NextRequest) {
     // Process attachments - download and convert to base64 for Nylas
     const processedAttachments = [];
     if (attachments && attachments.length > 0) {
+      // ✅ SECURITY: Validate attachment sizes before processing
+      const MAX_SINGLE_ATTACHMENT_MB = 25; // Gmail/Outlook limit
+      const MAX_TOTAL_ATTACHMENTS_MB = 25;
+
       console.log(`📎 Processing ${attachments.length} attachment(s)...`);
-      
+
       for (const attachment of attachments) {
         try {
           console.log(`📎 Fetching attachment from: ${attachment.url.substring(0, 100)}...`);
-          
+
           // Fetch the file from URL
           const response = await fetch(attachment.url);
-          
+
           if (!response.ok) {
             throw new Error(`Failed to fetch attachment: ${response.status} ${response.statusText}`);
           }
-          
+
           const blob = await response.blob();
+
+          // ✅ SECURITY: Check individual file size
+          const sizeMB = blob.size / (1024 * 1024);
+          if (sizeMB > MAX_SINGLE_ATTACHMENT_MB) {
+            throw new Error(
+              `Attachment "${attachment.filename}" is too large (${sizeMB.toFixed(1)}MB). Maximum ${MAX_SINGLE_ATTACHMENT_MB}MB per file.`
+            );
+          }
           console.log(`📎 Blob size: ${blob.size} bytes, type: ${blob.type}`);
           
           const buffer = Buffer.from(await blob.arrayBuffer());
@@ -168,7 +212,25 @@ export async function POST(request: NextRequest) {
           console.log(`✅ Processed attachment: ${attachment.filename} (${attachment.contentType})`);
         } catch (error: any) {
           console.error(`❌ Failed to process attachment: ${attachment.filename}`, error.message);
+          // Re-throw to fail the entire send operation
+          throw error;
         }
+      }
+
+      // ✅ SECURITY: Check total attachment size
+      const totalSize = processedAttachments.reduce((sum, att) => {
+        // Estimate size from base64 (base64 is ~1.33x original size)
+        return sum + (att.content.length / 1.33);
+      }, 0);
+      const totalSizeMB = totalSize / (1024 * 1024);
+
+      if (totalSizeMB > MAX_TOTAL_ATTACHMENTS_MB) {
+        return NextResponse.json(
+          {
+            error: `Total attachment size too large (${totalSizeMB.toFixed(1)}MB). Maximum ${MAX_TOTAL_ATTACHMENTS_MB}MB total.`,
+          },
+          { status: 400 }
+        );
       }
     }
 

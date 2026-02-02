@@ -52,7 +52,12 @@ export async function POST(request: NextRequest) {
       userAgent: request.headers.get('user-agent') || 'unknown',
     });
 
-    console.log(`✅ User ${userId} successfully changed their password`);
+    // ✅ SECURITY: Don't log user ID in production
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ User ${userId} successfully changed their password`);
+    } else {
+      console.log('✅ User successfully changed their password');
+    }
 
     return NextResponse.json({ success: true });
 

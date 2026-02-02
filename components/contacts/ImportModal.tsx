@@ -56,21 +56,60 @@ export default function ImportModal({ isOpen, onClose, onSuccess }: ImportModalP
     }
   };
 
+  /**
+   * Parse CSV with RFC 4180 compliance
+   * Handles quoted values with commas, newlines, and quotes
+   */
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const nextChar = line[i + 1];
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          // Escaped quote ("")
+          current += '"';
+          i++; // Skip next quote
+        } else {
+          // Toggle quote mode
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        // Field separator (not in quotes)
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+
+    // Push last field
+    result.push(current.trim());
+
+    return result;
+  };
+
   const parseCSV = (text: string): any[] => {
     const lines = text.split('\n').filter(line => line.trim());
     if (lines.length < 2) return [];
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    // Parse header row
+    const headers = parseCSVLine(lines[0]).map(h => h.trim().replace(/^"|"$/g, ''));
     const data = [];
 
+    // Parse data rows
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+      const values = parseCSVLine(lines[i]).map(v => v.trim().replace(/^"|"$/g, ''));
       const row: any = {};
-      
+
       headers.forEach((header, index) => {
         row[header] = values[index] || '';
       });
-      
+
       data.push(row);
     }
 

@@ -17,6 +17,13 @@ let eventsInitialized = false;
  * Safe to call multiple times (will only initialize once)
  */
 export function initSMSRetrySystem() {
+  // ✅ Skip if Redis isn't configured (optional in development)
+  const hasRedis = process.env.UPSTASH_REDIS_REST_URL || process.env.REDIS_URL;
+  if (!hasRedis) {
+    console.log('⏭️  SMS Retry System skipped - Redis not configured (this is fine for local dev)');
+    return;
+  }
+
   // Prevent multiple initializations
   if (workerInitialized && eventsInitialized) {
     console.log('⏭️  SMS Retry System already initialized');

@@ -11,6 +11,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { cn, getInitials, generateAvatarColor } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface SMSMessage {
   id: string;
@@ -44,6 +45,8 @@ export function SMSInbox() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     fetchMessages();
@@ -117,6 +120,39 @@ export function SMSInbox() {
 
   const handleRefresh = () => {
     fetchMessages(true);
+  };
+
+  const handleSendReply = async () => {
+    if (!replyMessage.trim() || !selectedConversation) return;
+
+    setIsSending(true);
+    try {
+      const response = await fetch('/api/sms/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: selectedConversation.contactPhone,
+          body: replyMessage.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send message');
+      }
+
+      toast.success('Message sent successfully!');
+      setReplyMessage('');
+
+      // Refresh messages to show the new message
+      await fetchMessages(true);
+    } catch (error: any) {
+      console.error('Failed to send SMS:', error);
+      toast.error(error.message || 'Failed to send message. Please try again.');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   if (isLoading) {
@@ -312,13 +348,31 @@ export function SMSInbox() {
             <div className="flex items-end gap-2">
               <div className="flex-1">
                 <textarea
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendReply();
+                    }
+                  }}
                   placeholder="Type a message..."
                   className="w-full min-h-[80px] max-h-[200px] resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   rows={2}
+                  disabled={isSending}
                 />
               </div>
-              <Button size="icon" className="h-10 w-10 flex-shrink-0">
-                <Send className="h-4 w-4" />
+              <Button
+                size="icon"
+                className="h-10 w-10 flex-shrink-0"
+                onClick={handleSendReply}
+                disabled={isSending || !replyMessage.trim()}
+              >
+                {isSending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>

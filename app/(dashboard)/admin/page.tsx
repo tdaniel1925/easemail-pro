@@ -34,10 +34,19 @@ export default function AdminDashboard() {
       }
 
       const response = await fetch('/api/admin/stats');
+
+      if (!response.ok) {
+        console.error('Failed to fetch admin stats:', response.status, response.statusText);
+        return;
+      }
+
       const data = await response.json();
-      if (data.success) {
+
+      if (data.success && data.stats) {
         setStats(data.stats);
         setLastUpdated(new Date());
+      } else {
+        console.error('Invalid stats response:', data);
       }
     } catch (error) {
       console.error('Failed to fetch admin stats:', error);
@@ -97,7 +106,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {loading ? '...' : stats.totalUsers.toLocaleString()}
+                {loading ? '...' : (stats?.totalUsers ?? 0).toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">Registered accounts</p>
             </CardContent>
@@ -110,7 +119,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {loading ? '...' : stats.totalAccounts.toLocaleString()}
+                {loading ? '...' : (stats?.totalAccounts ?? 0).toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">Connected accounts</p>
             </CardContent>
@@ -123,7 +132,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {loading ? '...' : stats.totalEmails.toLocaleString()}
+                {loading ? '...' : (stats?.totalEmails ?? 0).toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">Synced messages</p>
             </CardContent>
@@ -136,7 +145,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {loading ? '...' : stats.totalContacts.toLocaleString()}
+                {loading ? '...' : (stats?.totalContacts ?? 0).toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">Total contacts</p>
             </CardContent>
