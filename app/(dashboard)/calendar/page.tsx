@@ -818,8 +818,31 @@ function CalendarContent() {
       const event = events.find(e => e.id === eventId);
       if (!event) return;
 
+      // Validate event has valid dates
+      if (!event.startTime || !event.endTime) {
+        console.error('[Calendar Error] Event missing start or end time', event);
+        toast({
+          title: 'Cannot move event',
+          description: 'This event has invalid dates',
+          variant: 'destructive'
+        });
+        return;
+      }
+
       const oldStart = new Date(event.startTime);
       const oldEnd = new Date(event.endTime);
+
+      // Validate dates are valid
+      if (isNaN(oldStart.getTime()) || isNaN(oldEnd.getTime())) {
+        console.error('[Calendar Error] Event has invalid date format', event);
+        toast({
+          title: 'Cannot move event',
+          description: 'This event has invalid date format',
+          variant: 'destructive'
+        });
+        return;
+      }
+
       const timeDiff = oldEnd.getTime() - oldStart.getTime();
 
       const newStart = new Date(newDate);

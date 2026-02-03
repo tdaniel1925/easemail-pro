@@ -40,6 +40,7 @@ export function InlineVoiceMessageWidget({
   const analyzerRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number>();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
 
   // Timer effect
   useEffect(() => {
@@ -124,7 +125,15 @@ export function InlineVoiceMessageWidget({
     if (!recordedBlob) return;
 
     if (!audioRef.current) {
+      // Revoke old blob URL if exists
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+      }
+
+      // Create new blob URL and store reference
       const url = URL.createObjectURL(recordedBlob);
+      blobUrlRef.current = url;
+
       const audio = new Audio(url);
       audio.onended = () => setIsPlaying(false);
       audioRef.current = audio;
@@ -155,6 +164,11 @@ export function InlineVoiceMessageWidget({
       audioRef.current.pause();
       audioRef.current = null;
     }
+    // Revoke blob URL to free memory
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
     setRecordedBlob(null);
     setDuration(0);
     setIsPlaying(false);
@@ -176,6 +190,17 @@ export function InlineVoiceMessageWidget({
       }
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
+      }
+      if (mediaRecorderRef.current?.stream) {
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+      }
+      // Revoke blob URL to prevent memory leak
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
       }
     };
   }, []);

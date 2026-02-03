@@ -147,7 +147,7 @@ function LoginForm() {
   return (
     <div className="flex h-screen w-full overflow-hidden">
       {/* Left Panel - Marketing */}
-      <div className="hidden lg:flex lg:w-1/2 relative p-8 xl:p-12 flex-col justify-between bg-primary overflow-y-auto">
+      <div className="hidden lg:flex lg:w-1/2 relative p-6 xl:p-8 flex-col justify-between bg-primary overflow-hidden">
         {/* Decorative subtle pattern */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0" style={{
@@ -159,93 +159,93 @@ function LoginForm() {
         {/* Content */}
         <div className="relative z-10">
           {/* Logo/Brand */}
-          <div className="flex items-center gap-3 mb-12 animate-in fade-in slide-in-from-bottom duration-700">
-            <div className="w-12 h-12 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
-              <Mail className="w-7 h-7 text-primary" />
+          <div className="flex items-center gap-2.5 mb-6 animate-in fade-in slide-in-from-bottom duration-700">
+            <div className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+              <Mail className="w-6 h-6 text-primary" />
             </div>
-            <span className="text-3xl font-bold text-white drop-shadow-lg">EaseMail</span>
+            <span className="text-2xl font-bold text-white drop-shadow-lg">EaseMail</span>
           </div>
 
           {/* Main Headline */}
-          <div className="space-y-6 mb-12 animate-in fade-in slide-in-from-bottom duration-700 delay-150">
-            <h1 className="text-5xl xl:text-6xl font-bold text-white leading-tight drop-shadow-lg">
+          <div className="space-y-3 mb-6 animate-in fade-in slide-in-from-bottom duration-700 delay-150">
+            <h1 className="text-3xl xl:text-4xl font-bold text-white leading-tight drop-shadow-lg">
               Take Back Your Time
             </h1>
-            <p className="text-xl xl:text-2xl text-white/95 leading-relaxed font-medium">
+            <p className="text-base xl:text-lg text-white/95 leading-relaxed font-medium">
               Join 10,000+ professionals who save 5+ hours every week with AI-powered email management.
             </p>
           </div>
 
           {/* Feature Cards */}
-          <div className="space-y-4 mb-12 animate-in fade-in slide-in-from-bottom duration-700 delay-300">
-            <div className="flex items-start gap-4 text-white bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20 hover:bg-white/15 transition-all duration-300 group">
-              <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                <Clock className="w-6 h-6" />
+          <div className="space-y-2.5 mb-6 animate-in fade-in slide-in-from-bottom duration-700 delay-300">
+            <div className="flex items-start gap-3 text-white bg-white/10 backdrop-blur-md rounded-xl p-3.5 border border-white/20 hover:bg-white/15 transition-all duration-300 group">
+              <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <Clock className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-1">5+ Hours Saved Weekly</h3>
-                <p className="text-white/90 text-sm leading-relaxed">AI handles routine emails so you can focus on what truly matters</p>
+                <h3 className="font-bold text-base mb-0.5">5+ Hours Saved Weekly</h3>
+                <p className="text-white/90 text-xs leading-relaxed">AI handles routine emails so you can focus on what matters</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-4 text-white bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20 hover:bg-white/15 transition-all duration-300 group">
-              <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                <Zap className="w-6 h-6" />
+            <div className="flex items-start gap-3 text-white bg-white/10 backdrop-blur-md rounded-xl p-3.5 border border-white/20 hover:bg-white/15 transition-all duration-300 group">
+              <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <Zap className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-1">10x Faster Responses</h3>
-                <p className="text-white/90 text-sm leading-relaxed">Write professional emails in seconds with intelligent AI assistance</p>
+                <h3 className="font-bold text-base mb-0.5">10x Faster Responses</h3>
+                <p className="text-white/90 text-xs leading-relaxed">Write professional emails in seconds with intelligent AI</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-4 text-white bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20 hover:bg-white/15 transition-all duration-300 group">
-              <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                <CheckCircle2 className="w-6 h-6" />
+            <div className="flex items-start gap-3 text-white bg-white/10 backdrop-blur-md rounded-xl p-3.5 border border-white/20 hover:bg-white/15 transition-all duration-300 group">
+              <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <CheckCircle2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-lg mb-1">Never Miss Important Emails</h3>
-                <p className="text-white/90 text-sm leading-relaxed">Intelligent prioritization surfaces what needs your attention now</p>
+                <h3 className="font-bold text-base mb-0.5">Never Miss Important Emails</h3>
+                <p className="text-white/90 text-xs leading-relaxed">Intelligent prioritization surfaces what needs attention</p>
               </div>
             </div>
           </div>
 
           {/* Stats Bar */}
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 animate-in fade-in slide-in-from-bottom duration-700 delay-500">
-            <p className="text-white text-base leading-relaxed mb-3">
-              <span className="font-bold text-lg">"The average professional spends 28% of their workday on email."</span>
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 animate-in fade-in slide-in-from-bottom duration-700 delay-500">
+            <p className="text-white text-sm leading-relaxed mb-2">
+              <span className="font-bold text-base">"The average professional spends 28% of their workday on email."</span>
             </p>
-            <p className="text-white/90 text-sm">
-              That's 11+ hours per week. EaseMail cuts that in half with AI-powered assistance, smart automation, and unified account management.
+            <p className="text-white/90 text-xs leading-relaxed">
+              That's 11+ hours per week. EaseMail cuts that in half with AI-powered assistance.
             </p>
           </div>
         </div>
 
         {/* Bottom Stats */}
-        <div className="relative z-10 space-y-4 animate-in fade-in duration-700 delay-700">
-          <div className="flex items-center gap-8 text-white">
+        <div className="relative z-10 space-y-3 animate-in fade-in duration-700 delay-700">
+          <div className="flex items-center gap-6 text-white">
             <div className="text-center">
-              <div className="text-3xl font-bold mb-1">5+ hrs</div>
-              <div className="text-sm text-white/80 font-medium">Saved Per Week</div>
+              <div className="text-2xl font-bold mb-0.5">5+ hrs</div>
+              <div className="text-xs text-white/80 font-medium">Saved Per Week</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold mb-1">10x</div>
-              <div className="text-sm text-white/80 font-medium">Faster Writing</div>
+              <div className="text-2xl font-bold mb-0.5">10x</div>
+              <div className="text-xs text-white/80 font-medium">Faster Writing</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold mb-1">99.9%</div>
-              <div className="text-sm text-white/80 font-medium">Uptime SLA</div>
+              <div className="text-2xl font-bold mb-0.5">99.9%</div>
+              <div className="text-xs text-white/80 font-medium">Uptime SLA</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-white/95">
-            <div className="flex -space-x-3">
+          <div className="flex items-center gap-2.5 text-white/95">
+            <div className="flex -space-x-2">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/40 flex items-center justify-center text-sm font-bold shadow-lg">
+                <div key={i} className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/40 flex items-center justify-center text-xs font-bold shadow-lg">
                   {String.fromCharCode(64 + i)}
                 </div>
               ))}
             </div>
-            <p className="text-sm font-medium">
+            <p className="text-xs font-medium">
               Trusted by busy professionals worldwide
             </p>
           </div>
@@ -253,22 +253,22 @@ function LoginForm() {
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-background overflow-y-auto">
-        <div className="w-full max-w-md space-y-4 my-auto">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 bg-background overflow-hidden">
+        <div className="w-full max-w-md space-y-3 my-auto">
           {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-4 animate-in fade-in duration-500">
-            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg">
-              <Mail className="w-7 h-7 text-primary-foreground" />
+          <div className="lg:hidden flex items-center justify-center gap-2.5 mb-3 animate-in fade-in duration-500">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg">
+              <Mail className="w-6 h-6 text-primary-foreground" />
             </div>
-            <span className="text-3xl font-bold">EaseMail</span>
+            <span className="text-2xl font-bold">EaseMail</span>
           </div>
 
           {/* Form Header */}
-          <div className="text-center space-y-2 animate-in fade-in slide-in-from-bottom duration-700">
-            <h2 className="text-2xl xl:text-3xl font-bold">
+          <div className="text-center space-y-1 animate-in fade-in slide-in-from-bottom duration-700">
+            <h2 className="text-xl xl:text-2xl font-bold">
               {showForgotPassword ? 'Reset Password' : 'Welcome Back'}
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {showForgotPassword
                 ? 'Enter your email to receive a password reset link'
                 : 'Sign in to your EaseMail account to continue'
@@ -277,12 +277,12 @@ function LoginForm() {
           </div>
 
           {/* Form Card */}
-          <Card className="p-6 shadow-xl border-border/50 animate-in fade-in slide-in-from-bottom duration-700 delay-150">
+          <Card className="p-5 shadow-xl border-border/50 animate-in fade-in slide-in-from-bottom duration-700 delay-150">
             {showForgotPassword ? (
               // Forgot Password Form
-              <form onSubmit={handleForgotPassword} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="reset-email" className="text-sm font-medium">Email Address</Label>
+              <form onSubmit={handleForgotPassword} className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="reset-email" className="text-xs font-medium">Email Address</Label>
                   <Input
                     id="reset-email"
                     type="email"
@@ -291,28 +291,28 @@ function LoginForm() {
                     onChange={(e) => setResetEmail(e.target.value)}
                     required
                     disabled={resetLoading}
-                    className="h-11"
+                    className="h-9 text-sm"
                   />
                 </div>
 
                 {error && (
-                  <div className="p-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <div className="p-2.5 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                     {error}
                   </div>
                 )}
 
                 {success && (
-                  <div className="p-3 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5" />
+                  <div className="p-2.5 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" />
                     {success}
                   </div>
                 )}
 
-                <div className="flex gap-3">
+                <div className="flex gap-2.5">
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 h-11"
+                    className="flex-1 h-9 text-sm"
                     onClick={() => {
                       setShowForgotPassword(false);
                       setResetEmail('');
@@ -323,20 +323,20 @@ function LoginForm() {
                   >
                     Back
                   </Button>
-                  <Button type="submit" className="flex-1 h-11" disabled={resetLoading || resetCooldown > 0}>
+                  <Button type="submit" className="flex-1 h-9 text-sm" disabled={resetLoading || resetCooldown > 0}>
                     {resetLoading ? 'Sending...' : resetCooldown > 0 ? `Wait ${resetCooldown}s` : 'Send Link'}
                   </Button>
                 </div>
 
-                <p className="text-xs text-center text-muted-foreground">
+                <p className="text-[10px] text-center text-muted-foreground">
                   Rate limited to prevent abuse (1 request per minute)
                 </p>
               </form>
             ) : (
               // Login Form
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
+              <form onSubmit={handleLogin} className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-xs font-medium">Email Address</Label>
                   <Input
                     id="email"
                     type="email"
@@ -345,17 +345,17 @@ function LoginForm() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={loading}
-                    className="h-11"
+                    className="h-9 text-sm"
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                    <Label htmlFor="password" className="text-xs font-medium">Password</Label>
                     <button
                       type="button"
                       onClick={() => setShowForgotPassword(true)}
-                      className="text-sm text-primary hover:underline font-medium"
+                      className="text-xs text-primary hover:underline font-medium"
                     >
                       Forgot password?
                     </button>
@@ -368,24 +368,24 @@ function LoginForm() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={loading}
-                    className="h-11"
+                    className="h-9 text-sm"
                   />
                 </div>
 
                 {error && (
-                  <div className="p-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <div className="p-2.5 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                     {error}
                   </div>
                 )}
 
                 {success && (
-                  <div className="p-3 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5" />
+                  <div className="p-2.5 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" />
                     {success}
                   </div>
                 )}
 
-                <Button type="submit" className="w-full h-11 text-base font-medium shadow-lg hover:shadow-xl transition-all" disabled={loading}>
+                <Button type="submit" className="w-full h-9 text-sm font-medium shadow-lg hover:shadow-xl transition-all" disabled={loading}>
                   {loading ? (
                     <span className="flex items-center gap-2">
                       <span className="animate-spin">⏳</span>
@@ -394,7 +394,7 @@ function LoginForm() {
                   ) : (
                     <span className="flex items-center gap-2">
                       Sign In
-                      <ArrowRight className="h-5 w-5" />
+                      <ArrowRight className="h-4 w-4" />
                     </span>
                   )}
                 </Button>
@@ -404,7 +404,7 @@ function LoginForm() {
 
           {/* Sign Up Link */}
           {!showForgotPassword && (
-            <p className="text-sm text-center text-muted-foreground animate-in fade-in duration-700 delay-300">
+            <p className="text-xs text-center text-muted-foreground animate-in fade-in duration-700 delay-300">
               Don't have an account?{' '}
               <Link href="/signup" className="text-primary hover:underline font-semibold">
                 Sign up for free
@@ -413,13 +413,13 @@ function LoginForm() {
           )}
 
           {/* Trust Badges */}
-          <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground pt-2 animate-in fade-in duration-700 delay-500">
-            <div className="flex items-center gap-1.5">
-              <Shield className="h-4 w-4" />
+          <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground animate-in fade-in duration-700 delay-500">
+            <div className="flex items-center gap-1">
+              <Shield className="h-3 w-3" />
               <span>Bank-level security</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Users className="h-4 w-4" />
+            <div className="flex items-center gap-1">
+              <Users className="h-3 w-3" />
               <span>10K+ users</span>
             </div>
           </div>

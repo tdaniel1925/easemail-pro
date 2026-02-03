@@ -114,10 +114,17 @@ export function UnifiedAIToolbar({
       return textToInsert;
     }
 
-    // Text coming from AI is already formatted with <p> tags
-    // Add 1 empty paragraph with <br> to ensure it renders as a visible blank line
-    // This creates consistent spacing before signature (matches composer initial state)
-    const spacing = '<p><br></p>';
+    // Check if current body already starts with a blank line
+    // (which would be the spacing before signature)
+    const startsWithBlankLine =
+      currentBody.startsWith('<p><br></p>') ||
+      currentBody.startsWith('<p><br/></p>') ||
+      currentBody.startsWith('<div><br></div>') ||
+      currentBody.startsWith('<div><br/></div>');
+
+    // If body already has blank line at top (signature spacing), don't add another
+    // Otherwise, add 1 blank line between AI text and existing content
+    const spacing = startsWithBlankLine ? '' : '<p><br></p>';
 
     return textToInsert + spacing + currentBody;
   };

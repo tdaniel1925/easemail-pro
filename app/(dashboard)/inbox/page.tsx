@@ -151,6 +151,14 @@ function InboxV3Content() {
     const senderEmail = sender?.email || '';
     const senderName = sender?.name || senderEmail;
 
+    // Validate sender exists for reply/reply-all
+    if ((type === 'reply' || type === 'reply-all') && !senderEmail) {
+      console.error('[Reply Error] No sender email found in message');
+      // Show error to user (you can implement toast notification here)
+      alert('Cannot reply: This message has no sender email address');
+      return;
+    }
+
     // Store selected message for contact panel first
     setSelectedMessage(fullEmail);
     setRightPanelTab('contact'); // Auto-switch to contact tab

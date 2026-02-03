@@ -24,6 +24,28 @@ interface PayPalWebhookEvent {
 }
 
 /**
+ * Helper: Verify subscription exists in database
+ * Throws error if not found to prevent silent failures
+ */
+async function verifySubscriptionExists(paypalSubscriptionId: string, eventType: string) {
+  const subscription = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.paypalSubscriptionId, paypalSubscriptionId),
+  });
+
+  if (!subscription) {
+    logger.payment.error('Subscription not found in database', {
+      paypalSubscriptionId,
+      eventType,
+    });
+    throw new Error(
+      `Cannot process ${eventType}: Subscription ${paypalSubscriptionId} not found in database`
+    );
+  }
+
+  return subscription;
+}
+
+/**
  * POST /api/webhooks/paypal
  * Handle PayPal webhook events
  */
@@ -132,6 +154,21 @@ async function handleSubscriptionActivated(event: PayPalWebhookEvent) {
     subscriberEmail,
   });
 
+  // Verify subscription exists in database before updating
+  const existingSubscription = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.paypalSubscriptionId, subscriptionId),
+  });
+
+  if (!existingSubscription) {
+    logger.payment.error('Subscription not found in database', {
+      paypalSubscriptionId: subscriptionId,
+      event: event.event_type,
+    });
+    throw new Error(
+      `Cannot activate subscription ${subscriptionId}: Not found in database. Create subscription first.`
+    );
+  }
+
   // Update subscription status to active
   await db
     .update(subscriptions)
@@ -148,6 +185,7 @@ async function handleSubscriptionActivated(event: PayPalWebhookEvent) {
 
   logger.payment.info('Subscription status updated to active', {
     paypalSubscriptionId: subscriptionId,
+    subscriptionId: existingSubscription.id,
   });
 }
 
@@ -160,6 +198,9 @@ async function handleSubscriptionUpdated(event: PayPalWebhookEvent) {
   logger.payment.info('Subscription updated', {
     paypalSubscriptionId: subscriptionId,
   });
+
+  // Verify subscription exists before updating
+  await verifySubscriptionExists(subscriptionId, event.event_type);
 
   // Update subscription details
   await db
@@ -183,6 +224,9 @@ async function handleSubscriptionCancelled(event: PayPalWebhookEvent) {
     paypalSubscriptionId: subscriptionId,
   });
 
+  // Verify subscription exists before updating
+  await verifySubscriptionExists(subscriptionId, event.event_type);
+
   // Update subscription status
   await db
     .update(subscriptions)
@@ -205,6 +249,9 @@ async function handleSubscriptionSuspended(event: PayPalWebhookEvent) {
     paypalSubscriptionId: subscriptionId,
   });
 
+  // Verify subscription exists before updating
+  await verifySubscriptionExists(subscriptionId, event.event_type);
+
   // Update subscription status
   await db
     .update(subscriptions)
@@ -224,6 +271,9 @@ async function handleSubscriptionExpired(event: PayPalWebhookEvent) {
   logger.payment.info('Subscription expired', {
     paypalSubscriptionId: subscriptionId,
   });
+
+  // Verify subscription exists before updating
+  await verifySubscriptionExists(subscriptionId, event.event_type);
 
   // Update subscription status
   await db
