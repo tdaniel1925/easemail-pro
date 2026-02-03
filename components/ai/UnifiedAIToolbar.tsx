@@ -25,20 +25,36 @@ interface UnifiedAIToolbarProps {
   subject: string;
   body: string;
   onSubjectChange: (subject: string) => void;
-  onBodyChange: (body: string) => void;
-  
+  onBodyChange: (bodyHtml: string, bodyText: string) => void;
+
   // Context
   recipientEmail?: string;
   recipientName?: string;
-  
+
   // User tier for dictation
   userTier?: 'free' | 'pro' | 'business';
-  
+
   // Attachment handler for voice messages
   onAttachVoiceMessage?: (file: File, duration: number) => void;
-  
+
   // Styling
   className?: string;
+}
+
+/**
+ * Helper function to extract plain text from HTML
+ * Used to provide both HTML and text versions to the composer
+ */
+function stripHtmlToText(html: string): string {
+  if (typeof document === 'undefined') {
+    // Server-side fallback - basic HTML stripping
+    return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  // Client-side - use DOM parsing for accurate text extraction
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  return temp.textContent || temp.innerText || '';
 }
 
 export function UnifiedAIToolbar({
@@ -65,11 +81,13 @@ export function UnifiedAIToolbar({
 
   const handleAIWrite = (generatedSubject: string, generatedBody: string) => {
     onSubjectChange(generatedSubject);
-    onBodyChange(generatedBody);
+    const plainText = stripHtmlToText(generatedBody);
+    onBodyChange(generatedBody, plainText);
   };
 
   const handleAIRemix = (remixedBody: string) => {
-    onBodyChange(remixedBody);
+    const plainText = stripHtmlToText(remixedBody);
+    onBodyChange(remixedBody, plainText);
   };
 
   // Handle dictation completion
@@ -107,7 +125,8 @@ export function UnifiedAIToolbar({
   // Handle "Use As-Is" from dialog
   const handleUseAsIs = (text: string) => {
     const newBody = insertAtTop(text);
-    onBodyChange(newBody);
+    const plainText = stripHtmlToText(newBody);
+    onBodyChange(newBody, plainText);
   };
 
   // Handle "Use Polished" from dialog
@@ -119,8 +138,9 @@ export function UnifiedAIToolbar({
     });
     onSubjectChange(polishedSubject);
     const newBody = insertAtTop(polishedText);
+    const plainText = stripHtmlToText(newBody);
     console.log('[UnifiedAIToolbar] Setting new body:', newBody.substring(0, 100) + '...');
-    onBodyChange(newBody);
+    onBodyChange(newBody, plainText);
   };
 
   // Handle voice message attachment

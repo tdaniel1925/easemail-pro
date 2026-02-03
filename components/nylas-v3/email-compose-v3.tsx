@@ -1149,7 +1149,10 @@ export function EmailComposeV3({ isOpen, onClose, replyTo, type = 'compose', acc
                 subject={subject}
                 body={body}
                 onSubjectChange={setSubject}
-                onBodyChange={setBody}
+                onBodyChange={(bodyHtml, bodyText) => {
+                  setBody(bodyHtml);
+                  // TODO: Store bodyText if needed for plain text email support
+                }}
                 recipientEmail={to.length > 0 ? to[0].email : undefined}
                 recipientName={to.length > 0 ? to[0].name : undefined}
                 userTier="free"

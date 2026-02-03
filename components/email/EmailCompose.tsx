@@ -1891,9 +1891,10 @@ export default function EmailCompose({ isOpen, onClose, replyTo, type = 'compose
                     isAIUpdatingRef.current = true; // Set flag before AI updates
                     setSubject(newSubject);
                   }}
-                  onBodyChange={(newBody) => {
+                  onBodyChange={(newBodyHtml, newBodyText) => {
                     isAIUpdatingRef.current = true; // Set flag before AI updates
-                    setBody(newBody);
+                    setBody(newBodyHtml);
+                    // TODO: Store bodyText if needed for plain text email support
                   }}
                   recipientEmail={to.length > 0 ? to[0].email : undefined}
                   recipientName={to.length > 0 ? to[0].name : undefined}

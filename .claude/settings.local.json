@@ -70,7 +70,13 @@
       "Bash(done)",
       "Bash(pnpm migrate:*)",
       "Bash(timeout /t 10)",
-      "Bash(npm run generate:pdf:*)"
+      "Bash(npm run generate:pdf:*)",
+      "Bash(timeout /t 5)",
+      "Bash(vercel env:*)",
+      "WebFetch(domain:developer.nylas.com)",
+      "Bash(npx drizzle-kit studio)",
+      "Bash(timeout /t 15 /nobreak)",
+      "WebFetch(domain:vercel.com)"
     ],
     "deny": [],
     "ask": []
