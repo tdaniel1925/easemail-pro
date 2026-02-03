@@ -124,6 +124,60 @@ CREATE TABLE IF NOT EXISTS invoices (
   )
 );
 
+-- Add subscription_id column to existing invoices table if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'invoices' AND column_name = 'subscription_id'
+  ) THEN
+    ALTER TABLE invoices ADD COLUMN subscription_id UUID REFERENCES subscriptions(id) ON DELETE SET NULL;
+  END IF;
+
+  -- Add other PayPal-specific columns if they don't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'invoices' AND column_name = 'paypal_order_id'
+  ) THEN
+    ALTER TABLE invoices ADD COLUMN paypal_order_id VARCHAR(255);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'invoices' AND column_name = 'payment_method'
+  ) THEN
+    ALTER TABLE invoices ADD COLUMN payment_method VARCHAR(50);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'invoices' AND column_name = 'subscription_amount'
+  ) THEN
+    ALTER TABLE invoices ADD COLUMN subscription_amount DECIMAL(10, 2) DEFAULT 0;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'invoices' AND column_name = 'usage_amount'
+  ) THEN
+    ALTER TABLE invoices ADD COLUMN usage_amount DECIMAL(10, 2) DEFAULT 0;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'invoices' AND column_name = 'items'
+  ) THEN
+    ALTER TABLE invoices ADD COLUMN items JSONB DEFAULT '[]';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'invoices' AND column_name = 'notes'
+  ) THEN
+    ALTER TABLE invoices ADD COLUMN notes TEXT;
+  END IF;
+END $$;
+
 -- Indexes for invoices
 CREATE INDEX IF NOT EXISTS idx_invoices_user ON invoices(user_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_org ON invoices(organization_id);
