@@ -1,4 +1,10 @@
 export async function register() {
+  console.log('🔧 Instrumentation hook running...');
+
+  // Temporarily disable all instrumentation to isolate build issue
+  // TODO: Re-enable after fixing Vercel build errors
+
+  /*
   // Validate environment variables at startup (server-side only)
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const { validateEnv, printValidationResults } = await import('./lib/config/env-validation');
@@ -30,5 +36,8 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'edge') {
     await import('./sentry.edge.config');
   }
+  */
+
+  console.log('✅ Instrumentation hook complete (temporarily disabled)');
 }
 
