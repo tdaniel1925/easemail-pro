@@ -11,6 +11,8 @@ import { eq, and } from 'drizzle-orm';
 import { getNylasClient } from '@/lib/nylas-v3/config';
 import { handleNylasError } from '@/lib/nylas-v3/errors';
 import { processEmailForTracking } from '@/lib/email-tracking';
+import { trackEmailUsage } from '@/lib/billing/track-usage';
+import { users } from '@/lib/db/schema';
 
 export async function POST(request: NextRequest) {
   try {
@@ -183,6 +185,27 @@ export async function POST(request: NextRequest) {
         console.error('[Send] Failed to delete draft (non-critical):', deleteError);
         // Non-critical error, email was sent successfully
       }
+    }
+
+    // 8. Track email usage for billing
+    try {
+      const [dbUser] = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
+      const recipientCount = (messageData.to?.length || 0) + (messageData.cc?.length || 0) + (messageData.bcc?.length || 0);
+
+      await trackEmailUsage(
+        user.id,
+        dbUser?.organizationId || undefined,
+        recipientCount || 1,
+        {
+          messageId: response.data.id,
+          accountId: account.id,
+          subject: messageData.subject,
+          hasAttachments: !!attachments?.length,
+          tracked: !!trackingId,
+        }
+      );
+    } catch (billingError) {
+      console.warn('⚠️ Failed to track email for billing:', billingError);
     }
 
     return NextResponse.json({

@@ -79,6 +79,10 @@
     {
       "path": "/api/cron/reconcile-teams-unread",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/track-storage",
+      "schedule": "0 2 * * *"
     }
   ]
 }

@@ -12,8 +12,10 @@ import { emails } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 import { trackAICost } from '@/lib/utils/cost-tracking';
+import { trackAiUsage } from '@/lib/billing/track-usage';
 import { aiRateLimit, enforceRateLimit } from '@/lib/security/rate-limiter';
 import { checkAILimit } from '@/lib/billing/plan-limits';
+import { users } from '@/lib/db/schema';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -201,7 +203,7 @@ What's this email actually about? What does ${fromName || 'the sender'} want or 
 
     const summary = completion.choices[0]?.message?.content?.trim() || snippet || 'No summary available';
 
-    // Track AI cost
+    // Track AI cost (legacy system)
     await trackAICost({
       userId,
       feature: 'summarize',
@@ -209,6 +211,26 @@ What's this email actually about? What does ${fromName || 'the sender'} want or 
       inputTokens: completion.usage?.prompt_tokens || 0,
       outputTokens: completion.usage?.completion_tokens || 0,
     });
+
+    // Track for PayPal billing system
+    try {
+      const [dbUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      const totalTokens = (completion.usage?.prompt_tokens || 0) + (completion.usage?.completion_tokens || 0);
+      await trackAiUsage(
+        userId,
+        dbUser?.organizationId || undefined,
+        totalTokens,
+        'gpt-3.5-turbo',
+        {
+          feature: 'summarize',
+          emailId,
+          promptTokens: completion.usage?.prompt_tokens,
+          completionTokens: completion.usage?.completion_tokens,
+        }
+      );
+    } catch (billingError) {
+      console.warn('⚠️ Failed to track AI usage for billing:', billingError);
+    }
 
     // 🔥 SAVE TO IN-MEMORY CACHE (for v3 messages)
     summaryCache.set(emailId, { summary, timestamp: Date.now() });

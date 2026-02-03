@@ -14,6 +14,8 @@ import { calculateSMSSegments, validateSMSLength } from '@/lib/sms/character-cou
 import { logSMSAudit } from '@/lib/sms/audit-service';
 import { checkSMSConsent } from '@/lib/sms/audit-service';
 import { calculateSMSCostAndPrice, getSMSPricingWarning } from '@/lib/sms/pricing';
+import { trackSmsUsage } from '@/lib/billing/track-usage';
+import { users } from '@/lib/db/schema';
 import { eq, gte, lte, and, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
@@ -233,8 +235,26 @@ export async function POST(request: NextRequest) {
       userAgent: request.headers.get('user-agent') || undefined,
     });
 
-    // 12. Update usage tracking
+    // 12. Update usage tracking (both old and new billing systems)
     await updateUsageTracking(user.id, result.cost || estimatedCost, totalCost);
+
+    // Track for PayPal billing system
+    try {
+      const [dbUser] = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
+      await trackSmsUsage(
+        user.id,
+        dbUser?.organizationId || undefined,
+        segments.messageCount,
+        {
+          country: phoneValidation.country,
+          encoding: segments.encoding,
+          toPhone: phoneValidation.e164,
+          twilioSid: result.sid,
+        }
+      );
+    } catch (billingError) {
+      console.warn('⚠️ Failed to track SMS for billing:', billingError);
+    }
 
     // 13. Success response
     console.log('✅ SMS API Success - returning response with twilioSid:', result.sid);

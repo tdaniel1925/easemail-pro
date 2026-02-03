@@ -2602,6 +2602,70 @@ export const paypalBillingPlans = pgTable('paypal_billing_plans', {
   productIdIdx: index('paypal_plans_product_id_idx').on(table.paypalProductId),
 }));
 
+// Usage Records (for billing)
+export const usageRecords = pgTable('usage_records', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  type: varchar('type', { length: 50 }).notNull(), // 'sms', 'ai', 'storage', 'email'
+  quantity: decimal('quantity', { precision: 15, scale: 6 }).notNull(),
+  unitPrice: decimal('unit_price', { precision: 10, scale: 6 }).notNull(),
+  totalCost: decimal('total_cost', { precision: 10, scale: 2 }).notNull(),
+  billingPeriodStart: timestamp('billing_period_start').notNull(),
+  billingPeriodEnd: timestamp('billing_period_end').notNull(),
+  invoiceId: uuid('invoice_id'),
+  metadata: jsonb('metadata').$type<Record<string, any>>().default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('idx_usage_user_id').on(table.userId),
+  orgIdx: index('idx_usage_org_id').on(table.organizationId),
+  typeIdx: index('idx_usage_type').on(table.type),
+  billingPeriodIdx: index('idx_usage_billing_period').on(table.billingPeriodStart, table.billingPeriodEnd),
+  invoiceIdx: index('idx_usage_invoice').on(table.invoiceId),
+}));
+
+// Subscription Plans
+export const subscriptionPlans = pgTable('subscription_plans', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  slug: varchar('slug', { length: 50 }).notNull().unique(),
+  description: text('description'),
+  monthlyPrice: decimal('monthly_price', { precision: 10, scale: 2 }).notNull(),
+  yearlyPrice: decimal('yearly_price', { precision: 10, scale: 2 }),
+  currency: varchar('currency', { length: 3 }).default('USD'),
+  paypalPlanId: varchar('paypal_plan_id', { length: 255 }),
+  features: jsonb('features').$type<string[]>().default([]),
+  limits: jsonb('limits').$type<{
+    maxSeats?: number;
+    maxEmails?: number;
+    maxStorage?: number;
+    aiRequests?: number;
+    smsMessages?: number;
+  }>().default({}),
+  isActive: boolean('is_active').default(true),
+  displayOrder: integer('display_order').default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Billing Events (audit log)
+export const billingEvents = pgTable('billing_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  eventType: varchar('event_type', { length: 100 }).notNull(),
+  eventData: jsonb('event_data').notNull(),
+  paypalEventId: varchar('paypal_event_id', { length: 255 }),
+  processed: boolean('processed').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('idx_billing_events_user').on(table.userId),
+  orgIdx: index('idx_billing_events_org').on(table.organizationId),
+  typeIdx: index('idx_billing_events_type').on(table.eventType),
+  processedIdx: index('idx_billing_events_processed').on(table.processed),
+  paypalIdx: index('idx_billing_events_paypal').on(table.paypalEventId),
+}));
+
 // Aliases for snake_case compatibility
 export const teams_accounts = teamsAccounts;
 export const teams_chats = teamsChats;
@@ -2611,6 +2675,9 @@ export const teams_webhook_subscriptions = teamsWebhookSubscriptions;
 export const paypal_billing_plans = paypalBillingPlans;
 
 // Aliases for snake_case compatibility
+export const usage_records = usageRecords;
+export const subscription_plans = subscriptionPlans;
+export const billing_events = billingEvents;
 export const sms_usage = smsUsage;
 export const ai_usage = aiUsage;
 export const storage_usage = storageUsage;
