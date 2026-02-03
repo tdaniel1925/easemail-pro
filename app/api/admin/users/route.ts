@@ -87,7 +87,12 @@ export async function GET() {
       userCount: usersWithCounts.length
     });
 
-    return successResponse({ users: usersWithCounts });
+    // Return users at top level (not wrapped in data field) for frontend compatibility
+    return NextResponse.json({
+      success: true,
+      users: usersWithCounts,
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
     logger.api.error('Admin users fetch error', error);
     return internalError();

@@ -59,7 +59,12 @@ export async function GET() {
       ...stats
     });
 
-    return successResponse({ stats });
+    // Return stats at top level (not wrapped in data field) for frontend compatibility
+    return NextResponse.json({
+      success: true,
+      stats,
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
     logger.api.error('Error fetching admin stats', error);
     return internalError();

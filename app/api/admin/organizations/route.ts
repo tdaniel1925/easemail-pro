@@ -91,7 +91,12 @@ export async function GET(request: NextRequest) {
       organizationCount: orgsWithCounts.length
     });
 
-    return successResponse({ organizations: orgsWithCounts });
+    // Return organizations at top level (not wrapped in data field) for frontend compatibility
+    return NextResponse.json({
+      success: true,
+      organizations: orgsWithCounts,
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
     logger.api.error('Organizations fetch error', error);
     return internalError();
@@ -337,7 +342,9 @@ export const POST = withCsrfProtection(async (request: NextRequest) => {
       createdBy: dbUser.email
     });
 
-    return successResponse({
+    // Return data at top level (not wrapped in data field) for frontend compatibility
+    return NextResponse.json({
+      success: true,
       organization: newOrg,
       owner: {
         id: ownerUser.id,
@@ -347,7 +354,9 @@ export const POST = withCsrfProtection(async (request: NextRequest) => {
         accountStatus: ownerUser.accountStatus,
       },
       emailSent,
-    }, 'Organization and owner account created successfully');
+      message: 'Organization and owner account created successfully',
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
     logger.api.error('Organization create error', error);
     return internalError();
