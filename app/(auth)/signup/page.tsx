@@ -53,6 +53,22 @@ export default function SignupPage() {
       if (error) throw error;
 
       if (data.user) {
+        // If team account, send organization welcome email
+        if (accountType === 'team') {
+          try {
+            await fetch('/api/auth/send-welcome-email', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            // Don't block on email sending - continue to verification
+          } catch (emailError) {
+            console.error('Failed to send welcome email:', emailError);
+            // Continue anyway - email failure shouldn't block signup
+          }
+        }
+
         // CRITICAL FIX #4: Enforce email verification before allowing access
         if (!data.user.email_confirmed_at) {
           // Email verification required - redirect to verification page

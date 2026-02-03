@@ -43,7 +43,7 @@ export class GlobalErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Log the error to our logging service
-    logger.error('React Error Boundary caught error', {
+    logger.general.error('React Error Boundary caught error', {
       error: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,
@@ -160,7 +160,7 @@ export class SectionErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    logger.error('Section Error Boundary caught error', {
+    logger.general.error('Section Error Boundary caught error', {
       error: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,

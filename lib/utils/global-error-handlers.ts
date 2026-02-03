@@ -19,7 +19,7 @@ export function initializeGlobalErrorHandlers() {
 
   // Handle unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
-    logger.error('Unhandled Promise Rejection', {
+    logger.general.error('Unhandled Promise Rejection', {
       reason: event.reason,
       promise: event.promise,
       stack: event.reason?.stack,
@@ -45,7 +45,7 @@ export function initializeGlobalErrorHandlers() {
 
   // Handle uncaught errors
   window.addEventListener('error', (event) => {
-    logger.error('Uncaught Error', {
+    logger.general.error('Uncaught Error', {
       message: event.message,
       filename: event.filename,
       lineno: event.lineno,
@@ -71,7 +71,7 @@ export function initializeGlobalErrorHandlers() {
     const originalConsoleError = console.error;
     console.error = (...args: any[]) => {
       // Log to our service
-      logger.error('Console Error', {
+      logger.general.error('Console Error', {
         args: args.map((arg) =>
           typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
         ),
@@ -83,7 +83,7 @@ export function initializeGlobalErrorHandlers() {
   }
 
   isInitialized = true;
-  logger.info('Global error handlers initialized');
+  logger.general.info('Global error handlers initialized');
 }
 
 /**
@@ -105,7 +105,7 @@ export function safeAsync<T>(
     try {
       return await fn();
     } catch (error) {
-      logger.error(errorMessage, error);
+      logger.general.error(errorMessage, error);
       return null;
     }
   };
@@ -129,7 +129,7 @@ export function safeSync<T>(
     try {
       return fn();
     } catch (error) {
-      logger.error(errorMessage, error);
+      logger.general.error(errorMessage, error);
       return null;
     }
   };
@@ -159,7 +159,7 @@ export function safeUseEffectAsync(
       // Expected - component unmounted
       return;
     }
-    logger.error('useEffect async error', error);
+    logger.general.error('useEffect async error', error);
   });
 
   return () => {
@@ -198,7 +198,7 @@ export function safeJsonParse<T = any>(
   try {
     return JSON.parse(jsonString);
   } catch (error) {
-    logger.error('JSON parse failed', { jsonString, error });
+    logger.general.error('JSON parse failed', { jsonString, error });
     return null;
   }
 }
@@ -222,7 +222,7 @@ export function safeDateParse(
     if (isNaN(date.getTime())) return null;
     return date;
   } catch (error) {
-    logger.error('Date parse failed', { dateInput, error });
+    logger.general.error('Date parse failed', { dateInput, error });
     return null;
   }
 }
@@ -276,7 +276,7 @@ export async function retryAsync<T>(
 
       if (attempt < maxRetries) {
         const delay = baseDelay * Math.pow(2, attempt);
-        logger.warn(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`, {
+        logger.general.warn(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`, {
           error,
         });
 
@@ -289,7 +289,7 @@ export async function retryAsync<T>(
     }
   }
 
-  logger.error(`All ${maxRetries} retry attempts failed`, { error: lastError });
+  logger.general.error(`All ${maxRetries} retry attempts failed`, { error: lastError });
   throw lastError;
 }
 
@@ -302,7 +302,7 @@ export const safeStorage = {
     try {
       return localStorage.getItem(key);
     } catch (error) {
-      logger.error('localStorage.getItem failed', { key, error });
+      logger.general.error('localStorage.getItem failed', { key, error });
       return null;
     }
   },
@@ -312,7 +312,7 @@ export const safeStorage = {
       localStorage.setItem(key, value);
       return true;
     } catch (error) {
-      logger.error('localStorage.setItem failed', { key, error });
+      logger.general.error('localStorage.setItem failed', { key, error });
       return false;
     }
   },
@@ -322,7 +322,7 @@ export const safeStorage = {
       localStorage.removeItem(key);
       return true;
     } catch (error) {
-      logger.error('localStorage.removeItem failed', { key, error });
+      logger.general.error('localStorage.removeItem failed', { key, error });
       return false;
     }
   },

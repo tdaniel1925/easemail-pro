@@ -8,13 +8,15 @@ export * from './team-invite';
 export * from './signup-confirmation';
 export * from './password-reset';
 export * from './magic-link';
+export * from './organization-welcome';
 
 // Template types
-export type EmailTemplate = 
+export type EmailTemplate =
   | 'team-invite'
   | 'signup-confirmation'
   | 'password-reset'
-  | 'magic-link';
+  | 'magic-link'
+  | 'organization-welcome';
 
 // Email template metadata
 export const EMAIL_TEMPLATES = {
@@ -37,6 +39,11 @@ export const EMAIL_TEMPLATES = {
     name: 'Magic Link',
     description: 'Passwordless sign-in link',
     trigger: 'Auto - when user requests magic link',
+  },
+  'organization-welcome': {
+    name: 'Organization Welcome',
+    description: 'Welcome email when organization is created',
+    trigger: 'Auto - when team organization is created',
   },
 } as const;
 
