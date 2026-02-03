@@ -11,6 +11,7 @@ import {
   generateInvitationExpiry
 } from '@/lib/email/templates/invitation-email';
 import { withCsrfProtection } from '@/lib/security/csrf';
+import { checkRateLimit } from '@/lib/middleware/rate-limit';
 import { successResponse, unauthorized, forbidden, badRequest, internalError } from '@/lib/api/error-response';
 import { logger } from '@/lib/utils/logger';
 
@@ -25,6 +26,16 @@ export async function GET() {
     if (!user) {
       logger.admin.warn('Unauthorized users list access');
       return unauthorized();
+    }
+
+    // Check rate limit (5 requests per minute)
+    const rateLimitResult = await checkRateLimit('admin', `user:${user.id}`);
+    if (!rateLimitResult.allowed) {
+      logger.security.warn('Admin rate limit exceeded', {
+        userId: user.id,
+        endpoint: '/api/admin/users',
+      });
+      return rateLimitResult.response!;
     }
 
     // Check if user is admin
@@ -92,6 +103,16 @@ export const POST = withCsrfProtection(async (request: NextRequest) => {
     if (!user) {
       logger.admin.warn('Unauthorized user creation attempt');
       return unauthorized();
+    }
+
+    // Check rate limit (5 requests per minute)
+    const rateLimitResult = await checkRateLimit('admin', `user:${user.id}`);
+    if (!rateLimitResult.allowed) {
+      logger.security.warn('Admin rate limit exceeded', {
+        userId: user.id,
+        endpoint: '/api/admin/users',
+      });
+      return rateLimitResult.response!;
     }
 
     // Get current user from database

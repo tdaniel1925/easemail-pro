@@ -4,6 +4,7 @@ import { db } from '@/lib/db/drizzle';
 import { users, userAuditLogs } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { withCsrfProtection } from '@/lib/security/csrf';
+import { checkRateLimit } from '@/lib/middleware/rate-limit';
 import { successResponse, unauthorized, forbidden, badRequest, notFound, internalError } from '@/lib/api/error-response';
 import { logger } from '@/lib/utils/logger';
 
@@ -28,6 +29,17 @@ export const POST = withCsrfProtection(async (request: NextRequest, context: Rou
     if (!adminUser) {
       logger.security.warn('Unauthorized impersonation attempt');
       return unauthorized();
+    }
+
+    // Check rate limit (2 requests per minute - very strict for impersonation)
+    const rateLimitResult = await checkRateLimit('impersonate', `user:${adminUser.id}`);
+    if (!rateLimitResult.allowed) {
+      logger.security.warn('Impersonation rate limit exceeded', {
+        userId: adminUser.id,
+        targetUserId,
+        endpoint: '/api/admin/users/[userId]/impersonate',
+      });
+      return rateLimitResult.response!;
     }
 
     // Check if requesting user is platform admin

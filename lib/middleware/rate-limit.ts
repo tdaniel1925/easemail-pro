@@ -32,12 +32,20 @@ const limiters = {
     prefix: 'ratelimit:auth',
   }),
 
-  // Admin operations - moderate limiting
+  // Admin operations - strict limiting for security
   admin: new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(100, '1 h'), // 100 requests per hour
+    limiter: Ratelimit.slidingWindow(5, '1 m'), // 5 requests per minute
     analytics: true,
     prefix: 'ratelimit:admin',
+  }),
+
+  // Impersonation - very strict limiting (high security risk)
+  impersonate: new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(2, '1 m'), // 2 requests per minute
+    analytics: true,
+    prefix: 'ratelimit:impersonate',
   }),
 
   // Bulk operations - prevent abuse

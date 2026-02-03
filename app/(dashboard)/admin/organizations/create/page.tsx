@@ -51,7 +51,7 @@ export default function CreateOrganizationPage() {
     industry: '',
     companySize: '',
     description: '',
-    
+
     // Business Address
     addressLine1: '',
     addressLine2: '',
@@ -59,35 +59,42 @@ export default function CreateOrganizationPage() {
     state: '',
     zipCode: '',
     country: 'United States',
-    
+
     // Primary Contact
     primaryContactName: '',
     primaryContactEmail: '',
     primaryContactPhone: '',
     primaryContactTitle: '',
-    
+
     // Billing Contact
     billingContactName: '',
     billingContactEmail: '',
     billingContactPhone: '',
     sameAsPrimary: true,
-    
+
     // Technical Contact
     techContactName: '',
     techContactEmail: '',
     techContactPhone: '',
     sameAsTech: false,
-    
+
     // Subscription Details
     planType: 'team',
     maxSeats: 10,
     billingEmail: '',
     billingCycle: 'monthly',
-    
+
     // Additional Information
     taxId: '',
     purchaseOrderNumber: '',
     notes: '',
+
+    // Organization Owner (Step 6)
+    ownerEmail: '',
+    ownerFullName: '',
+    ownerPhone: '',
+    ownerTitle: '',
+    sendWelcomeEmail: true,
   });
 
   const generateSlug = (name: string) => {
@@ -114,13 +121,28 @@ export default function CreateOrganizationPage() {
     { number: 3, title: 'Contacts', icon: Users },
     { number: 4, title: 'Billing', icon: CreditCard },
     { number: 5, title: 'Subscription', icon: Briefcase },
+    { number: 6, title: 'Owner Setup', icon: User },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.slug) {
       setError('Organization name and slug are required');
+      return;
+    }
+
+    if (!formData.ownerEmail || !formData.ownerFullName) {
+      setError('Owner email and full name are required');
+      setCurrentStep(6); // Navigate to owner setup step
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.ownerEmail)) {
+      setError('Please enter a valid owner email address');
+      setCurrentStep(6);
       return;
     }
 
@@ -150,7 +172,7 @@ export default function CreateOrganizationPage() {
   };
 
   const nextStep = () => {
-    if (currentStep < 5) setCurrentStep(currentStep + 1);
+    if (currentStep < 6) setCurrentStep(currentStep + 1);
   };
 
   const prevStep = () => {
@@ -743,6 +765,127 @@ export default function CreateOrganizationPage() {
               </Card>
             )}
 
+            {/* Step 6: Owner Setup */}
+            {currentStep === 6 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Organization Owner
+                  </CardTitle>
+                  <CardDescription>
+                    Set up the primary owner account for this organization
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg mb-4">
+                    <p className="text-sm text-blue-900 dark:text-blue-100">
+                      <strong>Note:</strong> A user account will be automatically created for the organization owner.
+                      They will receive an email with their login credentials and can access the organization admin dashboard immediately.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="ownerEmail">Owner Email *</Label>
+                      <Input
+                        id="ownerEmail"
+                        type="email"
+                        value={formData.ownerEmail}
+                        onChange={(e) => updateField('ownerEmail', e.target.value)}
+                        placeholder="owner@acme.com"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        This email will be used for login
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="ownerFullName">Owner Full Name *</Label>
+                      <Input
+                        id="ownerFullName"
+                        value={formData.ownerFullName}
+                        onChange={(e) => updateField('ownerFullName', e.target.value)}
+                        placeholder="John Doe"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="ownerPhone">Owner Phone</Label>
+                      <Input
+                        id="ownerPhone"
+                        type="tel"
+                        value={formData.ownerPhone}
+                        onChange={(e) => updateField('ownerPhone', e.target.value)}
+                        placeholder="+1 (555) 123-4567"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Optional - for account recovery
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="ownerTitle">Owner Title</Label>
+                      <Input
+                        id="ownerTitle"
+                        value={formData.ownerTitle}
+                        onChange={(e) => updateField('ownerTitle', e.target.value)}
+                        placeholder="CEO, Founder, etc."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-border">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="sendWelcomeEmail"
+                        checked={formData.sendWelcomeEmail}
+                        onChange={(e) => updateField('sendWelcomeEmail', e.target.checked ? 'true' : 'false')}
+                        className="w-4 h-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="sendWelcomeEmail" className="font-normal cursor-pointer">
+                        Send welcome email with login credentials
+                      </Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 ml-6">
+                      Recommended - The owner will receive an email with their temporary password and setup instructions
+                    </p>
+                  </div>
+
+                  <div className="pt-4 border-t border-border">
+                    <h4 className="font-medium mb-3">Review Organization Setup</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Organization:</span>
+                        <span className="font-medium">{formData.name || 'Not set'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Plan:</span>
+                        <span className="font-medium capitalize">{formData.planType}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Max Seats:</span>
+                        <span className="font-medium">{formData.maxSeats}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Owner:</span>
+                        <span className="font-medium">{formData.ownerFullName || 'Not set'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Owner Email:</span>
+                        <span className="font-medium">{formData.ownerEmail || 'Not set'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Navigation Buttons */}
             <div className="flex justify-between pt-6 border-t border-border">
               <Button
@@ -763,7 +906,7 @@ export default function CreateOrganizationPage() {
                   Cancel
                 </Button>
 
-                {currentStep < 5 ? (
+                {currentStep < 6 ? (
                   <Button type="button" onClick={nextStep}>
                     Next
                   </Button>

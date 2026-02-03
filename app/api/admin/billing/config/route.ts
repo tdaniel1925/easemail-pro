@@ -38,13 +38,13 @@ export async function GET(request: NextRequest) {
       where: (users, { eq }) => eq(users.id, user.id),
     });
 
-    if (!dbUser || dbUser.role !== 'admin') {
+    if (!dbUser || dbUser.role !== 'platform_admin') {
       logger.security.warn('Non-admin attempted to access billing config', {
         userId: user.id,
         email: user.email,
         role: dbUser?.role
       });
-      return forbidden('Admin access required');
+      return forbidden('Platform admin access required');
     }
 
     const config = await getBillingConfig();
@@ -98,13 +98,13 @@ export const PUT = withCsrfProtection(async (request: NextRequest) => {
       where: (users, { eq }) => eq(users.id, user.id),
     });
 
-    if (!dbUser || dbUser.role !== 'admin') {
+    if (!dbUser || dbUser.role !== 'platform_admin') {
       logger.security.warn('Non-admin attempted to update billing config', {
         userId: user.id,
         email: user.email,
         role: dbUser?.role
       });
-      return forbidden('Admin access required');
+      return forbidden('Platform admin access required');
     }
 
     const body = await request.json();
