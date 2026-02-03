@@ -144,14 +144,19 @@ ALTER TABLE email_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE email_template_versions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE email_template_test_sends ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (to make migration idempotent)
+DROP POLICY IF EXISTS "Platform admins can manage email templates" ON email_templates;
+DROP POLICY IF EXISTS "Platform admins can view template versions" ON email_template_versions;
+DROP POLICY IF EXISTS "Platform admins can view test sends" ON email_template_test_sends;
+
 -- Only platform admins can manage templates
 CREATE POLICY "Platform admins can manage email templates"
   ON email_templates
   FOR ALL
   USING (
     EXISTS (
-      SELECT 1 FROM users 
-      WHERE users.id = auth.uid() 
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
       AND users.role = 'platform_admin'
     )
   );
@@ -161,8 +166,8 @@ CREATE POLICY "Platform admins can view template versions"
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM users 
-      WHERE users.id = auth.uid() 
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
       AND users.role = 'platform_admin'
     )
   );
@@ -172,8 +177,8 @@ CREATE POLICY "Platform admins can view test sends"
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM users 
-      WHERE users.id = auth.uid() 
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
       AND users.role = 'platform_admin'
     )
   );
