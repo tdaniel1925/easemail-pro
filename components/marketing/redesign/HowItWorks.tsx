@@ -14,21 +14,21 @@ export default function HowItWorks() {
       title: 'Connect Your Accounts',
       description: 'Link all your email accounts (Gmail, Outlook, etc.) in seconds with our secure OAuth integration.',
       icon: Mail,
-      image: '/assets/marketing/email-organization.png',
+      image: '/assets/marketing/connect-accounts.png',
     },
     {
       number: '02',
       title: 'AI Learns Your Style',
       description: 'Our AI analyzes your writing patterns to provide personalized suggestions that match your tone.',
       icon: Sparkles,
-      image: '/assets/marketing/ai-assistant-feature.png',
+      image: '/assets/marketing/ai-learning.png',
     },
     {
       number: '03',
       title: 'Start Being Productive',
       description: 'Experience lightning-fast email management with AI-powered features that save hours every day.',
       icon: Zap,
-      image: '/assets/marketing/productivity-dashboard.png',
+      image: '/assets/marketing/productivity-boost.png',
     },
   ];
 
